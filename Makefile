@@ -1,7 +1,7 @@
 PY := uv run python
 
 .DEFAULT_GOAL := help
-.PHONY: help install ingest reindex index query sync qdrant-forward golden clean
+.PHONY: help install extract ingest reindex index query sync qdrant-forward golden clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -10,13 +10,16 @@ help: ## Show this help
 install: ## Sync Python deps (lancedb, duckdb, fastembed, qdrant-client, ...)
 	uv sync
 
+extract: ## Convert sources/ epub+pdf -> tree/ markdown (idempotent, hash-gated)
+	$(PY) -m kb extract
+
 ingest: ## Incremental ingest: changed markdown -> chunk -> embed -> LanceDB
 	$(PY) -m kb ingest
 
 reindex: ## Rebuild the BM25 full-text index (run after a bulk ingest)
 	$(PY) -m kb reindex
 
-index: ingest reindex ## Full local build: ingest then rebuild FTS index
+index: extract ingest reindex ## Full local build: extract sources, ingest, rebuild FTS index
 
 query: ## Query the local index: make query Q="ebpf network policy"
 	@$(PY) -m kb query $(Q)

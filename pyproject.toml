@@ -10,6 +10,9 @@ dependencies = [
     "qdrant-client>=1.12",
     "pyyaml>=6.0",
     "tantivy>=0.22",       # enables LanceDB full-text (BM25) index for hybrid search
+    "ebooklib>=0.18",      # epub reader (spine -> XHTML) for source extraction
+    "markdownify>=0.13",   # epub XHTML -> heading-preserving markdown
+    "pymupdf4llm>=0.0.17",  # pdf -> markdown (prose books/papers)
 ]
 
 [tool.kb]

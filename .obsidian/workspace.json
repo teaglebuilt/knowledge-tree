@@ -1,0 +1,198 @@
+{
+  "main": {
+    "id": "5730cb78232c7ab2",
+    "type": "split",
+    "children": [
+      {
+        "id": "ce9f75e9b81e10d6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "75521912599ac75e",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "fb536ef9d7a9bb07",
+    "type": "split",
+    "children": [
+      {
+        "id": "fe531b74bf7e995c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "bba1026a76d26d16",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "f50e692499989deb",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "0aafe3ec1f5eca5d",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4c3e39d505734e6e",
+    "type": "split",
+    "children": [
+      {
+        "id": "43cfdb2b42e9df89",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "aeec3beea5ec351b",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib"
+            }
+          },
+          {
+            "id": "8c8913826ed7775c",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib"
+            }
+          },
+          {
+            "id": "a1827a220f9edb22",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "263a5c3a4bf6a322",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "ca9282751aba6214",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "bba1026a76d26d16",
+  "lastOpenFiles": [
+    "tree/specialized_tooling/webassembly/pdf/server-side-webassembly-building-portable-and-secure-multi-language-ap.md",
+    "tree/specialized_tooling/webassembly/pdf",
+    "tree/networking/censorship/pdf/internet-censorship.md",
+    "tree/networking/censorship/pdf/foci-2024-0003.md",
+    "tree/networking/censorship/pdf/decoy-ccs12.md",
+    "tree/networking/censorship/pdf/deploying-xray-core-in-a-home-lab-udm-pro-proxmox-kubernetes.md",
+    "tree/networking/censorship/pdf",
+    "tree/networking/censorship/books/controlled-experimentation-of-digital-forensics-towards-formalization.md",
+    "tree/networking/censorship/books",
+    "tree/ai/pdf/llm-training.md",
+    "tree/ai/pdf/agents.md"
+  ]
+}
