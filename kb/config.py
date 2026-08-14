@@ -11,6 +11,10 @@ ROOT = Path(__file__).resolve().parent.parent
 # A single root is rglob'd, so new domain dirs are picked up automatically.
 KNOWLEDGE_DIRS = os.environ.get("KB_DIRS", "tree").split(",")
 
+# Source binaries (epub/pdf) live here, gitignored, mirroring the `tree/` domains.
+# `kb extract` converts them to markdown written back under KNOWLEDGE_DIRS[0].
+SOURCES_DIR = Path(os.environ.get("KB_SOURCES", ROOT / "sources"))
+
 # Local stores (gitignored). LanceDB is the primary read path.
 LANCEDB_PATH = Path(os.environ.get("KB_LANCEDB", ROOT / ".lancedb"))
 DUCKDB_PATH = Path(os.environ.get("KB_DUCKDB", ROOT / "kb.duckdb"))
