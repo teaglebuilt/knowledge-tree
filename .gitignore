@@ -1,0 +1,15 @@
+.DS_Store
+**/.DS_Store
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Vector store / DB artifacts
+*.duckdb
+*.lance
+.lancedb/
+
+__pycache__*
+.venv
+
+sources/*

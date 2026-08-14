@@ -1,0 +1,24 @@
+[project]
+name = "knowledge-kb"
+version = "0.1.0"
+description = "Local-first RAG pipeline over a git-backed markdown knowledge base (LanceDB local, Qdrant on k8s)."
+requires-python = ">=3.11"
+dependencies = [
+    "lancedb>=0.13",
+    "duckdb>=1.1",
+    "fastembed>=0.4",
+    "qdrant-client>=1.12",
+    "pyyaml>=6.0",
+    "tantivy>=0.22",       # enables LanceDB full-text (BM25) index for hybrid search
+]
+
+[tool.kb]
+# Root(s) holding ingestable markdown — the Obsidian vault lives under `tree/`.
+knowledge_dirs = ["tree"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kb"]

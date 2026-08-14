@@ -1,0 +1,33 @@
+# Golden set — the "answer key" for retrieval quality.
+#
+# Each entry is a question plus the document(s) that SHOULD come back for it.
+# `relevant` matches by path suffix, so you can write just the filename or a
+# partial path (e.g. "04-cilium-network-policy.md").
+#
+# Grow this to ~50 hand-labeled questions covering your real query patterns,
+# then run `make golden` after any tuning change (chunk size, embed model,
+# hybrid weighting) and watch whether recall@k goes up or down.
+
+- question: How does Cilium enforce network policy?
+  relevant:
+    - ebpf/04-cilium-network-policy.md
+
+- question: What is the WebAssembly component model?
+  relevant:
+    - webassembly/06-wasm-component-model.md
+
+- question: How do I run durable, long-running agent execution with Temporal?
+  relevant:
+    - 03-agent-runtime/08-durable-agent-execution-temporal.md
+
+- question: Deep dive on building agents with LangChain and LangGraph
+  relevant:
+    - 03-agent-runtime/01-langchain-langgraph-deep-dive.md
+
+- question: How is internet censorship and data collection studied?
+  relevant:
+    - networking/censorship/index.md
+
+- question: Observing network traffic with Hubble
+  relevant:
+    - ebpf/07-hubble-network-observability.md
