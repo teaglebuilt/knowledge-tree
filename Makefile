@@ -1,7 +1,8 @@
 PY := uv run python
 
 .DEFAULT_GOAL := help
-.PHONY: help install extract ingest reindex index query sync qdrant-forward golden clean
+.PHONY: help install extract ingest reindex index query sync qdrant-forward golden clean \
+        secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -35,3 +36,24 @@ golden: ## Measure retrieval quality (recall@k / MRR) against eval/golden.yaml
 
 clean: ## Remove local vector/db artifacts (LanceDB + DuckDB)
 	rm -rf .lancedb kb.duckdb
+
+secrets-status: ## Per-file: tree/branches.yaml policy vs on-disk state
+	@$(PY) -m kb secrets status $(P)
+
+secrets-encrypt: ## Encrypt every file branches.yaml marks encrypted (idempotent)
+	@$(PY) -m kb secrets encrypt $(P)
+
+secrets-decrypt: ## Decrypt in place so Obsidian + `make ingest` can read them
+	@$(PY) -m kb secrets decrypt $(P)
+
+secrets-check: ## Fail if any file violates the branches.yaml policy
+	@$(PY) -m kb secrets check $(P)
+
+secrets-config: ## Regenerate .sops.yaml from tree/branches.yaml
+	@$(PY) -m kb secrets config
+
+secrets-hooks: ## Install pre-commit + the git textconv driver for encrypted diffs
+	@pre-commit install
+	@git config diff.sops.textconv ./scripts/sops-textconv.sh
+	@git config diff.sops.cachetextconv false
+	@echo "registered diff.sops.textconv (see .gitattributes)"

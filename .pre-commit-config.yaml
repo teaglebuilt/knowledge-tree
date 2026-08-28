@@ -1,0 +1,25 @@
+repos:
+  - repo: local
+    hooks:
+      # Blocks a commit that would land plaintext for a subtree that
+      # tree/branches.yaml marks `encrypted: true` (and ciphertext for one it
+      # marks false). Inspects the *staged* blob, so encrypting the working
+      # copy after `git add` still fails.
+      - id: kb-secrets-check
+        name: knowledge tree encryption policy
+        entry: python -m kb secrets check --staged
+        language: python
+        additional_dependencies: ["pyyaml"]
+        files: ^tree/.*\.md$
+        pass_filenames: true
+        require_serial: true
+
+      # .sops.yaml is generated from branches.yaml — catch the two drifting
+      # apart, e.g. a new directory added under an encrypted subtree.
+      - id: kb-secrets-config
+        name: .sops.yaml matches branches.yaml
+        entry: python -m kb secrets config --check
+        language: python
+        additional_dependencies: ["pyyaml"]
+        files: ^(tree/.*\.md|tree/branches\.yaml|\.sops\.yaml)$
+        pass_filenames: false

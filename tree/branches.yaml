@@ -1,0 +1,8 @@
+---
+networking:
+  branches:
+    censorship:
+      encrypted: true
+      branches:
+        hardware:
+          encrypted: false

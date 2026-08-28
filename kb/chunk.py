@@ -1,9 +1,3 @@
-"""Header-aware, parent-child markdown chunking.
-
-Each markdown heading opens a section (the "parent"); the section body is split
-into token-bounded "child" chunks with overlap. Children carry their parent's
-full section text for context expansion at retrieval time.
-"""
 from __future__ import annotations
 
 import hashlib

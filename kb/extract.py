@@ -1,13 +1,3 @@
-"""Extract source binaries (epub/pdf) -> markdown for ingestion.
-
-Binaries live in `sources/` (gitignored), mirroring the `tree/` domain layout.
-This walks them, converts each to heading-preserving markdown with provenance
-frontmatter, and writes the result to the mirrored path under `tree/` where
-`kb.ingest` picks it up. Runs ahead of ingest (see the `index` Makefile target).
-
-Idempotent: each output records the source binary's sha256 in frontmatter, so a
-file is re-extracted only when its binary changes (or with --force).
-"""
 from __future__ import annotations
 
 import datetime as _dt

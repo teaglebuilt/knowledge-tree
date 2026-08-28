@@ -1,0 +1,4 @@
+# Render sops-encrypted markdown as plaintext in `git diff` / `git log -p`.
+# Needs the local textconv driver registered once: make secrets-git-config
+tree/networking/censorship/**/*.md diff=sops
+*.enc.md                          diff=sops

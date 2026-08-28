@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import config, embed, store
+from . import config, embed, secrets, store
 from .chunk import chunk_doc, parse_doc
 
 
@@ -22,13 +22,22 @@ def run(force: bool = False) -> dict:
     tbl = store.lance_table(db)
 
     seen: set[str] = set()
-    ingested = skipped = 0
+    ingested = skipped = locked = 0
     total_chunks = 0
 
     for fp in _iter_markdown():
         rel = str(fp.relative_to(config.ROOT))
+        raw = fp.read_bytes()
+
+        # Ciphertext would index as noise, and a stale plaintext entry from a
+        # prior run would defeat the point of encrypting. Leave `rel` out of
+        # `seen` so the prune pass below drops it from both stores.
+        if secrets.is_encrypted(raw):
+            locked += 1
+            continue
+
         seen.add(rel)
-        doc = parse_doc(rel, fp.read_text(encoding="utf-8", errors="replace"))
+        doc = parse_doc(rel, raw.decode("utf-8", errors="replace"))
 
         if not force and store.unchanged(con, rel, doc.doc_hash):
             skipped += 1
@@ -64,8 +73,10 @@ def run(force: bool = False) -> dict:
         f"\ningest: {ingested} changed, {skipped} unchanged, "
         f"{len(stale)} pruned, {total_chunks} chunks embedded"
     )
+    if locked:
+        print(f"  {locked} encrypted doc(s) skipped — `make secrets-decrypt` to index them")
     return {"ingested": ingested, "skipped": skipped, "pruned": len(stale),
-            "chunks": total_chunks}
+            "chunks": total_chunks, "encrypted": locked}
 
 
 def reindex():

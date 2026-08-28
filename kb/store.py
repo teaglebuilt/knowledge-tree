@@ -11,9 +11,6 @@ from . import config
 from .chunk import Chunk
 
 
-# ---------------------------------------------------------------------------
-# DuckDB: document/chunk metadata and the incremental-ingest hash gate.
-# ---------------------------------------------------------------------------
 def duck() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(str(config.DUCKDB_PATH))
     con.execute(
