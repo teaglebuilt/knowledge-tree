@@ -1,4 +1,4 @@
-# Knowledge
+# Knowledge Tree
 
 Knowledge as an obsidian vault stored as markdown in git and ingested and indexed context for context.
 
