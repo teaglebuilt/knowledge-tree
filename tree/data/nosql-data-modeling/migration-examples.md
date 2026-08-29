@@ -1,3 +1,11 @@
+---
+title: Relational to NoSQL Migration Examples
+description: Side-by-side SQL and NoSQL query comparisons showing how relational patterns map to document/key-value models.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/nosql-data-modeling/migration-examples.md
+---
 # Relational to NoSQL Migration Examples
 
 Side-by-side SQL and NoSQL query comparisons showing how relational patterns map to document/key-value models.

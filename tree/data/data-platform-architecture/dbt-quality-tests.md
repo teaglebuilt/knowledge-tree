@@ -1,3 +1,11 @@
+---
+title: dbt Data Quality Tests
+description: ```yaml
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/data-platform-architecture/dbt-quality-tests.md
+---
 # dbt Data Quality Tests
 
 ## Built-in + dbt-utils Tests

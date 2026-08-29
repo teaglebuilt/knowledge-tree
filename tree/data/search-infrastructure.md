@@ -1,3 +1,11 @@
+---
+title: Search Infrastructure
+description: | Engine | Best For | Scale | Hybrid Search | Managed Option |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/search-infrastructure.md
+---
 # Search Infrastructure
 
 ## Search Engine Selection

@@ -1,3 +1,11 @@
+---
+title: EDA and Visualization
+description: | Requirement | matplotlib | seaborn | plotly | altair |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/eda-and-visualization.md
+---
 # EDA and Visualization
 
 ## Visualization Library Selection

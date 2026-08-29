@@ -1,3 +1,11 @@
+---
+title: DynamoDB Single-Table Design and GSI Patterns
+description: Extended examples for DynamoDB single-table design, GSI overloading, and query patterns.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/nosql-data-modeling/single-table-patterns.md
+---
 # DynamoDB Single-Table Design and GSI Patterns
 
 Extended examples for DynamoDB single-table design, GSI overloading, and query patterns.

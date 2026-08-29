@@ -1,3 +1,11 @@
+---
+title: Query Engine Integration
+description: Connecting analytic query engines to lakehouse table formats. Each pairing has distinct performance characteristics and use cases.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/data-platform-architecture/query-engines.md
+---
 # Query Engine Integration
 
 Connecting analytic query engines to lakehouse table formats. Each pairing has distinct performance characteristics and use cases.

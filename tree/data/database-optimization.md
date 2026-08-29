@@ -1,3 +1,11 @@
+---
+title: Database Optimization
+description: 1. Run `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` on the slow query
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/database-optimization.md
+---
 # Database Optimization
 
 ## EXPLAIN ANALYZE Workflow

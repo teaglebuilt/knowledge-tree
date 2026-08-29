@@ -1,3 +1,11 @@
+---
+title: Data Platform Architecture
+description: | Need | Component | Key Decision |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/data-platform-architecture.md
+---
 # Data Platform Architecture
 
 ## Platform Component Selection

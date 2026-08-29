@@ -1,3 +1,11 @@
+---
+title: Database Migration
+description: - **Always** backup the database before running migrations in production
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/database-migration.md
+---
 # Database Migration
 
 ## Critical Rules

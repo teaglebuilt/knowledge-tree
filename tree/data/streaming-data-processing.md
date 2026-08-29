@@ -1,3 +1,11 @@
+---
+title: Streaming Data Processing
+description: | Requirement | Framework | Why |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/streaming-data-processing.md
+---
 # Streaming Data Processing
 
 ## Decision Table

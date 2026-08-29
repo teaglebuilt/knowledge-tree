@@ -1,3 +1,11 @@
+---
+title: Jupyter Notebook Patterns
+description: | Scenario | Notebook | Script | Hybrid |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/jupyter-notebook-patterns.md
+---
 # Jupyter Notebook Patterns
 
 ## When to Use

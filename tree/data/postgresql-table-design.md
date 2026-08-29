@@ -1,3 +1,11 @@
+---
+title: PostgreSQL Table Design
+description: - Define a **PRIMARY KEY** for reference tables (users, orders, etc.). Not always needed for time-series/event/log data. When used, prefer `BIGINT GEN
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/postgresql-table-design.md
+---
 # PostgreSQL Table Design 
 
 ## Core Rules

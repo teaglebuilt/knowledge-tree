@@ -1,3 +1,11 @@
+---
+title: ML Pipeline Orchestration
+description: | Criteria | Metaflow | Kubeflow | ZenML |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/ml-pipeline-orchestration.md
+---
 # ML Pipeline Orchestration
 
 ## Orchestrator Selection

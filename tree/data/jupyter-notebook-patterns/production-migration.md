@@ -1,3 +1,11 @@
+---
+title: Production Migration Reference
+description: Extended patterns for notebook-to-production refactoring. See SKILL.md for strategy overview.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/jupyter-notebook-patterns/production-migration.md
+---
 # Production Migration Reference
 
 Extended patterns for notebook-to-production refactoring. See SKILL.md for strategy overview.

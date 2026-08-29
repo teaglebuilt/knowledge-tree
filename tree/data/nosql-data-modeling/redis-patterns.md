@@ -1,3 +1,11 @@
+---
+title: Redis Data Structure Patterns
+description: Extended code examples for Redis hashes, sorted sets, streams, rate limiting, and caching.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/nosql-data-modeling/redis-patterns.md
+---
 # Redis Data Structure Patterns
 
 Extended code examples for Redis hashes, sorted sets, streams, rate limiting, and caching.

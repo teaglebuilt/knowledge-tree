@@ -1,3 +1,11 @@
+---
+title: Apache Spark Optimization
+description: | Factor | Impact | Solution |
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/spark-optimization.md
+---
 # Apache Spark Optimization
 
 ## Key Performance Factors

@@ -1,3 +1,11 @@
+---
+title: Web Scraping and Data Collection
+description: Scrapy spiders, Playwright browser automation, httpx async extraction, rate limiting, pagination, and data cleaning pipelines.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/web-scraping-and-data-collection.md
+---
 # Web Scraping and Data Collection
 
 Scrapy spiders, Playwright browser automation, httpx async extraction, rate limiting, pagination, and data cleaning pipelines.

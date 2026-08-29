@@ -1,3 +1,11 @@
+---
+title: MongoDB Schema Design Examples
+description: Extended code examples for MongoDB schema patterns and index strategies.
+tags: ['data']
+created: 2026-08-28
+last_updated: 2026-08-28
+source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/data/nosql-data-modeling/mongodb-schema-examples.md
+---
 # MongoDB Schema Design Examples
 
 Extended code examples for MongoDB schema patterns and index strategies.
