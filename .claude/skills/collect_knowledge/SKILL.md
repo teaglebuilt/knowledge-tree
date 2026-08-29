@@ -1,7 +1,7 @@
 ---
 name: collect_knowledge
 description: Collect and import knowledge from local files or directories into the knowledge tree, translating any non-English content to English first and verifying the translation before anything is merged. Analyzes content to determine domain placement, evaluates whether the knowledge already exists in the tree, decides optimal organization (new file, merge, or skip), and generates frontmatter. Use this skill whenever importing local markdown, documentation, notes, or text files from an external directory into the tree — especially when the source may be in another language, when you need deduplication against existing content, or when a corpus needs organizing by domain.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Glob, Grep
 ---
 
 # Collect Knowledge
@@ -64,43 +64,15 @@ STAGE=/tmp/collect-staging
 mkdir -p "$STAGE/01-identity"
 ```
 
-### 3. Translate — delegate to Haiku
+### 3. Translate
 
-**Translation is execution, not judgment. Dispatch it to Haiku subagents rather than doing it inline.**
+For each file that isn't `CLEAN`.
 
-The decisions in this skill — which domain a file belongs to, whether something is a duplicate, whether a failing check is a real problem — are judgment and belong to the orchestrating model. Rendering Chinese prose into English while preserving markdown is mechanical, high-volume, and the single largest token cost in the whole workflow. Running it inline is the expensive way to get the same result, and on a corpus of any size it will exhaust context before the batch finishes.
+**Read the translation rules below before starting**, and skim `references/translation-rules.md` for the cases the summary can't settle — mixed-language files, text that should legitimately stay in the source language, and ambiguous inline code.
 
-Dispatch one Haiku subagent per file (or per chunk, for large files) with `Task`, setting `model: "haiku"`:
+**Small files (under ~400 lines):** read, translate, write the whole file to staging.
 
-```
-Task(
-  model: "haiku",
-  prompt: """
-    Translate this file to English and write the result to <staging-path>.
-    Source: <source-path>            # for a chunk: lines N-M only
-    Read these rules first and follow them exactly:
-      <skill-path>/references/translation-rules.md
-    Translate — do not summarize, improve, or reorganize. Every heading, table
-    row, list item and code block in the source must appear in your output.
-    Do not modify the source file.
-  """
-)
-```
-
-Because subagents run in parallel and can't see each other's terminology choices, two guards matter:
-
-- **Chunks of the same file must go to the same agent, in order**, or terminology drifts mid-document. Parallelize across *files*, serialize within one.
-- **Never trust a subagent's "done."** It reports success; step 4 decides. This is the entire reason the gate exists — a reported-complete translation with an untranslated frontmatter block looks identical to a correct one until something checks.
-
-Batch dispatch, then gate the whole batch at once. Re-dispatch only the files that failed, quoting the specific failure so the retry is targeted rather than a blind re-translation.
-
-#### What to dispatch, per file
-
-Every file that isn't `CLEAN` needs a job. Read the translation rules below before writing the first prompt, and skim `references/translation-rules.md` for the cases the summary can't settle — mixed-language files, text that should legitimately stay in the source language, and ambiguous inline code. Point each subagent at that reference too; it's written to be read by whoever does the work.
-
-**Small files (under ~400 lines):** one job — translate the whole file to staging.
-
-**Large files:** get a chunk plan first —
+**Large files:** ask for a chunk plan first —
 
 ```bash
 python scripts/lang_scan.py <file> --plan
@@ -138,51 +110,19 @@ Warnings (`!`) don't block, but read them. The two that matter most:
 - **Line-count delta beyond ±15%** (the default `line_delta_tolerance`). A large *negative* delta usually means a section was summarized away rather than translated — check the chunk seams first.
 - **Non-Latin text inside code.** Usually a comment that was missed. Occasionally a legitimate string literal, which is why it warns rather than blocks.
 
-### 5. Analyze and deduplicate
+### 5. Analyze, deduplicate, and place
 
 Only once the content is in English:
 
-- Determine the domain (`networking`, `infrastructure`, `security`, `ai`, etc.) and pick a destination under `tree/<domain>/`, using subdirectories where a topic warrants it
+- Determine the domain (`networking`, `infrastructure`, `security`, `ai`, etc.) and place under `tree/<domain>/`, using subdirectories where a topic warrants it
 - Query the tree for near-duplicates using [[query_knowledge]] — semantic similarity plus metadata overlap
-- Decide per file: **new** → promote it; **duplicate** → skip and note it; **supplement** → merge into the existing file or add a cross-reference
+- Decide per file: **new** → write it; **duplicate** → skip and note it; **supplement** → merge or cross-reference
 
 This ordering is deliberate. Similarity search against an English tree using a source-language query returns noise, so deduplication before translation produces a bad answer.
 
-### 6. Promote into the tree
+### 6. Move files into tree
 
-Staging exists so the tree only ever receives verified content. Move each **new** file to the destination you chose:
-
-```bash
-STAGE=/tmp/collect-staging
-DEST=tree/security/incident-response          # the domain path you decided in step 5
-
-mkdir -p "$DEST"
-cp "$STAGE/07-incident-response/01-security-incident-response-playbook.md" "$DEST/"
-```
-
-Copy rather than move, so staging stays intact if you need to re-check something. The source layout and the tree layout are usually *different* — step 2's mirroring existed to pair files with their originals for verification, not to dictate where they belong. Reorganize freely here.
-
-Three things to settle as you promote:
-
-1. **Rewrite intra-corpus links.** A file that linked to `[[domain-05-security/README.md|Back to index]]` now needs the tree path. Links to files you didn't collect will dangle — list them in the report rather than deleting them; a dangling link is a useful marker of something worth collecting later, but only if someone knows it exists.
-2. **Merge candidates aren't copies.** If a file supplements existing tree content, edit the existing file and cross-reference; don't drop a near-duplicate beside it.
-3. **Update `source_path`** if you renamed the file, so provenance still resolves.
-
-Then re-run the gate against the tree itself, because promotion can introduce problems staging never had — a bad merge, a broken rewritten link:
-
-```bash
-python scripts/lang_scan.py tree/ --gate
-```
-
-Finally, index the new content so it becomes searchable:
-
-```bash
-make ingest && make reindex
-```
-
-### 7. Report
-
-Summarize: files collected and where they landed, files translated and from which language, duplicates skipped, merge candidates, and anything left for manual review.
+Move staged files into the knowledge tree `tree/` folder. Use the folder or subfolders best suited and create the folders needed if they do not exist.
 
 ---
 
@@ -254,12 +194,16 @@ The `--gate` form is suitable for a pre-commit hook or CI step, so untranslated 
 
 ---
 
-## After collecting
+## Next steps
 
-The gate proves structure and completeness. It cannot prove the translation is *good*, so two things remain human-shaped:
+After collecting:
 
-1. **Spot-check terminology** on a translated file against its original. The verifier confirms nothing was dropped and no source language remains; it has no opinion on whether a domain term was rendered well.
-2. **Query what you collected** with [[query_knowledge]] to confirm the new material actually surfaces for the questions it should answer. If it doesn't, the `title`/`description`/`summary` are usually the reason.
+1. **Review the report** — placements, translations, duplicates, merge candidates
+2. **Spot-check a translated file** against its original for terminology accuracy — the verifier checks structure and completeness, not whether "承载网" was rendered well
+3. **Handle merge candidates** — integrate and update cross-references
+4. **Verify organization** — confirm domain placement; add subdirectories where a topic has grown
+5. **Index** — run `make ingest && make reindex`
+6. **Query** — use [[query_knowledge]] to retrieve the new material
 
 ## Related
 
