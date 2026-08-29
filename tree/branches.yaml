@@ -1,4 +1,9 @@
 ---
+ai:
+application:
+business:
+data:
+infrastructure:
 networking:
   branches:
     censorship:
@@ -6,3 +11,8 @@ networking:
       branches:
         hardware:
           encrypted: false
+platform-engineering:
+product:
+security:
+specialized_tooling:
+sre:

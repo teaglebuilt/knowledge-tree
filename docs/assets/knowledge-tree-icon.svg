@@ -1,0 +1,44 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="canopy" x1="112" y1="72" x2="400" y2="344" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#86EFAC"/>
+      <stop offset="0.5" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+    <linearGradient id="trunk" x1="256" y1="228" x2="256" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A3E635"/>
+      <stop offset="1" stop-color="#15803D"/>
+    </linearGradient>
+  </defs>
+
+  <!-- canopy / knowledge network -->
+  <path d="M256 72C187 72 130 120 119 184C78 194 48 231 48 275C48 327 90 369 142 369H370C422 369 464 327 464 275C464 231 434 194 393 184C382 120 325 72 256 72Z"
+        fill="url(#canopy)" opacity="0.14"/>
+
+  <!-- branches -->
+  <path d="M256 410V250M256 286L182 205M256 303L330 218M256 254L256 145M211 237L149 266M301 248L365 282"
+        stroke="url(#trunk)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- knowledge edges -->
+  <path d="M256 145L181 161M256 145L332 158M182 205L123 222M182 205L149 266M330 218L389 229M330 218L365 282"
+        stroke="url(#canopy)" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- knowledge nodes -->
+  <circle cx="256" cy="145" r="23" fill="#22C55E"/>
+  <circle cx="181" cy="161" r="19" fill="#4ADE80"/>
+  <circle cx="332" cy="158" r="19" fill="#16A34A"/>
+  <circle cx="182" cy="205" r="21" fill="#4ADE80"/>
+  <circle cx="330" cy="218" r="21" fill="#16A34A"/>
+  <circle cx="123" cy="222" r="17" fill="#86EFAC"/>
+  <circle cx="149" cy="266" r="17" fill="#86EFAC"/>
+  <circle cx="389" cy="229" r="17" fill="#0F766E"/>
+  <circle cx="365" cy="282" r="17" fill="#0F766E"/>
+
+  <!-- roots -->
+  <path d="M256 408L201 449M256 408L311 449M256 408V456"
+        stroke="#15803D" stroke-width="20" stroke-linecap="round"/>
+
+  <!-- subtle center node -->
+  <circle cx="256" cy="286" r="15" fill="#ECFCCB"/>
+  <circle cx="256" cy="286" r="8" fill="#22C55E"/>
+</svg>
