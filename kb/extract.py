@@ -11,8 +11,6 @@ from . import config
 from .chunk import _FRONTMATTER
 
 BINARY_SUFFIXES = {".epub", ".pdf"}
-
-# z-library / 1lib download-site noise that litters the filenames.
 _ZLIB_NOISE = re.compile(
     r"\(?\s*(?:z-?librar(?:y)?\.?sk|1lib\.?sk|z-?lib\.?sk|z-librarysk|1libsk)\s*[,)]*",
     re.IGNORECASE,
@@ -46,8 +44,6 @@ def _collapse_blank(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-# --- converters (imports are lazy so the base pipeline needs no epub/pdf deps) --
-
 def _epub_to_md(path: Path) -> str:
     import ebooklib
     from ebooklib import epub
@@ -55,7 +51,6 @@ def _epub_to_md(path: Path) -> str:
 
     book = epub.read_epub(str(path))
 
-    # Prefer spine order (reading order); fall back to document order.
     items = []
     try:
         for entry in book.spine:
@@ -83,10 +78,6 @@ def _epub_to_md(path: Path) -> str:
 def _pdf_to_md(path: Path) -> str:
     import pymupdf4llm
 
-    # These are born-digital text PDFs (books/papers), not scans. Disable the
-    # per-page layout GNN + Tesseract OCR that newer pymupdf4llm enables by
-    # default — it's minutes-slow and buys nothing here. The legacy text path
-    # derives headings from font sizes, which the header-aware chunker wants.
     try:
         pymupdf4llm.use_layout(False)
     except Exception:

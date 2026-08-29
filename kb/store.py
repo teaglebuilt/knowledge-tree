@@ -68,9 +68,6 @@ def known_paths(con) -> set[str]:
     return {r[0] for r in con.execute("SELECT path FROM documents").fetchall()}
 
 
-# ---------------------------------------------------------------------------
-# LanceDB: vectors + full-text index (hybrid = vector + BM25 -> RRF).
-# ---------------------------------------------------------------------------
 def _schema() -> pa.Schema:
     return pa.schema(
         [
