@@ -1,8 +1,3 @@
-"""Retrieval eval: recall@k and MRR against a labeled golden set.
-
-Turns tuning from guessing into measuring. Change one knob (chunk size, embed
-model, hybrid weighting), re-run, and see whether the numbers move.
-"""
 from __future__ import annotations
 
 import yaml

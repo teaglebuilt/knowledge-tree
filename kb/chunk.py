@@ -14,7 +14,7 @@ _HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
 
 @dataclass
 class Doc:
-    path: str          # repo-relative path
+    path: str
     title: str
     tags: list[str]
     body: str          # markdown minus frontmatter
