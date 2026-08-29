@@ -4,6 +4,7 @@ description: | Category | Threat | Control Family | Key Questions |
 tags: ['security']
 created: 2026-08-28
 last_updated: 2026-08-28
+original_language: Chinese
 source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/security/security-analysis.md
 ---
 # Security Analysis

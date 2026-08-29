@@ -4,6 +4,7 @@ description: - **Never** commit plaintext secrets to Git -- use pre-commit scann
 tags: ['security']
 created: 2026-08-28
 last_updated: 2026-08-28
+original_language: Chinese
 source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/security/secrets-management.md
 ---
 # Secrets Management

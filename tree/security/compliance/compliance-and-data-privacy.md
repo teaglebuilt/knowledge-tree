@@ -4,6 +4,7 @@ description: - **Never** store full track data, CVV/CVC, or PINs -- PCI-DSS viol
 tags: ['security']
 created: 2026-08-28
 last_updated: 2026-08-28
+original_language: Chinese
 source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/security/compliance-and-data-privacy.md
 ---
 # Compliance & Data Privacy
