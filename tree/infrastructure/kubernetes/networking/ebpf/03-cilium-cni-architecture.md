@@ -53,7 +53,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 cross_refs:
 - type: fta
@@ -2329,7 +2329,7 @@ cilium debuginfo                       # Debug information
 
 ---
 
-*Document maintained by: kudig.io Technical Team | Reference: Cilium official documentation docs.cilium.io | Last updated: 2026-03*
+*Document maintained by: Dillan Teagle | Reference: Cilium official documentation docs.cilium.io | Last updated: 2026-03*
 
 ---
 

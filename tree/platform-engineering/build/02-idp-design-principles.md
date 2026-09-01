@@ -51,7 +51,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./build/99-backstage-idp-guide.md
 original_language: Chinese

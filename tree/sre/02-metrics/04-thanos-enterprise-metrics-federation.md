@@ -1,5 +1,4 @@
----
-title: Thanos Enterprise Metrics Federation and Long-term Storage
+---title: Thanos Enterprise Metrics Federation and Long-term Storage
 description: Best practices for Thanos Enterprise Metrics Federation
 summary: Best practices for Thanos Enterprise Metrics Federation
 category: general
@@ -40,6 +39,9 @@ prerequisites:
 - prometheus-basics
 - monitoring-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/02-metrics/04-thanos-enterprise-metrics-federation.md
 ---
 
@@ -102,7 +104,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick reference: promql'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

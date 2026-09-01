@@ -51,7 +51,7 @@ k8s_versions:
 - '1.32'
 - '1.33'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 ---
 

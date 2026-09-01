@@ -1,5 +1,4 @@
----
-title: Policy Controller Image Verification
+---title: Policy Controller Image Verification
 description: '- Policy Controller Image Verification best practices'
 summary: '- Policy Controller Image Verification best practices'
 category: general
@@ -45,6 +44,9 @@ prerequisites:
 - gitops-basics
 - policy-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/05-supply-chain/09-policy-controller-verification.md
 ---
 
@@ -102,7 +104,7 @@ trigger_keywords:
 - Verification
 - supply
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

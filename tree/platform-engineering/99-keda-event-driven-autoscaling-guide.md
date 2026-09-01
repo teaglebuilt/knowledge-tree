@@ -41,7 +41,7 @@ k8s_versions:
 - '1.32'
 - '1.33'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/99-production-readiness-operations-guide.md
 original_language: Chinese

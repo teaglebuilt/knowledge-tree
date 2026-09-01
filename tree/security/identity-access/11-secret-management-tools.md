@@ -48,12 +48,9 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 cross_refs:
-- type: domain
-  path: ../domain-01-cluster-fundamentals/
-  label: 'Related Knowledge Domain: domain-01-cluster-fundamentals'
 - type: domain
   path: ../domain-06-observability/
   label: 'Related Knowledge Domain: domain-06-observability'
@@ -61,7 +58,6 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/tls-pki.md
   label: 'Cheat sheet: tls-pki'
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/01-identity-access/11-secret-management-tools.md
-original_language: Chinese
 ---
 
 > **Production Environment Security Warning**

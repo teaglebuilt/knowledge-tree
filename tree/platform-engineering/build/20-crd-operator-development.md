@@ -1,5 +1,4 @@
----
-title: Governance
+---title: Governance
 description: Governance directory index
 summary: Governance directory index
 category: index
@@ -8,6 +7,9 @@ tags:
 tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./governance/index.md
 original_language: Chinese
 ---

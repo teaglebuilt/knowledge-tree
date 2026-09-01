@@ -49,7 +49,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: "Quick Reference: promql"
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

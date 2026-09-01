@@ -1,5 +1,4 @@
----
-title: 52 - Chaos Engineering Practices
+---title: 52 - Chaos Engineering Practices
 description: 'title: 52 - Chaos Engineering Practices'
 summary: 'title: 52 - Chaos Engineering Practices'
 category: general
@@ -38,6 +37,9 @@ prerequisites:
 - ebpf-basics
 - mysql-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/14-chaos-engineering.md
 ---
 
@@ -94,7 +96,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick Reference: promql'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

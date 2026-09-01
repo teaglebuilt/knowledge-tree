@@ -1,5 +1,4 @@
----
-title: Platform Engineering
+---title: Platform Engineering
 description: Consolidate platform knowledge from the original domain-07-platform-engineering/36, covering platform construction (IDP/Backstage), platform operations execution, and platform governance.
 summary: Consolidate platform knowledge from the original domain-07-platform-engineering/36, covering platform construction (IDP/Backstage), platform operations execution, and platform governance.
 category: domain
@@ -32,6 +31,9 @@ prerequisites:
 - kubectl-basics
 - platform-engineering-basics
 - gpu-scheduling-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./README.md
 original_language: Chinese
 ---

@@ -47,7 +47,7 @@ k8s_versions:
 original_language: Chinese
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/04-graylog-enterprise-logging.md
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 ---
 

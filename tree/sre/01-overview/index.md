@@ -1,5 +1,4 @@
----
-title: Overview
+---title: Overview
 description: Overview Directory Index
 summary: Overview Directory Index
 category: index
@@ -9,6 +8,9 @@ tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/index.md
 ---
 

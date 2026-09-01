@@ -1,5 +1,7 @@
----
-original_language: Chinese
+---original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/03-loki-enterprise-log-aggregation.md
 title: Loki Enterprise Log Aggregation and Analytics Platform
 description: Best practices for Loki enterprise log aggregation
@@ -99,7 +101,7 @@ trigger_keywords:
 - Platform
 - logging
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

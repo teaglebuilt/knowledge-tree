@@ -1,5 +1,4 @@
----
-title: 12-Automated Operations Toolchain
+---title: 12-Automated Operations Toolchain
 description: 'title: 12-Automated Operations Toolchain'
 summary: 'title: 12-Automated Operations Toolchain'
 category: general
@@ -35,6 +34,9 @@ prerequisites:
 - helm-basics
 - prometheus-basics
 - iac-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./12-automated-operations-toolchain.md
 original_language: Chinese
 ---
@@ -77,7 +79,7 @@ trigger_keywords:
 - production
 - operations
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

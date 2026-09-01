@@ -1,5 +1,4 @@
----
-title: AI
+---title: AI
 description: AI agents, agent platforms, context engineering, and LLM training.
 summary: directory index
 category: index
@@ -7,6 +6,10 @@ tags:
 - index
 - ai
 last_updated: 2026-08-14
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 # AI

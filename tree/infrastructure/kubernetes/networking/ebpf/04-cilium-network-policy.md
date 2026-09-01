@@ -52,7 +52,7 @@ cross_refs:
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/cilium-fta.md
   label: 'Fault tree: cilium'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'
@@ -2747,7 +2747,7 @@ hubble observe \
 
 ---
 
-*Document maintained by: kudig.io Technical Team | Reference: Cilium network policy documentation docs.cilium.io/en/stable/network/kubernetes/policy/ | Last updated: 2026-03*
+*Document maintained by: Dillan Teagle | Reference: Cilium network policy documentation docs.cilium.io/en/stable/network/kubernetes/policy/ | Last updated: 2026-03*
 
 ---
 

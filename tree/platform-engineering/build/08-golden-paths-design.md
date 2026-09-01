@@ -1,5 +1,4 @@
----
-title: Build
+---title: Build
 description: Build Directory Index
 summary: Build Directory Index
 category: index
@@ -8,6 +7,9 @@ tags:
 tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./build/index.md
 original_language: Chinese
 ---

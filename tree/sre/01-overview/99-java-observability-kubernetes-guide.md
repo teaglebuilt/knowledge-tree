@@ -1,5 +1,4 @@
----
-title: Java Application Kubernetes Observability Integration Guide
+---title: Java Application Kubernetes Observability Integration Guide
 description: 'title: Java Application Kubernetes Observability Integration Guide'
 summary: 'title: Java Application Kubernetes Observability Integration Guide'
 category: general
@@ -41,6 +40,9 @@ prerequisites:
 - logging-basics
 - tracing-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/99-java-observability-kubernetes-guide.md
 ---
 
@@ -100,7 +102,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick Reference: promql'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

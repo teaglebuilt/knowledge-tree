@@ -1,53 +1,22 @@
----
-title: Censorship
-description: Understanding how data is collected across the internet
-summary: directory index
-category: index
-tags:
-- index
-created: '2026-08-02'
-last_updated: 2026-08-07
----
-
-# Censorship
-
-## Approaches
-
-### XRAY VLESS
-
-**Internal**
-
-- [XTLS Market Research](/Users/teaglebuilt/github/opensource/xtls/MARKET_RESEARCH.md)
-- [XRAY Operator](/Users/teaglebuilt/github/opensource/xtls/xray-operator/docs)
-- [Deploying Xray-core in a Home Lab (UDM Pro + Proxmox + Kubernetes)](../../../sources/networking/censorship/pdf/Deploying%20Xray-core%20in%20a%20Home%20Lab%20(UDM%20Pro%20+%20Proxmox%20+%20Kubernetes).pdf) — source PDF
-
-**External**
-
-- XTLS: https://xtls.github.io/llms.txt
-
-### Webassembly Transport Executable Runtime
-
-**Internal**
-
-- [Just Add Water Research Paper (WebAssembly Transport Executables Runtime)](../../../sources/networking/censorship/pdf/foci-2024-0003.pdf)
-- [WATER / WATM vs Tor and other circumvention transports](./research/watm_deep_research.md) — deep-research comparison + how it's used today
-- [WATER + Spin in the homelab](./examples/water-spin-homelab/README.md) — applied design: egress-obfuscation layer + WATM distribution control plane
-
-**External**
-
-- https://pluggabletransports.info/
-
-## Research
-
-### Internal
-
-Source binaries live under [`sources/networking/censorship/`](../../../sources/networking/censorship) (gitignored; see [MANIFEST](../../../sources/MANIFEST.md)).
-
-- [Internet Censorship](../../../sources/networking/censorship/pdf/internet-censorship.pdf)
-- [Routing Around Decoys](../../../sources/networking/censorship/pdf/decoy-ccs12.pdf)
-- [Controlled Experimentation of Digital Forensics](../../../sources/networking/censorship/books/Controlled%20Experimentation%20of%20Digital%20Forensics%20Towards%20Formalization%20for%20Strengthening%20Evidence%20Reproducibility,%20Reliability,%E2%80%A6%20(Edson%20Oliveira,%20Jr.,%20Thiago%20J.%20Silva%20etc.)%20(z-library.sk,%201lib.sk,%20z-lib.sk).epub) — Oliveira, Silva et al.
-
-### External Sources
-
-- https://github.com/net4people/bbs/issues - conversations from cencorship community
-- https://censorbib.nymity.ch - network cencorship research papers
+{
+	"data": "ENC[AES256_GCM,data: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,iv:6TmNr5EnVUywqgxzZBZ6cWMVJfCR8gEVaQ6oDQhYJHA=,tag:9sL4F2PvZbE0aZdLpYiFoQ==,type:str]",
+	"sops": {
+		"kms": [
+			{
+				"arn": "arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28",
+				"created_at": "2026-09-01T20:16:09Z",
+				"enc": "AQICAHgf2Bz/yC/N+d80dqtXyzpCypiaZx1Lgwl8YcJR1TYnOAHryA8V0KAhO/R3zJjxQ5XaAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMjCO5migBS/OKop+kAgEQgDscjW8b4p3Nty9VkcQMKr3+PbjBP/BPp9eYrBmxEWpLIpCrHqrePrrx09kIlj6jcvDo+OlMhWcFPmWdLA==",
+				"aws_profile": ""
+			}
+		],
+		"gcp_kms": null,
+		"azure_kv": null,
+		"hc_vault": null,
+		"age": null,
+		"lastmodified": "2026-09-01T20:16:09Z",
+		"mac": "ENC[AES256_GCM,data:Tn2JLbIxaenzw+R2akC7whQ9BK/8ZIi9/1xV15sWyCjK9vjrNa6I47DxQwAWDEqzMe+1kOUjE2SdiuqHSTh63rVbIbBGLrBApGsLviAn5yAoLTz9VMmdW07Z4QkYJQcBA53N6mv6ymbq787D2r3L7TS3ckLaoioJQ2hotMaSkWo=,iv:0izf+UgaK1dGYeDIT627p25j9rTLK+Wjv3UOauv+OOY=,tag:5kM5cTYXIOL+Vo5X6TOVkQ==,type:str]",
+		"pgp": null,
+		"unencrypted_suffix": "_unencrypted",
+		"version": "3.8.1"
+	}
+}

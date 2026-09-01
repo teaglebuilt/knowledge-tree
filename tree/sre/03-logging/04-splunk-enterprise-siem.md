@@ -1,5 +1,7 @@
----
-original_language: Chinese
+---original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/04-splunk-enterprise-siem.md
 title: Splunk Enterprise-Grade Log Analysis and Security Intelligence Platform In-Depth Practice
 description: 'title: Splunk Enterprise-Grade Log Analysis and Security Intelligence Platform In-Depth Practice'
@@ -74,7 +76,7 @@ trigger_keywords:
 - management
 - analytics
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

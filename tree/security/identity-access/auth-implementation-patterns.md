@@ -4,7 +4,6 @@ description: - **Never** store JWTs in localStorage -- vulnerable to XSS; use ht
 tags: ['security']
 created: 2026-08-28
 last_updated: 2026-08-28
-original_language: Chinese
 source_path: /Users/teaglebuilt/github/teaglebuilt/aiconfig/context/knowledge/security/auth-implementation-patterns.md
 ---
 # Authentication & Authorization Implementation Patterns

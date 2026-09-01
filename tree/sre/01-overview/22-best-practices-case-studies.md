@@ -1,5 +1,4 @@
----
-title: 25 - Observability Platform Best Practices & Case Studies
+---title: 25 - Observability Platform Best Practices & Case Studies
 description: Comprehensive guide covering industry-leading observability platform best practices, real enterprise case studies, and technology selection frameworks for building modern observability systems
 summary: Collection of industry-leading observability platform best practices, real enterprise case studies, and technology selection frameworks for modern observability systems
 category: general
@@ -46,6 +45,9 @@ prerequisites:
 - logging-basics
 - tracing-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/22-best-practices-case-studies.md
 ---
 
@@ -108,7 +110,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick reference: promql'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

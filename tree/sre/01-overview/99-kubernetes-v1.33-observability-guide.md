@@ -1,5 +1,4 @@
----
-title: Kubernetes v1.29-v1.33 Observability New Features Guide
+---title: Kubernetes v1.29-v1.33 Observability New Features Guide
 description: 'title: Kubernetes v1.29-v1.33 Observability New Features Guide'
 summary: 'title: Kubernetes v1.29-v1.33 Observability New Features Guide'
 category: general
@@ -41,6 +40,9 @@ prerequisites:
 - logging-basics
 - tracing-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/99-kubernetes-v1.33-observability-guide.md
 ---
 
@@ -99,7 +101,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick reference: promql'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

@@ -1,5 +1,4 @@
----
-title: eBPF
+---title: eBPF
 description: eBPF directory index
 summary: eBPF directory index
 category: index
@@ -8,6 +7,10 @@ tags:
 tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 

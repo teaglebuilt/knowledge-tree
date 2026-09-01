@@ -1,5 +1,4 @@
----
-title: Performance Benchmarking & Tuning
+---title: Performance Benchmarking & Tuning
 description: '**Target Audience**: Performance Engineers, SRE Team, Platform Architects'
 summary: '**Target Audience**: Performance Engineers, SRE Team, Platform Architects'
 category: general
@@ -40,6 +39,9 @@ prerequisites:
 - cilium-basics
 - cni-basics
 - etcd-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./governance/04-performance-benchmarking-tuning.md
 original_language: Chinese
 ---
@@ -95,7 +97,7 @@ cross_refs:
   path: ../domain-10-troubleshooting-diagnostics/
   label: 'Related Knowledge Domain: domain-10-troubleshooting-diagnostics'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

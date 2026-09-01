@@ -1,5 +1,4 @@
----
-title: ELK Stack Enterprise-Level Log Management System - In-Depth Practice
+---title: ELK Stack Enterprise-Level Log Management System - In-Depth Practice
 description: Comprehensive guide to ELK Stack architecture design, deployment practices, and operational management for enterprise log platforms
 summary: Comprehensive guide to ELK Stack architecture design, deployment practices, and operational management for enterprise log platforms
 category: general
@@ -37,6 +36,9 @@ prerequisites:
 - kafka-basics
 - logging-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/01-elk-stack-enterprise-logging.md
 ---
 
@@ -80,7 +82,7 @@ trigger_keywords:
 - management
 - analytics
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

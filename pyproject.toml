@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Local-first RAG pipeline over a git-backed markdown knowledge base (LanceDB local, Qdrant on k8s)."
 requires-python = ">=3.11"
 dependencies = [
-    "lancedb>=0.13",
+    "lancedb>=0.25.3",
     "duckdb>=1.1",
     "fastembed>=0.4",
     "qdrant-client>=1.12",
@@ -13,6 +13,9 @@ dependencies = [
     "ebooklib>=0.18",      # epub reader (spine -> XHTML) for source extraction
     "markdownify>=0.13",   # epub XHTML -> heading-preserving markdown
     "pymupdf4llm>=0.0.17",  # pdf -> markdown (prose books/papers)
+    # Newest releases of these dropped macOS x86_64 wheels; cap until this
+    # machine moves to arm64, otherwise `uv sync` cannot resolve at all.
+    "onnxruntime<1.24",
 ]
 
 [tool.kb]

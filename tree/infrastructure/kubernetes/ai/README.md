@@ -1,5 +1,4 @@
----
-title: AI/ML Infrastructure
+---title: AI/ML Infrastructure
 description: 整合原 domain-14-ai-ml-infra/41 的 AI 基础设施知识，涵盖 GPU 调度、分布式训练、AI Agent 和 MLOps。
 summary: 整合原 domain-14-ai-ml-infra/41 的 AI 基础设施知识，涵盖 GPU 调度、分布式训练、AI Agent 和 MLOps。
 category: domain
@@ -34,6 +33,10 @@ trigger_keywords:
 prerequisites:
 - kubectl-basics
 - gpu-scheduling-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 > **生产环境安全提示**

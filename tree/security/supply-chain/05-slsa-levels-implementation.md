@@ -45,7 +45,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/05-supply-chain/05-slsa-levels-implementation.md
 original_language: Chinese

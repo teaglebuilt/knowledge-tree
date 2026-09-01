@@ -1,5 +1,4 @@
----
-title: Compliance Automation and Audit
+---title: Compliance Automation and Audit
 description: 'Best practices for compliance-automation-audit'
 summary: 'Best practices for compliance-automation-audit'
 category: general
@@ -44,6 +43,9 @@ prerequisites:
 - iac-basics
 - tls-basics
 - policy-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/05-supply-chain/10-compliance-automation-audit.md
 original_language: Chinese
 ---
@@ -102,7 +104,7 @@ trigger_keywords:
 - chain
 - security
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

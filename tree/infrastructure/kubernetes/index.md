@@ -1,5 +1,4 @@
----
-title: Kubernetes
+---title: Kubernetes
 description: Kubernetes directory index
 summary: Kubernetes directory index
 category: index
@@ -8,8 +7,14 @@ tags:
 tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 # Kubernetes
 
-- [Networking](./networking/)
+- [AI](./ai/index.md)
+- [Networking](./networking/index.md)
+- [WebAssembly](./webassembly/index.md)

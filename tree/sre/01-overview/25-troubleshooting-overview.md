@@ -1,5 +1,4 @@
----
-title: 10 - Kubernetes Production Environment Troubleshooting Guide
+---title: 10 - Kubernetes Production Environment Troubleshooting Guide
 description: Comprehensive guide to troubleshooting Kubernetes production environments with proven methodologies and deep diagnostic techniques
 summary: Systematic troubleshooting methodologies, toolchains, and best practices for Kubernetes production environments covering Pod, Node, networking, storage, control plane and other components
 category: general
@@ -42,6 +41,9 @@ prerequisites:
 - cni-basics
 - etcd-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/01-overview/25-troubleshooting-overview.md
 ---
 

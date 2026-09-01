@@ -1,5 +1,4 @@
----
-title: Cluster Lifecycle Management
+---title: Cluster Lifecycle Management
 description: 'title: Cluster Lifecycle Management'
 summary: 'title: Cluster Lifecycle Management'
 category: general
@@ -43,6 +42,9 @@ prerequisites:
 - cilium-basics
 - cni-basics
 - etcd-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./operate/02-cluster-lifecycle-management.md
 original_language: Chinese
 ---
@@ -97,7 +99,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 related_docs:
 - path: 01-platform-ops-overview.md

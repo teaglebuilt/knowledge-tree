@@ -90,7 +90,7 @@ trigger_keywords:
 - platform
 - engineering
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

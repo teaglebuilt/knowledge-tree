@@ -49,7 +49,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 original_language: Chinese
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/02-metrics/11-custom-metrics-adapter.md

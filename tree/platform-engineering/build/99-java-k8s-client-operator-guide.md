@@ -1,5 +1,4 @@
----
-title: Platform Operations Overview
+---title: Platform Operations Overview
 description: 'title: Platform Operations Overview'
 summary: 'title: Platform Operations Overview'
 category: general
@@ -48,6 +47,9 @@ prerequisites:
 - logging-basics
 - tracing-basics
 - observability-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./operate/01-platform-ops-overview.md
 original_language: Chinese
 ---
@@ -102,7 +104,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 related_docs:
 - path: 02-cluster-lifecycle-management.md

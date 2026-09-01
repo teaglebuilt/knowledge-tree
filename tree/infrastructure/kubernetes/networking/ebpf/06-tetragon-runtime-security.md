@@ -1,5 +1,4 @@
----
-title: Tetragon 运行时安全 (Tetragon Runtime Security)
+---title: Tetragon 运行时安全 (Tetragon Runtime Security)
 description: 'title: Tetragon 运行时安全 (Tetragon Runtime Security)'
 summary: 'title: Tetragon 运行时安全 (Tetragon Runtime Security)'
 category: general
@@ -48,6 +47,10 @@ prerequisites:
 - policy-basics
 - logging-basics
 - tracing-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 > **生产环境安全提示**
@@ -92,7 +95,7 @@ trigger_keywords:
 - ebpf
 - technology
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

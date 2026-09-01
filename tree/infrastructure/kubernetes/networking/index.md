@@ -1,5 +1,4 @@
----
-title: Kubernetes Networking
+---title: Kubernetes Networking
 description: Kubernetes Networking directory index
 summary: Kubernetes Networking directory index
 category: index
@@ -8,6 +7,10 @@ tags:
 tier: supporting
 created: '2026-07-02'
 last_updated: 2026-07
+authors:
+- name: Dillan Teagle
+  role: contributor
+
 ---
 
 # Kubernetes Networking

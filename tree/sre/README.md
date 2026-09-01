@@ -1,5 +1,4 @@
----
-title: Observability
+---title: Observability
 description: '**The first entry point for production troubleshooting.**'
 summary: '**The first entry point for production troubleshooting.**'
 category: domain
@@ -37,6 +36,9 @@ prerequisites:
 - gpu-scheduling-basics
 - logging-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/README.md
 ---
 

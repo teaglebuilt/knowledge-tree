@@ -1,5 +1,4 @@
----
-title: Security & Compliance Open Source Projects Index
+---title: Security & Compliance Open Source Projects Index
 description: Security & Compliance Open Source Projects Index
 summary: Security & Compliance Open Source Projects Index
 category: reference
@@ -37,6 +36,9 @@ prerequisites:
 - tls-basics
 - policy-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/00-open-source-projects-index.md
 ---
 

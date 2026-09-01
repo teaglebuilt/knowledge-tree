@@ -48,7 +48,7 @@ k8s_versions:
 - '1.31'
 - '1.32'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 ---
 
@@ -61,7 +61,7 @@ authors:
 
 # eBPF Performance Optimization Practice
 
-> **Author**: kudig.io Technical Team  
+> **Author**: Dillan Teagle  
 > **Version**: v1.0  
 > **Last Updated**: 2026-03-03  
 > **Applies to**: Linux Kernel 5.10+, LLVM/Clang 12+
@@ -2720,7 +2720,7 @@ gantt
 
 ---
 
-*This document is maintained by the kudig.io Technical Team and is continuously updated. If you find errors or have improvement suggestions, please submit an Issue.*
+*This document is maintained by the Dillan Teagle and is continuously updated. If you find errors or have improvement suggestions, please submit an Issue.*
 
 ---
 

@@ -1,5 +1,4 @@
----
-title: Kubernetes v1.29-v1.33 Platform Operations New Features Guide
+---title: Kubernetes v1.29-v1.33 Platform Operations New Features Guide
 description: 'title: Kubernetes v1.29-v1.33 Platform Operations New Features Guide'
 summary: 'title: Kubernetes v1.29-v1.33 Platform Operations New Features Guide'
 category: general
@@ -39,6 +38,9 @@ prerequisites:
 - etcd-basics
 - gpu-scheduling-basics
 - observability-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./operate/99-kubernetes-v1.33-platform-ops-guide.md
 original_language: Chinese
 ---
@@ -93,7 +95,7 @@ cross_refs:
   path: ../domain-10-troubleshooting-diagnostics/
   label: 'Related Knowledge Domain: domain-10-troubleshooting-diagnostics'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

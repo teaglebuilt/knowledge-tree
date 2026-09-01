@@ -1,5 +1,4 @@
----
-title: Production Troubleshooting
+---title: Production Troubleshooting
 description: 'Target audience: SRE team, incident response engineers, operations personnel'
 summary: 'Target audience: SRE team, incident response engineers, operations personnel'
 category: general
@@ -35,6 +34,9 @@ prerequisites:
 - kubectl-basics
 - platform-engineering-basics
 - cni-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./operate/15-production-troubleshooting.md
 original_language: Chinese
 ---
@@ -87,7 +89,7 @@ cross_refs:
   path: ../domain-10-troubleshooting-diagnostics/
   label: 'Related knowledge domain: domain-10-troubleshooting-diagnostics'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'

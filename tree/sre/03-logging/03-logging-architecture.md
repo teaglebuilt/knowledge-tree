@@ -1,5 +1,4 @@
----
-title: '03 - Logging Collection Architecture (Logging Architecture)'
+---title: '03 - Logging Collection Architecture (Logging Architecture)'
 description: 'Deep dive into Kubernetes logging collection architecture, covering log architecture patterns, component selection, configuration management, and structured logging best practices'
 summary: 'Comprehensive guide to production-grade logging system design for Kubernetes clusters'
 category: general
@@ -38,6 +37,9 @@ prerequisites:
   - monitoring-basics
   - logging-basics
 original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/03-logging-architecture.md
 ---
 

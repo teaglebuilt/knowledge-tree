@@ -1,5 +1,7 @@
----
-original_language: Chinese
+---original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/06-loggly-cloud-log-management.md
 title: Loggly Cloud Log Management Platform - Enterprise Practices
 description: Comprehensive guide to Loggly cloud log management platform architecture, deployment, and operations for enterprise environments

@@ -1,5 +1,4 @@
----
-title: Java Kubernetes Client and Operator SDK Development Guide
+---title: Java Kubernetes Client and Operator SDK Development Guide
 description: 'title: Java Kubernetes Client and Operator SDK Development Guide'
 summary: 'title: Java Kubernetes Client and Operator SDK Development Guide'
 category: general
@@ -38,6 +37,9 @@ trigger_keywords:
 prerequisites:
 - kubectl-basics
 - platform-engineering-basics
+authors:
+- name: Dillan Teagle
+  role: contributor
 source_path: /Users/teaglebuilt/workspace/kudig-database/domain-07-platform-engineering/./build/99-java-k8s-client-operator-guide.md
 original_language: Chinese
 ---
@@ -94,7 +96,7 @@ cross_refs:
   path: ../domain-10-troubleshooting-diagnostics/
   label: 'Related Knowledge Domain: domain-10-troubleshooting-diagnostics'
 authors:
-- name: KUDIG Team
+- name: Dillan Teagle
   role: contributor
 k8s_versions:
 - '1.28'
