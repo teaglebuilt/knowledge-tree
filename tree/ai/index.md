@@ -28,3 +28,4 @@ Source binaries live under [`sources/ai/`](../../sources/ai) (gitignored — see
 - [Build Your Own Agentic AI Framework](../../sources/ai/pdf/Build%20Your%20Own%20Agentic%20AI%20Framework%20Design%20Flexible%20Multi-agent%20Systems%20in%20Python%20with%20MCP%20and%20A2A%20integration%20Gigi%20Sayfan%20z-librarysk%201libsk%20z-lib.pdf) — Gigi Sayfan. Multi-agent systems in Python with MCP + A2A.
 - [Agents](../../sources/ai/pdf/agents.pdf)
 - [LLM Training](../../sources/ai/pdf/llm-training.pdf)
+- [AI Video Space Time Diffusion Model](./pdf/aivideo-spacetimediffusionmodel.pdf)

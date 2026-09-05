@@ -16,3 +16,7 @@ product:
 security:
 specialized_tooling:
 sre:
+hardware:
+linux:
+  branches:
+    operating-systems:

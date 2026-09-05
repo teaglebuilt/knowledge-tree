@@ -11,7 +11,7 @@
 
 __pycache__*
 .venv
-
+*.wal
 # Source binaries (books/papers) — kept locally & in object storage, never in git.
 # Only the extracted markdown + sources/MANIFEST.md carry provenance into the repo.
 *.epub

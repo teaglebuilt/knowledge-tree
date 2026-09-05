@@ -18,8 +18,21 @@
               "icon": "lucide-file-text",
               "title": "Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib"
             }
+          },
+          {
+            "id": "dc48ad1e6618c2ed",
+            "type": "leaf",
+            "state": {
+              "type": "release-notes",
+              "state": {
+                "currentVersion": "1.13.7"
+              },
+              "icon": "lucide-book-up",
+              "title": "Release Notes 1.13.7"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -39,7 +52,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Files"
@@ -181,43 +196,43 @@
       "bases:Create new base": false
     }
   },
-  "active": "75521912599ac75e",
+  "active": "bba1026a76d26d16",
   "lastOpenFiles": [
-    "tree/platform-engineering/developer-experience/23-cli-enhancement-tools.md",
-    "tree/application/architecture/carbon-capture.md",
-    "tree/application/architecture/industrial-metaverse.md",
-    "tree/application/architecture/smart-prison.md",
-    "tree/application/architecture/digital-twin-factory.md",
-    "tree/application/architecture/smart-sports-venue.md",
-    "tree/application/architecture/urban-air-mobility.md",
-    "tree/application/architecture/neuromorphic-computing.md",
-    "tree/application/architecture/crispr-gene-editing.md",
-    "tree/application/architecture/nanomaterials.md",
-    "tree/application/architecture/flexible-manufacturing.md",
-    "tree/application/architecture/solid-state-battery.md",
-    "tree/application/architecture/hydrogen-energy.md",
-    "tree/application/architecture/national-park.md",
-    "tree/application/architecture/cultural-digitization.md",
-    "tree/application/architecture/legaltech.md",
-    "tree/application/architecture/smart-customs.md",
-    "tree/application/architecture/tsn-network.md",
-    "tree/application/architecture/polar-research.md",
-    "tree/application/architecture/deep-sea-exploration.md",
-    "tree/application/architecture/fusion-energy-monitoring.md",
-    "tree/application/architecture/synthetic-biology.md",
-    "tree/application/architecture/affective-computing.md",
-    "tree/application/architecture/immersive-xr.md",
-    "tree/application/architecture/smart-firefighting.md",
-    "tree/application/architecture/digital-twin-city.md",
-    "tree/application/architecture/topic-application-architecture",
-    "tree/application/architecture",
-    "kb.duckdb.wal",
-    "kb.duckdb",
-    "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
-    "kb/__pycache__/ingest.cpython-313.pyc",
-    "tree/ai/videos",
-    "tree/specialized_tooling/webassembly/pdf",
-    "tree/networking/censorship/pdf",
-    "tree/networking/censorship/books"
+    "tree/linux/operating-systems",
+    "tree/linux",
+    "tree/hardware",
+    "sources/ai/pdf/aivideo-spacetimediffusionmodel.pdf",
+    "tree/ai/pdf/aivideo-spacetimediffusionmodel.pdf",
+    "tree/ai/pdf/2401.12945v2.pdf",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/index.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/USER.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/TOOLS.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/SOUL.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/SKILL.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/MEMORY.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/IDENTITY.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/AGENTS.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace",
+    "tree/infrastructure/kubernetes/ai/ai-agents/index.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/README.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/52-agent-cost-optimization-caching.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/51-agent-guardrails-content-safety.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/50-openclaw-identity-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/49-openclaw-memory-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/48-openclaw-skill-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/47-openclaw-tools-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/46-openclaw-agents-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/45-openclaw-user-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/44-openclaw-soul-mechanism.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/43-openclaw-framework-integration.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/42-model-harness-compatibility-matrix.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/41-react-harness-identification-guide.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/40-agent-harness-production-maturity.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/39-agent-harness-testing-benchmark.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents/38-agent-harness-performance-cost.md",
+    "tree/infrastructure/kubernetes/ai/ai-agents",
+    "tree/infrastructure/kubernetes/ai/agent-runtime",
+    "tree/infrastructure/kubernetes/ai/infrastructure",
+    "tree/application/architecture/topic-application-architecture"
   ]
 }
