@@ -1,43 +1,53 @@
----title: IoT Platform Kubernetes Production Architecture Design
-description: 'title: IoT Platform Architecture Design'
-summary: 'title: IoT Platform Architecture Design'
+---
+title: IoT Platform Kubernetes Production Architecture Design
+description: 'IoT Platform Architecture Design - Comprehensive Internet of Things platform with device management, edge computing, and real-time data processing'
+summary: 'Production-grade IoT platform architecture supporting device access, MQTT messaging, rule engines, digital twins, OTA upgrades, and edge computing deployments'
 category: general
 tags:
-- architecture
-- best-practice
-- flux
-- kafka
-- statefulset
-- gateway
-- operator
-- rag
+  - architecture
+  - best-practice
+  - flux
+  - kafka
+  - statefulset
+  - gateway
+  - operator
+  - rag
+  - iot
+  - mqtt
+  - edge-computing
 tier: core
 created: '2026-05-23'
-last_updated: 2026-05
+last_updated: '2026-05-23'
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- All Engineers
+  - All Engineers
+  - IoT Architects
+  - Embedded Engineers
+  - Platform Engineers
 estimated_read_time: 15min
 intent_queries:
-- What is IoT Platform Kubernetes Production Architecture Design
-- How to implement IoT Platform Kubernetes Production Architecture Design
-- Kubernetes 20 application patterns best practices
+  - What is IoT Platform Kubernetes Production Architecture Design
+  - How to implement IoT Platform Kubernetes Production Architecture Design
+  - Kubernetes 20 application patterns best practices
 trigger_keywords:
-- IoT Platform
-- Internet of Things
-- Platform
-- Kubernetes
-- Production Architecture Design
-- application
-- patterns
+  - IoT Platform
+  - Internet of Things
+  - Platform
+  - Kubernetes
+  - Production Architecture Design
+  - application patterns
+  - MQTT
+  - EMQX
+  - Edge Computing
+  - KubeEdge
 prerequisites:
-- kubectl-basics
-- prometheus-basics
-- kafka-basics
+  - kubectl-basics
+  - prometheus-basics
+  - kafka-basics
 authors:
-- name: Dillan Teagle
-  role: contributor
+  - name: Dillan Teagle
+    role: contributor
 source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/iot-platform-architecture.md
 original_language: Chinese
 ---
@@ -46,64 +56,11 @@ original_language: Chinese
 >
 > This document contains operational commands that can be executed directly. Before executing, confirm: the target cluster and namespace are correct; you have sufficient RBAC permissions; the command has been tested in a non-production environment. Risk levels for commands: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state but usually reversible), 🟢 Low risk/read-only (information gathering, no side effects).
 
-title: IoT Platform Architecture Design
-description: '# IoT Platform [[Kubernetes|Kubernetes]] Production Architecture Design'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- [[Flux|flux]]
-- kafka
-- [[StatefulSet|statefulset]]
-- gateway
-- operator
-- rag
-last_updated: 2026-05-18
-difficulty: advanced
-reading_level: advanced
-audience:
-- IoT Architects
-- Embedded Engineers
-- Platform Engineers
-estimated_read_time: 5min
-intent_queries:
-- IoT Platform Kubernetes Device Access Architecture
-- MQTT Broker EMQX Cluster Deployment
-- Edge Computing KubeEdge Device Management
-- Time Series Database TDengine IoT Data
-- Digital Twin IoT Platform
-trigger_keywords:
-- IoT Platform
-- Internet of Things
-- MQTT
-- EMQX
-- Device Access
-- Edge Computing
-- KubeEdge
-- OpenYurt
-- Time Series Database
-- OTA Upgrade
-- Device Shadow
-related_domains:
-- domain-03-networking-traffic
-- domain-10-troubleshooting-diagnostics
-related_topics:
-- topic-iot-platform-architecture
-- topic-edge-computing
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
 # IoT Platform Kubernetes Production Architecture Design
 
 > **Applicable Scenarios**: Smart Home / Industrial IoT / Connected Vehicles / Smart Cities / Agricultural Monitoring / Energy Management
 > **Applicable Versions**: Kubernetes v1.29 - v1.33
-> **Last Updated**: 2026-04-24
+> **Last Updated**: 2026-05-23
 > **Target Readers**: IoT Architects, Embedded Engineers, Platform Engineers
 
 ---
@@ -606,7 +563,6 @@ spec:
 
 ## Obsidian Related Documents
 
-- topic-application-architecture MOC
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
 - [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-Commerce System Kubernetes Production Architecture Design]]
 - [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
@@ -625,6 +581,5 @@ spec:
 - 06-fintech-architecture
 - 08-ai-ml-inference-architecture
 - 09-gaming-backend-architecture
-
 
 <!-- risk-assessed -->

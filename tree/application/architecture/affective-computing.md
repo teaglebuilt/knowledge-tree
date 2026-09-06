@@ -1,6 +1,7 @@
----title: 情感计算 AI 架构设计 — 阿里云视角
-description: 'title: 情感计算 AI 架构设计'
-summary: 'title: 情感计算 AI 架构设计'
+---
+title: Affective Computing AI Architecture Design — Alibaba Cloud Perspective
+description: 'Affective Computing AI Architecture Design'
+summary: 'Affective Computing AI Architecture Design'
 category: general
 tags:
 - architecture
@@ -14,17 +15,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All engineers
 estimated_read_time: 15min
 intent_queries:
-- 情感计算 AI 架构设计 — 阿里云视角 是什么
-- 如何 情感计算 AI 架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Affective Computing AI Architecture Design — Alibaba Cloud perspective
+- How to implement Affective Computing AI Architecture Design — Alibaba Cloud perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 情感计算
+- Affective computing
 - AI
-- 架构设计
-- 阿里云视角
+- Architecture design
+- Alibaba Cloud perspective
 - application
 - patterns
 prerequisites:
@@ -34,18 +35,17 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
+source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/affective-computing.md
+original_language: Chinese
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk, may cause data loss or service interruption), Yellow (medium risk, modifies cluster state but usually reversible), Green (low risk/read-only, information collection with no side effects).
 
-
-
-
-title: 情感计算 AI 架构设计
-description: '# 情感计算 AI 架构设计 — 阿里云视角'
+title: Affective Computing AI Architecture Design
+description: '# Affective Computing AI Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -58,27 +58,27 @@ last_updated: 2026-05-18
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI架构师
-- 多模态算法工程师
-- 人机交互设计师
+- AI architects
+- Multimodal algorithm engineers
+- Human-computer interaction designers
 estimated_read_time: 5min
 intent_queries:
-- 情感计算 AI [[Kubernetes|Kubernetes]] GPU部署
-- 多模态情绪识别 Kubernetes
-- 智能客服 情绪分析 K8s
-- 隐私保护 边缘计算 AI
-- 联邦学习 情感计算 Kubernetes
+- Affective Computing AI Kubernetes GPU deployment
+- Multimodal emotion recognition Kubernetes
+- Intelligent customer service emotion analysis K8s
+- Privacy-preserving edge computing AI
+- Federated learning affective computing Kubernetes
 trigger_keywords:
-- 情感计算
-- 情绪识别
-- 心理评估
-- 多模态
+- Affective computing
+- Emotion recognition
+- Psychological assessment
+- Multimodal
 - AI
 - Kubernetes
 - GPU
-- 隐私计算
-- 联邦学习
-- 阿里云
+- Privacy computing
+- Federated learning
+- Alibaba Cloud
 related_domains:
 - domain-01-cluster-fundamentals
 - domain-11-ai-infra
@@ -95,113 +95,113 @@ k8s_versions:
 - '1.32'
 ---
 
-# 情感计算 AI 架构设计 — 阿里云视角
+# Affective Computing AI Architecture Design — Alibaba Cloud Perspective
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#情感计算` `#情绪识别` `#心理评估` `#阿里云`
-
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solution Architects | **Tags**: `#AffectiveComputing` `#EmotionRecognition` `#PsychologicalAssessment` `#AlibabCloud`
 
 ---
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+<!-- chunk: table-of-contents -->## Table of Contents
 
-情感计算（Affective Computing）是通过计算机技术识别人类情绪、理解情感状态并做出情感响应的交叉学科。情感计算 AI 通过分析语音、面部表情、文本语义、生理信号（心率、皮肤电导、脑电）等多模态数据，推断用户的情绪状态（如喜怒哀乐、压力水平、注意力集中度等），并据此调整交互策略。
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architecture-patterns)
+4. [Implementation Examples](#4-implementation-examples)
+5. [Kubernetes Deployment](#5-kubernetes-deployment)
+6. [Best Practices](#6-best-practices)
+7. [Anti-Patterns](#7-anti-patterns)
+8. [Reference Resources](#8-reference-resources)
 
-情感计算的应用场景广泛：智能客服中根据用户情绪调整话术和转人工策略；在线教育中监测学生注意力和困惑状态；医疗健康中辅助抑郁症和焦虑症筛查；智能驾驶中监测驾驶员疲劳和分心状态；市场研究中分析消费者对产品的情感反应。
+---
 
-从架构角度看，情感计算 AI 系统的核心挑战是**多模态融合**和**实时推理**。不同模态的数据（音频、视频、文本、生理信号）具有不同的采样率和特征空间，需要在时间维度上对齐并在语义层面融合。实时交互场景要求端到端推理延迟 < 200ms。此外，情感数据的隐私敏感性要求系统在数据采集、存储、处理的每个环节都满足隐私保护要求。
+<!-- chunk: 1-overview -->## 1. Overview
 
-## 1.1 行业背景
+Affective Computing is an interdisciplinary field that uses computer technology to recognize human emotions, understand emotional states, and provide emotional responses. Affective Computing AI analyzes multimodal data including voice, facial expressions, text semantics, and physiological signals (heart rate, skin conductance, EEG) to infer user emotional states (such as happiness, anger, sadness, stress levels, attention levels, etc.), and adjusts interaction strategies accordingly.
 
-| 挑战 | 说明 | 架构影响 |
+Affective Computing has broad application scenarios: intelligent customer service can adjust dialogue strategies and transfer-to-human policies based on user emotions; online education can monitor student attention and confusion states; medical health can assist in depression and anxiety screening; intelligent driving can detect driver fatigue and distraction; market research can analyze consumer emotional responses to products.
+
+From an architecture perspective, the core challenges of Affective Computing AI systems are **multimodal fusion** and **real-time inference**. Different modalities of data (audio, video, text, physiological signals) have different sampling rates and feature spaces, requiring temporal alignment and semantic-level fusion. Real-time interactive scenarios require end-to-end inference latency < 200ms. Additionally, the privacy sensitivity of emotional data requires the system to satisfy privacy protection requirements at every stage of data collection, storage, and processing.
+
+## 1.1 Industry Background
+
+| Challenge | Description | Architecture Impact |
 |:---|:---|:---|
-| 多模态融合 | 语音/表情/文本/生理信号 | 多分支网络 + 融合层 |
-| 文化差异 | 不同文化情绪表达差异 | 地域化模型 + 增量学习 |
-| 实时处理 | 对话中实时情绪识别 | 流式推理 + GPU 加速 |
-| 隐私敏感 | 情绪数据高度个人化 | 边缘计算 + 联邦学习 |
-| 场景多样 | 客服/教育/医疗/驾驶 | 场景适配 + 迁移学习 |
+| Multimodal fusion | Voice/expression/text/physiological signals | Multi-branch network + fusion layer |
+| Cultural differences | Emotion expression varies across cultures | Localized models + incremental learning |
+| Real-time processing | Real-time emotion recognition in conversation | Streaming inference + GPU acceleration |
+| Privacy sensitivity | Emotion data highly personalized | Edge computing + federated learning |
+| Scenario diversity | Customer service/education/medical/driving | Scenario adaptation + transfer learning |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **智能客服**: 实时识别来电用户情绪，自动调整话术、触发安抚策略、智能转人工
-- **在线教育**: 监测学生注意力、困惑、疲劳状态，自适应调整教学内容
-- **心理健康**: 辅助抑郁症/焦虑症/自闭症筛查，长期情绪追踪
-- **智能驾驶**: 驾驶员疲劳检测、分心监测、路怒预警
-- **内容审核**: 视频情绪合规检测，识别暴力、仇恨等负面情绪内容
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 多模态协同原则
-
-单一模态的情绪识别准确率有限（语音约 70%、面部表情约 75%、文本约 65%）。多模态融合可以显著提升准确率（可达 85-90%）。架构设计需要支持灵活的模态组合——根据场景可用性选择模态子集，动态调整融合策略。
-
-## 2.2 隐私保护原则
-
-情感数据（面部图像、语音录音、生理信号）是高度个人化的敏感数据。系统设计必须遵循"最小采集"和"本地优先"原则：原始数据在边缘设备上处理，只上传脱敏后的情绪标签；数据采集前获得用户明确同意；支持用户随时撤销授权和删除数据。
-
-## 2.3 实时性原则
-
-交互式场景要求系统在用户说话或表情变化的同时给出情绪判断。端到端延迟（采集→预处理→推理→输出）需要控制在 200ms 以内。这要求优化推理流水线的每个环节：模型轻量化（知识蒸馏、量化）、推理引擎优化（TensorRT、ONNX Runtime）、计算就近部署。
-
-## 2.4 公平性原则
-
-情感计算模型在不同人群（年龄、性别、种族、文化背景）上的表现可能存在差异。模型训练需要确保数据集的多样性和代表性，定期进行公平性评估，避免对特定群体的系统性偏见。
+- **Intelligent Customer Service**: Real-time identification of caller emotions, automatic adjustment of dialogue, emotion-soothing strategy triggering, intelligent human transfer
+- **Online Education**: Monitoring student attention, confusion, fatigue states; adaptive content adjustment
+- **Mental Health**: Assisting depression/anxiety/autism screening; long-term emotion tracking
+- **Intelligent Driving**: Driver fatigue detection, distraction monitoring, road rage warning
+- **Content Moderation**: Video emotion compliance detection, identifying violent and hateful emotional content
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+<!-- chunk: 2-design-principles -->## 2. Design Principles
 
-## 3.1 情感计算 AI 平台全景架构
+## 2.1 Multimodal Collaboration Principle
+
+Single-modality emotion recognition accuracy is limited (voice ~70%, facial expression ~75%, text ~65%). Multimodal fusion can significantly improve accuracy (up to 85-90%). Architecture design must support flexible modality combinations—selecting modality subsets based on scenario availability and dynamically adjusting fusion strategies.
+
+## 2.2 Privacy Protection Principle
+
+Emotional data (facial images, voice recordings, physiological signals) is highly personalized sensitive data. System design must follow "minimal collection" and "local-first" principles: process raw data on edge devices, upload only anonymized emotion labels; obtain explicit user consent before data collection; support users to revoke authorization and delete data anytime.
+
+## 2.3 Real-Time Principle
+
+Interactive scenarios require the system to provide emotion judgments while users speak or change expressions. End-to-end latency (collection → preprocessing → inference → output) must be controlled within 200ms. This requires optimizing every step of the inference pipeline: model lightweight (knowledge distillation, quantization), inference engine optimization (TensorRT, ONNX Runtime), computing deployment near the edge.
+
+## 2.4 Fairness Principle
+
+Affective Computing models may perform differently across different populations (age, gender, race, cultural background). Model training must ensure dataset diversity and representativeness, conduct regular fairness evaluations, and avoid systematic bias against specific groups.
+
+---
+
+<!-- chunk: 3-architecture-patterns -->## 3. Architecture Patterns
+
+## 3.1 Affective Computing AI Platform Full-Landscape Architecture
 
 ```mermaid
 graph TB
-    subgraph 数据采集层
-        D1[语音采集]
-        D2[视频采集]
-        D3[文本输入]
-        D4[生理传感器]
+    subgraph Data Collection Layer
+        D1[Voice acquisition]
+        D2[Video acquisition]
+        D3[Text input]
+        D4[Physiological sensors]
     end
 
-    subgraph 特征提取层
-        F1[声纹/韵律特征]
-        F2[面部表情/FACS]
-        F3[语义情感/NLP]
-        F4[生理信号特征]
+    subgraph Feature Extraction Layer
+        F1[Voice/prosody features]
+        F2[Facial expression/FACS]
+        F3[Semantic sentiment/NLP]
+        F4[Physiological signal features]
     end
 
-    subgraph 多模态融合层
-        E1[早期融合]
-        E2[晚期融合]
-        E3[注意力融合]
-        E4[时序建模]
+    subgraph Multimodal Fusion Layer
+        E1[Early fusion]
+        E2[Late fusion]
+        E3[Attention fusion]
+        E4[Temporal modeling]
     end
 
-    subgraph 情感推理层
-        R1[离散情绪分类]
-        R2[维度情感回归]
-        R3[强度估计]
-        R4[个性化校准]
+    subgraph Emotion Inference Layer
+        R1[Discrete emotion classification]
+        R2[Dimensional emotion regression]
+        R3[Intensity estimation]
+        R4[Personalized calibration]
     end
 
-    subgraph 应用服务层
-        A1[智能客服]
-        A2[在线教育]
-        A3[心理健康]
-        A4[智能驾驶]
+    subgraph Application Service Layer
+        A1[Intelligent customer service]
+        A2[Online education]
+        A3[Mental health]
+        A4[Intelligent driving]
     end
 
     D1 --> F1
@@ -213,47 +213,47 @@ graph TB
     R1 & R2 & R3 & R4 --> A1 & A2 & A3 & A4
 ```
 
-## 3.2 实时推理流水线
+## 3.2 Real-Time Inference Pipeline
 
 ```mermaid
 flowchart LR
-    A[音频流] --> D[特征提取]
-    B[视频流] --> D
-    C[文本流] --> D
-    D --> E[多模态融合]
-    E --> F[情绪推理]
-    F --> G[后处理平滑]
-    G --> H[情绪标签]
-    H --> I[策略引擎]
+    A[Audio stream] --> D[Feature extraction]
+    B[Video stream] --> D
+    C[Text stream] --> D
+    D --> E[Multimodal fusion]
+    E --> F[Emotion inference]
+    F --> G[Post-processing smoothing]
+    G --> H[Emotion labels]
+    H --> I[Policy engine]
 ```
 
-## 3.3 隐私保护推理架构
+## 3.3 Privacy-Preserving Inference Architecture
 
 ```mermaid
 graph TB
-    subgraph 边缘设备
-        E1[原始数据采集]
-        E2[特征提取]
-        E3[轻量推理]
-        E4[情绪标签输出]
+    subgraph Edge Device
+        E1[Raw data collection]
+        E2[Feature extraction]
+        E3[Lightweight inference]
+        E4[Emotion label output]
     end
 
-    subgraph 云端平台
-        C1[模型训练]
-        C2[联邦聚合]
-        C3[模型下发]
+    subgraph Cloud Platform
+        C1[Model training]
+        C2[Federated aggregation]
+        C3[Model distribution]
     end
 
     E1 --> E2 --> E3 --> E4
-    E2 --> |脱敏特征| C1
+    E2 --> |Anonymized features| C1
     C1 --> C2 --> C3 --> E3
 ```
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+<!-- chunk: 4-implementation-examples -->## 4. Implementation Examples
 
-## 4.2 多模态情感推理服务
+## 4.2 Multimodal Emotion Inference Service
 
 ```python
 import numpy as np
@@ -332,7 +332,7 @@ class MultimodalEmotionEngine:
         return {e: 1.0/len(self.EMOTIONS) for e in self.EMOTIONS}
 ```
 
-## 4.3 客服情绪策略引擎
+## 4.3 Customer Service Emotion Strategy Engine
 
 ```go
 package affective
@@ -448,7 +448,7 @@ func (t *CustomerEmotionTracker) _selectStrategy(state EmotionState) Strategy {
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+<!-- chunk: 5-kubernetes-deployment -->## 5. Kubernetes Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -494,83 +494,83 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+<!-- chunk: 6-best-practices -->## 6. Best Practices
 
-- **模型轻量化**: 使用知识蒸馏将大型多模态模型压缩为可在边缘部署的轻量模型
-- **流式推理**: 音频和视频采用流式处理，避免等待完整片段
-- **时序平滑**: 对连续帧的情绪结果进行滑动平均，避免结果跳变
-- **数据增强**: 使用数据增强（语音变速、面部遮挡、文本同义替换）提升模型鲁棒性
-- **公平性审计**: 定期评估模型在不同人群上的表现差异
+- **Model Lightweight**: Use knowledge distillation to compress large multimodal models into lightweight models deployable at edge
+- **Streaming Inference**: Adopt streaming processing for audio and video, avoiding waiting for complete segments
+- **Temporal Smoothing**: Apply sliding average to emotion results of continuous frames, avoiding result jitter
+- **Data Augmentation**: Use data augmentation (voice speed variation, face occlusion, text synonym replacement) to improve model robustness
+- **Fairness Audit**: Regularly evaluate performance differences across different populations
 
-<!-- chunk: 7. 反模式 -->## 7. 反模式
+<!-- chunk: 7-anti-patterns -->## 7. Anti-Patterns
 
-## 7.1 单模态决策
+## 7.1 Single-Modality Decision
 
-仅依赖单一模态（如面部表情）做情绪判断，忽视其他可用信息。
+Relying solely on a single modality (such as facial expression) for emotion judgment, ignoring other available information.
 
-**解决方案**: 采用多模态融合策略。当某些模态不可用时，动态调整融合权重，利用可用模态给出最优估计。
+**Solution**: Adopt multimodal fusion strategy. Dynamically adjust fusion weights when certain modalities are unavailable, using available modalities for optimal estimation.
 
-## 7.2 忽视文化差异
+## 7.2 Ignoring Cultural Differences
 
-使用西方数据训练的模型直接应用于东方文化场景，面部表情和语音表达的文化差异导致误判。
+Directly applying models trained on Western data to Eastern cultural scenarios, where cultural differences in facial expressions and voice result in misclassification.
 
-**解决方案**: 收集目标文化的标注数据，进行领域适配。在推理时加入文化上下文因子。
+**Solution**: Collect annotated data for target culture and perform domain adaptation. Incorporate cultural context factors during inference.
 
-## 7.3 情绪数据明文存储
+## 7.3 Plaintext Emotion Data Storage
 
-将用户的原始面部图像、语音录音以明文形式存储在云端。
+Storing users' raw facial images and voice recordings in plaintext on cloud servers.
 
-**解决方案**: 原始数据在边缘设备处理后立即删除。只上传脱敏后的情绪标签。确需存储的数据使用 AES-256 加密。
+**Solution**: Process raw data on edge devices and delete immediately. Only upload anonymized emotion labels. Encrypt any data requiring storage with AES-256.
 
-## 7.4 用于歧视性决策
+## 7.4 Use for Discriminatory Decision-Making
 
-将情绪识别结果用于招聘筛选、信用评估等歧视性场景。
+Using emotion recognition results for hiring screening, credit assessment and other discriminatory scenarios.
 
-**解决方案**: 明确限制情感计算的应用范围，建立伦理审查机制。不将情绪数据用于任何可能对用户造成不利的自动化决策。
+**Solution**: Clearly limit application scope of affective computing and establish ethics review mechanisms. Do not use emotion data for any automated decision-making that may harm users.
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+<!-- chunk: 8-reference-resources -->## 8. Reference Resources
 
-## 8.1 阿里云组件映射
+## 8.1 Alibaba Cloud Component Mapping
 
-| 功能域 | **阿里云云原生方案** |
+| Functional Domain | **Alibaba Cloud Cloud-Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Pro + GPU** |
-| AI 平台 | **PAI + 视觉智能 + 语音智能** |
-| 数据库 | **PolarDB** |
-| 对象存储 | **OSS（加密）** |
-| 可观测性 | **ARMS + SLS** |
+| Container Platform | **ACK Pro + GPU** |
+| AI Platform | **PAI + Vision Intelligence + Speech Intelligence** |
+| Database | **PolarDB** |
+| Object Storage | **OSS (Encrypted)** |
+| Observability | **ARMS + SLS** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] 多模态识别准确率 > 85%（F1-[[Score|Score]]）
-- [ ] 端到端推理延迟 P99 < 200ms
-- [ ] 情绪数据端到端加密
-- [ ] 伦理审查委员会审批通过
-- [ ] 跨人群公平性测试
-- [ ] 用户知情同意机制
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] Multimodal recognition accuracy > 85% (F1-Score)
+- [ ] End-to-end inference latency P99 < 200ms
+- [ ] Emotion data end-to-end encrypted
+- [ ] Ethics review committee approval obtained
+- [ ] Cross-population fairness testing passed
+- [ ] User informed consent mechanism established
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainers**: Alibaba Cloud Solution Architects Team | **License**: MIT
+
+---
+
+<!-- chunk: obsidian-references -->## Obsidian Related Documentation
 
 - topic-application-architecture KUDIG Database — Global MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce Systems Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

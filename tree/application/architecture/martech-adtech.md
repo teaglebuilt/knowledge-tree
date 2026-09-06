@@ -1,35 +1,48 @@
----title: Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
-description: 'title: Digital Marketing & AdTech Architecture Design'
-summary: 'title: Digital Marketing & AdTech Architecture Design'
+---
+title: Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
+description: 'Digital Marketing & AdTech Architecture Design - Programmatic advertising platforms with DSP/SSP, real-time bidding, and data-driven targeting'
+summary: 'Production architecture for digital marketing and advertising technology platforms supporting real-time bidding, user profiling, anti-fraud detection, and precision targeting'
 category: general
 tags:
-- architecture
-- best-practice
-- redis
+  - architecture
+  - best-practice
+  - redis
+  - kubernetes
+  - adtech
+  - martech
+  - programmatic
 tier: supporting
 created: '2026-05-23'
-last_updated: 2026-05
+last_updated: '2026-05-23'
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- All Engineers
+  - All Engineers
+  - AdTech Architects
+  - DSP/SSP Developers
+  - Digital Marketing Engineers
 estimated_read_time: 5min
 intent_queries:
-- What is Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
-- How to implement Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
-- Kubernetes 20 application patterns best practices
+  - What is Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
+  - How to implement Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
+  - Kubernetes 20 application patterns best practices
 trigger_keywords:
-- Digital Marketing & AdTech
-- Alibaba Cloud Perspective
-- application
-- patterns
+  - Digital Marketing
+  - AdTech
+  - Programmatic Advertising
+  - DSP
+  - SSP
+  - RTB
+  - Ad Technology
+  - MarTech
+  - application patterns
 prerequisites:
-- kubectl-basics
-- prometheus-basics
-- redis-basics
+  - kubectl-basics
+  - prometheus-basics
+  - redis-basics
 authors:
-- name: Dillan Teagle
-  role: contributor
+  - name: Dillan Teagle
+    role: contributor
 source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/martech-adtech.md
 original_language: Chinese
 ---
@@ -38,59 +51,9 @@ original_language: Chinese
 >
 > This document contains operational commands that can be executed directly. Before executing, confirm: the target cluster and namespace are correct; you have sufficient RBAC permissions; the command has been tested in a non-production environment. Risk levels for commands: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state but usually reversible), 🟢 Low risk/read-only (information gathering, no side effects).
 
-title: Digital Marketing & AdTech Architecture Design
-description: '# Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- redis
-last_updated: 2026-05-18
-difficulty: advanced
-reading_level: advanced
-audience:
-- AdTech Architects
-- DSP/SSP Developers
-- Digital Marketing Engineers
-- Ad Platform Tech Leads
-estimated_read_time: 5min
-intent_queries:
-- martech adtech [[Kubernetes|kubernetes]] architecture
-- Programmatic Advertising K8s Deployment
-- DSP SSP Ad Platform
-- RTB Real-Time Bidding System
-- Advertising Big Data Platform
-trigger_keywords:
-- Digital Marketing
-- AdTech
-- Programmatic Advertising
-- DSP
-- SSP
-- RTB
-- Ad Technology
-- MarTech
-- DMP
-- Advertising K8s
-related_domains:
-- domain-01-cluster-fundamentals
-- domain-10-troubleshooting-diagnostics
-- domain-03-networking-traffic
-related_topics:
-- social-media-architecture
-- livestream-ecommerce
-- fintech-architecture
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
 # Digital Marketing & AdTech Architecture Design - Alibaba Cloud Perspective
 
-> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-05-23
 > **Authors**: Alibaba Cloud Solution Architects | **Tags**: `#DigitalMarketing` `#AdTech` `#ProgrammaticAdvertising` `#AlibabaCloud`
 
 ---
@@ -306,7 +269,6 @@ flowchart LR
 
 ## Obsidian Related Documents
 
-- topic-application-architecture KUDIG Database — Global MOC
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
 - [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-Commerce System Kubernetes Production Architecture Design]]
 - [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
@@ -325,6 +287,5 @@ flowchart LR
 - 43-enterprise-im
 - 45-smart-port-shipping
 - 46-satellite-internet
-
 
 <!-- risk-assessed -->

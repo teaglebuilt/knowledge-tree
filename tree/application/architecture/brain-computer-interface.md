@@ -1,52 +1,7 @@
----title: Brain-Computer Interface Architecture Design — Alibaba Cloud Perspective
+---
+title: Brain-Computer Interface Architecture Design — Alibaba Cloud Perspective
 description: 'Brain-Computer Interface Architecture Design'
 summary: 'Brain-Computer Interface Architecture Design'
-category: general
-tags:
-- architecture
-- best-practice
-- opa
-- job
-- ingress
-- rbac
-- networkpolicy
-- gpu
-- nvidia
-tier: supporting
-created: '2026-05-23'
-last_updated: 2026-05
-difficulty: intermediate
-reading_level: intermediate
-audience:
-- All engineers
-estimated_read_time: 15min
-intent_queries:
-- What is brain-computer interface architecture design — Alibaba Cloud perspective
-- How to design brain-computer interface architecture — Alibaba Cloud perspective
-- Kubernetes 20 application patterns best practices
-trigger_keywords:
-- Brain-computer interface architecture design
-- Alibaba Cloud perspective
-- application
-- patterns
-prerequisites:
-- kubectl-basics
-- prometheus-basics
-- gpu-scheduling-basics
-- policy-basics
-original_language: Chinese
-authors:
-- name: Dillan Teagle
-  role: contributor
-source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/brain-computer-interface.md
----
-
-> **Production Environment Security Notice**
->
-> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk), Yellow (medium risk), Green (low risk/read-only).
-
-title: Brain-Computer Interface Architecture Design
-description: '# Brain-Computer Interface Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -54,12 +9,11 @@ tags:
 - industry
 - opa
 - job
-- [[Ingress|ingress]]
+- ingress
 - rbac
-- [[NetworkPolicy|networkpolicy]]
+- networkpolicy
 - gpu
 - nvidia
-last_updated: 2026-05-18
 difficulty: expert
 reading_level: expert
 audience:
@@ -98,7 +52,18 @@ k8s_versions:
 - '1.30'
 - '1.31'
 - '1.32'
+created: '2026-05-23'
+last_updated: 2026-05-18
+original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
+source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/brain-computer-interface.md
 ---
+
+> **Production Environment Security Notice**
+>
+> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk), Yellow (medium risk), Green (low risk/read-only).
 
 # Brain-Computer Interface Architecture Design — Alibaba Cloud Perspective
 
@@ -468,6 +433,5 @@ Storing neural data in plaintext poses serious privacy leakage risks.
 - 66-space-internet
 - 68-quantum-computing-cloud
 - 69-6g-core-network
-
 
 <!-- risk-assessed -->
