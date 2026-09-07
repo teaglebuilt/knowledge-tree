@@ -35,8 +35,6 @@ class Chunk:
 
 
 def _est_tokens(text: str) -> int:
-    # Cheap, model-agnostic estimate. Good enough for chunk sizing; the real
-    # tokenizer runs at embed time. Tune CHILD_TOKENS against a golden set.
     return int(len(text.split()) * 1.3) + 1
 
 

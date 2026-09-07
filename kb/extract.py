@@ -18,6 +18,33 @@ _ZLIB_NOISE = re.compile(
     r"\(?\s*(?:z-?librar(?:y)?\.?sk|1lib\.?sk|z-?lib\.?sk|z-librarysk|1libsk)\s*[,)]*",
     re.IGNORECASE,
 )
+BUCKETS = ("books", "pdf", "epub")
+
+
+class Decl(NamedTuple):
+    slug: str
+    bucket: str
+    domain: tuple[str, ...]
+    declared: str
+
+    @property
+    def target(self) -> Path:
+        tree_root = config.ROOT / config.KNOWLEDGE_DIRS[0].strip()
+        return tree_root.joinpath(*self.domain, self.bucket, f"{self.slug}.md")
+
+    @property
+    def kind(self) -> str:
+        return "book" if self.bucket in ("books", "epub") else "paper"
+
+    def resolve(self) -> Path:
+        p = Path(self.declared).expanduser()
+        if p.is_absolute():
+            return p
+        if not config.SOURCE_VOLUME:
+            raise ValueError(
+                f"{self.declared!r} is relative but KNOWLEDGE_VOLUME_PATH is unset"
+            )
+        return config.SOURCE_VOLUME / p
 
 
 def _is_bundle(p: Path) -> bool:
@@ -151,52 +178,6 @@ def _convert(path: Path) -> str:
     return _pdf_to_md(path)
 
 
-# --- declarations ------------------------------------------------------------
-#
-# Sources are declared in tree/branches.yaml, not discovered on disk. A node may
-# carry bucket maps (`books:`, `pdf:`, `epub:`) of slug -> path; the slug becomes
-# the tree/ filename and the bucket the tree/ subfolder:
-#
-#     networking:
-#       branches:
-#         censorship:
-#           pdf:
-#             decoy-ccs12: research/censorship/decoy-ccs12.pdf
-#     # -> tree/networking/censorship/pdf/decoy-ccs12.md
-#
-# Relative paths resolve against $KNOWLEDGE_VOLUME_PATH; absolute paths (and ~)
-# are used as-is, so a source can live on the NAS or anywhere else. `branches:`
-# is reserved for the tree hierarchy and is never read as a bucket.
-
-BUCKETS = ("books", "pdf", "epub")
-
-
-class Decl(NamedTuple):
-    slug: str
-    bucket: str
-    domain: tuple[str, ...]
-    declared: str          # verbatim from branches.yaml, kept for provenance
-
-    @property
-    def target(self) -> Path:
-        tree_root = config.ROOT / config.KNOWLEDGE_DIRS[0].strip()
-        return tree_root.joinpath(*self.domain, self.bucket, f"{self.slug}.md")
-
-    @property
-    def kind(self) -> str:
-        return "book" if self.bucket in ("books", "epub") else "paper"
-
-    def resolve(self) -> Path:
-        p = Path(self.declared).expanduser()
-        if p.is_absolute():
-            return p
-        if not config.SOURCE_VOLUME:
-            raise ValueError(
-                f"{self.declared!r} is relative but KNOWLEDGE_VOLUME_PATH is unset"
-            )
-        return config.SOURCE_VOLUME / p
-
-
 def _walk(node: dict, domain: tuple[str, ...], out: list[Decl]) -> None:
     if not isinstance(node, dict):
         return
@@ -215,8 +196,6 @@ def declarations() -> list[Decl]:
         _walk(child or {}, (str(name),), out)
     return sorted(out, key=lambda d: (d.domain, d.bucket, d.slug))
 
-
-# --- provenance --------------------------------------------------------------
 
 def _existing_source_hash(md_path: Path) -> str | None:
     if not md_path.exists():

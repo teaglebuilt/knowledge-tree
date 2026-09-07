@@ -11,15 +11,7 @@ import yaml
 
 from . import config
 
-# A sops binary-store file is JSON whose payload is a single ENC[...] blob.
 _MARKER = b"ENC[AES256_GCM"
-
-# Neither .sops.yaml nor a committed ciphertext carries the AWS account id --
-# both hold ${AWS_ACCOUNT_ID} in the account field of the KMS ARN. sops does no
-# interpolation of its own (it rejects the placeholder as a malformed ARN), so
-# _sops() expands it on the way in and templates it back out on the way out.
-# Only the account field of an arn:aws:kms: string is touched, never arbitrary
-# document text.
 _ACCOUNT_VAR = "${AWS_ACCOUNT_ID}"
 _ARN_REAL = re.compile(r"(arn:aws:kms:[a-z0-9-]+:)(\d{12})(:)")
 _ARN_VAR = re.compile(r"(arn:aws:kms:[a-z0-9-]+:)\$\{AWS_ACCOUNT_ID\}(:)")
@@ -27,11 +19,6 @@ _ARN_VAR = re.compile(r"(arn:aws:kms:[a-z0-9-]+:)\$\{AWS_ACCOUNT_ID\}(:)")
 
 @functools.lru_cache(maxsize=1)
 def account_id() -> str:
-    """Resolve the AWS account id: $AWS_ACCOUNT_ID, else the caller's identity.
-
-    Cached, so a batch encrypt does one sts call rather than one per file and
-    cannot half-succeed if that call is flaky.
-    """
     acct = os.environ.get("AWS_ACCOUNT_ID")
     if acct:
         return acct
@@ -58,10 +45,6 @@ def templatize(text: str, acct: str) -> str:
     """Digits -> ${AWS_ACCOUNT_ID}, in KMS ARNs only."""
     return _ARN_REAL.sub(rf"\g<1>{_ACCOUNT_VAR}\g<3>", text)
 
-
-# --------------------------------------------------------------------------- #
-# policy
-# --------------------------------------------------------------------------- #
 
 def load_policy() -> dict:
     if not config.BRANCHES_PATH.exists():
@@ -90,10 +73,6 @@ def wants_encryption(rel: str | Path, policy: dict) -> bool:
 def is_encrypted(data: bytes) -> bool:
     return data.lstrip()[:1] == b"{" and _MARKER in data[:4096]
 
-
-# --------------------------------------------------------------------------- #
-# file discovery
-# --------------------------------------------------------------------------- #
 
 def _git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -133,10 +112,6 @@ def encrypted_paths() -> set[str]:
             out.add(str(rel))
     return out
 
-
-# --------------------------------------------------------------------------- #
-# commands
-# --------------------------------------------------------------------------- #
 
 def status(paths: list[str] | None = None, show_all: bool = False) -> int:
     """Report files the policy covers. Plaintext-by-default files are the vast
@@ -187,18 +162,6 @@ def check(paths: list[str] | None = None, staged: bool = False) -> int:
 
 
 def _sops(flag: str, rel: Path) -> bool:
-    """Run `sops -i` with ${AWS_ACCOUNT_ID} resolved on both inputs it reads.
-
-    sops is handed a temp copy of .sops.yaml with real digits (`--config`), and
-    for a decrypt the file's own `sops:` metadata is expanded first -- that ARN
-    is load-bearing, KMS rejects the call without the right account. After an
-    encrypt the account id sops just wrote into the metadata is templated back
-    out, so what lands in git stays free of it. The MAC covers the payload, not
-    the key metadata, so rewriting that string does not invalidate the file.
-
-    A plaintext body is never rewritten, only ciphertext metadata, so a
-    document may contain the literal string ${AWS_ACCOUNT_ID} unharmed.
-    """
     acct = account_id()
     fp = config.ROOT / rel
     original = fp.read_bytes()
@@ -208,9 +171,6 @@ def _sops(flag: str, rel: Path) -> bool:
         if expanded != original:
             fp.write_bytes(expanded)
 
-    # The temp config MUST live in the repo root: sops resolves path_regex
-    # relative to the directory holding the config file, so a /tmp copy makes
-    # every ^tree/... rule miss ("no matching creation rules found").
     fd, cfg = tempfile.mkstemp(dir=config.ROOT, prefix=".sops-", suffix=".yaml")
     try:
         with os.fdopen(fd, "w") as fh:
@@ -234,11 +194,6 @@ def _sops(flag: str, rel: Path) -> bool:
 
 
 def encrypt(paths: list[str] | None = None) -> int:
-    """Encrypt every file the policy marks encrypted. Idempotent.
-
-    sops <3.9 has no already-encrypted guard and will silently wrap a file
-    twice, so the on-disk check here is load-bearing.
-    """
     rc = 0
     for rel, want in resolve(paths):
         if not want:
@@ -253,11 +208,6 @@ def encrypt(paths: list[str] | None = None) -> int:
 
 
 def decrypt(paths: list[str] | None = None) -> int:
-    """Decrypt in place so Obsidian and `kb ingest` can read the files.
-
-    Decrypts anything currently ciphertext, including files the policy says
-    should be plaintext -- that is how you unwind a mistaken encrypt.
-    """
     rc = 0
     for rel, _want in resolve(paths):
         if not is_encrypted((config.ROOT / rel).read_bytes()):
@@ -270,13 +220,6 @@ def decrypt(paths: list[str] | None = None) -> int:
 
 
 def _render_sops_config(kms: str | None = None) -> tuple[str, list[str]]:
-    """Build .sops.yaml content from branches.yaml.
-
-    Go's RE2 has no negative lookahead, so one recursive regex cannot express
-    an `encrypted: false` override. Emitting a non-recursive rule per concrete
-    directory makes sops itself reject the excluded subtrees, rather than
-    leaning on this module to remember not to touch them.
-    """
     path = config.SOPS_CONFIG_PATH
     if not kms:
         existing = yaml.safe_load(path.read_text()) if path.exists() else {}

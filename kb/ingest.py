@@ -28,10 +28,6 @@ def run(force: bool = False) -> dict:
     for fp in _iter_markdown():
         rel = str(fp.relative_to(config.ROOT))
         raw = fp.read_bytes()
-
-        # Ciphertext would index as noise, and a stale plaintext entry from a
-        # prior run would defeat the point of encrypting. Leave `rel` out of
-        # `seen` so the prune pass below drops it from both stores.
         if secrets.is_encrypted(raw):
             locked += 1
             continue
