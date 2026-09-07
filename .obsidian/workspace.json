@@ -72,7 +72,8 @@
               "title": "Bookmarks"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "horizontal",
@@ -181,7 +182,7 @@
       "bases:Create new base": false
     }
   },
-  "active": "75521912599ac75e",
+  "active": "f50e692499989deb",
   "lastOpenFiles": [
     "docs/architecture.md",
     "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
