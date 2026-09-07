@@ -1,6 +1,4 @@
 
-
-
 <p align="center">
   <img src="docs/assets/knowledge-tree-icon.svg" width="180" alt="Knowledge Tree"><br>
   <strong>Knowledge Tree</strong><br>
@@ -9,7 +7,7 @@
 
 ## Overview
 
-Knowledge as an obsidian vault stored as markdown in git and ingested and indexed context with skills and tools for human and ai coordination.
+Knowledge as an obsidian vault stored as markdown in git and ingested and indexed context with skills and tools for human and ai coordination. For details on how this works from a high level, read [architecture](./docs/architecture.md)
 
 ## Branches
 
@@ -30,10 +28,3 @@ Knowledge as an obsidian vault stored as markdown in git and ingested and indexe
 
 Source code used for knowledge management. Commands to interact with the knowledge bank exist in makefile.
 Run `make help` to see the available commands.
-
-### Examples
-
-**Query for Knowledge**
-
-```
-```
