@@ -20,3 +20,5 @@ __pycache__*
 !sources/**/.gitkeep
 !sources/MANIFEST.md
 .envrc
+# transient expanded sops config (kb.secrets._sops)
+.sops-*.yaml

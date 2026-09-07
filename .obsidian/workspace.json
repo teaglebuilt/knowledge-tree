@@ -182,19 +182,24 @@
       "bases:Create new base": false
     }
   },
-  "active": "f50e692499989deb",
+  "active": "75521912599ac75e",
   "lastOpenFiles": [
-    "docs/architecture.md",
-    "sources/ai/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf",
     "tree/specialized_tooling/webassembly/pdf/wasm-performance.md",
     "tree/specialized_tooling/webassembly/pdf/server-side-webassembly-building-portable-and-secure-multi-language-ap.md",
     "tree/specialized_tooling/webassembly/pdf",
     "tree/specialized_tooling/webassembly",
     "tree/networking/censorship/pdf/uv-lock.md",
     "tree/ai/pdf/aivideo-spacetimediffusionmodel.md",
-    "kb/__pycache__/extract.cpython-312.pyc",
-    "sources/networking/ebpf/books",
-    "sources/networking/ebpf",
+    "docs/architecture.md",
+    "sources/specialized_tooling/webassembly/pdf",
+    "sources/networking/censorship/pdf",
+    "sources/networking/censorship/books",
+    "sources/specialized_tooling/webassembly",
+    "sources/networking/censorship",
+    "sources/ai/pdf",
+    "sources/ai/books",
+    "sources/specialized_tooling",
+    "sources/MANIFEST.md",
     "tree/application/architecture/data-midplatform-architecture.md",
     "tree/application/architecture/iot-platform-architecture.md",
     "tree/application/architecture/im-rtc-architecture.md",
@@ -206,8 +211,6 @@
     "tree/application/architecture/industrial-internet-platform.md",
     "domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md",
     "tree/application/architecture/smart-logistics-architecture.md",
-    "domain-20-application-patterns/topic-application-architecture",
-    "domain-20-application-patterns",
     "tree/application/architecture/social-gaming-metaverse.md",
     "tree/application/architecture/social-media-architecture.md",
     "tree/application/architecture/space-internet.md",
@@ -215,10 +218,6 @@
     "tree/application/architecture/video-shortform-architecture.md",
     "tree/platform-engineering/developer-experience/02-developer-onboarding-automation.md",
     "tree/infrastructure/kubernetes/networking/ebpf/08-bcc-bpftrace-tools.md",
-    "tree/infrastructure/architecture/saas-multi-tenancy.md",
-    "tree/infrastructure/architecture/server-examples.md",
-    "tree/infrastructure/architecture/architecture-patterns.md",
-    "tree/linux/operating-systems",
-    "tree/linux"
+    "tree/infrastructure/architecture/saas-multi-tenancy.md"
   ]
 }

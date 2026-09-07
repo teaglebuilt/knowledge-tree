@@ -5,12 +5,12 @@
 # `encrypted: false` subtrees genuinely match no rule at all.
 creation_rules:
   - path_regex: ^tree/networking/censorship/[^/]+\.md$
-    kms: arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28
+    kms: arn:aws:kms:us-east-1:${AWS_ACCOUNT_ID}:alias/sops-knowledge-tree
   - path_regex: ^tree/networking/censorship/books/[^/]+\.md$
-    kms: arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28
+    kms: arn:aws:kms:us-east-1:${AWS_ACCOUNT_ID}:alias/sops-knowledge-tree
   - path_regex: ^tree/networking/censorship/examples/water-spin-homelab/[^/]+\.md$
-    kms: arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28
+    kms: arn:aws:kms:us-east-1:${AWS_ACCOUNT_ID}:alias/sops-knowledge-tree
   - path_regex: ^tree/networking/censorship/pdf/[^/]+\.md$
-    kms: arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28
+    kms: arn:aws:kms:us-east-1:${AWS_ACCOUNT_ID}:alias/sops-knowledge-tree
   - path_regex: ^tree/networking/censorship/research/[^/]+\.md$
-    kms: arn:aws:kms:us-east-1:626956831217:key/f22ea8b8-ec28-4d80-988e-7372419dbc28
+    kms: arn:aws:kms:us-east-1:${AWS_ACCOUNT_ID}:alias/sops-knowledge-tree

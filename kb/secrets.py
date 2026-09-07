@@ -1,24 +1,10 @@
-"""Encryption policy for the knowledge tree, declared in tree/branches.yaml.
-
-branches.yaml mirrors the directory layout under tree/. A node may set
-`encrypted: true|false`; that value applies to every file beneath it until a
-deeper node overrides it. Anything undeclared defaults to plaintext.
-
-    networking:
-      branches:
-        censorship:
-          encrypted: true         # tree/networking/censorship/** is encrypted
-          branches:
-            hardware:
-              encrypted: false    # ...except this subtree
-
-sops does the actual crypto; this module decides *which* files it runs on and
-keeps .sops.yaml generated from the same source of truth. `check()` never
-shells out to sops, so the pre-commit hook works without AWS credentials.
-"""
 from __future__ import annotations
 
+import functools
+import os
+import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -27,6 +13,50 @@ from . import config
 
 # A sops binary-store file is JSON whose payload is a single ENC[...] blob.
 _MARKER = b"ENC[AES256_GCM"
+
+# Neither .sops.yaml nor a committed ciphertext carries the AWS account id --
+# both hold ${AWS_ACCOUNT_ID} in the account field of the KMS ARN. sops does no
+# interpolation of its own (it rejects the placeholder as a malformed ARN), so
+# _sops() expands it on the way in and templates it back out on the way out.
+# Only the account field of an arn:aws:kms: string is touched, never arbitrary
+# document text.
+_ACCOUNT_VAR = "${AWS_ACCOUNT_ID}"
+_ARN_REAL = re.compile(r"(arn:aws:kms:[a-z0-9-]+:)(\d{12})(:)")
+_ARN_VAR = re.compile(r"(arn:aws:kms:[a-z0-9-]+:)\$\{AWS_ACCOUNT_ID\}(:)")
+
+
+@functools.lru_cache(maxsize=1)
+def account_id() -> str:
+    """Resolve the AWS account id: $AWS_ACCOUNT_ID, else the caller's identity.
+
+    Cached, so a batch encrypt does one sts call rather than one per file and
+    cannot half-succeed if that call is flaky.
+    """
+    acct = os.environ.get("AWS_ACCOUNT_ID")
+    if acct:
+        return acct
+    proc = subprocess.run(
+        ["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+        capture_output=True,
+        text=True,
+    )
+    acct = proc.stdout.strip()
+    if proc.returncode != 0 or not acct.isdigit():
+        raise SystemExit(
+            "cannot resolve the AWS account id -- set AWS_ACCOUNT_ID, or make\n"
+            "`aws sts get-caller-identity` work (e.g. `aws sso login`)."
+        )
+    return acct
+
+
+def expand(text: str, acct: str) -> str:
+    """${AWS_ACCOUNT_ID} -> digits, in KMS ARNs only."""
+    return _ARN_VAR.sub(rf"\g<1>{acct}\g<2>", text)
+
+
+def templatize(text: str, acct: str) -> str:
+    """Digits -> ${AWS_ACCOUNT_ID}, in KMS ARNs only."""
+    return _ARN_REAL.sub(rf"\g<1>{_ACCOUNT_VAR}\g<3>", text)
 
 
 # --------------------------------------------------------------------------- #
@@ -157,9 +187,50 @@ def check(paths: list[str] | None = None, staged: bool = False) -> int:
 
 
 def _sops(flag: str, rel: Path) -> bool:
-    return subprocess.run(
-        ["sops", flag, "-i", rel.as_posix()], cwd=config.ROOT
-    ).returncode == 0
+    """Run `sops -i` with ${AWS_ACCOUNT_ID} resolved on both inputs it reads.
+
+    sops is handed a temp copy of .sops.yaml with real digits (`--config`), and
+    for a decrypt the file's own `sops:` metadata is expanded first -- that ARN
+    is load-bearing, KMS rejects the call without the right account. After an
+    encrypt the account id sops just wrote into the metadata is templated back
+    out, so what lands in git stays free of it. The MAC covers the payload, not
+    the key metadata, so rewriting that string does not invalidate the file.
+
+    A plaintext body is never rewritten, only ciphertext metadata, so a
+    document may contain the literal string ${AWS_ACCOUNT_ID} unharmed.
+    """
+    acct = account_id()
+    fp = config.ROOT / rel
+    original = fp.read_bytes()
+
+    if flag == "-d":
+        expanded = expand(original.decode(), acct).encode()
+        if expanded != original:
+            fp.write_bytes(expanded)
+
+    # The temp config MUST live in the repo root: sops resolves path_regex
+    # relative to the directory holding the config file, so a /tmp copy makes
+    # every ^tree/... rule miss ("no matching creation rules found").
+    fd, cfg = tempfile.mkstemp(dir=config.ROOT, prefix=".sops-", suffix=".yaml")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(expand(config.SOPS_CONFIG_PATH.read_text(), acct))
+        ok = subprocess.run(
+            ["sops", "--config", Path(cfg).name, flag, "-i", rel.as_posix()],
+            cwd=config.ROOT,
+        ).returncode == 0
+    finally:
+        os.unlink(cfg)
+
+    if not ok:
+        if fp.read_bytes() != original:
+            fp.write_bytes(original)  # undo the expansion
+        return False
+
+    if flag == "-e":
+        out = fp.read_bytes()
+        fp.write_bytes(templatize(out.decode(), acct).encode())
+    return True
 
 
 def encrypt(paths: list[str] | None = None) -> int:
@@ -215,6 +286,8 @@ def _render_sops_config(kms: str | None = None) -> tuple[str, list[str]]:
                 break
     if not kms:
         raise SystemExit(f"no KMS ARN in {path.name}; pass --kms")
+    # Never let real digits reach the tracked file, whatever --kms was given.
+    kms = templatize(kms, "")
 
     dirs = sorted({rel.parent.as_posix() for rel, want in resolve() if want})
     lines = [
