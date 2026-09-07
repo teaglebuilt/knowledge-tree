@@ -11,7 +11,7 @@ help: ## Show this help
 install: ## Sync Python deps (lancedb, duckdb, fastembed, qdrant-client, ...)
 	uv sync
 
-extract: ## Convert sources/ epub+pdf -> tree/ markdown (idempotent, hash-gated)
+extract: ## Convert sources declared in tree/branches.yaml -> tree/ markdown
 	$(PY) -m kb extract
 
 ingest: ## Incremental ingest: changed markdown -> chunk -> embed -> LanceDB

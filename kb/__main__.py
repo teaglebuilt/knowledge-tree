@@ -9,7 +9,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="kb", description="Knowledge base RAG pipeline")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    p_ext = sub.add_parser("extract", help="convert sources/ epub+pdf -> tree/ markdown")
+    p_ext = sub.add_parser("extract", help="convert sources declared in branches.yaml -> tree/ markdown")
     p_ext.add_argument("--force", action="store_true", help="re-extract unchanged sources")
 
     p_ing = sub.add_parser("ingest", help="incremental ingest markdown -> LanceDB")
@@ -54,7 +54,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "extract":
         from .extract import run as run_extract
-        run_extract(force=args.force)
+        stats = run_extract(force=args.force)
+        return 1 if stats["failed"] else 0
     elif args.cmd == "ingest":
         from .ingest import run
         run(force=args.force)

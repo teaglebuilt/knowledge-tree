@@ -1,46 +1,7 @@
----title: Cross-Border E-commerce Independent Site Architecture Design — Alibaba Cloud Perspective
+---
+title: Cross-Border E-commerce Independent Site Architecture Design — Alibaba Cloud Perspective
 description: 'Cross-Border E-commerce Independent Site Architecture Design'
 summary: 'Cross-Border E-commerce Independent Site Architecture Design'
-category: general
-tags:
-- architecture
-- best-practice
-- redis
-- operator
-tier: supporting
-created: '2026-05-23'
-last_updated: 2026-05
-difficulty: intermediate
-reading_level: intermediate
-audience:
-- All engineers
-estimated_read_time: 5min
-intent_queries:
-- What is cross-border e-commerce independent site architecture design — Alibaba Cloud perspective
-- How to design cross-border e-commerce independent site architecture — Alibaba Cloud perspective
-- Kubernetes 20 application patterns best practices
-trigger_keywords:
-- Cross-border e-commerce independent site architecture design
-- Alibaba Cloud perspective
-- application
-- patterns
-prerequisites:
-- kubectl-basics
-- prometheus-basics
-- redis-basics
-original_language: Chinese
-authors:
-- name: Dillan Teagle
-  role: contributor
-source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/crossborder-dtc.md
----
-
-> **Production Environment Security Notice**
->
-> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk), Yellow (medium risk), Green (low risk/read-only).
-
-title: Cross-Border E-commerce Independent Site Architecture Design
-description: '# Cross-Border E-commerce Independent Site Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -48,7 +9,6 @@ tags:
 - industry
 - redis
 - operator
-last_updated: 2026-05-18
 difficulty: intermediate
 reading_level: intermediate
 audience:
@@ -59,7 +19,7 @@ estimated_read_time: 5min
 intent_queries:
 - Cross-border e-commerce independent site Kubernetes global deployment
 - DTC brand go-global Shopify Alibaba Cloud architecture
-- Cross-border payment routing multi-currency K8s
+- Cross-border payment routing multi-currency Kubernetes
 - GDPR compliance cross-border e-commerce data localization
 - Global CDN acceleration cross-border e-commerce architecture
 trigger_keywords:
@@ -85,7 +45,18 @@ k8s_versions:
 - '1.30'
 - '1.31'
 - '1.32'
+created: '2026-05-23'
+last_updated: 2026-05-18
+original_language: Chinese
+authors:
+- name: Dillan Teagle
+  role: contributor
+source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/crossborder-dtc.md
 ---
+
+> **Production Environment Security Notice**
+>
+> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk), Yellow (medium risk), Green (low risk/read-only).
 
 # Cross-Border E-commerce Independent Site Architecture Design — Alibaba Cloud Perspective
 
@@ -203,7 +174,7 @@ sequenceDiagram
 
 ## 3. Technical Architecture
 
-### 3.1 K8s Deployment
+### 3.1 Kubernetes Deployment
 
 ```yaml
 # Independent Site Frontend Deployment
@@ -305,7 +276,7 @@ flowchart LR
 
 ## Obsidian Related Documents
 
-- topic-application-architecture KUDIG Database — Global MOC
+- topic-application-architecture MOC
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
 
 ## See Also
@@ -314,6 +285,5 @@ flowchart LR
 - 54-social-gaming-metaverse
 - 56-smart-elderly-care
 - 57-digital-therapeutics
-
 
 <!-- risk-assessed -->
