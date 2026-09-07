@@ -13,7 +13,7 @@ Knowledge as an obsidian vault stored as markdown in git and ingested and indexe
 
 ## Branches
 
-[branches.yaml](tree/branches.yaml) is the routing file for the knowledge tree.
+[branches.yaml](tree/branches.yaml) is the routing file for the knowledge tree and controls building the tree at compilation with controls for encryption, pulling from remote sources such as books, etc...
 
 - [AI](tree/ai)
 - [Infrastructure](tree/infrastructure)
@@ -21,7 +21,19 @@ Knowledge as an obsidian vault stored as markdown in git and ingested and indexe
 - [Application](tree/application)
 - [Specialized Tooling](tree/specialized_tooling)
 
+## Searching Trees
+
+- indexing
+- tagging
+
 ## Commands
 
 Source code used for knowledge management. Commands to interact with the knowledge bank exist in makefile.
 Run `make help` to see the available commands.
+
+### Examples
+
+**Query for Knowledge**
+
+```
+```

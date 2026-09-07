@@ -1,5 +1,7 @@
 ---
 ai:
+  books:
+    the-context-engineering-handbook-drew-breunig: "books/epub/context_engineering_handboook"
 application:
 business:
 data:
@@ -8,13 +10,32 @@ networking:
   branches:
     censorship:
       encrypted: true
+      books:
+        controlled-experimentation-of-digital-forensics-towards-formalization: "books/epub/controlled_experimentation_of_digital_forensics"
+      pdf:
+        decoy-ccs12: research/censorship/decoy-ccs12.pdf
+        foci-2024-0003: research/censorship/foci-2024-0003.pdf
+        internet-censorship: research/censorship/internet-censorship.pdf
       branches:
         hardware:
           encrypted: false
+    kubernetes:
+      branches:
+        ai:
+        networking:
+          ebpf:
+            books:
+              learning_ebpf: 'books/pdf/learning_ebpf.pdf'
+              linux_observability_with_bpf: 'books/epub/Linux Observability with BPF'
+        webassembly:
 platform-engineering:
 product:
 security:
 specialized_tooling:
+  branches:
+    webassembly:
+      pdf:
+        server-side-webassembly-building-portable-and-secure-multi-language-ap: "books/pdf/server_side_webassembly"
 sre:
 hardware:
 linux:

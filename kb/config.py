@@ -7,7 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 KNOWLEDGE_DIRS = os.environ.get("KB_DIRS", "tree").split(",")
-SOURCES_DIR = Path(os.environ.get("KB_SOURCES", ROOT / "sources"))
+# Root that relative source paths in branches.yaml resolve against (the NAS).
+_vol = os.environ.get("KNOWLEDGE_VOLUME_PATH", "").strip()
+SOURCE_VOLUME = Path(_vol).expanduser() if _vol else None
 
 # Encryption policy: which subtrees sops encrypts, and the config generated
 # from it. TREE_DIR is the vault root that branches.yaml describes.

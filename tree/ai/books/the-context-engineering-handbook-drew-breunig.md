@@ -1,20 +1,20 @@
 ---
-title: The Context Engineering Handbook (Drew Breunig
+title: The Context Engineering Handbook (Drew Breunig)
 source: sources/ai/books/The Context Engineering Handbook (Drew Breunig) (z-library.sk,
   1lib.sk, z-lib.sk).epub
 source_type: book
-source_hash: 31252a2d889098a699c5c23aa6ca8c4695fd7133ee05ff6b41e75daeb1ae5004
+source_hash: 2ebe58fa74fa66824f04fd960fc4711ce3c013b4c3e894dd22421e92d37fa97f
 tags:
 - ai
 - book
-extracted: '2026-08-14'
+extracted: '2026-09-07'
 ---
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 ![The cover of this book](assets/cover.png)
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # The Context Engineering Handbook
 
@@ -24,7 +24,7 @@ With Early Release ebooks, you get books in their earliest form—the author’s
 
 Edited by Drew Breunig
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # The Context Engineering Handbook
 
@@ -58,7 +58,7 @@ The views expressed in this work are those of the authors and do not represent t
 
 979-8-341-67101-0
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # Brief Table of Contents (*Not Yet Final*)
 
@@ -109,7 +109,7 @@ Sriraman* (unavailable)
 
 *Chapter 19: Compound AI: Offloading Search to Smaller Models*  (unavailable)
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # Chapter 1. The Road from Prompt Engineering to Context Engineering (and Where We Go From Here)
 
@@ -253,7 +253,7 @@ The people who learn to work effectively with AI—who develop taste for what to
 
 The skill of clearly communicating what you want, whether to a human or AI agent, isn’t going away anytime soon. It’s becoming the whole game.
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # Chapter 2. How Training Shapes LLMs and Explains Their Quirky Behaviors
 
@@ -447,7 +447,7 @@ All of this is how we find ourselves “fighting the weights,” repeating instr
 
 LLMs are powerful but unruly stochastic machines. To effectively build systems around them, harnesses that dynamically assemble the right context for each task,, we must continually hone our mental model for how they work. Effective mental models turn LLMs from a black box, an inscrutable pile of numbers, into something we can reason about.
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # Chapter 3. Context Rot
 
@@ -637,7 +637,7 @@ These strategies are necessary to effectively use LLMs in their current state to
 
 [3](ch03.html#id59-marker) It’s difficult to measure the average length of a coding agent session generally, since it varies significantly depending on the model, harness, and task
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # Chapter 4. Case Study: Hex
 
@@ -779,7 +779,7 @@ Ironically, in the months between the implementation of this system and the publ
 
 But the core lesson still remains: the best way to curate context for the agent is to let the agent curate context for itself by giving it the capability-appropriate context format and toolset.
 
-xml version='1.0' encoding='utf-8'?
+The Context Engineering Handbook
 
 # About the Authors
 
