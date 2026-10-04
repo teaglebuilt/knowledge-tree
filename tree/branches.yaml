@@ -2,10 +2,39 @@
 ai:
   books:
     the-context-engineering-handbook-drew-breunig: "books/epub/context_engineering_handboook"
+    agentic-spec-driven-development-a-practical-method-for-using-ai-to-bui: "books/pdf/Agentic Spec-Driven Development A Practical Method for Using AI to Build Complete Specifications for Software Products and Anatoly Volkhover z-librarysk 1libsk z-lib.pdf"
+    agentic-architectural-patterns-for-building-multi-agent-systems-ali-ar: "books/pdf/Agentic Architectural Patterns for Building Multi-Agent Systems (Ali Arsanjani, Juan Pablo Bustos) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    openclaw-ai-in-production-architecture-design-patterns-and-engineering: "books/pdf/OpenClaw AI in Production Architecture, design patterns, and engineering practices for AI agent platforms (Ken Huang) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    systems-design-in-the-llm-era-patterns-and-principles-for-production-g: "books/pdf/Systems Design in the LLM Era Patterns and principles for production-grade AI architecture Sampriti Mitra z-librarysk 1libsk z-lib copy.pdf"
+    build-your-own-agentic-ai-framework-design-flexible-multi-agent-system: "books/pdf/Build Your Own Agentic AI Framework Design Flexible Multi-agent Systems in Python with MCP and A2A integration Gigi Sayfan z-librarysk 1libsk z-lib.pdf"
+    building-ai-agents-for-network-operations-design-llm-powered-netops-wo: "books/pdf/Building AI Agents for Network Operations Design LLM-powered NetOps workflows with Python, Ollama, MCP, and tool calling (Sif Baksh) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    edge-ai-engineering-hands-on-with-the-raspberry-pi-marcelo-rovai: "books/pdf/Edge AI Engineering Hands-on with the Raspberry Pi (Marcelo Rovai) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    hands-on-rag-for-production-design-develop-and-deploy-production-ready: "books/pdf/Hands-On RAG for Production Design, Develop, and Deploy Production-Ready RAG Applications (Ofer Mendelevitch, Forrest Sheng Bao) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    ai-systems-performance-engineering-for-raymond-rhine-chris-fregly: "books/pdf/AI Systems Performance Engineering (for Raymond Rhine) (Chris Fregly) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    the-forward-deployed-engineer-a-q2-2026-conversion-manual-written-by-c: "books/pdf/The Forward Deployed Engineer A Q2 2026 Conversion Manual (Written by Claude Code etc.) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    regenerative-software-early-release-developing-scalable-maintainable-s: "books/pdf/Regenerative Software - EARLY RELEASE - Developing Scalable, Maintainable Systems with AI (Chad Fowler) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 application:
+  books:
+    building-micro-frontends-scaling-teams-and-projects-empowering-develop: "books/pdf/Building Micro-Frontends Scaling Teams and Projects Empowering Developers (Mezzalira, Luca) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    the-software-engineers-guidebook-gergely-orosz: "books/pdf/The Software Engineers Guidebook (Gergely Orosz) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 business:
-data:
+  books:
+    ai-first-healthcare-ai-applications-in-the-business-and-clinical-manag: "books/pdf/AI-First Healthcare AI Applications in the Business and Clinical Management of Health Kerrie L Holley Siupo Becker MD z-librarysk 1libsk z-lib.pdf"
+    ai-driven-entrepreneurship-strategies-for-financial-success-in-startup: "books/pdf/AI-Driven Entrepreneurship Strategies for Financial Success in Startups and Economies Narendra Kumar Pradipta Banerjee z-librarysk 1libsk z-lib.pdf"
+    the-tech-savvy-entrepreneur-digital-transformation-and-technological-a: "books/pdf/The Tech-Savvy Entrepreneur Digital Transformation and Technological Adaptation Samer Abaddi z-librarysk 1libsk z-lib.pdf"
+data: {}
 infrastructure:
+  books:
+    data-engineering-with-generative-and-agentic-ai-on-aws-building-an-ai: "books/pdf/Data Engineering with Generative and Agentic AI on AWS Building an AI-Augmented Data Practice for the Enterprise (Justin J. Leto) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    system-design-on-aws-jayanth-kumar-mandeep-singh: "books/pdf/System Design on AWS (Jayanth Kumar, Mandeep Singh) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    mastering-aws-cloud-leocadio-paulo-h: "books/pdf/Mastering AWS Cloud (Leocadio, Paulo H.) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    securing-the-aws-cloud-a-guide-for-learning-to-secure-aws-infrastructu: "books/pdf/Securing the AWS Cloud A Guide for Learning to Secure AWS Infrastructure (Brandon Carroll) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    next-generation-technologies-in-cloud-computing-bishwajeet-pandey: "books/pdf/Next-Generation Technologies in Cloud Computing Bishwajeet Pandey z-librarysk 1libsk z-lib.pdf"
+    architecting-at-scale-a-practical-guide-to-large-scale-system-design-f: "books/pdf/Architecting at Scale A Practical Guide to Large-Scale System Design From Monolith to AI-Native Beyond Scaling Servers Imran Siddique z-librarysk 1libsk z-lib.pdf"
+    aws-cookbook-recipes-for-success-on-aws-john-culkin-mike-zazon: "books/pdf/AWS Cookbook Recipes for Success on AWS (John Culkin, Mike Zazon) (z-library.sk, 1lib.sk, z-lib.pdf"
+    designing-nvidia-ai-infrastructure-gpu-compute-networking-orchestratio: "books/pdf/Designing NVIDIA AI Infrastructure GPU compute, networking, orchestration, and security in NVIDIAs stack, explained (Vivian Aranha) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    ultimate-aws-certified-solutions-architect-associate-exam-guide-master: "books/pdf/Ultimate AWS Certified Solutions Architect Associate Exam Guide Master Designing Resilient, Scalable Architectures with Core… (Venkata Sasi, Otieno Ododa) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    homelab_projects: "books/pdf/homelab_projects.pdf"
 networking:
   branches:
     censorship:
@@ -13,31 +42,51 @@ networking:
       books:
         controlled-experimentation-of-digital-forensics-towards-formalization: "books/epub/controlled_experimentation_of_digital_forensics"
       pdf:
-        decoy-ccs12: research/censorship/decoy-ccs12.pdf
-        foci-2024-0003: research/censorship/foci-2024-0003.pdf
-        internet-censorship: research/censorship/internet-censorship.pdf
+        decoy-ccs12: "research/censorship/decoy-ccs12.pdf"
+        foci-2024-0003: "research/censorship/foci-2024-0003.pdf"
+        internet-censorship: "research/censorship/internet-censorship.pdf"
       branches:
         hardware:
           encrypted: false
     kubernetes:
       branches:
-        ai:
+        ai: {}
         networking:
           ebpf:
             books:
-              learning_ebpf: 'books/pdf/learning_ebpf.pdf'
-              linux_observability_with_bpf: 'books/epub/Linux Observability with BPF'
-        webassembly:
+              learning_ebpf: "books/pdf/learning_ebpf.pdf"
+              linux_observability_with_bpf: "books/epub/Linux Observability with BPF"
+        webassembly: {}
+  books:
+    the-wireless-cookbook-build-real-projects-and-master-wi-fi-bluetooth-a: "books/pdf/The Wireless Cookbook Build Real Projects and Master Wi-Fi Bluetooth and LoRa Bill Zimmerman z-librarysk 1libsk z-lib.pdf"
+    the-aws-networking-handbook-a-practical-guide-to-cloud-connectivity-se: "books/pdf/The AWS Networking Handbook A Practical Guide to Cloud Connectivity Security and Optimization Robert Johnson z-librarysk 1libsk z-lib.pdf"
 platform-engineering:
-product:
+  books:
+    machine-learning-platform-engineering-build-an-internal-developer-plat: "books/pdf/Machine Learning Platform Engineering Build an internal developer platform for ML and AI systems (Benjamin Tan Wei Hao, Shanoop Padmanabhan etc.) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+product: {}
 security:
+  books:
+    the-art-of-invisibility-the-world-s-most-famous-hacker-teaches-you-how: "books/pdf/The Art of Invisibility The World’s Most Famous Hacker Teaches You How to Be Safe in the Age of Big Brother and Big Data (Kevin D. Mitnick, Robert Vamosi) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    learning-serverless-security-hacking-and-securing-serverless-cloud-app: "books/pdf/Learning Serverless Security Hacking and Securing Serverless Cloud Applications on AWS Azure and Google Cloud Joshua Arvin Lat z-librarysk 1libsk z-lib.pdf"
+    cybersecurity-strategy-for-the-al-driven-era-proven-strategies-and-dat: "books/pdf/Cybersecurity Strategy for the Al-Driven Era Proven strategies and data-driven tactics to disrupt attacks and strengthen… (Tim Rains) (z-library.sk, 1lib.sk, z-lib.pdf"
+    security-as-code-devsecops-patterns-with-aws-bk-sarthak-das-virginia-c: "books/pdf/Security as Code DevSecOps Patterns with AWS (BK Sarthak Das, Virginia Chu) (z-library.sk, 1lib.sk, z-lib.pdf"
+    ai-security-engineering-dan-borges-david-campbell: "books/pdf/AI Security Engineering (Dan Borges, David Campbell) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    authorization-in-action-meap-v06-build-policy-based-access-control-for: "books/pdf/Authorization in Action MEAP V06 Build policy-based access control for Zero Trust, APIs, SaaS, and AI agents (Phil Windley) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    advances-in-hardware-design-for-security-and-trust-ranga-r-vemuri-john: "books/pdf/Advances in Hardware Design for Security and Trust (Ranga R. Vemuri  John M. Emmert) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    privacy-and-security-for-large-language-models-hands-on-privacy-preser: "books/pdf/Privacy and Security for Large Language Models Hands-On Privacy-Preserving Techniques for Personalized AI (Baihan Lin) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 specialized_tooling:
   branches:
     webassembly:
       pdf:
         server-side-webassembly-building-portable-and-secure-multi-language-ap: "books/pdf/server_side_webassembly"
-sre:
+sre: {}
 hardware:
+  books:
+    gpu-programming-using-rust-and-cuda-gitforgits: "books/pdf/GPU Programming using Rust and CUDA (GitforGits) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    applied-embedded-electronics-design-essentials-for-robust-systems-jerr: "books/pdf/Applied Embedded Electronics Design Essentials for Robust Systems (Jerry Twomey) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 linux:
   branches:
-    operating-systems:
+    operating-systems: {}
+  books:
+    the-ultimate-ai-guide-for-linux-engineers-a-practical-guide-to-harness: "books/pdf/The Ultimate AI Guide for Linux Engineers A practical guide to harnessing AI, LLMs, and Automation in Linux environments (Ezequiel Lanza  Eduardo Spotti) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+    linux-cookbook-essential-skills-for-linux-users-and-system-network-adm: "books/pdf/Linux Cookbook Essential Skills for Linux Users and System  Network Administrators (Carla Schroder) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
