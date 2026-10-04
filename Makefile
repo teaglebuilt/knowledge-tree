@@ -1,7 +1,7 @@
 PY := uv run python
 
 .DEFAULT_GOAL := help
-.PHONY: help install extract ingest reindex index query sync qdrant-forward golden clean \
+.PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -27,6 +27,9 @@ query: ## Query the local index: make query Q="ebpf network policy"
 
 sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 	$(PY) -m kb sync
+
+mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
+	$(PY) -m kb.mcp_retrieval --transport stdio
 
 golden: ## Measure retrieval quality (recall@k / MRR) against eval/golden.yaml
 	$(PY) -m kb eval

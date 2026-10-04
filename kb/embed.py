@@ -20,4 +20,6 @@ def embed(texts: list[str]) -> list[list[float]]:
 
 
 def embed_query(text: str) -> list[float]:
-    return embed([text])[0]
+    """Query-space embedding (FastEmbed query_embed, not passage embed)."""
+    vector = next(_model().query_embed(text))
+    return vector.tolist()

@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import re
+import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import NamedTuple
@@ -69,6 +70,78 @@ def _sha256(p: Path) -> str:
     _feed(h, p)
     return h.hexdigest()
 
+
+def _can_read(p: Path) -> bool:
+    """True if Python can open bytes (stat can succeed while open is TCC-blocked)."""
+    try:
+        if _is_bundle(p):
+            for f in p.rglob("*"):
+                if f.is_file():
+                    with f.open("rb") as fh:
+                        fh.read(1)
+                    return True
+            return p.is_dir()
+        with p.open("rb") as fh:
+            fh.read(1)
+        return True
+    except OSError:
+        return False
+
+
+def _applescript_quote(s: str) -> str:
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _finder_stage(src: Path, dest: Path) -> Path:
+    """Copy src → dest via Finder (bypasses macOS TCC that blocks Python on /Volumes)."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    src_q = _applescript_quote(str(src))
+    dest_dir_q = _applescript_quote(str(dest.parent) + "/")
+    script = f'''
+tell application "Finder"
+  set srcItem to POSIX file "{src_q}" as alias
+  set destFolder to POSIX file "{dest_dir_q}" as alias
+  duplicate srcItem to destFolder with replacing
+end tell
+'''
+    proc = subprocess.run(
+        ["osascript", "-e", script],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or "Finder duplicate failed").strip()
+        raise OSError(err)
+
+    staged = dest.parent / src.name
+    if staged.resolve() != dest.resolve():
+        if dest.exists():
+            if dest.is_dir():
+                import shutil
+                shutil.rmtree(dest)
+            else:
+                dest.unlink()
+        staged.rename(dest)
+    return dest
+
+
+def _ensure_readable(src: Path, declared: str) -> Path:
+    """Return a path Python can read; stage via Finder into SOURCE_CACHE if needed."""
+    if _can_read(src):
+        return src
+
+    cache = config.SOURCE_CACHE / declared
+    if cache.exists() and _can_read(cache):
+        # Refresh when volume file looks newer (mtime/size via stat still works under TCC).
+        try:
+            src_stat, cache_stat = src.stat(), cache.stat()
+            if src_stat.st_size == cache_stat.st_size and src_stat.st_mtime <= cache_stat.st_mtime:
+                return cache
+        except OSError:
+            return cache
+
+    print(f"  ~ staging (TCC): {declared} -> {cache.relative_to(config.ROOT) if cache.is_relative_to(config.ROOT) else cache}")
+    return _finder_stage(src, cache)
 
 def _clean_title(stem: str) -> str:
     s = _ZLIB_NOISE.sub("", stem)
@@ -169,7 +242,7 @@ def _pdf_to_md(path: Path) -> str:
         pymupdf4llm.use_layout(False)
     except Exception:
         pass
-    return _collapse_blank(pymupdf4llm.to_markdown(str(path), show_progress=False))
+    return _collapse_blank(pymupdf4llm.to_markdown(str(path), show_progress=True))
 
 
 def _convert(path: Path) -> str:
@@ -225,11 +298,17 @@ def _frontmatter(decl: Decl, source: Path, source_hash: str) -> str:
 
 def run(force: bool = False) -> dict:
     extracted = skipped = failed = missing = 0
+    print("extraced", extracted)
+    print("skipped", skipped)
+    print("failed", failed)
+    print("missing", missing)
 
     for decl in declarations():
         label = "/".join((*decl.domain, decl.bucket, decl.slug))
+        print("label", label)
         try:
             src = decl.resolve()
+            print("source", src)
         except ValueError as e:
             print(f"  ! {label}: {e}")
             failed += 1
@@ -241,10 +320,13 @@ def run(force: bool = False) -> dict:
             continue
 
         target = decl.target
+        print("target", target)
         try:
-            src_hash = _sha256(src)
+            readable = _ensure_readable(src, decl.declared)
+            src_hash = _sha256(readable)
         except OSError as e:  # unreadable mount, permissions, vanished file
-            print(f"  ! {label}: cannot read source ({e.strerror})")
+            detail = e.strerror or str(e)
+            print(f"  ! {label}: cannot read source ({detail})")
             failed += 1
             continue
 
@@ -253,7 +335,8 @@ def run(force: bool = False) -> dict:
             continue
 
         try:
-            body = _convert(src)
+            body = _convert(readable)
+            print("body", body)
         except Exception as e:  # a bad file shouldn't sink the whole run
             print(f"  ! {label}: {type(e).__name__}: {e}")
             failed += 1

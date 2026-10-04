@@ -3,27 +3,7 @@ from __future__ import annotations
 import json
 
 from . import config, store
-
-
-def _client():
-    from urllib.parse import urlparse
-
-    from qdrant_client import QdrantClient
-    # qdrant-client defaults port=6333 even for https://host (no port in URL),
-    # which breaks ingress on 443. Use the URL's port, else scheme default.
-    parsed = urlparse(config.QDRANT_URL)
-    if parsed.port is not None:
-        port = parsed.port
-    else:
-        port = 443 if parsed.scheme == "https" else 6333
-
-    return QdrantClient(
-        url=config.QDRANT_URL,
-        port=port,
-        api_key=config.QDRANT_API_KEY,
-        check_compatibility=False,
-        verify=config.QDRANT_VERIFY,
-    )
+from .adapters.qdrant import client as _client
 
 
 def _point_id(chunk_id: str) -> str:

@@ -1,0 +1,79 @@
+---
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: kb-retrieval
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: kb-retrieval
+    app.kubernetes.io/part-of: homelab
+spec:
+  transportType: stdio
+  timeout: 120s
+  deployment:
+    image: python:3.12-slim-bookworm
+    imagePullPolicy: IfNotPresent
+    port: 3000
+    replicas: 1
+    cmd: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        export HOME=/home/mcp
+        export PIP_CACHE_DIR=/home/mcp/.cache/pip
+        export FASTEMBED_CACHE_PATH=/home/mcp/.cache/fastembed
+        mkdir -p "$HOME" "$PIP_CACHE_DIR" "$FASTEMBED_CACHE_PATH"
+        pip install --user -q --no-cache-dir "mcp[cli]" qdrant-client fastembed
+        exec python /app/server.py
+    env:
+      # internal = http://qdrant.data.svc… ; external = https://qdrant.homelab.internal
+      QDRANT_NETWORK: external
+      QDRANT_API_KEY: your-super-secret-api-key
+      COLLECTION_NAME: knowledge
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      KB_SEARCH_DEFAULT_K: "8"
+      KB_SEARCH_MAX_K: "20"
+      HOME: /home/mcp
+      PYTHONUNBUFFERED: "1"
+      PATH: /home/mcp/.local/bin:/usr/local/bin:/usr/bin:/bin
+    volumeMounts:
+      - name: kb-retrieval
+        mountPath: /app
+        readOnly: true
+      - name: home
+        mountPath: /home/mcp
+      - name: tmp
+        mountPath: /tmp
+    volumes:
+      - name: kb-retrieval
+        configMap:
+          name: kb-retrieval
+          items:
+            - key: server.py
+              path: server.py
+      - name: home
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true

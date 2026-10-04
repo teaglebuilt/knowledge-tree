@@ -8,6 +8,7 @@
 *.duckdb
 *.lance
 .lancedb/
+.cache/
 
 __pycache__*
 .venv
