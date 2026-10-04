@@ -22,3 +22,4 @@ __pycache__*
 .envrc
 # transient expanded sops config (kb.secrets._sops)
 .sops-*.yaml
+Volumes

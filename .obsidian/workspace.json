@@ -11,10 +11,14 @@
             "id": "75521912599ac75e",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Untitled.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Untitled"
             }
           }
         ]
@@ -72,8 +76,7 @@
               "title": "Bookmarks"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "horizontal",
@@ -184,6 +187,17 @@
   },
   "active": "75521912599ac75e",
   "lastOpenFiles": [
+    "Volumes/knowledge_data/books/pdf/homelab_projects.pdf.md",
+    "Untitled.md",
+    "Volumes/knowledge_data/books/pdf/DEBIAN.md",
+    "Volumes/knowledge_data/books/pdf",
+    "Volumes/knowledge_data/books/pdf.md",
+    "Untitled.base",
+    "Volumes/knowledge_data/books",
+    "Volumes/knowledge_data",
+    "Volumes",
+    "README.md",
+    "2026-09-09.md",
     "tree/specialized_tooling/webassembly/pdf/wasm-performance.md",
     "tree/specialized_tooling/webassembly/pdf/server-side-webassembly-building-portable-and-secure-multi-language-ap.md",
     "tree/specialized_tooling/webassembly/pdf",
@@ -194,11 +208,6 @@
     "sources/specialized_tooling/webassembly/pdf",
     "sources/networking/censorship/pdf",
     "sources/networking/censorship/books",
-    "sources/specialized_tooling/webassembly",
-    "sources/networking/censorship",
-    "sources/ai/pdf",
-    "sources/ai/books",
-    "sources/specialized_tooling",
     "sources/MANIFEST.md",
     "tree/application/architecture/data-midplatform-architecture.md",
     "tree/application/architecture/iot-platform-architecture.md",
@@ -213,11 +222,6 @@
     "tree/application/architecture/smart-logistics-architecture.md",
     "tree/application/architecture/social-gaming-metaverse.md",
     "tree/application/architecture/social-media-architecture.md",
-    "tree/application/architecture/space-internet.md",
-    "tree/application/architecture/tsn-network.md",
-    "tree/application/architecture/video-shortform-architecture.md",
-    "tree/platform-engineering/developer-experience/02-developer-onboarding-automation.md",
-    "tree/infrastructure/kubernetes/networking/ebpf/08-bcc-bpftrace-tools.md",
-    "tree/infrastructure/architecture/saas-multi-tenancy.md"
+    "tree/application/architecture/space-internet.md"
   ]
 }

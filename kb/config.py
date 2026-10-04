@@ -27,6 +27,14 @@ CHILD_OVERLAP = int(os.environ.get("KB_CHILD_OVERLAP", "60"))
 
 GOLDEN_PATH = Path(os.environ.get("KB_GOLDEN", ROOT / "eval" / "golden.yaml"))
 
-QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+QDRANT_URL = os.environ.get("QDRANT_URL", "https://qdrant.homelab.internal")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")  # optional
 QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "knowledge")
+
+_qdrant_verify = os.environ.get("QDRANT_VERIFY", "true").strip()
+if _qdrant_verify.lower() in {"0", "false", "no", "off"}:
+    QDRANT_VERIFY: bool | str = False
+elif _qdrant_verify.lower() in {"1", "true", "yes", "on"}:
+    QDRANT_VERIFY = True
+else:
+    QDRANT_VERIFY = _qdrant_verify  # path to CA bundle

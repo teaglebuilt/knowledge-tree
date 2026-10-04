@@ -1,9 +1,3 @@
-"""Push the local LanceDB vectors to Qdrant on the k8s cluster (the mirror).
-
-Local LanceDB is authoritative; this replays it into Qdrant so other machines /
-services can query the shared collection. Reach the cluster via port-forward or
-an ingress URL in QDRANT_URL.
-"""
 from __future__ import annotations
 
 import json
@@ -12,9 +6,24 @@ from . import config, store
 
 
 def _client():
-    from qdrant_client import QdrantClient
+    from urllib.parse import urlparse
 
-    return QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY)
+    from qdrant_client import QdrantClient
+    # qdrant-client defaults port=6333 even for https://host (no port in URL),
+    # which breaks ingress on 443. Use the URL's port, else scheme default.
+    parsed = urlparse(config.QDRANT_URL)
+    if parsed.port is not None:
+        port = parsed.port
+    else:
+        port = 443 if parsed.scheme == "https" else 6333
+
+    return QdrantClient(
+        url=config.QDRANT_URL,
+        port=port,
+        api_key=config.QDRANT_API_KEY,
+        check_compatibility=False,
+        verify=config.QDRANT_VERIFY,
+    )
 
 
 def _point_id(chunk_id: str) -> str:
@@ -41,9 +50,10 @@ def push(batch: int = 256) -> dict:
             ),
         )
 
-    rows = tbl.to_pandas()
+    # Arrow → list of dicts (avoid pandas; not a project dependency).
+    rows = tbl.to_arrow().to_pylist()
     points, pushed = [], 0
-    for _, r in rows.iterrows():
+    for r in rows:
         points.append(
             models.PointStruct(
                 id=_point_id(r["chunk_id"]),
