@@ -1,0 +1,90 @@
+# knowledge-tree chart — kb-retrieval MCPServer + knowledge-scout Agent
+
+# Namespace for MCPServer / Agent CRs (kagent lives in `ai` on mlops).
+namespace: ai
+
+# TODO: publish the image (make docker-push) before cluster deploy.
+# Placeholder registry path — replace if your org uses a different GHCR/name.
+image:
+  repository: ghcr.io/teaglebuilt/kb-retrieval
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+  pullSecrets:
+    - name: ghcr-secret
+
+mcpServer:
+  name: kb-retrieval
+  # kagent MCPServer CR apiVersion (stdio stdioTransport).
+  apiVersion: kagent.dev/v1alpha1
+  transportType: stdio
+  timeout: 120s
+  replicas: 1
+  port: 3000
+  # Explicit cmd so the CR does not rely solely on image ENTRYPOINT.
+  cmd: python
+  args:
+    - -m
+    - kb.mcp_retrieval
+
+# Qdrant connection. When url is empty, QDRANT_NETWORK selects internal vs external.
+# Prefer network=internal for in-cluster DNS (pod near Qdrant on application/data).
+qdrant:
+  network: internal
+  internalUrl: http://qdrant.data.svc.cluster.local:6333
+  externalUrl: https://qdrant.homelab.internal
+  # Set via `make helm-deploy` from QDRANT_API_KEY in .envrc — do not commit real keys.
+  apikey: ""
+  # Optional hard override (wins over network mode when set).
+  url: ""
+  # Empty → kb.config defaults (verify=true for internal HTTP, false for external TLS).
+  verify: ""
+  collection: knowledge
+  # Existing Secret in the same namespace; keys are injected as env (envFrom).
+  # Create e.g.: kubectl -n ai create secret generic qdrant-apikey --from-literal=QDRANT_API_KEY=...
+  # Prefer existingSecret over --set for production.
+  # Set false to omit secretRefs (local/dev without auth).
+  existingSecretEnabled: false
+
+embedding:
+  model: BAAI/bge-small-en-v1.5
+
+search:
+  defaultK: "8"
+  maxK: "20"
+
+# Baked FastEmbed cache path inside the image (do not mount emptyDir over this).
+fastembedCachePath: /opt/fastembed
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+
+# emptyDir mounts for writable paths when root FS is read-only.
+# Model weights stay at fastembedCachePath (image layer); HOME is for runtime only.
+writableVolumes:
+  home: true
+  tmp: true
+
+agent:
+  # knowledge-scout Agent template (chart/templates/agent.yaml) — enable when ready.
+  enabled: true

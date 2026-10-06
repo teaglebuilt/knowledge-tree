@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: knowledge-tree
+description: Knowledge-tree read plane (kb-retrieval MCP + knowledge-scout agent)
+type: application
+version: '1.0.0'
+appVersion: '0.1.0'

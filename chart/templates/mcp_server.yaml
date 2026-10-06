@@ -1,0 +1,73 @@
+apiVersion: {{ .Values.mcpServer.apiVersion }}
+kind: MCPServer
+metadata:
+  name: {{ .Values.mcpServer.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.mcpServer.name }}
+    app.kubernetes.io/part-of: knowledge
+    app.kubernetes.io/component: mcp-retrieval
+spec:
+  transportType: {{ .Values.mcpServer.transportType }}
+  stdioTransport: {}
+  timeout: {{ .Values.mcpServer.timeout | quote }}
+  deployment:
+    image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    imagePullPolicy: {{ .Values.image.pullPolicy }}
+    {{- with .Values.image.pullSecrets }}
+    imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    port: {{ .Values.mcpServer.port }}
+    replicas: {{ .Values.mcpServer.replicas }}
+    cmd: {{ .Values.mcpServer.cmd | quote }}
+    args:
+      {{- toYaml .Values.mcpServer.args | nindent 6 }}
+    env:
+      QDRANT_NETWORK: {{ .Values.qdrant.network | quote }}
+      QDRANT_INTERNAL_URL: {{ .Values.qdrant.internalUrl | quote }}
+      QDRANT_EXTERNAL_URL: {{ .Values.qdrant.externalUrl | quote }}
+      {{- if .Values.qdrant.url }}
+      QDRANT_URL: {{ .Values.qdrant.url | quote }}
+      {{- end }}
+      {{- if .Values.qdrant.verify }}
+      QDRANT_VERIFY: {{ .Values.qdrant.verify | quote }}
+      {{- end }}
+      {{- if .Values.qdrant.apikey }}
+      QDRANT_API_KEY: {{ .Values.qdrant.apikey | quote }}
+      {{- end }}
+      COLLECTION_NAME: {{ .Values.qdrant.collection | quote }}
+      EMBEDDING_MODEL: {{ .Values.embedding.model | quote }}
+      KB_SEARCH_DEFAULT_K: {{ .Values.search.defaultK | quote }}
+      KB_SEARCH_MAX_K: {{ .Values.search.maxK | quote }}
+      HOME: /home/mcp
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      FASTEMBED_CACHE_PATH: {{ .Values.fastembedCachePath | quote }}
+    {{- if and .Values.qdrant.existingSecretEnabled .Values.qdrant.existingSecret }}
+    # Secret keys become env vars (kmcp envFrom). Expect key: QDRANT_API_KEY
+    {{- end }}
+    volumeMounts:
+      {{- if .Values.writableVolumes.home }}
+      - name: home
+        mountPath: /home/mcp
+      {{- end }}
+      {{- if .Values.writableVolumes.tmp }}
+      - name: tmp
+        mountPath: /tmp
+      {{- end }}
+    volumes:
+      {{- if .Values.writableVolumes.home }}
+      - name: home
+        emptyDir: {}
+      {{- end }}
+      {{- if .Values.writableVolumes.tmp }}
+      - name: tmp
+        emptyDir: {}
+      {{- end }}
+    resources:
+      {{- toYaml .Values.resources | nindent 6 }}
+    podSecurityContext:
+      {{- toYaml .Values.podSecurityContext | nindent 6 }}
+    securityContext:
+      {{- toYaml .Values.securityContext | nindent 6 }}
