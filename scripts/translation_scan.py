@@ -245,6 +245,18 @@ def strip_chunk_comments(text: str) -> str:
     return _HTML_COMMENT_RE.sub(_scrub, text)
 
 
+def normalize_source(text: str) -> str:
+    """
+    Normalize before translate + structure verify.
+
+    Collection markers are glued onto headings (`<!-- chunk: X -->## X`).
+    mdlang does not count those lines as headings, but the model emits real
+    `##` headings — verify then reports "headings added". Strip markers first
+    so original and translation share the same outline.
+    """
+    return strip_chunk_comments(text)
+
+
 def repair_internal_anchors(text: str) -> str:
     """
     Rewrite in-document `#anchor` targets so they resolve to real headings.
@@ -389,9 +401,11 @@ def translate_file(
     return postprocess_translation(assembled, lang, source_path)
 
 
-def _is_structure_drop(result) -> bool:
+def _is_structure_mismatch(result) -> bool:
+    """Retry when the model drops or invents structural elements."""
+    keys = ("list items", "headings", "table rows", "blockquote")
     return any(
-        "dropped" in f and any(k in f for k in ("list items", "headings", "table rows"))
+        any(k in f for k in keys) and ("dropped" in f or "added" in f)
         for f in result.failures
     )
 
@@ -402,19 +416,26 @@ def atomic_write(path: Path, content: str) -> None:
     tmp.replace(path)
 
 
-def verify_text(original: Path, translated_text: str, config: dict):
-    with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=original.suffix or ".md",
-        encoding="utf-8",
-        delete=False,
-    ) as fh:
-        fh.write(translated_text)
-        tmp_path = Path(fh.name)
+def verify_text(original_text: str, translated_text: str, config: dict, suffix: str = ".md"):
+    """Compare translation to an in-memory original (already normalized)."""
+    orig_tmp = trans_tmp = None
     try:
-        return verify_one(tmp_path, original, config)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=suffix, encoding="utf-8", delete=False
+        ) as fh:
+            fh.write(original_text)
+            orig_tmp = Path(fh.name)
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=suffix, encoding="utf-8", delete=False
+        ) as fh:
+            fh.write(translated_text)
+            trans_tmp = Path(fh.name)
+        return verify_one(trans_tmp, orig_tmp, config)
     finally:
-        tmp_path.unlink(missing_ok=True)
+        if orig_tmp is not None:
+            orig_tmp.unlink(missing_ok=True)
+        if trans_tmp is not None:
+            trans_tmp.unlink(missing_ok=True)
 
 
 def require_api_key() -> str:
@@ -547,24 +568,28 @@ def main(argv: list[str] | None = None) -> int:
         rel = str(path)
         print(f"\ntranslating {path} ({r['bucket']}, {lang}) with {args.model}")
         try:
-            original_text = read_text(path)
+            # Normalize first so <!-- chunk: -->## Heading lines count as
+            # headings in both the source outline and the translation.
+            original_text = normalize_source(read_text(path))
             file_config = dict(config)
             new_text = translate_file(
                 client, args.model, original_text, file_config, lang, rel
             )
-            result = verify_text(path, new_text, file_config)
-            # One retry with smaller chunks when the model drops structure.
-            if not result.passed and _is_structure_drop(result):
+            result = verify_text(original_text, new_text, file_config, path.suffix or ".md")
+            # One retry with smaller chunks when structure drifts.
+            if not result.passed and _is_structure_mismatch(result):
                 retry_lines = max(80, file_config["max_chunk_lines"] // 2)
                 print(
-                    f"  structure drop — retrying with max_chunk_lines={retry_lines}",
+                    f"  structure mismatch — retrying with max_chunk_lines={retry_lines}",
                     flush=True,
                 )
                 file_config["max_chunk_lines"] = retry_lines
                 new_text = translate_file(
                     client, args.model, original_text, file_config, lang, rel
                 )
-                result = verify_text(path, new_text, file_config)
+                result = verify_text(
+                    original_text, new_text, file_config, path.suffix or ".md"
+                )
             for w in result.warnings:
                 print(f"  ! {w}")
             if not result.passed:

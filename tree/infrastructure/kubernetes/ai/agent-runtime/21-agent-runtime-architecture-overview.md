@@ -1,7 +1,7 @@
 ---
-title: Agent Runtime架构总览
-description: 'Agent Runtime分层架构、组件关系、数据流、部署拓扑与K8s生态集成'
-summary: 'Agent Runtime分层架构、组件关系、数据流、部署拓扑与K8s生态集成'
+title: Agent Runtime Architecture Overview
+description: 'Agent Runtime layered architecture, component relationships, data flow, deployment topology, and K8s ecosystem integration'
+summary: 'Agent Runtime layered architecture, component relationships, data flow, deployment topology, and K8s ecosystem integration'
 category: ai-ml-infra
 tags:
 - ai
@@ -15,15 +15,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Agent Runtime架构总览 是什么
-- Agent Runtime架构设计
-- Agent系统分层架构
-- Agent部署拓扑
+- What is the Agent Runtime Architecture Overview
+- Agent Runtime architecture design
+- Agent system layered architecture
+- Agent deployment topology
 trigger_keywords:
 - agent runtime
 - architecture
@@ -42,103 +42,108 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/21-agent-runtime-architecture-overview.md
 ---
+# Agent Runtime Architecture Overview
 
-# Agent Runtime架构总览
+## Overview
 
-## 概述
+Agent Runtime is the infrastructure layer that hosts the runtime behavior of AI Agents. It encapsulates capabilities such as LLM inference, tool invocation, session management, security controls, and observability into a unified runtime engine, allowing Agent developers to focus on business logic rather than infrastructure.
 
-Agent Runtime是承载AI Agent运行时行为的基础设施层。它将LLM推理、工具调用、会话管理、安全控制、可观测性等能力封装为统一的运行时引擎，使Agent开发者专注于业务逻辑而非基础设施。
+This document provides a comprehensive review of the Agent Runtime architecture design from five dimensions: layered architecture, component relationships, data flow, deployment topology, and Kubernetes ecosystem integration.
 
-本文从分层架构、组件关系、数据流、部署拓扑和K8s生态集成五个维度，全面梳理Agent Runtime的架构设计。
+## 1. Layered Architecture
 
-## 1. 分层架构
-
-### 1.1 四层架构模型
+### 1.1 Four-Layer Architecture Model
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Layer 4: Application                      │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐ │
-│  │ 客服Bot  │ │ 代码助手 │ │ 数据分析 │ │ 自定义Agent   │ │
+│  │Customer  │ │  Code    │ │  Data    │ │ Custom Agent  │ │
+│  │Service   │ │Assistant │ │Analytics │ │               │ │
 │  └──────────┘ └──────────┘ └──────────┘ └───────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │                    Layer 3: Agent Framework                   │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐ │
-│  │ LangGraph│ │ CrewAI   │ │ AutoGen  │ │ 自研框架      │ │
+│  │ LangGraph│ │ CrewAI   │ │ AutoGen  │ │ In-house      │ │
+│  │          │ │          │ │          │ │ Framework     │ │
 │  └──────────┘ └──────────┘ └──────────┘ └───────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │                    Layer 2: Runtime Engine                    │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐ │
-│  │ 推理引擎 │ │ 工具引擎 │ │ 会话管理 │ │ 安全与限流    │ │
+│  │Inference │ │  Tool    │ │ Session  │ │ Security &    │ │
+│  │ Engine   │ │ Engine   │ │ Manager  │ │ Rate Limiting │ │
 │  └──────────┘ └──────────┘ └──────────┘ └───────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │                    Layer 1: Infrastructure                    │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐ │
-│  │LLM API   │ │向量数据库│ │消息队列  │ │ K8s / Cloud   │ │
-│  │(OpenAI/  │ │(Milvus/ │ │(Kafka/  │ │ (EKS/GKE/AKS) │ │
-│  │ Anthropic)│ │ Qdrant) │ │ Redis)  │ │               │ │
+│  │LLM API   │ │  Vector  │ │ Message  │ │ K8s / Cloud   │ │
+│  │(OpenAI/  │ │    DB    │ │  Queue   │ │ (EKS/GKE/AKS) │ │
+│  │ Anthropic)│ │(Milvus/ │ │(Kafka/  │ │               │ │
+│  │          │ │ Qdrant)  │ │ Redis)   │ │               │ │
 │  └──────────┘ └──────────┘ └──────────┘ └───────────────┘ │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 各层职责
+### 1.2 Responsibilities of Each Layer
 
 ```yaml
-Layer 4 - Application (应用层):
-  职责: 面向业务场景的Agent实现
-  组件:
-    - 业务Agent（客服/代码/数据/自定义）
-    - Agent配置（Prompt/工具/知识库绑定）
-    - 发布渠道（Web/API/IM集成）
-  特点:
-    - 由业务团队维护
-    - 通过配置或代码定义Agent行为
-    - 不直接接触基础设施
+Layer 4 - Application:
+  Responsibilities: Agent implementations oriented toward business scenarios
+  Components:
+    - Business Agents (customer service / code / data / custom)
+    - Agent configuration (Prompt / tool / knowledge base bindings)
+    - Publishing channels (Web / API / IM integration)
+  Characteristics:
+    - Maintained by business teams
+    - Agent behavior defined via configuration or code
+    - No direct contact with infrastructure
 
-Layer 3 - Agent Framework (框架层):
-  职责: Agent编排逻辑的抽象与实现
-  组件:
-    - 编排引擎（ReAct/Plan-Execute/Multi-Agent）
-    - 工具注册与发现
-    - 记忆管理（短期/长期/工作记忆）
-    - Prompt模板管理
-  特点:
-    - 提供Agent开发SDK
-    - 屏蔽底层Runtime复杂性
-    - 可插拔的编排策略
+Layer 3 - Agent Framework:
+  Responsibilities: Abstraction and implementation of Agent orchestration logic
+  Components:
+    - Orchestration engine (ReAct / Plan-Execute / Multi-Agent)
+    - Tool registration and discovery
+    - Memory management (short-term / long-term / working memory)
+    - Prompt template management
+  Characteristics:
+    - Provides Agent development SDK
+    - Shields developers from underlying Runtime complexity
+    - Pluggable orchestration strategies
 
-Layer 2 - Runtime Engine (运行时引擎):
-  职责: Agent执行的核心引擎
-  组件:
-    - 推理引擎（LLM调用/重试/降级）
-    - 工具引擎（工具执行/沙箱/超时）
-    - 会话管理（状态/上下文/记忆）
-    - 安全控制（限流/预算/内容过滤）
-    - 可观测性（Trace/Metrics/Log）
-  特点:
-    - 高性能、高可用
-    - 多租户支持
-    - 弹性与容错
+Layer 2 - Runtime Engine:
+  Responsibilities: Core engine for Agent execution
+  Components:
+    - Inference engine (LLM invocation / retry / fallback)
+    - Tool engine (tool execution / sandbox / timeout)
+    - Session management (state / context / memory)
+    - Security controls (rate limiting / budget / content filtering)
+    - Observability (Trace / Metrics / Log)
+  Characteristics:
+    - High performance, high availability
+    - Multi-tenant support
+    - Elasticity and fault tolerance
 
-Layer 1 - Infrastructure (基础设施):
-  职责: 底层资源供给
-  组件:
-    - LLM API（模型推理服务）
-    - 向量数据库（Embedding检索）
-    - 对象存储（文件/知识库存储）
-    - 消息队列（异步处理）
-    - K8s（容器编排）
-    - 可观测性基础设施（Prometheus/Jaeger/Loki）
-  特点:
-    - 可替换（多云/混合云）
-    - 水平扩展
-    - 基础设施即代码
+Layer 1 - Infrastructure:
+  Responsibilities: Underlying resource provisioning
+  Components:
+    - LLM API (model inference service)
+    - Vector database (Embedding retrieval)
+    - Object storage (file / knowledge base storage)
+    - Message queue (asynchronous processing)
+    - K8s (container orchestration)
+    - Observability infrastructure (Prometheus / Jaeger / Loki)
+  Characteristics:
+    - Replaceable (multi-cloud / hybrid cloud)
+    - Horizontal scaling
+    - Infrastructure as code
 ```
 
-## 2. 组件关系
+## 2. Component Relationships
 
-### 2.1 核心组件交互图
+### 2.1 Core Component Interaction Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -158,7 +163,7 @@ Layer 1 - Infrastructure (基础设施):
 │                    │                                   │        │
 │                    │  ┌──────────┐  ┌──────────────┐  │        │
 │                    │  │ Prompt   │  │  LLM Client  │  │        │
-│                    │  │ Compiler │──│  (多模型)     │  │        │
+│                    │  │ Compiler │──│  (Multi-model)│  │        │
 │                    │  │          │  │  Retry/Fallback│ │        │
 │                    │  └──────────┘  └──────────────┘  │        │
 │                    └───────────────┬───────────────────┘        │
@@ -184,202 +189,201 @@ Layer 1 - Infrastructure (基础设施):
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 组件职责与接口
+### 2.2 Component Responsibilities and Interfaces
 
 ```python
 from abc import ABC, abstractmethod
 
 # API Gateway
 class APIGateway(ABC):
-    """API网关：认证、限流、路由"""
+    """API Gateway: authentication, rate limiting, routing"""
 
     @abstractmethod
     async def handle_request(self, request) -> dict:
-        """处理入站请求"""
+        """Handle inbound requests"""
         pass
 
     @abstractmethod
     async def authenticate(self, api_key: str) -> dict:
-        """认证并返回租户信息"""
+        """Authenticate and return tenant information"""
         pass
 
     @abstractmethod
     async def rate_limit(self, tenant_id: str) -> bool:
-        """限流检查"""
+        """Rate limit check"""
         pass
 
 # Agent Router
 class AgentRouter(ABC):
-    """Agent路由器：意图识别与Agent分发"""
+    """Agent Router: intent recognition and Agent dispatching"""
 
     @abstractmethod
     async def route(self, message: str, context: dict) -> str:
-        """路由到目标Agent"""
+        """Route to the target Agent"""
         pass
 
 # Inference Engine
 class InferenceEngine(ABC):
-    """推理引擎：LLM调用管理"""
+    """Inference Engine: LLM invocation management"""
 
     @abstractmethod
     async def infer(self, messages: list, config: dict) -> dict:
-        """执行推理"""
+        """Execute inference"""
         pass
 
     @abstractmethod
     async def infer_stream(self, messages: list, config: dict):
-        """流式推理"""
+        """Streaming inference"""
         pass
 
 # Tool Engine
 class ToolEngine(ABC):
-    """工具引擎：工具注册、调用、沙箱执行"""
+    """Tool Engine: tool registration, invocation, and sandbox execution"""
 
     @abstractmethod
     async def execute(self, tool_name: str, params: dict, context: dict) -> dict:
-        """执行工具调用"""
+        """Execute a tool call"""
         pass
 
     @abstractmethod
     def register(self, tool_def: dict):
-        """注册工具"""
+        """Register a tool"""
         pass
 
 # Session Manager
 class SessionManager(ABC):
-    """会话管理器：状态、上下文、记忆"""
+    """Session Manager: state, context, and memory"""
 
     @abstractmethod
     async def get_context(self, session_id: str) -> dict:
-        """获取会话上下文"""
+        """Retrieve session context"""
         pass
 
     @abstractmethod
     async def update_context(self, session_id: str, updates: dict):
-        """更新会话上下文"""
+        """Update session context"""
         pass
 
 # Knowledge Base
 class KnowledgeBase(ABC):
-    """知识库：RAG检索"""
+    """Knowledge Base: RAG retrieval"""
 
     @abstractmethod
     async def search(self, query: str, tenant_id: str, top_k: int) -> list:
-        """语义检索"""
+        """Semantic retrieval"""
         pass
 ```
+## 3. Data Flow
 
-## 3. 数据流
-
-### 3.1 请求处理完整流程
+### 3.1 Complete Request Processing Flow
 
 ```
-用户输入
+User Input
   │
   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 1: API Gateway                                             │
-│  - 认证: 验证API Key → 获取租户ID                                │
-│  - 限流: 检查租户/用户/Agent级限流                                │
-│  - 预算: 检查日/月Token预算                                       │
-│  - 路由: 解析请求，确定目标Agent                                   │
+│  - Auth: Validate API Key → Get Tenant ID                        │
+│  - Rate Limiting: Check tenant/user/Agent-level rate limits      │
+│  - Budget: Check daily/monthly Token budget                      │
+│  - Routing: Parse request, determine target Agent                │
 └──────────────┬───────────────────────────────────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 2: Session Manager                                         │
-│  - 加载会话: 获取历史消息、上下文变量                               │
-│  - 窗口裁剪: 超出窗口的历史消息摘要压缩                             │
-│  - 注入记忆: 加载用户长期记忆                                      │
+│  - Load Session: Retrieve historical messages, context variables │
+│  - Window Trimming: Summarize and compress history beyond window │
+│  - Memory Injection: Load user long-term memory                  │
 └──────────────┬───────────────────────────────────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 3: Prompt Compiler                                         │
-│  - 组装Prompt: System + Context + History + User Input            │
-│  - 工具注入: 将可用工具Schema注入Prompt                            │
-│  - 知识注入: RAG检索结果注入上下文                                  │
+│  - Assemble Prompt: System + Context + History + User Input      │
+│  - Tool Injection: Inject available tool schemas into Prompt     │
+│  - Knowledge Injection: Inject RAG retrieval results into context│
 └──────────────┬───────────────────────────────────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 4: Inference Engine                                        │
-│  - 模型路由: 根据复杂度/预算选择模型                                │
-│  - LLM调用: 发送推理请求                                          │
-│  - 响应解析: 解析工具调用或最终回答                                  │
-│  - 弹性处理: 超时/重试/降级                                        │
+│  - Model Routing: Select model based on complexity/budget        │
+│  - LLM Call: Send inference request                              │
+│  - Response Parsing: Parse tool calls or final answer            │
+│  - Resilience: Timeout/retry/fallback                            │
 └──────────────┬───────────────────────────────────────────────────┘
                │
-               ├──→ 无工具调用 → Step 7 (输出)
+               ├──→ No tool call → Step 7 (Output)
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  Step 5: Tool Engine (循环)                                      │
-│  - 工具选择: 解析LLM返回的工具调用                                  │
-│  - 权限检查: 验证租户是否有该工具权限                                │
-│  - 幂等检查: 检查是否已执行过（去重）                                │
-│  - 沙箱执行: 在隔离环境中执行工具                                   │
-│  - 结果返回: 将工具结果注入对话                                      │
-│  - 循环判断: 是否需要继续推理                                        │
+│  Step 5: Tool Engine (Loop)                                      │
+│  - Tool Selection: Parse tool calls returned by LLM              │
+│  - Permission Check: Verify tenant has permission for the tool   │
+│  - Idempotency Check: Check if already executed (deduplication)  │
+│  - Sandbox Execution: Execute tool in isolated environment       │
+│  - Result Return: Inject tool results into conversation          │
+│  - Loop Decision: Determine whether further inference is needed  │
 └──────────────┬───────────────────────────────────────────────────┘
                │
-               │ 循环回到 Step 4（直到无工具调用或达到最大步数）
+               │ Loop back to Step 4 (until no tool call or max steps reached)
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 6: Safety & Post-processing                                │
-│  - 内容过滤: 检查输出是否违规                                      │
-│  - 引用标注: 标注知识库引用来源                                     │
-│  - 格式化: 按渠道格式化输出（Markdown/纯文本/卡片）                  │
+│  - Content Filtering: Check output for policy violations         │
+│  - Citation Annotation: Annotate knowledge base citation sources │
+│  - Formatting: Format output by channel (Markdown/plain text/card)│
 └──────────────┬───────────────────────────────────────────────────┘
                │
                ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │  Step 7: Response & Async                                        │
-│  - 同步返回: 将结果返回用户                                        │
-│  - 异步记录: 记录审计日志、更新用量、更新会话                         │
-│  - 可观测: 发送Trace/Metrics到监控系统                              │
+│  - Synchronous Return: Return result to user                     │
+│  - Async Recording: Log audit trail, update usage, update session│
+│  - Observability: Send Trace/Metrics to monitoring system        │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 流式数据流
+### 3.2 Streaming Data Flow
 
 ```
-Streaming数据流:
+Streaming Data Flow:
 
 Client ←── SSE/WebSocket ──→ API Gateway ←── gRPC Stream ──→ Runtime
 
-Token流:
+Token Stream:
   LLM API ──stream──→ Inference Engine ──chunk──→ API Gateway ──SSE──→ Client
 
-  每个chunk包含:
+  Each chunk contains:
   {
     "id": "chatcmpl-xxx",
     "object": "chat.completion.chunk",
     "choices": [{
       "index": 0,
       "delta": {
-        "content": "你好",  // 或 tool_calls增量
+        "content": "Hello",  // or tool_calls delta
       },
-      "finish_reason": null  // 或 "stop"/"tool_calls"
+      "finish_reason": null  // or "stop"/"tool_calls"
     }]
   }
 
-工具调用中间状态:
+Tool call intermediate states:
   {"type": "tool_start", "tool": "search", "params": {...}}
   {"type": "tool_result", "tool": "search", "result": "..."}
-  {"type": "thinking", "content": "正在分析搜索结果..."}
+  {"type": "thinking", "content": "Analyzing search results..."}
 ```
 
-## 4. 部署拓扑
+## 4. Deployment Topology
 
-### 4.1 单节点部署
+### 4.1 Single-Node Deployment
 
-适合开发/测试环境：
+Suitable for development/test environments:
 
 ```
 ┌──────────────────────────────────────┐
-│         单节点 (Single Node)          │
+│         Single Node                   │
 │                                      │
 │  ┌─────────────────────────────────┐│
 │  │        Agent Runtime Pod        ││
@@ -394,21 +398,21 @@ Token流:
 │  └─────────────────────────────────┘│
 │                                      │
 │  ┌────────┐  ┌────────┐  ┌───────┐ │
-│  │ SQLite │  │ Redis  │  │ 文件  │ │
-│  │ (数据) │  │ (缓存) │  │存储   │ │
+│  │ SQLite │  │ Redis  │  │ File  │ │
+│  │ (Data) │  │(Cache) │  │Storage│ │
 │  └────────┘  └────────┘  └───────┘ │
 └──────────────────────────────────────┘
 
-资源需求:
+Resource Requirements:
   CPU: 2-4 cores
   Memory: 4-8 Gi
   Storage: 50 Gi
-  适用: 开发/测试/PoC
+  Use case: Development/Testing/PoC
 ```
 
-### 4.2 分布式部署
+### 4.2 Distributed Deployment
 
-适合生产环境：
+Suitable for production environments:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -469,13 +473,13 @@ Token流:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 边缘部署
+### 4.3 Edge Deployment
 
-适合低延迟/离线场景：
+Suitable for low-latency/offline scenarios:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              Edge Node (边缘节点)                 │
+│              Edge Node                            │
 │                                                  │
 │  ┌─────────────────────────────────────────────┐│
 │  │         Lightweight Agent Runtime            ││
@@ -489,66 +493,65 @@ Token流:
 │  └─────────────────────────────────────────────┘│
 │                                                  │
 │  ┌─────────────────────────────────────────────┐│
-│  │  Cloud Sync (定期同步到云端)                   ││
-│  │  - 会话数据上传                               ││
-│  │  - 模型权重更新                               ││
-│  │  - 知识库增量同步                              ││
+│  │  Cloud Sync (periodic sync to cloud)         ││
+│  │  - Session data upload                       ││
+│  │  - Model weight updates                      ││
+│  │  - Knowledge base incremental sync           ││
 │  └─────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────┘
 
-资源需求:
+Resource Requirements:
   CPU: 4-8 cores (ARM/x86)
   Memory: 8-16 Gi
-  GPU: 可选 (7B模型)
-  适用: IoT/工厂/零售/离线场景
+  GPU: Optional (7B model)
+  Use case: IoT/Factory/Retail/Offline scenarios
 ```
+## 5. Integration with the K8s Ecosystem
 
-## 5. 与K8s生态集成
-
-### 5.1 集成点总览
+### 5.1 Integration Points Overview
 
 ```yaml
-K8s生态集成:
+K8s Ecosystem Integration:
 
-服务网格 (Istio/Linkerd):
-  - Agent服务的mTLS加密
-  - 流量管理（金丝雀/蓝绿）
-  - 故障注入（Chaos Testing）
-  - 限流（EnvoyFilter）
+Service Mesh (Istio/Linkerd):
+  - mTLS encryption for Agent services
+  - Traffic management (canary/blue-green)
+  - Fault injection (Chaos Testing)
+  - Rate limiting (EnvoyFilter)
 
-可观测性:
-  - Prometheus: Agent指标采集（调用量/延迟/Token消耗/成本）
-  - Jaeger/OpenTelemetry: 分布式追踪（Agent推理链路）
-  - Loki: 日志聚合（对话日志/工具调用日志）
-  - Grafana: 可视化Dashboard
+Observability:
+  - Prometheus: Agent metrics collection (request volume/latency/token consumption/cost)
+  - Jaeger/OpenTelemetry: Distributed tracing (Agent reasoning chain)
+  - Loki: Log aggregation (conversation logs/tool call logs)
+  - Grafana: Visualization Dashboard
 
-存储:
-  - PVC: 会话持久化/知识库存储
-  - CSI: 云存储集成（S3/GCS/OSS）
-  - StatefulSet: 有状态服务（向量数据库/Redis）
+Storage:
+  - PVC: Session persistence/knowledge base storage
+  - CSI: Cloud storage integration (S3/GCS/OSS)
+  - StatefulSet: Stateful services (vector database/Redis)
 
-安全:
-  - RBAC: Agent服务账户权限控制
-  - NetworkPolicy: 租户网络隔离
-  - Secret: API Key/模型密钥管理
-  - OPA/Gatekeeper: 策略执行
+Security:
+  - RBAC: Agent service account permission control
+  - NetworkPolicy: Tenant network isolation
+  - Secret: API Key/model credential management
+  - OPA/Gatekeeper: Policy enforcement
 
-自动扩缩:
-  - HPA: 基于CPU/内存/请求量的水平扩缩
-  - KEDA: 基于队列深度的事件驱动扩缩
-  - VPA: 垂直扩缩（资源请求调整）
+Auto-scaling:
+  - HPA: Horizontal scaling based on CPU/memory/request volume
+  - KEDA: Event-driven scaling based on queue depth
+  - VPA: Vertical scaling (resource request adjustment)
 
-调度:
-  - NodeAffinity: GPU节点调度
-  - PodAntiAffinity: 高可用副本分散
-  - PriorityClass: Agent任务优先级
-  - ResourceQuota: 租户资源配额
+Scheduling:
+  - NodeAffinity: GPU node scheduling
+  - PodAntiAffinity: High-availability replica distribution
+  - PriorityClass: Agent task priority
+  - ResourceQuota: Tenant resource quota
 ```
 
-### 5.2 集成配置示例
+### 5.2 Integration Configuration Examples
 
 ```yaml
-# HPA - Agent自动扩缩
+# HPA - Agent auto-scaling
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -595,7 +598,7 @@ spec:
         value: 2
         periodSeconds: 120
 ---
-# KEDA - 基于队列深度扩缩
+# KEDA - scaling based on queue depth
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -613,7 +616,7 @@ spec:
       topic: agent-tasks
       lagThreshold: "100"
 ---
-# PodDisruptionBudget - 高可用保障
+# PodDisruptionBudget - high availability guarantee
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -624,17 +627,17 @@ spec:
     matchLabels:
       app: agent-runtime
 ---
-# PriorityClass - Agent任务优先级
+# PriorityClass - Agent task priority
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: agent-high-priority
 value: 1000000
 globalDefault: false
-description: "高优先级Agent任务"
+description: "High-priority Agent tasks"
 ```
 
-### 5.3 ServiceMonitor配置
+### 5.3 ServiceMonitor Configuration
 
 ```yaml
 # Prometheus ServiceMonitor
@@ -704,27 +707,26 @@ data:
       }
     }
 ```
-
-## 6. 本系列文档索引
+## 6. Document Index for This Series
 
 ```
 domain-14-ai-ml-infra/03-agent-runtime/
-  ├── 15-cloud-agent-platforms.md        # 云Agent平台即服务
-  ├── 16-coze-agent-platform.md          # Coze Agent平台
-  ├── 17-agent-rate-limiting-cost-control.md  # Agent限流与成本控制
-  ├── 18-agent-retry-resilience.md       # Agent弹性设计
-  ├── 19-agent-ci-cd-pipeline.md         # Agent CI/CD流水线
-  ├── 20-agent-multi-tenancy.md          # Agent多租户架构
-  └── 21-agent-runtime-architecture-overview.md  # 本文：架构总览
+  ├── 15-cloud-agent-platforms.md        # Cloud Agent Platform as a Service
+  ├── 16-coze-agent-platform.md          # Coze Agent Platform
+  ├── 17-agent-rate-limiting-cost-control.md  # Agent Rate Limiting and Cost Control
+  ├── 18-agent-retry-resilience.md       # Agent Resilience Design
+  ├── 19-agent-ci-cd-pipeline.md         # Agent CI/CD Pipeline
+  ├── 20-agent-multi-tenancy.md          # Agent Multi-Tenancy Architecture
+  └── 21-agent-runtime-architecture-overview.md  # This article: Architecture Overview
 ```
 
-## 相关主题
+## Related Topics
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|云Agent平台即服务]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent限流与成本控制]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/20-agent-multi-tenancy|Agent多租户架构]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|Cloud Agent Platform as a Service]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent Rate Limiting and Cost Control]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/20-agent-multi-tenancy|Agent Multi-Tenancy Architecture]]
 
-## 参考资料
+## References
 
 - LangChain/LangGraph Architecture
 - Kubernetes Production Best Practices
