@@ -1,6 +1,10 @@
----title: 酒店旅游架构设计 — 阿里云视角
-description: 'title: 酒店旅游架构设计'
-summary: 'title: 酒店旅游架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/hospitality-tourism.md
+---
+---title: Hotel & Tourism Architecture Design — Alibaba Cloud Perspective
+description: 'title: Hotel & Tourism Architecture Design'
+summary: 'title: Hotel & Tourism Architecture Design'
 category: general
 tags:
 - architecture
@@ -14,15 +18,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 5min
 intent_queries:
-- 酒店旅游架构设计 — 阿里云视角 是什么
-- 如何 酒店旅游架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Hotel & Tourism Architecture Design — Alibaba Cloud Perspective
+- How to Hotel & Tourism Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 酒店旅游架构设计
-- 阿里云视角
+- Hotel & Tourism Architecture Design
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -36,15 +40,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (modifies cluster state, but generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
 
 
 
 
-title: 酒店旅游架构设计
-description: '# 酒店旅游架构设计 — 阿里云视角'
+title: Hotel & Tourism Architecture Design
+description: '# Hotel & Tourism Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -57,26 +61,26 @@ last_updated: 2026-05-18
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 旅游科技架构师
-- 酒店技术负责人
+- Travel Tech Architects
+- Hotel Technology Leads
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 酒店旅游 [[Kubernetes|Kubernetes]] 收益管理
-- OTA平台 Kubernetes 大促弹性
-- 酒店PMS GDS 阿里云架构
-- 动态定价收益管理 K8s
-- 打包产品订单 K8s 分布式事务
+- Hotel & Tourism [[Kubernetes|Kubernetes]] Revenue Management
+- OTA Platform Kubernetes Promotional Elasticity
+- Hotel PMS GDS Alibaba Cloud Architecture
+- Dynamic Pricing Revenue Management K8s
+- Package Product Orders K8s Distributed Transactions
 trigger_keywords:
-- 酒店
-- 旅游
+- Hotel
+- Tourism
 - OTA
-- 收益管理
-- 动态定价
-- 打包产品
+- Revenue Management
+- Dynamic Pricing
+- Package Products
 - PMS
 - GDS
-- 阿里云
+- Alibaba Cloud
 related_domains:
 - domain-01-cluster-fundamentals
 - domain-11-production-operations
@@ -92,82 +96,82 @@ k8s_versions:
 - '1.32'
 ---
 
-# 酒店旅游架构设计 — 阿里云视角
+# Hotel & Tourism Architecture Design — Alibaba Cloud Perspective
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#酒店` `#旅游` `#OTA` `#收益管理` `#阿里云`
-
----
-
-## 目录
-
-1. [行业背景](#1-行业背景)
-2. [业务架构](#2-业务架构)
-3. [技术架构](#3-技术架构)
-4. [核心数据流](#4-核心数据流)
-5. [安全与合规](#5-安全与合规)
-6. [可观测性](#6-可观测性)
-7. [阿里云组件映射](#7-阿里云组件映射)
-8. [生产检查清单](#8-生产检查清单)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solutions Architect | **Tags**: `#Hotel` `#Tourism` `#OTA` `#RevenueManagement` `#AlibabaCloud`
 
 ---
 
-## 1. 行业背景
+## Table of Contents
 
-### 1.1 业务特点
+1. [Industry Background](#1-industry-background)
+2. [Business Architecture](#2-business-architecture)
+3. [Technical Architecture](#3-technical-architecture)
+4. [Core Data Flows](#4-core-data-flow)
+5. [Security & Compliance](#5-security-compliance)
+6. [Observability](#6-observability)
+7. [Alibaba Cloud Component Mapping](#7-alibaba-cloud-component-mapping)
+8. [Production Checklist](#8-production-checklist)
 
-酒店旅游行业淡旺季差异大、库存时效性强、价格动态变化：
+---
 
-| 挑战 | 说明 | 架构影响 |
+## 1. Industry Background
+
+### 1.1 Business Characteristics
+
+The hotel and tourism industry features significant seasonal variation, strong inventory time-sensitivity, and dynamic price changes:
+
+| Challenge | Description | Architectural Impact |
 |:---|:---|:---|
-| 库存实时性 | 房态/机票库存秒级变化 | 缓存 + 消息同步 |
-| 价格动态化 | 收益管理驱动实时变价 | 规则引擎 + 预热 |
-| 内容丰富度 | 图片/视频/UGC 海量内容 | CDN + 对象存储 |
-| 订单组合 | 机+酒+景打包 | 编排服务 + 事务 |
-| 退改灵活 | 多供应商退改规则各异 | 工作流引擎 |
+| Inventory Real-Time Updates | Room status / flight inventory changes at the second level | Cache + message synchronization |
+| Dynamic Pricing | Revenue management drives real-time price changes | Rules engine + pre-warming |
+| Content Richness | Massive images / videos / UGC content | CDN + object storage |
+| Order Bundling | Flight + hotel + attraction packages | Orchestration service + transactions |
+| Flexible Refund/Change | Multi-supplier refund/change rules vary | Workflow engine |
 
-### 1.2 核心场景
+### 1.2 Core Scenarios
 
-- **酒店搜索**: 多维度筛选与智能推荐
-- **动态定价**: 基于供需的价格优化
-- **打包产品**: 机票+酒店+景点组合
-- **订单履约**: 多供应商确认与出单
-- **内容社区**: 游记/攻略/点评 UGC
+- **Hotel Search**: Multi-dimensional filtering and intelligent recommendations
+- **Dynamic Pricing**: Price optimization based on supply and demand
+- **Package Products**: Flight + hotel + attraction combinations
+- **Order Fulfillment**: Multi-supplier confirmation and ticket issuance
+- **Content Community**: Travel notes / guides / reviews UGC
 
 ---
 
-## 2. 业务架构
+## 2. Business Architecture
 
-### 2.1 酒店旅游全景架构
+### 2.1 Hotel & Tourism Full Landscape Architecture
 
 ```mermaid
 graph TB
-    subgraph 用户触点
-        U1[APP/小程序]
-        U2[官网]
-        U3[B2B 代理]
+    subgraph User Touchpoints
+        U1[APP / Mini Program]
+        U2[Official Website]
+        U3[B2B Agent]
     end
 
-    subgraph 应用层
-        A1[搜索推荐]
-        A2[定价引擎]
-        A3[订单中心]
-        A4[打包产品]
-        A5[内容社区]
+    subgraph Application Layer
+        A1[Search & Recommendation]
+        A2[Pricing Engine]
+        A3[Order Center]
+        A4[Package Products]
+        A5[Content Community]
     end
 
-    subgraph 供应商层
-        S1[酒店 PMS]
-        S2[航司 GDS]
-        S3[景区系统]
-        S4[地接社]
+    subgraph Supplier Layer
+        S1[Hotel PMS]
+        S2[Airline GDS]
+        S3[Attraction System]
+        S4[Local DMC]
     end
 
-    subgraph 数据中台
-        D1[用户画像]
-        D2[收益管理]
-        D3[内容审核]
-        D4[供应链数据]
+    subgraph Data Middle Platform
+        D1[User Profile]
+        D2[Revenue Management]
+        D3[Content Moderation]
+        D4[Supply Chain Data]
     end
 
     U1 & U2 & U3 --> A1 & A2 & A3 & A4 & A5
@@ -179,42 +183,41 @@ graph TB
     D4 --> S1 & S2 & S3 & S4
 ```
 
-### 2.2 打包产品预订时序
+### 2.2 Package Product Booking Sequence
 
 ```mermaid
 sequenceDiagram
-    participant USER as 用户
-    participant PKG as 打包服务
-    participant HOTEL as 酒店服务
-    participant FLIGHT as 机票服务
-    participant SCENE as 景区服务
-    participant ORDER as 订单中心
+    participant USER as User
+    participant PKG as Package Service
+    participant HOTEL as Hotel Service
+    participant FLIGHT as Flight Service
+    participant SCENE as Attraction Service
+    participant ORDER as Order Center
 
-    USER->>PKG: 选择机+酒+景套餐
-    PKG->>FLIGHT: 查询航班可用性
-    FLIGHT-->>PKG: 返回航班信息
-    PKG->>HOTEL: 查询房态
-    HOTEL-->>PKG: 返回房态
-    PKG->>SCENE: 查询门票库存
-    SCENE-->>PKG: 返回库存
-    PKG->>PKG: 计算套餐价格
-    PKG-->>USER: 展示套餐价格
-    USER->>PKG: 确认预订
-    PKG->>ORDER: 创建组合订单
-    ORDER->>FLIGHT: 锁定座位
-    ORDER->>HOTEL: 预占房间
-    ORDER->>SCENE: 预留门票
-    ORDER-->>USER: 预订成功
+    USER->>PKG: Select flight + hotel + attraction package
+    PKG->>FLIGHT: Query flight availability
+    FLIGHT-->>PKG: Return flight information
+    PKG->>HOTEL: Query room availability
+    HOTEL-->>PKG: Return room status
+    PKG->>SCENE: Query ticket inventory
+    SCENE-->>PKG: Return inventory
+    PKG->>PKG: Calculate package price
+    PKG-->>USER: Display package price
+    USER->>PKG: Confirm booking
+    PKG->>ORDER: Create combined order
+    ORDER->>FLIGHT: Lock seat
+    ORDER->>HOTEL: Pre-hold room
+    ORDER->>SCENE: Reserve ticket
+    ORDER-->>USER: Booking successful
 ```
 
 ---
+## 3. Technical Architecture
 
-## 3. 技术架构
-
-### 3.1 K8s 部署
+### 3.1 K8s Deployment
 
 ```yaml
-# 酒店搜索服务
+# Hotel search service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -251,81 +254,81 @@ spec:
 
 ---
 
-## 4. 核心数据流
+## 4. Core Data Flow
 
-### 4.1 房态同步流水线
+### 4.1 Room Availability Sync Pipeline
 
 ```mermaid
 flowchart LR
-    A[酒店 PMS] -->|实时推送| B[消息队列]
-    B --> C[房态处理器]
-    C --> D[Redis 缓存]
-    C --> E[搜索引擎]
-    D --> F[用户查询]
+    A[Hotel PMS] -->|Real-time push| B[Message Queue]
+    B --> C[Room Status Processor]
+    C --> D[Redis Cache]
+    C --> E[Search Engine]
+    D --> F[User Query]
     E --> F
 ```
 
 ---
 
-## 5. 安全与合规
+## 5. Security & Compliance
 
-- **PCI-DSS**: 支付合规
-- **个人信息保护**: 旅客信息加密
-- **内容审核**: UGC 内容 AI 审核
-
----
-
-## 6. 可观测性
-
-- **搜索响应**: P99 < 150ms
-- **订单成功率**: > 99.5%
-- **缓存命中率**: > 85%
+- **PCI-DSS**: Payment compliance
+- **Personal Information Protection**: Traveler information encryption
+- **Content Moderation**: AI moderation for UGC content
 
 ---
 
-## 7. 阿里云组件映射
+## 6. Observability
 
-| 功能域 | **阿里云云原生方案** |
+- **Search Response**: P99 < 150ms
+- **Order Success Rate**: > 99.5%
+- **Cache Hit Rate**: > 85%
+
+---
+
+## 7. Alibaba Cloud Component Mapping
+
+| Functional Domain | **Alibaba Cloud Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Pro** |
-| 缓存 | **Redis 企业版** |
-| 搜索 | **OpenSearch** |
-| 对象存储 | **OSS + CDN** |
-| 数据库 | **PolarDB MySQL** |
-| 消息队列 | **RocketMQ** |
-| 可观测性 | **ARMS + SLS** |
-| AI 审核 | **阿里云内容安全** |
+| Container Platform | **ACK Pro** |
+| Cache | **Redis Enterprise Edition** |
+| Search | **OpenSearch** |
+| Object Storage | **OSS + CDN** |
+| Database | **PolarDB MySQL** |
+| Message Queue | **RocketMQ** |
+| Observability | **ARMS + SLS** |
+| AI Moderation | **Alibaba Cloud Content Safety** |
 
 ---
 
-## 8. 生产检查清单
+## 8. Production Checklist
 
-- [ ] 供应商接口连通性验证
-- [ ] 房态缓存一致性校验
-- [ ] 打包产品价格准确性测试
-- [ ] 退改签规则覆盖验证
-- [ ] UGC 内容审核准确率 > 99%
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] Supplier interface connectivity verification
+- [ ] Room availability cache consistency validation
+- [ ] Package product pricing accuracy testing
+- [ ] Cancellation and modification policy coverage verification
+- [ ] UGC content moderation accuracy > 99%
 
 ---
 
-## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solutions Architect Team | **License**: MIT
+
+---
+
+## Obsidian Related Documents
 
 - topic-application-architecture KUDIG Database — Global MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|[[Topic 应用层架构设计最佳实践|Topic 应用层架构设计最佳实践]]]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|[[Topic Application Layer Architecture Design Best Practices|Topic Application Layer Architecture Design Best Practices]]]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

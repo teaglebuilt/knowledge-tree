@@ -76,11 +76,57 @@ appear in the output — same count, same order.
 - For TOC / in-document links like [text](#anchor): translate ONLY the link \
 text; leave the #anchor target as a placeholder (any slug). A post-processor \
 will regenerate anchors from the final English headings.
+- Remove HTML comments of the form <!-- chunk: ... --> entirely (do not keep \
+source-language text inside them).
 - Preserve markdown structure, whitespace intent, and YAML frontmatter keys.
 - Output ONLY the translated markdown chunk — no preamble or commentary.
 """
 
 _NUM_HEADING_RE = re.compile(r"^\s*(\d+)([.\s]|$)")
+_CHUNK_COMMENT_RE = re.compile(r"<!--\s*chunk:\s*.*?-->", re.IGNORECASE | re.DOTALL)
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+_NON_LATIN_RE = re.compile(
+    r"[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F"
+    r"\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]"
+)
+
+# TOC corpora often number sections with Arabic, Roman, or Chinese numerals.
+_CN_NUM = {
+    "一": "1",
+    "二": "2",
+    "三": "3",
+    "四": "4",
+    "五": "5",
+    "六": "6",
+    "七": "7",
+    "八": "8",
+    "九": "9",
+    "十": "10",
+    "十一": "11",
+    "十二": "12",
+    "十三": "13",
+    "十四": "14",
+    "十五": "15",
+}
+_ROMAN_NUM = {
+    "I": "1",
+    "II": "2",
+    "III": "3",
+    "IV": "4",
+    "V": "5",
+    "VI": "6",
+    "VII": "7",
+    "VIII": "8",
+    "IX": "9",
+    "X": "10",
+    "XI": "11",
+    "XII": "12",
+}
+_SECTION_NUM_RE = re.compile(
+    r"^(?:(\d+)|([IVX]{1,5})|([一二三四五六七八九十]{1,3}))"
+    r"(?:[.\s、．]|$)",
+    re.IGNORECASE,
+)
 
 
 def is_book_path(path: Path) -> bool:
@@ -138,12 +184,34 @@ def ensure_provenance(text: str, lang: str, source_path: str) -> str:
     )
 
 
-def _heading_slugs(text: str) -> tuple[list[str], dict[str, str], dict[str, str]]:
+def _section_number(text: str) -> str | None:
+    """Extract a normalized section number (Arabic digits) from label/heading/slug."""
+    s = text.strip()
+    m = _SECTION_NUM_RE.match(s)
+    if not m:
+        # Slugs like "6-最佳实践" or "三内容生产"
+        m = re.match(
+            r"^(?:(\d+)|([IVX]{1,5})|([一二三四五六七八九十]{1,3}))(?:-|$)",
+            s,
+            re.IGNORECASE,
+        )
+    if not m:
+        return None
+    if m.group(1):
+        return str(int(m.group(1)))
+    if m.lastindex >= 2 and m.group(2):
+        return _ROMAN_NUM.get(m.group(2).upper())
+    if m.lastindex >= 3 and m.group(3):
+        return _CN_NUM.get(m.group(3))
+    return None
+
+
+def _heading_slugs(text: str) -> tuple[list[str], set[str], dict[str, str]]:
     """
-    Returns (slugs_in_order, slug_set_map, number_to_slug).
+    Returns (slugs_in_order, avail, number_to_slug).
 
     number_to_slug maps leading section numbers ("1", "2", …) to the first
-    heading slug that starts with that number — used to repair TOC anchors.
+    *major* heading (e.g. "1. Foo", not "1.1 Foo").
     """
     doc = paint(text)
     counts: dict[str, int] = {}
@@ -155,19 +223,35 @@ def _heading_slugs(text: str) -> tuple[list[str], dict[str, str], dict[str, str]
         counts[base] = n + 1
         slug = base if n == 0 else f"{base}-{n}"
         ordered.append(slug)
-        m = _NUM_HEADING_RE.match(htext.strip())
-        if m:
-            by_number.setdefault(m.group(1), slug)
-    return ordered, {s: s for s in ordered}, by_number
+        stripped = htext.strip()
+        # Major sections: "1. Title" / "1 Title" — not "1.1 Title".
+        major = re.match(r"^(\d+)\.\s+\S", stripped) or re.match(r"^(\d+)\s+[A-Za-z\u4e00-\u9fff]", stripped)
+        if major:
+            by_number.setdefault(major.group(1).lstrip("0") or "0", slug)
+            continue
+        num = _section_number(stripped)
+        if num:
+            by_number.setdefault(num, slug)
+    return ordered, set(ordered), by_number
+
+
+def strip_chunk_comments(text: str) -> str:
+    """Drop collection markers and any HTML comments that still hold non-Latin text."""
+    text = _CHUNK_COMMENT_RE.sub("", text)
+
+    def _scrub(m: re.Match[str]) -> str:
+        return "" if _NON_LATIN_RE.search(m.group(0)) else m.group(0)
+
+    return _HTML_COMMENT_RE.sub(_scrub, text)
 
 
 def repair_internal_anchors(text: str) -> str:
     """
     Rewrite in-document `#anchor` targets so they resolve to real headings.
 
-    Models routinely invent TOC slugs that don't match slugify(heading). Prefer:
-    1) keep if already valid, 2) slugify(link text), 3) leading section number,
-    4) suffix / containment match against available heading slugs.
+    Prefer: valid slug, slugify(label), section number (Arabic/Roman/Chinese),
+    suffix match. Unresolvable hash links become plain label text so verify
+    does not fail on ghost TOC entries.
     """
     ordered, avail, by_number = _heading_slugs(text)
     if not ordered:
@@ -179,25 +263,31 @@ def repair_internal_anchors(text: str) -> str:
     for fr in doc.fences:
         fence_lines.update(range(fr.start_line, min(fr.end_line + 1, len(body_lines))))
 
-    def resolve(label: str, target: str) -> str:
+    def resolve(label: str, target: str) -> str | None:
         if target in avail:
             return target
-        for candidate in (slugify(label), slugify(label.lstrip("0123456789. "))):
+        for candidate in (
+            slugify(label),
+            slugify(re.sub(r"^(?:\d+|[IVX]+|[一二三四五六七八九十]+)[.\s、．]+", "", label, flags=re.I)),
+        ):
             if candidate and candidate in avail:
                 return candidate
-        m = re.match(r"^(\d+)\b", target) or _NUM_HEADING_RE.match(label.strip())
-        if m and m.group(1) in by_number:
-            return by_number[m.group(1)]
+        for raw in (target, label):
+            num = _section_number(raw)
+            if num and num in by_number:
+                return by_number[num]
         label_slug = slugify(label)
         if label_slug:
             for slug in ordered:
                 if slug == label_slug or slug.endswith("-" + label_slug):
                     return slug
-        # Last resort: longest available slug contained in the bad target or vice versa.
-        for slug in ordered:
-            if slug and (slug in target or target in slug):
-                return slug
-        return target
+            # Fuzzy: all latin tokens from label appear in slug
+            tokens = [t for t in re.split(r"[^a-z0-9]+", label_slug) if len(t) > 2]
+            if tokens:
+                for slug in ordered:
+                    if all(t in slug for t in tokens):
+                        return slug
+        return None
 
     new_lines: list[str] = []
     for ln, line in enumerate(body_lines):
@@ -213,6 +303,9 @@ def repair_internal_anchors(text: str) -> str:
             if not dest.startswith("#"):
                 return full
             fixed = resolve(label, dest[1:])
+            if fixed is None:
+                # Ghost TOC / unmapped section — keep readable text, drop dead href.
+                return label
             title = m.group(3) or ""
             return f"[{label}](#{fixed}{title})"
 
@@ -222,8 +315,14 @@ def repair_internal_anchors(text: str) -> str:
     body = "\n".join(new_lines)
     if fm is None:
         return body
-    # Reconstruct with the same --- fences the source used.
     return f"---\n{fm}\n---\n{body}"
+
+
+def postprocess_translation(text: str, lang: str, source_path: str) -> str:
+    """Strip markers, repair TOC anchors, stamp provenance."""
+    text = strip_chunk_comments(text)
+    text = ensure_provenance(text, lang, source_path)
+    return repair_internal_anchors(text)
 
 
 def extract_chunk_text(text: str, start_line: int, end_line: int) -> str:
@@ -272,7 +371,7 @@ def translate_file(
 ) -> str:
     chunks = plan_chunks(text, config["max_chunk_lines"])
     if not chunks:
-        return repair_internal_anchors(ensure_provenance(text, lang, source_path))
+        return postprocess_translation(text, lang, source_path)
     pieces: list[str] = []
     for c in chunks:
         piece = extract_chunk_text(text, c.start_line, c.end_line)
@@ -287,8 +386,7 @@ def translate_file(
     assembled = "\n".join(pieces)
     if not assembled.endswith("\n") and text.endswith("\n"):
         assembled += "\n"
-    assembled = ensure_provenance(assembled, lang, source_path)
-    return repair_internal_anchors(assembled)
+    return postprocess_translation(assembled, lang, source_path)
 
 
 def _is_structure_drop(result) -> bool:
