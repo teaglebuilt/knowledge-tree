@@ -1,6 +1,10 @@
----title: 职业教育培训架构设计 — 阿里云视角
-description: 'title: 职业教育培训架构设计'
-summary: 'title: 职业教育培训架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/vocational-edtech.md
+---
+---title: Vocational Education Training Architecture Design — Alibaba Cloud Perspective
+description: 'title: Vocational Education Training Architecture Design'
+summary: 'title: Vocational Education Training Architecture Design'
 category: general
 tags:
 - architecture
@@ -14,15 +18,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 5min
 intent_queries:
-- 职业教育培训架构设计 — 阿里云视角 是什么
-- 如何 职业教育培训架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Vocational Education Training Architecture Design — Alibaba Cloud Perspective
+- How to Vocational Education Training Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 职业教育培训架构设计
-- 阿里云视角
+- Vocational Education Training Architecture Design
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -35,15 +39,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operations commands. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are annotated as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (will modify cluster state, but generally reversible), 🟢 Low risk / read-only (information gathering, no side effects).
 
 
 
 
-title: 职业教育培训架构设计
-description: '# 职业教育培训架构设计 — 阿里云视角'
+title: Vocational Education Training Architecture Design
+description: '# Vocational Education Training Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -56,28 +60,28 @@ last_updated: 2026-05-18
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 教育科技架构师
-- 职业培训机构IT
-- 在线教育开发者
-- 虚拟实训工程师
+- EdTech Architects
+- Vocational Training Institution IT
+- Online Education Developers
+- Virtual Training Engineers
 estimated_read_time: 5min
 intent_queries:
 - vocational education [[Kubernetes|kubernetes]] architecture
-- 职业教育K8s部署方案
-- 在线考试防作弊系统
-- 虚拟实训云桌面
-- 区块链证书存证
+- Vocational Education K8s Deployment Solution
+- Online exam anti-cheating system
+- Virtual training cloud desktop
+- Blockchain certificate storage
 trigger_keywords:
-- 职业教育
-- 技能培训
-- 在线教育
-- 虚拟实训
-- AI监考
-- 区块链证书
-- 职业教育架构
-- 考证培训
-- 云桌面
-- 培训平台K8s
+- Vocational education
+- Skills training
+- Online education
+- Virtual training
+- AI proctoring
+- Blockchain certificate
+- Vocational education architecture
+- Certification training
+- Cloud desktop
+- Training platform K8s
 related_domains:
 - domain-01-cluster-fundamentals
 - domain-10-troubleshooting-diagnostics
@@ -94,81 +98,81 @@ k8s_versions:
 - '1.32'
 ---
 
-# 职业教育培训架构设计 — 阿里云视角
+# Vocational Education Training Architecture Design — Alibaba Cloud Perspective
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#职业教育` `#技能培训` `#考证` `#阿里云`
-
----
-
-## 目录
-
-1. [行业背景](#1-行业背景)
-2. [业务架构](#2-业务架构)
-3. [技术架构](#3-技术架构)
-4. [核心数据流](#4-核心数据流)
-5. [安全与合规](#5-安全与合规)
-6. [可观测性](#6-可观测性)
-7. [阿里云组件映射](#7-阿里云组件映射)
-8. [生产检查清单](#8-生产检查清单)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solution Architect | **Tags**: `#VocationalEducation` `#SkillsTraining` `#Certification` `#AlibabaCloud`
 
 ---
 
-## 1. 行业背景
+## Table of Contents
 
-### 1.1 业务特点
+1. [Industry Background](#1-industry-background)
+2. [Business Architecture](#2-business-architecture)
+3. [Technical Architecture](#3-technical-architecture)
+4. [Core Data Flow](#4-core-data-flow)
+5. [Security and Compliance](#5-security-compliance)
+6. [Observability](#6-observability)
+7. [Alibaba Cloud Component Mapping](#7-alibaba-cloud-component-mapping)
+8. [Production Checklist](#8-production-checklist)
 
-职业教育培训面向成人技能提升，强调实操与认证：
+---
 
-| 挑战 | 说明 | 架构影响 |
+## 1. Industry Background
+
+### 1.1 Business Characteristics
+
+Vocational education and training targets adult skill development, emphasizing hands-on practice and certification:
+
+| Challenge | Description | Architectural Impact |
 |:---|:---|:---|
-| 碎片化学习 | 在职人员时间分散 | 微课 + 移动端优先 |
-| 实操模拟 | 需要虚拟实训环境 | 云桌面/VR 实训 |
-| 考试防作弊 | 在线考试公平性 | AI 监考 + 人脸识别 |
-| 证书管理 | 职业技能等级证书 | 区块链存证 |
-| 就业对接 | 培训与就业衔接 | 人才匹配平台 |
+| Fragmented learning | Working professionals have scattered time | Micro-courses + mobile-first |
+| Hands-on simulation | Requires virtual training environments | Cloud desktop / VR training |
+| Exam anti-cheating | Fairness in online exams | AI proctoring + facial recognition |
+| Certificate management | Vocational skill level certificates | Blockchain storage |
+| Employment matching | Bridging training and employment | Talent matching platform |
 
-### 1.2 核心场景
+### 1.2 Core Scenarios
 
-- **在线课程**: 直播/录播/微课学习
-- **虚拟实训**: 云桌面/VR 实操训练
-- **在线考试**: AI 监考/自动阅卷
-- **证书管理**: 职业技能证书颁发与查询
-- **就业服务**: 企业招聘对接
+- **Online courses**: Live / recorded / micro-course learning
+- **Virtual training**: Cloud desktop / VR hands-on practice
+- **Online exams**: AI proctoring / automated grading
+- **Certificate management**: Vocational skill certificate issuance and lookup
+- **Employment services**: Enterprise recruitment matching
 
 ---
 
-## 2. 业务架构
+## 2. Business Architecture
 
-### 2.1 职业教育全景架构
+### 2.1 Vocational Education Panoramic Architecture
 
 ```mermaid
 graph TB
-    subgraph 学员层
-        S1[在职提升]
-        S2[求职转行]
-        S3[企业内训]
+    subgraph Student Layer
+        S1[In-service Advancement]
+        S2[Job Seekers / Career Changers]
+        S3[Corporate In-house Training]
     end
 
-    subgraph 学习层
-        L1[直播课堂]
-        L2[录播课程]
-        L3[虚拟实训]
-        L4[题库练习]
+    subgraph Learning Layer
+        L1[Live Classroom]
+        L2[Recorded Courses]
+        L3[Virtual Training]
+        L4[Question Bank Practice]
     end
 
-    subgraph 认证层
-        C1[在线考试]
-        C2[AI 监考]
-        C3[自动阅卷]
-        C4[证书颁发]
+    subgraph Certification Layer
+        C1[Online Exam]
+        C2[AI Proctoring]
+        C3[Automated Grading]
+        C4[Certificate Issuance]
     end
 
-    subgraph 服务层
-        SVC1[就业推荐]
-        SVC2[企业对接]
-        SVC3[学习社群]
-        SVC4[职业规划]
+    subgraph Service Layer
+        SVC1[Employment Recommendations]
+        SVC2[Enterprise Matching]
+        SVC3[Learning Community]
+        SVC4[Career Planning]
     end
 
     S1 & S2 & S3 --> L1 & L2 & L3 & L4
@@ -176,45 +180,44 @@ graph TB
     C1 & C2 & C3 & C4 --> SVC1 & SVC2 & SVC3 & SVC4
 ```
 
-### 2.2 AI 监考时序
+### 2.2 AI Proctoring Sequence
 
 ```mermaid
 sequenceDiagram
-    participant STU as 考生
-    participant EXAM as 考试系统
-    participant AI as AI 监考引擎
-    participant HUMAN as 人工监考
+    participant STU as Examinee
+    participant EXAM as Exam System
+    participant AI as AI Proctoring Engine
+    participant HUMAN as Human Proctor
 
-    STU->>EXAM: 进入考试
-    EXAM->>AI: 开启摄像头监控
-    AI->>AI: 人脸核验
-    AI-->>EXAM: 核验通过
-    EXAM->>STU: 开始答题
-    loop 监控循环
-        AI->>AI: 行为分析
-        AI->>AI: 声音检测
-        AI->>AI: 屏幕检测
-        alt 异常检测
-            AI->>HUMAN: 推送告警
-            HUMAN->>EXAM: 标记可疑
-            EXAM->>STU: 警告提示
+    STU->>EXAM: Enter exam
+    EXAM->>AI: Enable camera monitoring
+    AI->>AI: Facial verification
+    AI-->>EXAM: Verification passed
+    EXAM->>STU: Begin answering
+    loop Monitoring Loop
+        AI->>AI: Behavior analysis
+        AI->>AI: Sound detection
+        AI->>AI: Screen detection
+        alt Anomaly detected
+            AI->>HUMAN: Push alert
+            HUMAN->>EXAM: Mark as suspicious
+            EXAM->>STU: Warning prompt
         end
     end
-    STU->>EXAM: 交卷
-    EXAM->>AI: 结束监控
-    EXAM->>AI: 自动阅卷
-    AI-->>EXAM: 返回成绩
-    EXAM-->>STU: 成绩通知
+    STU->>EXAM: Submit exam
+    EXAM->>AI: End monitoring
+    EXAM->>AI: Automated grading
+    AI-->>EXAM: Return score
+    EXAM-->>STU: Score notification
 ```
 
 ---
+## 3. Technical Architecture
 
-## 3. 技术架构
-
-### 3.1 K8s 部署
+### 3.1 K8s Deployment
 
 ```yaml
-# 云桌面实训环境 StatefulSet
+# Cloud Desktop Training Environment StatefulSet
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -253,80 +256,80 @@ spec:
 
 ---
 
-## 4. 核心数据流
+## 4. Core Data Flow
 
-### 4.1 学习进度追踪
+### 4.1 Learning Progress Tracking
 
 ```mermaid
 flowchart LR
-    A[视频学习] --> E[进度汇总]
-    B[习题练习] --> E
-    C[虚拟实训] --> E
-    D[模拟考试] --> E
-    E --> F[能力评估]
-    F --> G[个性化推荐]
+    A[Video Learning] --> E[Progress Aggregation]
+    B[Exercise Practice] --> E
+    C[Virtual Training] --> E
+    D[Mock Exam] --> E
+    E --> F[Competency Assessment]
+    F --> G[Personalized Recommendations]
 ```
 
 ---
 
-## 5. 安全与合规
+## 5. Security & Compliance
 
-- **考试公平**: AI 监考 + 防作弊
-- **证书可信**: 区块链证书存证
-- **数据隐私**: 学员信息保护
-
----
-
-## 6. 可观测性
-
-- **视频流畅度**: > 98%
-- **考试并发**: 支持 10万+
-- **系统可用性**: 99.9%
+- **Exam Integrity**: AI proctoring + anti-cheating measures
+- **Certificate Trustworthiness**: Blockchain certificate notarization
+- **Data Privacy**: Student information protection
 
 ---
 
-## 7. 阿里云组件映射
+## 6. Observability
 
-| 功能域 | **阿里云云原生方案** |
+- **Video Smoothness**: > 98%
+- **Exam Concurrency**: Supports 100,000+
+- **System Availability**: 99.9%
+
+---
+
+## 7. Alibaba Cloud Component Mapping
+
+| Functional Domain | **Alibaba Cloud Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Pro + GPU** |
-| 直播 | **视频直播** |
-| 云桌面 | **无影云电脑** |
-| AI | **PAI / 视觉智能** |
-| 数据库 | **PolarDB** |
-| 区块链 | **蚂蚁链 BaaS** |
-| 可观测性 | **ARMS + SLS** |
+| Container Platform | **ACK Pro + GPU** |
+| Live Streaming | **ApsaraVideo Live** |
+| Cloud Desktop | **Wuying Cloud Computer** |
+| AI | **PAI / Vision Intelligence** |
+| Database | **PolarDB** |
+| Blockchain | **Ant Chain BaaS** |
+| Observability | **ARMS + SLS** |
 
 ---
 
-## 8. 生产检查清单
+## 8. Production Checklist
 
-- [ ] 云桌面实训环境稳定性
-- [ ] AI 监考准确率 > 95%
-- [ ] 证书区块链存证验证
-- [ ] 考试系统并发压测
-- [ ] 学员隐私数据保护
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] Cloud desktop training environment stability
+- [ ] AI proctoring accuracy > 95%
+- [ ] Certificate blockchain notarization verification
+- [ ] Exam system concurrency load testing
+- [ ] Student privacy data protection
 
 ---
 
-## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solutions Architect Team | **License**: MIT
+
+---
+
+## Obsidian Related Documents
 
 - topic-application-architecture KUDIG Database — Global MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-Commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

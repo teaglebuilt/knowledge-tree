@@ -1,7 +1,7 @@
 ---
-title: Agent限流与成本控制
-description: 'Agent系统的Token Bucket限流、预算控制、模型路由、缓存策略、降级与成本告警'
-summary: 'Agent系统的Token Bucket限流、预算控制、模型路由、缓存策略、降级与成本告警'
+title: Agent Rate Limiting and Cost Control
+description: 'Token Bucket rate limiting, budget control, model routing, caching strategies, degradation, and cost alerting for Agent systems'
+summary: 'Token Bucket rate limiting, budget control, model routing, caching strategies, degradation, and cost alerting for Agent systems'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,15 +16,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Agent限流与成本控制 是什么
-- 如何控制LLM API成本
-- Token Bucket限流实现
-- Agent成本优化策略
+- What is Agent Rate Limiting and Cost Control
+- How to control LLM API costs
+- Token Bucket rate limiting implementation
+- Agent cost optimization strategies
 trigger_keywords:
 - rate limiting
 - cost control
@@ -44,33 +44,34 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/17-agent-rate-limiting-cost-control.md
 ---
+# Agent Rate Limiting and Cost Control
 
-# Agent限流与成本控制
+## Overview
 
-## 概述
+The cost of an Agent system primarily comes from LLM API calls. A single Agent inference may include multiple rounds of LLM calls (think → tool selection → result processing → final answer), and the Token consumption per request is far higher than traditional APIs. Rate limiting and cost control are necessary conditions for productionizing an Agent platform.
 
-Agent系统的成本主要来自LLM API调用。一次Agent推理可能包含多轮LLM调用（思考→工具选择→结果处理→最终回答），单次请求的Token消耗远高于传统API。限流与成本控制是Agent平台生产化的必要条件。
+This article covers rate limiting algorithms, budget management, model routing, caching strategies, degradation plans, and real-time alerting.
 
-本文覆盖限流算法、预算管理、模型路由、缓存策略、降级方案和实时告警。
+## 1. Rate Limiting Algorithms
 
-## 1. 限流算法
+### 1.1 Token Bucket
 
-### 1.1 Token Bucket（令牌桶）
-
-Token Bucket是最适合LLM API的限流算法，因为它允许突发流量同时控制平均速率。
+Token Bucket is the most suitable rate limiting algorithm for LLM APIs, because it allows burst traffic while controlling the average rate.
 
 ```python
 import time
 import threading
 
 class TokenBucketRateLimiter:
-    """针对LLM API调用的令牌桶限流器"""
+    """Token bucket rate limiter for LLM API calls"""
 
     def __init__(self, rate: float, capacity: int):
         """
-        rate: 每秒生成的令牌数
-        capacity: 桶容量（最大突发量）
+        rate: number of tokens generated per second
+        capacity: bucket capacity (maximum burst size)
         """
         self.rate = rate
         self.capacity = capacity
@@ -79,7 +80,7 @@ class TokenBucketRateLimiter:
         self.lock = threading.Lock()
 
     def acquire(self, tokens: int = 1) -> bool:
-        """尝试获取令牌，非阻塞"""
+        """Try to acquire tokens, non-blocking"""
         with self.lock:
             now = time.monotonic()
             elapsed = now - self.last_refill
@@ -95,7 +96,7 @@ class TokenBucketRateLimiter:
             return False
 
     def wait_and_acquire(self, tokens: int = 1, timeout: float = 30.0) -> bool:
-        """等待获取令牌，带超时"""
+        """Wait to acquire tokens, with timeout"""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.acquire(tokens):
@@ -105,30 +106,30 @@ class TokenBucketRateLimiter:
 
 
 class MultiDimensionRateLimiter:
-    """多维度限流：按用户/Agent/全局"""
+    """Multi-dimensional rate limiting: by user / Agent / global"""
 
     def __init__(self):
-        # 全局限流：1000 RPM
+        # Global rate limit: 1000 RPM
         self.global_limiter = TokenBucketRateLimiter(
             rate=1000/60, capacity=100
         )
-        # 按用户限流：60 RPM/用户
+        # Per-user rate limit: 60 RPM/user
         self.user_limiters: dict[str, TokenBucketRateLimiter] = {}
-        # 按Agent限流：200 RPM/Agent
+        # Per-Agent rate limit: 200 RPM/Agent
         self.agent_limiters: dict[str, TokenBucketRateLimiter] = {}
 
     def check(self, user_id: str, agent_id: str) -> tuple[bool, str]:
-        """检查是否允许请求"""
-        # 全局检查
+        """Check whether a request is allowed"""
+        # Global check
         if not self.global_limiter.acquire():
             return False, "global_rate_limit"
 
-        # 用户级检查
+        # User-level check
         user_limiter = self._get_user_limiter(user_id)
         if not user_limiter.acquire():
             return False, f"user_rate_limit:{user_id}"
 
-        # Agent级检查
+        # Agent-level check
         agent_limiter = self._get_agent_limiter(agent_id)
         if not agent_limiter.acquire():
             return False, f"agent_rate_limit:{agent_id}"
@@ -150,16 +151,16 @@ class MultiDimensionRateLimiter:
         return self.agent_limiters[agent_id]
 ```
 
-### 1.2 Sliding Window（滑动窗口）
+### 1.2 Sliding Window
 
-滑动窗口提供更精确的限流控制：
+Sliding window provides more precise rate limiting control:
 
 ```python
 import time
 from collections import deque
 
 class SlidingWindowRateLimiter:
-    """滑动窗口限流器，精确控制时间窗口内的请求数"""
+    """Sliding window rate limiter for precise control of request count within a time window"""
 
     def __init__(self, max_requests: int, window_seconds: int):
         self.max_requests = max_requests
@@ -172,7 +173,7 @@ class SlidingWindowRateLimiter:
             now = time.monotonic()
             window_start = now - self.window_seconds
 
-            # 移除过期请求
+            # Remove expired requests
             while self.requests and self.requests[0] < window_start:
                 self.requests.popleft()
 
@@ -182,7 +183,7 @@ class SlidingWindowRateLimiter:
             return False
 
     def retry_after(self) -> float:
-        """返回需要等待的秒数"""
+        """Return the number of seconds to wait"""
         with self.lock:
             if not self.requests:
                 return 0
@@ -191,7 +192,7 @@ class SlidingWindowRateLimiter:
 
 
 class TokenBasedSlidingWindow:
-    """基于Token数量的滑动窗口限流"""
+    """Sliding window rate limiting based on Token count"""
 
     def __init__(self, max_tokens: int, window_seconds: int):
         self.max_tokens = max_tokens
@@ -200,16 +201,16 @@ class TokenBasedSlidingWindow:
         self.lock = threading.Lock()
 
     def check_and_record(self, estimated_tokens: int) -> bool:
-        """检查Token预算并记录使用"""
+        """Check Token budget and record usage"""
         with self.lock:
             now = time.monotonic()
             window_start = now - self.window_seconds
 
-            # 清理过期记录
+            # Clean up expired records
             while self.usage and self.usage[0][0] < window_start:
                 self.usage.popleft()
 
-            # 计算窗口内总Token
+            # Calculate total Tokens within the window
             total = sum(t for _, t in self.usage)
 
             if total + estimated_tokens <= self.max_tokens:
@@ -218,16 +219,16 @@ class TokenBasedSlidingWindow:
             return False
 ```
 
-### 1.3 分布式限流
+### 1.3 Distributed Rate Limiting
 
-在K8s多副本部署中，需要分布式限流：
+In a multi-replica Kubernetes deployment, distributed rate limiting is required:
 
 ```python
 import redis
 import time
 
 class RedisRateLimiter:
-    """基于Redis的分布式限流器"""
+    """Redis-based distributed rate limiter"""
 
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
@@ -239,7 +240,7 @@ class RedisRateLimiter:
         capacity: int,
         tokens: int = 1
     ) -> bool:
-        """Lua脚本实现原子性令牌桶"""
+        """Atomic token bucket implemented with a Lua script"""
         lua_script = """
         local key = KEYS[1]
         local rate = tonumber(ARGV[1])
@@ -277,10 +278,9 @@ class RedisRateLimiter:
         )
         return bool(result)
 ```
+## 2. Budget Control
 
-## 2. 预算控制
-
-### 2.1 三层预算体系
+### 2.1 Three-Tier Budget System
 
 ```python
 from dataclasses import dataclass
@@ -291,10 +291,10 @@ class BudgetConfig:
     daily_limit_usd: float
     monthly_limit_usd: float
     per_request_limit_usd: float
-    alert_threshold_pct: float  # 告警阈值百分比
+    alert_threshold_pct: float  # Alert threshold percentage
 
 class BudgetManager:
-    """三层预算管理：用户/Agent/全局"""
+    """Three-tier budget management: User / Agent / Global"""
 
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
@@ -305,28 +305,28 @@ class BudgetManager:
         agent_id: str,
         estimated_cost_usd: float
     ) -> tuple[bool, str]:
-        """检查预算是否充足"""
+        """Check whether the budget is sufficient"""
 
-        # 1. 单次请求预算
-        per_request_limit = 0.50  # $0.50/次
+        # 1. Per-request budget
+        per_request_limit = 0.50  # $0.50 per request
         if estimated_cost_usd > per_request_limit:
             return False, f"per_request_exceeded:{estimated_cost_usd:.4f}>{per_request_limit}"
 
-        # 2. 用户日预算
+        # 2. User daily budget
         user_daily = self._get_usage(f"user:{user_id}:daily")
-        user_daily_limit = 10.0  # $10/天/用户
+        user_daily_limit = 10.0  # $10/day/user
         if user_daily + estimated_cost_usd > user_daily_limit:
             return False, f"user_daily_exceeded:{user_daily:.4f}+{estimated_cost_usd:.4f}>{user_daily_limit}"
 
-        # 3. Agent日预算
+        # 3. Agent daily budget
         agent_daily = self._get_usage(f"agent:{agent_id}:daily")
-        agent_daily_limit = 100.0  # $100/天/Agent
+        agent_daily_limit = 100.0  # $100/day/Agent
         if agent_daily + estimated_cost_usd > agent_daily_limit:
             return False, f"agent_daily_exceeded:{agent_daily:.4f}+{estimated_cost_usd:.4f}>{agent_daily_limit}"
 
-        # 4. 全局月预算
+        # 4. Global monthly budget
         global_monthly = self._get_usage("global:monthly")
-        global_monthly_limit = 10000.0  # $10,000/月
+        global_monthly_limit = 10000.0  # $10,000/month
         if global_monthly + estimated_cost_usd > global_monthly_limit:
             return False, f"global_monthly_exceeded:{global_monthly:.4f}+{estimated_cost_usd:.4f}>{global_monthly_limit}"
 
@@ -338,7 +338,7 @@ class BudgetManager:
         agent_id: str,
         actual_cost_usd: float
     ):
-        """记录实际消耗"""
+        """Record actual consumption"""
         pipe = self.redis.pipeline()
         today = date.today().isoformat()
         month = today[:7]
@@ -369,7 +369,7 @@ class BudgetManager:
         return float(value) if value else 0.0
 
     def get_usage_report(self, user_id: str) -> dict:
-        """获取用户用量报告"""
+        """Get user usage report"""
         today = date.today().isoformat()
         month = today[:7]
 
@@ -380,13 +380,13 @@ class BudgetManager:
         }
 ```
 
-### 2.2 Token预算估算
+### 2.2 Token Budget Estimation
 
 ```python
 class TokenCostEstimator:
-    """Token成本估算器"""
+    """Token cost estimator"""
 
-    # 2026 Q2 定价 (USD per 1M tokens)
+    # Q2 2026 pricing (USD per 1M tokens)
     MODEL_PRICING = {
         "gpt-4o": {"input": 2.50, "output": 10.00},
         "gpt-4o-mini": {"input": 0.15, "output": 0.60},
@@ -394,7 +394,7 @@ class TokenCostEstimator:
         "claude-haiku": {"input": 0.25, "output": 1.25},
         "gemini-1.5-pro": {"input": 1.25, "output": 5.00},
         "gemini-1.5-flash": {"input": 0.075, "output": 0.30},
-        "qwen-max": {"input": 0.12, "output": 0.12},  # ¥0.12/千token
+        "qwen-max": {"input": 0.12, "output": 0.12},  # ¥0.12 per thousand tokens
         "deepseek-v3": {"input": 0.14, "output": 0.28},
     }
 
@@ -405,7 +405,7 @@ class TokenCostEstimator:
         input_tokens: int,
         output_tokens: int
     ) -> float:
-        """估算单次调用成本（USD）"""
+        """Estimate the cost of a single call (USD)"""
         pricing = cls.MODEL_PRICING.get(model)
         if not pricing:
             raise ValueError(f"Unknown model: {model}")
@@ -422,39 +422,39 @@ class TokenCostEstimator:
         avg_input_per_step: int = 2000,
         avg_output_per_step: int = 500
     ) -> float:
-        """估算Agent单次请求的总成本"""
-        # Agent推理步骤：思考 + 工具调用 + 结果处理 + 最终回答
-        total_steps = 1 + num_tool_calls * 2 + 1  # 思考 + (调用+处理)*N + 回答
+        """Estimate the total cost of a single Agent request"""
+        # Agent reasoning steps: thinking + tool calls + result processing + final answer
+        total_steps = 1 + num_tool_calls * 2 + 1  # thinking + (call + process)*N + answer
         total_input = total_steps * avg_input_per_step
         total_output = total_steps * avg_output_per_step
         return cls.estimate_cost(model, total_input, total_output)
 ```
 
-## 3. 模型路由
+## 3. Model Routing
 
-### 3.1 智能路由策略
+### 3.1 Intelligent Routing Strategy
 
-根据请求复杂度选择合适的模型，简单问题用小模型降低成本：
+Select the appropriate model based on request complexity; use smaller models for simple questions to reduce costs:
 
 ```python
 from enum import Enum
 from typing import Optional
 
 class ComplexityLevel(Enum):
-    SIMPLE = "simple"       # 简单问答
-    MODERATE = "moderate"   # 中等复杂
-    COMPLEX = "complex"     # 复杂推理
-    CRITICAL = "critical"   # 关键任务
+    SIMPLE = "simple"       # Simple Q&A
+    MODERATE = "moderate"   # Moderate complexity
+    COMPLEX = "complex"     # Complex reasoning
+    CRITICAL = "critical"   # Critical tasks
 
 class ModelRouter:
-    """智能模型路由器"""
+    """Intelligent model router"""
 
-    # 路由策略配置
+    # Routing strategy configuration
     ROUTING_TABLE = {
         ComplexityLevel.SIMPLE: {
             "primary": "gpt-4o-mini",
             "fallback": "claude-haiku",
-            "cost_weight": 0.9,  # 优先考虑成本
+            "cost_weight": 0.9,  # Prioritize cost
         },
         ComplexityLevel.MODERATE: {
             "primary": "claude-sonnet",
@@ -469,7 +469,7 @@ class ModelRouter:
         ComplexityLevel.CRITICAL: {
             "primary": "gpt-4o",
             "fallback": "claude-sonnet",
-            "cost_weight": 0.0,  # 不考虑成本
+            "cost_weight": 0.0,  # Ignore cost
         },
     }
 
@@ -478,15 +478,15 @@ class ModelRouter:
         query: str,
         context: Optional[dict] = None
     ) -> tuple[str, ComplexityLevel]:
-        """路由请求到合适的模型"""
+        """Route the request to the appropriate model"""
         complexity = self._classify_complexity(query, context)
         config = self.ROUTING_TABLE[complexity]
 
-        # 检查主模型可用性
+        # Check primary model availability
         if self._is_model_available(config["primary"]):
             return config["primary"], complexity
 
-        # 使用fallback
+        # Use fallback
         return config["fallback"], complexity
 
     def _classify_complexity(
@@ -494,8 +494,8 @@ class ModelRouter:
         query: str,
         context: Optional[dict]
     ) -> ComplexityLevel:
-        """基于规则+统计的复杂度分类"""
-        # 规则匹配
+        """Rule-based + statistical complexity classification"""
+        # Rule matching
         simple_patterns = [
             "你好", "谢谢", "是的", "好的",
             "what is", "how to", "define"
@@ -508,60 +508,59 @@ class ModelRouter:
 
         query_lower = query.lower()
 
-        # 简单模式匹配
+        # Simple pattern matching
         if len(query) < 20 and any(p in query_lower for p in simple_patterns):
             return ComplexityLevel.SIMPLE
 
-        # 复杂模式匹配
+        # Complex pattern matching
         if any(p in query_lower for p in complex_patterns):
             return ComplexityLevel.COMPLEX
 
-        # 基于上下文判断
+        # Context-based judgment
         if context and context.get("requires_tools"):
             return ComplexityLevel.COMPLEX
 
-        # 基于长度判断
+        # Length-based judgment
         if len(query) > 500:
             return ComplexityLevel.MODERATE
 
         return ComplexityLevel.SIMPLE
 
     def _is_model_available(self, model: str) -> bool:
-        """检查模型是否可用"""
-        # 实际实现中检查模型健康状态
+        """Check whether the model is available"""
+        # In actual implementation, check model health status
         return True
 ```
 
-### 3.2 成本优化路由
+### 3.2 Cost-Optimized Routing
 
 ```python
 class CostOptimizedRouter(ModelRouter):
-    """成本优化路由器"""
+    """Cost-optimized router"""
 
     def __init__(self, daily_budget_remaining: float):
         self.budget_remaining = daily_budget_remaining
 
     def route(self, query: str, context: Optional[dict] = None) -> tuple[str, ComplexityLevel]:
-        """预算感知路由"""
+        """Budget-aware routing"""
         model, complexity = super().route(query, context)
 
-        # 预算紧张时降级模型
-        if self.budget_remaining < 1.0:  # 剩余<$1
+        # Downgrade model when budget is tight
+        if self.budget_remaining < 1.0:  # Remaining < $1
             if complexity in (ComplexityLevel.SIMPLE, ComplexityLevel.MODERATE):
-                return "gpt-4o-mini", complexity  # 强制使用小模型
+                return "gpt-4o-mini", complexity  # Force use of smaller model
             elif complexity == ComplexityLevel.COMPLEX:
-                return "claude-sonnet", complexity  # 降级但保持质量
+                return "claude-sonnet", complexity  # Downgrade but maintain quality
 
-        # 预算充足时使用最优模型
+        # Use optimal model when budget is sufficient
         return model, complexity
 
     def update_budget(self, cost: float):
         self.budget_remaining -= cost
 ```
+## 4. Caching Strategies
 
-## 4. 缓存策略
-
-### 4.1 精确缓存
+### 4.1 Exact Cache
 
 ```python
 import hashlib
@@ -569,14 +568,14 @@ import json
 from typing import Optional
 
 class ExactCache:
-    """精确缓存：完全相同的输入返回缓存结果"""
+    """Exact cache: returns cached result for identical inputs"""
 
     def __init__(self, redis_client: redis.Redis, ttl: int = 3600):
         self.redis = redis_client
         self.ttl = ttl
 
     def get_cache_key(self, agent_id: str, model: str, messages: list) -> str:
-        """生成缓存键"""
+        """Generate cache key"""
         content = json.dumps({
             "agent": agent_id,
             "model": model,
@@ -590,7 +589,7 @@ class ExactCache:
         model: str,
         messages: list
     ) -> Optional[str]:
-        """查询缓存"""
+        """Query cache"""
         key = self.get_cache_key(agent_id, model, messages)
         result = self.redis.get(key)
         return result.decode() if result else None
@@ -602,19 +601,19 @@ class ExactCache:
         messages: list,
         response: str
     ):
-        """写入缓存"""
+        """Write to cache"""
         key = self.get_cache_key(agent_id, model, messages)
         self.redis.setex(key, self.ttl, response)
 ```
 
-### 4.2 语义缓存
+### 4.2 Semantic Cache
 
 ```python
 import numpy as np
 from typing import Optional
 
 class SemanticCache:
-    """语义缓存：相似语义的输入返回缓存结果"""
+    """Semantic cache: returns cached result for semantically similar inputs"""
 
     def __init__(
         self,
@@ -633,10 +632,10 @@ class SemanticCache:
         agent_id: str,
         query: str
     ) -> Optional[tuple[str, float]]:
-        """语义相似度检索"""
+        """Semantic similarity retrieval"""
         query_embedding = self.embedding_func(query)
 
-        # 从Redis获取该Agent的所有缓存embedding
+        # Retrieve all cached embeddings for this agent from Redis
         pattern = f"semantic_cache:{agent_id}:*"
         keys = self.redis.keys(pattern)
 
@@ -647,7 +646,7 @@ class SemanticCache:
             cached = self.redis.hgetall(key)
             cached_embedding = np.frombuffer(cached[b"embedding"], dtype=np.float32)
 
-            # 余弦相似度
+            # Cosine similarity
             similarity = np.dot(query_embedding, cached_embedding) / (
                 np.linalg.norm(query_embedding) * np.linalg.norm(cached_embedding)
             )
@@ -666,7 +665,7 @@ class SemanticCache:
         query: str,
         response: str
     ):
-        """写入语义缓存"""
+        """Write to semantic cache"""
         embedding = self.embedding_func(query)
         cache_id = hashlib.sha256(query.encode()).hexdigest()[:16]
         key = f"semantic_cache:{agent_id}:{cache_id}"
@@ -679,43 +678,43 @@ class SemanticCache:
         self.redis.expire(key, self.ttl)
 ```
 
-### 4.3 缓存策略选择
+### 4.3 Cache Strategy Selection
 
 ```
-缓存策略决策:
+Cache Strategy Decision:
 
-精确缓存:
-  适用: FAQ、模板回复、固定查询
-  命中率: 低（5-15%）
-  准确性: 100%
-  实现复杂度: 低
+Exact Cache:
+  Use case: FAQs, templated replies, fixed queries
+  Hit rate: Low (5–15%)
+  Accuracy: 100%
+  Implementation complexity: Low
 
-语义缓存:
-  适用: 客服、知识问答、开放域对话
-  命中率: 中（20-40%）
-  准确性: 92%+（取决于阈值）
-  实现复杂度: 中
+Semantic Cache:
+  Use case: Customer service, knowledge Q&A, open-domain dialogue
+  Hit rate: Medium (20–40%)
+  Accuracy: 92%+ (depends on threshold)
+  Implementation complexity: Medium
 
-混合缓存（推荐）:
-  策略: 先精确 → 后语义 → 最后LLM
-  命中率: 高（30-50%）
-  准确性: 高
-  实现复杂度: 中
+Hybrid Cache (recommended):
+  Strategy: Exact first → Semantic second → LLM last
+  Hit rate: High (30–50%)
+  Accuracy: High
+  Implementation complexity: Medium
 
-不建议缓存的场景:
-  - 实时数据查询（股票、天气）
-  - 个性化回答（需要唯一性）
-  - 长上下文对话（上下文变化大）
-  - 流式输出（缓存意义不大）
+Scenarios where caching is not recommended:
+  - Real-time data queries (stocks, weather)
+  - Personalized responses (require uniqueness)
+  - Long-context conversations (context changes significantly)
+  - Streaming output (caching offers little value)
 ```
 
-## 5. 降级策略
+## 5. Fallback Strategies
 
-### 5.1 Fallback Model链
+### 5.1 Fallback Model Chain
 
 ```python
 class FallbackChain:
-    """模型降级链"""
+    """Model fallback chain"""
 
     def __init__(self):
         self.chain = [
@@ -726,7 +725,7 @@ class FallbackChain:
         ]
 
     async def execute(self, messages: list, **kwargs) -> str:
-        """按降级链执行，任一成功即返回"""
+        """Execute along the fallback chain; return as soon as one succeeds"""
         errors = []
 
         for config in self.chain:
@@ -746,14 +745,14 @@ class FallbackChain:
                 })
                 continue
 
-        # 所有模型都失败
+        # All models failed
         raise AllModelsFailedError(errors)
 
     async def _call_model(self, model: str, messages: list, timeout: int, retries: int, **kwargs):
-        """调用单个模型"""
+        """Call a single model"""
         for attempt in range(retries):
             try:
-                # 实际API调用
+                # Actual API call
                 pass
             except Exception as e:
                 if attempt < retries - 1:
@@ -762,31 +761,30 @@ class FallbackChain:
                     raise
 ```
 
-### 5.2 降级触发条件
+### 5.2 Fallback Trigger Conditions
 
 ```yaml
-降级触发条件:
+Fallback trigger conditions:
 
-模型不可用:
+Model unavailable:
   - HTTP 429 (Rate Limited)
   - HTTP 500/502/503 (Server Error)
-  - 超时 (30s)
-  - 连续3次失败
+  - Timeout (30s)
+  - 3 consecutive failures
 
-成本超限:
-  - 单次请求预估>$1
-  - 日预算剩余<10%
-  - 月预算剩余<5%
+Cost limit exceeded:
+  - Estimated cost per request > $1
+  - Daily budget remaining < 10%
+  - Monthly budget remaining < 5%
 
-质量降级:
-  - 模型输出被安全过滤拦截
-  - 输出格式不符合预期
-  - 置信度过低
+Quality degradation:
+  - Model output blocked by safety filter
+  - Output format does not match expectations
+  - Confidence too low
 ```
+## 6. Real-Time Cost Alerting
 
-## 6. 实时成本告警
-
-### 6.1 告警规则
+### 6.1 Alert Rules
 
 ```python
 from dataclasses import dataclass
@@ -804,10 +802,10 @@ class AlertRule:
     condition: str  # "daily_cost > threshold"
     threshold: float
     window: str     # "1h", "1d", "1m"
-    cooldown: int   # 告警冷却秒数
+    cooldown: int   # alert cooldown in seconds
 
 class CostAlertManager:
-    """成本告警管理器"""
+    """Cost alert manager"""
 
     DEFAULT_RULES = [
         AlertRule(
@@ -850,7 +848,7 @@ class CostAlertManager:
         self.last_alert_time: dict[str, float] = {}
 
     def check_alerts(self, agent_id: str) -> list[dict]:
-        """检查是否需要触发告警"""
+        """Check whether alerts need to be triggered"""
         alerts = []
         usage = self.budget_manager.get_usage_report(agent_id)
 
@@ -863,13 +861,13 @@ class CostAlertManager:
         return alerts
 
     def _should_alert(self, rule: AlertRule, usage: dict) -> bool:
-        """检查是否应该触发告警"""
-        # 冷却检查
+        """Check whether an alert should be triggered"""
+        # Cooldown check
         last_time = self.last_alert_time.get(rule.name, 0)
         if time.time() - last_time < rule.cooldown:
             return False
 
-        # 条件检查
+        # Condition check
         if rule.name == "daily_budget_80pct":
             return usage.get("daily_usage_pct", 0) > rule.threshold
         elif rule.name == "single_request_high_cost":
@@ -887,10 +885,10 @@ class CostAlertManager:
         }
 ```
 
-### 6.2 告警集成
+### 6.2 Alert Integration
 
 ```yaml
-# Prometheus告警规则
+# Prometheus alert rules
 groups:
   - name: agent_cost_alerts
     rules:
@@ -900,7 +898,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Agent {{ $labels.agent_id }} 日预算使用超过80%"
+          summary: "Agent {{ $labels.agent_id }} daily budget usage exceeds 80%"
 
       - alert: AgentDailyBudgetCritical
         expr: agent_daily_cost_usd / agent_daily_budget_usd > 0.95
@@ -908,29 +906,29 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Agent {{ $labels.agent_id }} 日预算使用超过95%"
+          summary: "Agent {{ $labels.agent_id }} daily budget usage exceeds 95%"
 
       - alert: AgentRequestCostHigh
         expr: agent_request_cost_usd > 0.5
         labels:
           severity: warning
         annotations:
-          summary: "Agent {{ $labels.agent_id }} 单次请求成本过高"
+          summary: "Agent {{ $labels.agent_id }} single request cost is too high"
 
-# Grafana Dashboard 关键指标
+# Grafana Dashboard key metrics
 metrics:
-  - agent_daily_cost_usd          # 日成本
-  - agent_monthly_cost_usd        # 月成本
-  - agent_request_cost_usd        # 单次请求成本
-  - agent_cache_hit_rate          # 缓存命中率
-  - agent_fallback_rate           # 降级率
-  - agent_rate_limit_hit_rate     # 限流命中率
+  - agent_daily_cost_usd          # daily cost
+  - agent_monthly_cost_usd        # monthly cost
+  - agent_request_cost_usd        # per-request cost
+  - agent_cache_hit_rate          # cache hit rate
+  - agent_fallback_rate           # fallback rate
+  - agent_rate_limit_hit_rate     # rate limit hit rate
 ```
 
-## 7. K8s部署配置
+## 7. K8s Deployment Configuration
 
 ```yaml
-# Agent限流与成本控制组件部署
+# Agent rate limiting and cost control component deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -952,7 +950,7 @@ spec:
         - name: REDIS_URL
           value: "redis://redis:6379"
         - name: DAILY_GLOBAL_BUDGET
-          value: "10000"  # $10,000/天
+          value: "10000"  # $10,000/day
         - name: ALERT_WEBHOOK_URL
           valueFrom:
             secretKeyRef:
@@ -983,14 +981,13 @@ data:
       tokens_per_minute: 500000
 ```
 
-## 相关主题
+## Related Topics
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/18-agent-retry-resilience|Agent弹性设计]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|云Agent平台即服务]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/18-agent-retry-resilience|Agent Resilience Design]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|Cloud Agent Platform as a Service]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime Architecture Overview]]
+## References
 
-## 参考资料
-
-- Token Bucket算法
-- Redis分布式限流
-- LLM API定价对比
+- Token Bucket Algorithm
+- Redis Distributed Rate Limiting
+- LLM API Pricing Comparison

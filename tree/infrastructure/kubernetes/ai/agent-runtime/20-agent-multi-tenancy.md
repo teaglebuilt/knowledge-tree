@@ -1,7 +1,7 @@
 ---
-title: Agent多租户架构
-description: 'Agent系统租户隔离、Namespace模型、API Key管理、用量配额、审计日志与K8s NetworkPolicy'
-summary: 'Agent系统租户隔离、Namespace模型、API Key管理、用量配额、审计日志与K8s NetworkPolicy'
+title: Agent Multi-Tenant Architecture
+description: 'Agent system tenant isolation, Namespace model, API Key management, usage quotas, audit logs, and K8s NetworkPolicy'
+summary: 'Agent system tenant isolation, Namespace model, API Key management, usage quotas, audit logs, and K8s NetworkPolicy'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,15 +16,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 安全工程师
+- AI Engineer
+- Platform Engineer
+- Security Engineer
 estimated_read_time: 20min
 intent_queries:
-- Agent多租户架构 是什么
-- 如何实现Agent租户隔离
-- K8s Agent多租户
-- Agent API Key管理
+- What is Agent multi-tenant architecture
+- How to implement Agent tenant isolation
+- K8s Agent multi-tenancy
+- Agent API Key management
 trigger_keywords:
 - multi-tenancy
 - tenant isolation
@@ -45,84 +45,87 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/20-agent-multi-tenancy.md
 ---
+# Agent Multi-Tenant Architecture
 
-# Agent多租户架构
+## Overview
 
-## 概述
+When an Agent platform serves multiple teams or customers, multi-tenant architecture becomes a core requirement. The isolation dimensions of Agent multi-tenancy are more complex than traditional SaaS: in addition to data and network isolation, model access isolation, tool permission isolation, knowledge base isolation, and independent billing are also required.
 
-当Agent平台面向多个团队或客户提供服务时，多租户架构成为核心需求。Agent多租户的隔离维度比传统SaaS更复杂：除了数据和网络隔离，还需要模型访问隔离、工具权限隔离、知识库隔离和独立计费。
+This article covers four major isolation dimensions, the Namespace-per-Tenant model, API Key management, usage quotas, audit logs, and K8s NetworkPolicy configuration.
 
-本文覆盖四大隔离维度、Namespace-per-Tenant模型、API Key管理、用量配额、审计日志和K8s NetworkPolicy配置。
+## 1. Tenant Isolation Dimensions
 
-## 1. 租户隔离维度
-
-### 1.1 隔离矩阵
+### 1.1 Isolation Matrix
 
 ```
 ┌──────────────┬──────────────────────────────────────────┐
-│   隔离维度    │              隔离策略                     │
+│  Isolation   │              Isolation Strategy           │
+│  Dimension   │                                           │
 ├──────────────┼──────────────────────────────────────────┤
-│ 数据隔离      │ 租户独立数据库/Schema/行级过滤            │
-│              │ 向量数据库租户分区                         │
-│              │ 对象存储前缀隔离                           │
+│ Data         │ Tenant-dedicated database/schema/row-     │
+│ Isolation    │ level filtering                           │
+│              │ Vector database tenant partitioning       │
+│              │ Object storage prefix isolation           │
 ├──────────────┼──────────────────────────────────────────┤
-│ 模型访问隔离  │ 租户独立模型白名单                        │
-│              │ 独立Token配额                             │
-│              │ 模型路由策略差异                           │
+│ Model Access │ Tenant-dedicated model whitelist          │
+│ Isolation    │ Independent token quotas                  │
+│              │ Differentiated model routing policies     │
 ├──────────────┼──────────────────────────────────────────┤
-│ 工具权限隔离  │ 租户工具白名单                            │
-│              │ API Key绑定                               │
-│              │ 沙箱执行环境                               │
+│ Tool         │ Tenant tool whitelist                     │
+│ Permission   │ API Key binding                           │
+│ Isolation    │ Sandbox execution environment             │
 ├──────────────┼──────────────────────────────────────────┤
-│ 计费隔离      │ 独立预算账户                              │
-│              │ 用量计量与账单                             │
-│              │ 预付/后付模式                              │
+│ Billing      │ Independent budget accounts               │
+│ Isolation    │ Usage metering and invoicing              │
+│              │ Prepaid/postpaid modes                    │
 └──────────────┴──────────────────────────────────────────┘
 ```
 
-### 1.2 隔离级别
+### 1.2 Isolation Levels
 
 ```python
 from enum import Enum
 
 class IsolationLevel(Enum):
-    """租户隔离级别"""
-    SHARED = "shared"           # 共享资源，逻辑隔离
-    NAMESPACE = "namespace"     # Namespace隔离
-    DEDICATED = "dedicated"     # 独立集群/资源池
+    """Tenant isolation levels"""
+    SHARED = "shared"           # Shared resources, logical isolation
+    NAMESPACE = "namespace"     # Namespace isolation
+    DEDICATED = "dedicated"     # Dedicated cluster/resource pool
 
 ISOLATION_MATRIX = {
     IsolationLevel.SHARED: {
-        "compute": "共享Pod，请求级隔离",
-        "data": "共享数据库，行级过滤",
-        "model": "共享API Key，配额隔离",
-        "network": "共享网络，应用层隔离",
-        "cost": "最低",
-        "isolation": "弱",
+        "compute": "Shared Pod, request-level isolation",
+        "data": "Shared database, row-level filtering",
+        "model": "Shared API Key, quota isolation",
+        "network": "Shared network, application-layer isolation",
+        "cost": "Lowest",
+        "isolation": "Weak",
     },
     IsolationLevel.NAMESPACE: {
-        "compute": "独立Namespace，独立Pod",
-        "data": "独立数据库实例或Schema",
-        "model": "独立API Key或Key Pool",
-        "network": "NetworkPolicy隔离",
-        "cost": "中等",
-        "isolation": "中",
+        "compute": "Dedicated Namespace, dedicated Pod",
+        "data": "Dedicated database instance or Schema",
+        "model": "Dedicated API Key or Key Pool",
+        "network": "NetworkPolicy isolation",
+        "cost": "Medium",
+        "isolation": "Medium",
     },
     IsolationLevel.DEDICATED: {
-        "compute": "独立节点池/集群",
-        "data": "完全独立数据库集群",
-        "model": "独立模型部署",
-        "network": "VPC隔离",
-        "cost": "高",
-        "isolation": "强",
+        "compute": "Dedicated node pool/cluster",
+        "data": "Fully dedicated database cluster",
+        "model": "Dedicated model deployment",
+        "network": "VPC isolation",
+        "cost": "High",
+        "isolation": "Strong",
     },
 }
 ```
 
-## 2. Namespace-per-Tenant模型
+## 2. Namespace-per-Tenant Model
 
-### 2.1 架构设计
+### 2.1 Architecture Design
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -149,14 +152,14 @@ ISOLATION_MATRIX = {
 │  └─────────────────────┘  └─────────────────────┘      │
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  ns: platform (共享服务)                           │   │
+│  │  ns: platform (Shared Services)                   │   │
 │  │  - API Gateway    - LLM Proxy    - Auth Service  │   │
 │  │  - Billing        - Monitoring   - Audit Log     │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 租户Namespace模板
+### 2.2 Tenant Namespace Template
 
 ```yaml
 # tenant-namespace-template.yaml
@@ -172,7 +175,7 @@ metadata:
     tenant.company.com/owner: "${TENANT_OWNER}"
     tenant.company.com/tier: "${TENANT_TIER}"
 ---
-# ResourceQuota - 租户资源配额
+# ResourceQuota - Tenant resource quota
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -188,7 +191,7 @@ spec:
     services: "10"
     persistentvolumeclaims: "10"
 ---
-# LimitRange - 默认资源限制
+# LimitRange - Default resource limits
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -207,14 +210,14 @@ spec:
       cpu: "4"
       memory: "8Gi"
 ---
-# ServiceAccount - 租户服务账户
+# ServiceAccount - Tenant service account
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: tenant-agent-sa
   namespace: tenant-${TENANT_ID}
 ---
-# Role - 租户角色
+# Role - Tenant role
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -244,7 +247,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-### 2.3 租户自动开通
+### 2.3 Automated Tenant Provisioning
 
 ```python
 from dataclasses import dataclass
@@ -261,7 +264,7 @@ class TenantConfig:
     allowed_tools: list[str]
 
 class TenantProvisioner:
-    """租户自动开通"""
+    """Automated tenant provisioning"""
 
     TIER_DEFAULTS = {
         "free": {
@@ -283,8 +286,8 @@ class TenantProvisioner:
         "enterprise": {
             "max_agents": 100,
             "max_tokens_per_day": 10_000_000,
-            "allowed_models": ["*"],  # 所有模型
-            "allowed_tools": ["*"],   # 所有工具
+            "allowed_models": ["*"],  # All models
+            "allowed_tools": ["*"],   # All tools
             "cpu": "32",
             "memory": "64Gi",
         },
@@ -295,28 +298,28 @@ class TenantProvisioner:
         self.db = db_client
 
     async def provision(self, tenant_id: str, owner: str, tier: str) -> dict:
-        """开通租户"""
+        """Provision a tenant"""
         defaults = self.TIER_DEFAULTS[tier]
 
-        # 1. 创建Namespace
+        # 1. Create Namespace
         ns_manifest = self._render_namespace(tenant_id, owner, tier, defaults)
         await self.k8s.apply(ns_manifest)
 
-        # 2. 创建资源配额
+        # 2. Create resource quota
         quota_manifest = self._render_quota(tenant_id, defaults)
         await self.k8s.apply(quota_manifest)
 
-        # 3. 创建NetworkPolicy
+        # 3. Create NetworkPolicy
         netpol_manifest = self._render_network_policy(tenant_id)
         await self.k8s.apply(netpol_manifest)
 
-        # 4. 创建API Key
+        # 4. Create API Key
         api_key = await self._generate_api_key(tenant_id)
 
-        # 5. 初始化数据库
+        # 5. Initialize database
         await self.db.create_tenant_schema(tenant_id)
 
-        # 6. 注册到租户管理表
+        # 6. Register in tenant management table
         await self.db.register_tenant(TenantConfig(
             tenant_id=tenant_id,
             owner=owner,
@@ -394,7 +397,7 @@ spec:
     async def _generate_api_key(self, tenant_id):
         import secrets
         key = f"sk-agent-{tenant_id}-{secrets.token_hex(24)}"
-        # 存储到Secret
+        # Store to Secret
         await self.k8s.create_secret(
             namespace=f"tenant-{tenant_id}",
             name="api-keys",
@@ -402,10 +405,9 @@ spec:
         )
         return key
 ```
+## 3. API Key Management
 
-## 3. API Key管理
-
-### 3.1 多层API Key体系
+### 3.1 Multi-tier API Key System
 
 ```python
 from dataclasses import dataclass
@@ -413,27 +415,27 @@ from enum import Enum
 from datetime import datetime
 
 class KeyType(Enum):
-    MASTER = "master"       # 主密钥，租户管理员
-    AGENT = "agent"         # Agent密钥，绑定特定Agent
-    SESSION = "session"     # 会话密钥，临时
+    MASTER = "master"       # Master key, tenant administrator
+    AGENT = "agent"         # Agent key, bound to a specific Agent
+    SESSION = "session"     # Session key, temporary
 
 @dataclass
 class APIKey:
     key_id: str
     tenant_id: str
     key_type: KeyType
-    key_hash: str           # 哈希存储，不存明文
-    agent_id: str | None    # 绑定的Agent
+    key_hash: str           # Stored as hash, plaintext is never stored
+    agent_id: str | None    # Bound Agent
     permissions: list[str]
     rate_limit: int         # RPM
-    token_budget: int       # 日Token预算
+    token_budget: int       # Daily token budget
     expires_at: datetime | None
     created_at: datetime
     last_used_at: datetime | None
     is_active: bool
 
 class APIKeyManager:
-    """API Key管理器"""
+    """API Key Manager"""
 
     def __init__(self, redis_client, db_client):
         self.redis = redis_client
@@ -449,11 +451,11 @@ class APIKeyManager:
         token_budget: int = 100_000,
         expires_in_days: int | None = None,
     ) -> tuple[str, APIKey]:
-        """创建API Key"""
+        """Create an API Key"""
         import secrets
         import hashlib
 
-        # 生成Key
+        # Generate Key
         raw_key = f"sk-{key_type.value}-{secrets.token_hex(32)}"
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
         key_id = f"key-{secrets.token_hex(8)}"
@@ -478,10 +480,10 @@ class APIKeyManager:
             is_active=True,
         )
 
-        # 存储到数据库
+        # Save to database
         self.db.save_api_key(api_key)
 
-        # 缓存到Redis（快速校验）
+        # Cache to Redis (fast validation)
         self.redis.hset(f"apikey:{key_hash}", mapping={
             "tenant_id": tenant_id,
             "key_type": key_type.value,
@@ -493,26 +495,26 @@ class APIKeyManager:
         return raw_key, api_key
 
     def validate_key(self, raw_key: str) -> APIKey | None:
-        """校验API Key"""
+        """Validate an API Key"""
         import hashlib
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
 
-        # 先查Redis缓存
+        # Check Redis cache first
         cached = self.redis.hgetall(f"apikey:{key_hash}")
         if not cached:
-            # 回源数据库
+            # Fall back to database
             api_key = self.db.get_api_key_by_hash(key_hash)
             if not api_key or not api_key.is_active:
                 return None
             return api_key
 
-        # 检查过期
-        # ... 省略过期检查
+        # Check expiration
+        # ... expiration check omitted
 
         return cached
 
     def revoke_key(self, key_id: str):
-        """吊销API Key"""
+        """Revoke an API Key"""
         api_key = self.db.get_api_key(key_id)
         if api_key:
             api_key.is_active = False
@@ -520,10 +522,10 @@ class APIKeyManager:
             self.redis.delete(f"apikey:{api_key.key_hash}")
 ```
 
-### 3.2 K8s Secret存储
+### 3.2 K8s Secret Storage
 
 ```yaml
-# 租户API Key Secret
+# Tenant API Key Secret
 apiVersion: v1
 kind: Secret
 metadata:
@@ -535,7 +537,7 @@ stringData:
   agent-key-default: "sk-agent-xxxxx"
   llm-proxy-key: "sk-proxy-xxxxx"
 ---
-# External Secrets Operator - 从Vault同步
+# External Secrets Operator - sync from Vault
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -559,9 +561,9 @@ spec:
       property: llm-proxy-key
 ```
 
-## 4. 用量配额
+## 4. Usage Quotas
 
-### 4.1 多维配额管理
+### 4.1 Multi-dimensional Quota Management
 
 ```python
 from dataclasses import dataclass
@@ -578,7 +580,7 @@ class TenantQuota:
     max_knowledge_base_size_gb: float
 
 class QuotaManager:
-    """租户配额管理"""
+    """Tenant Quota Manager"""
 
     def __init__(self, redis_client, db_client):
         self.redis = redis_client
@@ -590,7 +592,7 @@ class QuotaManager:
         resource: str,
         amount: int = 1
     ) -> tuple[bool, dict]:
-        """检查配额"""
+        """Check quota"""
         quota = self.db.get_tenant_quota(tenant_id)
         if not quota:
             return False, {"error": "tenant_not_found"}
@@ -628,7 +630,7 @@ class QuotaManager:
         return True, checks
 
     def record_usage(self, tenant_id: str, resource: str, amount: int):
-        """记录用量"""
+        """Record usage"""
         today = date.today().isoformat()
         month = today[:7]
 
@@ -647,10 +649,9 @@ class QuotaManager:
         self.redis.incrby(full_key, amount)
         self.redis.expire(full_key, ttl)
 ```
+## 5. Audit Logs
 
-## 5. 审计日志
-
-### 5.1 审计事件结构
+### 5.1 Audit Event Structure
 
 ```python
 from dataclasses import dataclass, field
@@ -659,14 +660,14 @@ from typing import Optional
 
 @dataclass
 class AuditEvent:
-    """审计事件"""
+    """Audit event"""
     event_id: str
     tenant_id: str
     user_id: str
     agent_id: str
     action: str                # chat/tool_call/admin/config_change
-    resource: str              # 资源标识
-    details: dict              # 事件详情
+    resource: str              # Resource identifier
+    details: dict              # Event details
     ip_address: str
     user_agent: str
     timestamp: datetime
@@ -674,27 +675,27 @@ class AuditEvent:
     risk_level: str            # low/medium/high
 
 class AuditLogger:
-    """审计日志记录器"""
+    """Audit log recorder"""
 
     def __init__(self, kafka_producer, db_client):
         self.kafka = kafka_producer
         self.db = db_client
 
     def log(self, event: AuditEvent):
-        """记录审计事件"""
-        # 发送到Kafka（异步持久化）
+        """Record an audit event"""
+        # Send to Kafka (asynchronous persistence)
         self.kafka.send(
             topic="agent-audit-log",
             key=event.tenant_id.encode(),
             value=self._serialize(event),
         )
 
-        # 高风险事件同步写入数据库
+        # Synchronously write high-risk events to the database
         if event.risk_level == "high":
             self.db.insert_audit_event(event)
 
     def log_chat(self, tenant_id: str, user_id: str, agent_id: str, message: str, response: str):
-        """记录对话事件"""
+        """Record a conversation event"""
         self.log(AuditEvent(
             event_id=self._generate_id(),
             tenant_id=tenant_id,
@@ -715,7 +716,7 @@ class AuditLogger:
         ))
 
     def log_tool_call(self, tenant_id: str, user_id: str, agent_id: str, tool_name: str, params: dict, result: str):
-        """记录工具调用事件"""
+        """Record a tool call event"""
         self.log(AuditEvent(
             event_id=self._generate_id(),
             tenant_id=tenant_id,
@@ -755,10 +756,10 @@ class AuditLogger:
         return f"audit-{secrets.token_hex(8)}"
 ```
 
-### 5.2 审计日志查询
+### 5.2 Audit Log Querying
 
 ```yaml
-# K8s部署审计日志服务
+# K8s deployment of the audit log service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -784,7 +785,7 @@ spec:
             cpu: "250m"
             memory: "256Mi"
 ---
-# ClickHouse审计表
+# ClickHouse audit table
 # CREATE TABLE agent_audit_log (
 #     event_id String,
 #     tenant_id String,
@@ -804,10 +805,10 @@ spec:
 
 ## 6. K8s NetworkPolicy
 
-### 6.1 租户网络隔离
+### 6.1 Tenant Network Isolation
 
 ```yaml
-# 默认拒绝所有流量
+# Deny all traffic by default
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -819,7 +820,7 @@ spec:
   - Ingress
   - Egress
 ---
-# 允许租户内部通信
+# Allow intra-tenant communication
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -832,12 +833,12 @@ spec:
   - Egress
   ingress:
   - from:
-    - podSelector: {}  # 同Namespace内Pod
+    - podSelector: {}  # Pods within the same Namespace
   egress:
   - to:
-    - podSelector: {}  # 同Namespace内Pod
+    - podSelector: {}  # Pods within the same Namespace
 ---
-# 允许访问平台共享服务
+# Allow access to platform shared services
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -850,7 +851,7 @@ spec:
   policyTypes:
   - Egress
   egress:
-  # 允许访问LLM Proxy
+  # Allow access to LLM Proxy
   - to:
     - namespaceSelector:
         matchLabels:
@@ -861,7 +862,7 @@ spec:
     ports:
     - protocol: TCP
       port: 8080
-  # 允许访问Auth Service
+  # Allow access to Auth Service
   - to:
     - namespaceSelector:
         matchLabels:
@@ -872,19 +873,19 @@ spec:
     ports:
     - protocol: TCP
       port: 8080
-  # 允许访问外部HTTPS（LLM API等）
+  # Allow access to external HTTPS (LLM API, etc.)
   - to:
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
-        - 10.0.0.0/8      # 排除内网
+        - 10.0.0.0/8      # Exclude internal network
         - 172.16.0.0/12
         - 192.168.0.0/16
     ports:
     - protocol: TCP
       port: 443
 ---
-# 允许平台访问租户（监控/管理）
+# Allow platform to access tenants (monitoring/management)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -907,24 +908,24 @@ spec:
       port: 9090  # metrics
 ```
 
-### 6.2 网络策略验证
+### 6.2 Network Policy Validation
 
 ```python
 class NetworkPolicyValidator:
-    """网络策略验证器"""
+    """Network policy validator"""
 
     def __init__(self, k8s_client):
         self.k8s = k8s_client
 
     async def validate_isolation(self, tenant_id: str) -> dict:
-        """验证租户网络隔离"""
+        """Validate tenant network isolation"""
         namespace = f"tenant-{tenant_id}"
         results = {
             "namespace": namespace,
             "checks": [],
         }
 
-        # 检查1: NetworkPolicy是否存在
+        # Check 1: Whether NetworkPolicy exists
         policies = await self.k8s.list_network_policies(namespace)
         results["checks"].append({
             "check": "network_policy_exists",
@@ -932,7 +933,7 @@ class NetworkPolicyValidator:
             "details": f"Found {len(policies)} policies",
         })
 
-        # 检查2: 默认拒绝策略
+        # Check 2: Default deny policy
         has_deny_all = any(
             p.spec.pod_selector == {} and "Ingress" in p.spec.policy_types and "Egress" in p.spec.policy_types
             for p in policies
@@ -942,7 +943,7 @@ class NetworkPolicyValidator:
             "passed": has_deny_all,
         })
 
-        # 检查3: 跨租户访问隔离
+        # Check 3: Cross-tenant access isolation
         cross_tenant_blocked = await self._test_cross_tenant_access(tenant_id)
         results["checks"].append({
             "check": "cross_tenant_isolation",
@@ -953,19 +954,18 @@ class NetworkPolicyValidator:
         return results
 
     async def _test_cross_tenant_access(self, tenant_id: str) -> bool:
-        """测试跨租户访问是否被阻止"""
-        # 实际执行网络连通性测试
-        # 从tenant-A尝试访问tenant-B的Pod
-        return True  # 简化实现
+        """Test whether cross-tenant access is blocked"""
+        # Actually perform a network connectivity test
+        # Attempt to access a pod in tenant-B from tenant-A
+        return True  # Simplified implementation
 ```
+## Related Topics
 
-## 相关主题
+- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent Rate Limiting and Cost Control]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/19-agent-ci-cd-pipeline|Agent CI/CD Pipeline]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime Architecture Overview]]
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent限流与成本控制]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/19-agent-ci-cd-pipeline|Agent CI/CD流水线]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
-
-## 参考资料
+## References
 
 - Kubernetes Multi-Tenancy
 - Network Policy Recipes

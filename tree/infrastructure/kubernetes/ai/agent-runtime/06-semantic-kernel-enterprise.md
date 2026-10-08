@@ -1,7 +1,7 @@
 ---
-title: Semantic Kernel 企业级 Agent 深度指南
-description: 'Semantic Kernel Kernel/Plugin/Function 三层架构全面解析，涵盖 Planner 自动规划、多语言支持、Azure OpenAI 集成及 AutoGen 互通'
-summary: 'Semantic Kernel Kernel/Plugin/Function 三层架构全面解析'
+title: Semantic Kernel Enterprise-Grade Agent Deep Guide
+description: 'Comprehensive analysis of Semantic Kernel Kernel/Plugin/Function three-layer architecture, covering Planner automatic planning, multi-language support, Azure OpenAI integration, and AutoGen interoperability'
+summary: 'Comprehensive analysis of Semantic Kernel Kernel/Plugin/Function three-layer architecture'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Semantic Kernel 是什么
-- 如何 Semantic Kernel
-- Semantic Kernel Planner 自动规划
+- What is Semantic Kernel
+- How to use Semantic Kernel
+- Semantic Kernel Planner automatic planning
 trigger_keywords:
 - semantic-kernel
 - kernel
@@ -43,35 +43,36 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/06-semantic-kernel-enterprise.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Security Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
-# Semantic Kernel 企业级 Agent 深度指南
+# Semantic Kernel Enterprise-Grade Agent In-Depth Guide
 
-## 1. 核心架构
+## 1. Core Architecture
 
-### 1.1 设计定位
+### 1.1 Design Positioning
 
-Semantic Kernel（SK）是微软开源的 AI 编排 SDK，专为企业级应用设计。核心优势：
-- **原生 .NET / C# 支持**：适合企业 .NET 技术栈
-- **Azure 深度集成**：原生支持 Azure OpenAI、Azure AI Search
-- **插件化架构**：标准化的 Plugin/Function 抽象
-- **多语言支持**：C#、Python、Java
+Semantic Kernel (SK) is Microsoft's open-source AI orchestration SDK, designed specifically for enterprise applications. Core advantages:
+- **Native .NET / C# support**: Suitable for enterprise .NET technology stacks
+- **Deep Azure integration**: Native support for Azure OpenAI and Azure AI Search
+- **Plugin-based architecture**: Standardized Plugin/Function abstractions
+- **Multi-language support**: C#, Python, Java
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              Semantic Kernel 架构                 │
+│           Semantic Kernel Architecture            │
 │                                                  │
 │  ┌──────────────────────────────────────────┐    │
 │  │              Application                  │    │
 │  └──────────────────┬───────────────────────┘    │
 │                     │                            │
 │  ┌──────────────────┴───────────────────────┐    │
-│  │           Kernel (核心运行时)              │    │
+│  │           Kernel (Core Runtime)           │    │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐  │    │
 │  │  │ AI       │ │ Plugin   │ │ Service  │  │    │
 │  │  │ Services │ │ Manager  │ │ Selector │  │    │
@@ -88,40 +89,40 @@ Semantic Kernel（SK）是微软开源的 AI 编排 SDK，专为企业级应用�
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.2 Kernel 初始化（C#）
+### 1.2 Kernel Initialization (C#)
 
 ```csharp
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
-// 创建 Kernel
+// Create Kernel
 var builder = Kernel.CreateBuilder();
 
-// 添加 AI 服务
+// Add AI services
 builder.AddAzureOpenAIChatCompletion(
     deploymentName: "gpt-4o",
     endpoint: "https://my-resource.openai.azure.com/",
     apiKey: Environment.GetEnvironmentVariable("AZURE_OPENAI_KEY")
 );
 
-// 添加插件
+// Add plugins
 builder.Plugins.AddFromType<K8sPlugin>();
 builder.Plugins.AddFromType<LogAnalysisPlugin>();
 
 var kernel = builder.Build();
 ```
 
-### 1.3 Kernel 初始化（Python）
+### 1.3 Kernel Initialization (Python)
 
 ```python
 import semantic_kernel as sk
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 from semantic_kernel.functions import KernelPlugin
 
-# 创建 Kernel
+# Create Kernel
 kernel = sk.Kernel()
 
-# 添加 AI 服务
+# Add AI services
 kernel.add_service(
     AzureChatCompletion(
         service_id="default",
@@ -131,16 +132,16 @@ kernel.add_service(
     )
 )
 
-# 添加插件
+# Add plugins
 kernel.add_plugin(K8sPlugin(), "k8s")
 kernel.add_plugin(LogPlugin(), "logs")
 ```
 
 ---
 
-## 2. Plugin / Function 架构
+## 2. Plugin / Function Architecture
 
-### 2.1 Native Plugin（C#）
+### 2.1 Native Plugin (C#)
 
 ```csharp
 using Microsoft.SemanticKernel;
@@ -149,10 +150,10 @@ using System.ComponentModel;
 public class K8sPlugin
 {
     [KernelFunction("get_pod_status")]
-    [Description("查询 Kubernetes Pod 的运行状态")]
+    [Description("Query the running status of a Kubernetes Pod")]
     public async Task<string> GetPodStatus(
-        [Description("命名空间")] string namespace = "default",
-        [Description("Pod 名称")] string podName = "")
+        [Description("Namespace")] string namespace = "default",
+        [Description("Pod name")] string podName = "")
     {
         var process = new Process
         {
@@ -169,10 +170,10 @@ public class K8sPlugin
     }
 
     [KernelFunction("describe_pod")]
-    [Description("获取 Pod 的详细描述信息")]
+    [Description("Get detailed description information for a Pod")]
     public async Task<string> DescribePod(
-        [Description("命名空间")] string @namespace,
-        [Description("Pod 名称")] string podName)
+        [Description("Namespace")] string @namespace,
+        [Description("Pod name")] string podName)
     {
         var process = new Process
         {
@@ -190,17 +191,17 @@ public class K8sPlugin
 }
 ```
 
-### 2.2 Native Plugin（Python）
+### 2.2 Native Plugin (Python)
 
 ```python
 from semantic_kernel.functions import kernel_function
 from semantic_kernel.kernel_pydantic import KernelBaseModel
 
 class K8sPlugin(KernelBaseModel):
-    """Kubernetes 集群管理插件。"""
+    """Kubernetes cluster management plugin."""
 
     @kernel_function(
-        description="查询 Kubernetes Pod 的运行状态",
+        description="Query the running status of a Kubernetes Pod",
         name="get_pod_status",
     )
     def get_pod_status(
@@ -214,7 +215,7 @@ class K8sPlugin(KernelBaseModel):
         return result.stdout
 
     @kernel_function(
-        description="获取 Pod 的详细描述信息",
+        description="Get detailed description information for a Pod",
         name="describe_pod",
     )
     def describe_pod(self, namespace: str, pod_name: str) -> str:
@@ -229,10 +230,10 @@ class K8sPlugin(KernelBaseModel):
 ### 2.3 OpenAPI Plugin
 
 ```python
-# 从 OpenAPI Schema 导入插件
+# Import plugin from OpenAPI Schema
 from semantic_kernel.functions import KernelPluginFromOpenAPI
 
-# 加载 OpenAPI Spec
+# Load OpenAPI Spec
 plugin = kernel.add_plugin_from_openapi(
     plugin_name="k8s_api",
     openapi_document_path="./k8s-openapi.json",
@@ -247,7 +248,7 @@ plugin = kernel.add_plugin_from_openapi(
 ```python
 from semantic_kernel.memory import SemanticTextMemory
 
-# 配置记忆存储
+# Configure memory storage
 kernel.add_plugin(
     TextMemoryPlugin(
         memory=SemanticTextMemory(
@@ -261,50 +262,49 @@ kernel.add_plugin(
     "memory",
 )
 
-# 存储知识
+# Store knowledge
 await kernel.memory.save_information(
     collection="k8s_docs",
     id="doc-001",
-    text="Pod OOMKilled 通常是由于容器内存使用超出 limits 配置",
+    text="Pod OOMKilled is usually caused by container memory usage exceeding the limits configuration",
 )
 
-# 语义搜索
+# Semantic search
 results = await kernel.memory.search(
     collection="k8s_docs",
-    query="容器内存不足",
+    query="insufficient container memory",
     limit=5,
 )
 ```
 
 ---
+## 3. Planner Automatic Planning
 
-## 3. Planner 自动规划
-
-### 3.1 Function Calling Planner（推荐）
+### 3.1 Function Calling Planner (Recommended)
 
 ```python
 from semantic_kernel.connectors.ai.open_ai import OpenAIPromptExecutionSettings
 from semantic_kernel.planners import FunctionCallingStepwisePlanner
 
-# 创建 Planner
+# Create Planner
 planner = FunctionCallingStepwisePlanner(
     service_id="default",
     max_iterations=10,
 )
 
-# 执行规划
+# Execute planning
 result = await planner.invoke(
     kernel=kernel,
-    question="检查 default 命名空间下 nginx Pod 为什么一直重启，并给出修复建议",
+    question="Check why the nginx Pod in the default namespace keeps restarting and provide remediation suggestions",
 )
 
-print(f"最终答案: {result.final_answer}")
-print(f"执行步数: {len(result.steps)}")
+print(f"Final answer: {result.final_answer}")
+print(f"Steps executed: {len(result.steps)}")
 for step in result.steps:
     print(f"  [{step.plugin_name}.{step.function_name}] → {step.output[:100]}")
 ```
 
-### 3.2 AgentChat（多 Agent 协作）
+### 3.2 AgentChat (Multi-Agent Collaboration)
 
 ```python
 from semantic_kernel.agents import (
@@ -313,66 +313,66 @@ from semantic_kernel.agents import (
     AgentTerminationStrategy,
 )
 
-# 定义 Agent
+# Define Agents
 diagnostician = ChatCompletionAgent(
     service_id="default",
     kernel=kernel,
     name="diagnostician",
-    instructions="你是 K8s 诊断专家，负责分析问题根因。",
+    instructions="You are a K8s diagnostics expert responsible for analyzing root causes.",
 )
 
 fixer = ChatCompletionAgent(
     service_id="default",
     kernel=kernel,
     name="fixer",
-    instructions="你是 K8s 修复工程师，负责执行修复操作。",
+    instructions="You are a K8s remediation engineer responsible for executing fix operations.",
 )
 
-# 终止策略
+# Termination strategy
 class K8sTerminationStrategy(AgentTerminationStrategy):
     async def should_agent_terminate(self, agent, history):
         return "TERMINATE" in history[-1].content
 
-# 创建 Agent 群聊
+# Create Agent group chat
 group_chat = AgentGroupChat(
     agents=[diagnostician, fixer],
     termination_strategy=K8sTerminationStrategy(),
 )
 
-# 执行对话
+# Execute conversation
 result = await group_chat.invoke(
-    message="Pod nginx-abc123 出现 CrashLoopBackOff",
+    message="Pod nginx-abc123 encountered CrashLoopBackOff",
 )
 ```
 
-### 3.3 Stepwise Planner（逐步规划）
+### 3.3 Stepwise Planner (Step-by-Step Planning)
 
 ```python
 from semantic_kernel.planners import FunctionCallingStepwisePlanner
 
-# 逐步规划，每步都可以人工审核
+# Step-by-step planning, each step can be manually reviewed
 planner = FunctionCallingStepwisePlanner(
     service_id="default",
     max_iterations=15,
 )
 
-# 获取规划步骤（不执行）
+# Get planning steps (without executing)
 plan = await planner.create_plan(
     kernel=kernel,
-    question="分析集群中所有 Pending 状态的 Pod 并给出调度建议",
+    question="Analyze all Pods in Pending state across the cluster and provide scheduling recommendations",
 )
 
-# 逐步执行
+# Execute step by step
 for step in plan.steps:
-    print(f"执行: {step.plugin_name}.{step.function_name}")
-    # 可以在这里添加人工审批逻辑
+    print(f"Executing: {step.plugin_name}.{step.function_name}")
+    # Manual approval logic can be added here
     result = await step.invoke(kernel=kernel)
-    print(f"结果: {result}")
+    print(f"Result: {result}")
 ```
 
 ---
 
-## 4. 多语言支持
+## 4. Multi-Language Support
 
 ### 4.1 C# / .NET
 
@@ -389,7 +389,7 @@ var app = builder.Build();
 app.MapPost("/diagnose", async (Kernel kernel, DiagnosisRequest request) =>
 {
     var result = await kernel.InvokePromptAsync(
-        $"诊断 {request.Namespace} 命名空间中 {request.PodName} 的异常",
+        $"Diagnose the anomaly of {request.PodName} in the {request.Namespace} namespace",
         new KernelArguments
         {
             ["namespace"] = request.Namespace,
@@ -417,7 +417,7 @@ async def diagnose(namespace: str, pod_name: str):
     kernel.add_plugin(K8sPlugin(), "k8s")
 
     result = await kernel.invoke_prompt(
-        f"诊断 {namespace} 命名空间中 {pod_name} 的异常",
+        f"Diagnose the anomaly of {pod_name} in the {namespace} namespace",
         namespace=namespace,
         pod_name=pod_name,
     )
@@ -440,20 +440,20 @@ var kernel = Kernel.builder()
     .build();
 
 var result = kernel.invokePromptAsync(
-    "诊断 default 命名空间中 nginx Pod 的异常"
+    "Diagnose the anomaly of the nginx Pod in the default namespace"
 ).block();
 ```
 
 ---
 
-## 5. Azure OpenAI 集成
+## 5. Azure OpenAI Integration
 
-### 5.1 连接配置
+### 5.1 Connection Configuration
 
 ```python
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 
-# 基础配置
+# Basic configuration
 kernel.add_service(
     AzureChatCompletion(
         service_id="default",
@@ -464,7 +464,7 @@ kernel.add_service(
     )
 )
 
-# 使用 Managed Identity（推荐生产环境）
+# Using Managed Identity (recommended for production environments)
 from azure.identity import DefaultAzureCredential
 
 credential = DefaultAzureCredential()
@@ -480,12 +480,12 @@ kernel.add_service(
 )
 ```
 
-### 5.2 Azure AI Search 集成
+### 5.2 Azure AI Search Integration
 
 ```python
 from semantic_kernel.connectors.memory.azure import AzureAISearchMemoryStore
 
-# 配置 Azure AI Search
+# Configure Azure AI Search
 kernel.add_plugin(
     TextMemoryPlugin(
         memory=SemanticTextMemory(
@@ -503,10 +503,9 @@ kernel.add_plugin(
 ```
 
 ---
+## 6. Interoperability with AutoGen
 
-## 6. 与 AutoGen 互通
-
-### 6.1 SK Agent 在 AutoGen 群聊中
+### 6.1 SK Agent in AutoGen Group Chat
 
 ```python
 from autogen import GroupChat, GroupChatManager, AssistantAgent
@@ -517,19 +516,19 @@ sk_agent = ChatCompletionAgent(
     service_id="default",
     kernel=kernel,
     name="sk_expert",
-    instructions="你是 K8s 专家，使用 SK 插件查询集群。",
+    instructions="You are a K8s expert who uses SK plugins to query the cluster.",
 )
 
 # AutoGen Agent
 autogen_agent = AssistantAgent(
     name="analyst",
-    system_message="你是分析专家。",
+    system_message="You are an analysis expert.",
     llm_config=llm_config,
 )
 
-# 桥接层
+# Bridge layer
 class SKAutoGenBridge:
-    """将 SK Agent 包装为 AutoGen 兼容的 Agent。"""
+    """Wraps an SK Agent as an AutoGen-compatible Agent."""
 
     def __init__(self, sk_agent: ChatCompletionAgent):
         self.sk_agent = sk_agent
@@ -540,27 +539,27 @@ class SKAutoGenBridge:
         return str(result[0].content)
 ```
 
-### 6.2 统一编排
+### 6.2 Unified Orchestration
 
 ```python
-# 使用 SK 作为工具层，AutoGen 作为对话层
+# Using SK as the tool layer and AutoGen as the conversation layer
 class HybridOrchestrator:
     def __init__(self):
         self.kernel = sk.Kernel()
         self.kernel.add_plugin(K8sPlugin(), "k8s")
 
     async def run(self, task: str):
-        # SK 执行工具调用
+        # SK executes tool calls
         tool_result = await self.kernel.invoke(
             plugin_name="k8s",
             function_name="get_pod_status",
             namespace="default",
         )
 
-        # AutoGen 处理对话
+        # AutoGen handles the conversation
         autogen_result = user_proxy.initiate_chat(
             assistant,
-            message=f"分析以下 Pod 状态:\n{tool_result}\n\n任务: {task}",
+            message=f"Analyze the following Pod status:\n{tool_result}\n\nTask: {task}",
             max_turns=5,
         )
 
@@ -569,12 +568,12 @@ class HybridOrchestrator:
 
 ---
 
-## 7. 生产最佳实践
+## 7. Production Best Practices
 
-### 7.1 依赖注入
+### 7.1 Dependency Injection
 
 ```csharp
-// C# 依赖注入
+// C# dependency injection
 builder.Services.AddSingleton<IK8sService, K8sService>();
 builder.Services.AddKernel()
     .AddAzureOpenAIChatCompletion("gpt-4o", endpoint, key)
@@ -582,19 +581,19 @@ builder.Services.AddKernel()
         new K8sPlugin(sp.GetRequiredService<IK8sService>()));
 ```
 
-### 7.2 可观测性
+### 7.2 Observability
 
 ```python
-# OpenTelemetry 集成
+# OpenTelemetry integration
 from opentelemetry import trace
 from semantic_kernel.functions import KernelPlugin
 
-# SK 内置追踪
+# SK built-in tracing
 kernel = sk.Kernel()
-# 自动记录所有函数调用
+# Automatically records all function calls
 ```
 
-### 7.3 错误处理
+### 7.3 Error Handling
 
 ```python
 from semantic_kernel.exceptions import KernelException
@@ -605,11 +604,11 @@ try:
         function_name="get_pod_status",
     )
 except KernelException as e:
-    logger.error(f"SK 函数调用失败: {e}")
-    # 降级处理
+    logger.error(f"SK function call failed: {e}")
+    # Fallback handling
 ```
 
-### 7.4 安全配置
+### 7.4 Security Configuration
 
 ```yaml
 # Azure RBAC
@@ -628,12 +627,12 @@ rules:
 ## Related
 
 - [[domain-14-ai-ml-infra/03-agent-runtime/04-autogen-microsoft-agent|Microsoft AutoGen]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph 深度指南]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/05-dify-agent-platform|Dify Agent 平台]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph Deep Dive Guide]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/05-dify-agent-platform|Dify Agent Platform]]
 
 
 <!-- risk-assessed -->

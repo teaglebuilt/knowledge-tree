@@ -1,7 +1,7 @@
 ---
-title: Agent状态管理模式
-description: '无状态vs有状态Agent架构、检查点策略、状态存储方案、状态回放调试与长时记忆分层设计'
-summary: '无状态vs有状态Agent架构、检查点策略、状态存储方案、状态回放调试与长时记忆分层设计'
+title: Agent State Management Patterns
+description: 'Stateless vs. stateful Agent architecture, checkpoint strategies, state storage solutions, state replay debugging, and long-term memory hierarchical design'
+summary: 'Stateless vs. stateful Agent architecture, checkpoint strategies, state storage solutions, state replay debugging, and long-term memory hierarchical design'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Agent状态管理模式 是什么
-- 如何管理Agent状态
-- Agent检查点策略详解
+- What is Agent State Management Patterns
+- How to manage Agent state
+- Detailed explanation of Agent checkpoint strategies
 trigger_keywords:
 - agent-state
 - checkpoint
@@ -41,32 +41,33 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/10-agent-state-management-patterns.md
 ---
+# Agent State Management Patterns
 
-# Agent状态管理模式
+## Overview
 
-## 概述
+Agent state management is the core challenge in building production-grade AI Agents. LLM Agent execution often spans multiple conversation turns, multiple tool calls, and even multiple sessions. How to efficiently manage these states while ensuring reliability directly determines the maintainability and scalability of an Agent system.
 
-Agent状态管理是构建生产级AI Agent的核心挑战。LLM Agent的执行往往跨越多轮对话、多次工具调用甚至多个会话，如何在保证可靠性的同时高效管理这些状态，直接决定了Agent系统的可维护性和可扩展性。
+This document systematically introduces the complete methodology for Agent state management: architecture selection from stateless to stateful, checkpoint strategy design, state storage solution comparison, state replay debugging techniques, and the layered architecture of long-term memory.
 
-本文档系统介绍Agent状态管理的完整方法论：从无状态到有状态的架构选型、检查点策略设计、状态存储方案对比、状态回放调试技术，以及长时记忆的分层架构。
+## Stateless vs. Stateful Agents
 
-## 无状态vs有状态Agent
+### Stateless Agent
 
-### 无状态Agent
-
-无状态Agent每次执行都从零开始，不保留任何历史状态：
+A stateless Agent starts from scratch on every execution and retains no historical state:
 
 ```python
 class StatelessAgent:
-    """无状态Agent - 每次调用独立"""
+    """Stateless Agent - each call is independent"""
 
     def __init__(self, system_prompt: str, tools: list):
         self.system_prompt = system_prompt
         self.tools = tools
 
     async def execute(self, user_input: str) -> str:
-        """执行单次Agent任务，不保留历史"""
+        """Execute a single Agent task without retaining history"""
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": user_input},
@@ -87,36 +88,36 @@ class StatelessAgent:
         return response.content
 ```
 
-无状态Agent的优势：
+Advantages of a stateless Agent:
 
 ```
-优势:
-  - 简单可靠，无状态丢失风险
-  - 水平扩展容易，无亲和性要求
-  - 调试简单，每次执行独立
-  - 适合单轮任务（问答、翻译、摘要）
+Advantages:
+  - Simple and reliable, no risk of state loss
+  - Easy horizontal scaling, no affinity requirements
+  - Simple debugging, each execution is independent
+  - Suitable for single-turn tasks (Q&A, translation, summarization)
 
-劣势:
-  - 无法维持多轮对话上下文
-  - 无法学习和积累经验
-  - 复杂任务需要重复输入上下文
-  - Token消耗较高（重复传递历史）
+Disadvantages:
+  - Cannot maintain multi-turn conversation context
+  - Cannot learn or accumulate experience
+  - Complex tasks require repeated context input
+  - Higher token consumption (repeatedly passing history)
 ```
 
-### 有状态Agent
+### Stateful Agent
 
-有状态Agent维护跨调用的执行状态：
+A stateful Agent maintains execution state across calls:
 
 ```python
 class StatefulAgent:
-    """有状态Agent - 维护执行历史和记忆"""
+    """Stateful Agent - maintains execution history and memory"""
 
     def __init__(self, agent_id: str, state_store: StateStore):
         self.agent_id = agent_id
         self.state_store = state_store
 
     async def execute(self, user_input: str) -> str:
-        # 加载历史状态
+        # Load historical state
         state = await self.state_store.load(self.agent_id)
 
         if state is None:
@@ -127,13 +128,13 @@ class StatefulAgent:
                 metadata={},
             )
 
-        # 添加用户输入
+        # Add user input
         state.conversation_history.append({
             "role": "user",
             "content": user_input,
         })
 
-        # 构建包含历史的消息
+        # Build messages including history
         messages = self._build_messages(state)
 
         response = await self.llm_call(messages)
@@ -157,25 +158,25 @@ class StatefulAgent:
 
             response = await self.llm_call(self._build_messages(state))
 
-        # 保存Agent响应
+        # Save Agent response
         state.conversation_history.append({
             "role": "assistant",
             "content": response.content,
         })
 
-        # 更新记忆
+        # Update memory
         await state.memory.update(state.conversation_history)
 
-        # 持久化状态
+        # Persist state
         await self.state_store.save(self.agent_id, state)
 
         return response.content
 
     def _build_messages(self, state: AgentState) -> list:
-        """构建LLM消息，可能压缩历史"""
+        """Build LLM messages, potentially compressing history"""
         messages = [{"role": "system", "content": self.system_prompt}]
 
-        # 可能需要压缩历史以适应上下文窗口
+        # History may need to be compressed to fit the context window
         compressed_history = self._compress_history(
             state.conversation_history
         )
@@ -184,43 +185,43 @@ class StatefulAgent:
         return messages
 ```
 
-### 架构选型指南
+### Architecture Selection Guide
 
 ```
-选型决策树:
+Selection Decision Tree:
 
-任务是否需要跨调用上下文？
-  ├── 否 → 无状态Agent
-  └── 是 → 上下文是否仅限单次会话？
-      ├── 是 → 会话级有状态Agent
-      └── 否 → 需要跨会话记忆？
-          ├── 否 → 会话级有状态Agent + 会话超时
-          └── 是 → 持久化有状态Agent + 记忆分层
+Does the task require cross-call context?
+  ├── No → Stateless Agent
+  └── Yes → Is context limited to a single session?
+      ├── Yes → Session-level stateful Agent
+      └── No → Is cross-session memory needed?
+          ├── No → Session-level stateful Agent + session timeout
+          └── Yes → Persistent stateful Agent + layered memory
 
-推荐方案:
-  简单问答 → 无状态
-  客服对话 → 会话级有状态（TTL 30分钟）
-  代码助手 → 会话级有状态（TTL 2小时）
-  研究助手 → 持久化有状态 + 长期记忆
-  自主Agent → 持久化有状态 + 完整记忆分层
+Recommended solutions:
+  Simple Q&A → Stateless
+  Customer service dialogue → Session-level stateful (TTL 30 minutes)
+  Code assistant → Session-level stateful (TTL 2 hours)
+  Research assistant → Persistent stateful + long-term memory
+  Autonomous Agent → Persistent stateful + full layered memory
 ```
 
-## 检查点策略
+## Checkpoint Strategies
 
-### 检查点时机
+### Checkpoint Timing
 
 ```python
 from enum import Enum
 
 class CheckpointStrategy(Enum):
-    EVERY_STEP = "every_step"           # 每步检查点
-    KEY_NODES = "key_nodes"             # 关键节点检查点
-    TIME_BASED = "time_based"           # 定时检查点
-    ADAPTIVE = "adaptive"               # 自适应检查点
+    EVERY_STEP = "every_step"           # Checkpoint at every step
+    KEY_NODES = "key_nodes"             # Checkpoint at key nodes
+    TIME_BASED = "time_based"           # Time-based checkpoint
+    ADAPTIVE = "adaptive"               # Adaptive checkpoint
 
 
 class CheckpointManager:
-    """Agent检查点管理器"""
+    """Agent checkpoint manager"""
 
     def __init__(
         self,
@@ -238,14 +239,14 @@ class CheckpointManager:
         state: AgentState,
         step_type: str,
     ) -> bool:
-        """根据策略决定是否创建检查点"""
+        """Decide whether to create a checkpoint based on the strategy"""
         should_checkpoint = False
 
         if self.strategy == CheckpointStrategy.EVERY_STEP:
             should_checkpoint = True
 
         elif self.strategy == CheckpointStrategy.KEY_NODES:
-            # 只在关键节点创建检查点
+            # Create checkpoints only at key nodes
             key_step_types = {
                 "llm_inference",
                 "tool_execution",
@@ -255,12 +256,12 @@ class CheckpointManager:
             should_checkpoint = step_type in key_step_types
 
         elif self.strategy == CheckpointStrategy.TIME_BASED:
-            # 每N秒创建一次检查点
+            # Create a checkpoint every N seconds
             elapsed = (datetime.utcnow() - self.last_checkpoint_time).total_seconds()
-            should_checkpoint = elapsed >= 30  # 每30秒
+            should_checkpoint = elapsed >= 30  # every 30 seconds
 
         elif self.strategy == CheckpointStrategy.ADAPTIVE:
-            # 自适应策略：根据执行复杂度调整
+            # Adaptive strategy: adjust based on execution complexity
             should_checkpoint = self._adaptive_decision(state, step_type)
 
         if should_checkpoint:
@@ -276,18 +277,18 @@ class CheckpointManager:
         state: AgentState,
         step_type: str,
     ) -> bool:
-        """自适应检查点决策"""
-        # 高风险操作后立即检查点
+        """Adaptive checkpoint decision"""
+        # Checkpoint immediately after high-risk operations
         high_risk_steps = {"tool_execution", "state_mutation"}
         if step_type in high_risk_steps:
             return True
 
-        # 状态大小超过阈值时检查点
+        # Checkpoint when state size exceeds threshold
         state_size = self._estimate_state_size(state)
         if state_size > 1024 * 1024:  # 1MB
             return True
 
-        # 距离上次检查点超过一定步数
+        # Checkpoint after a certain number of steps since the last checkpoint
         if self.step_count % 5 == 0:
             return True
 
@@ -298,7 +299,7 @@ class CheckpointManager:
         agent_id: str,
         state: AgentState,
     ) -> str:
-        """创建检查点"""
+        """Create a checkpoint"""
         checkpoint_id = f"{agent_id}-{uuid.uuid4().hex[:8]}"
 
         checkpoint = Checkpoint(
@@ -313,68 +314,67 @@ class CheckpointManager:
         return checkpoint_id
 ```
 
-### 检查点存储结构
+### Checkpoint Storage Structure
 
 ```python
 @dataclass
 class Checkpoint:
-    """检查点数据结构"""
+    """Checkpoint data structure"""
     id: str
     agent_id: str
-    state: bytes              # 序列化的Agent状态
+    state: bytes              # Serialized Agent state
     created_at: datetime
     step_count: int
     metadata: dict = field(default_factory=dict)
 
-    # 检查点链
+    # Checkpoint chain
     parent_checkpoint_id: Optional[str] = None
 
-    # 状态摘要（用于快速浏览）
+    # State summary (for quick browsing)
     summary: Optional[str] = None
 
-    # 恢复信息
-    recovery_point: Optional[str] = None  # 恢复点标识
+    # Recovery information
+    recovery_point: Optional[str] = None  # Recovery point identifier
 
 
 @dataclass
 class AgentState:
-    """Agent完整状态"""
-    # 对话历史
+    """Complete Agent state"""
+    # Conversation history
     conversation_history: list[Message]
 
-    # 工具调用结果
+    # Tool call results
     tool_results: list[ToolResult]
 
-    # Agent记忆
+    # Agent memory
     memory: AgentMemory
 
-    # 执行上下文
+    # Execution context
     context: dict
 
-    # 中间推理状态
+    # Intermediate reasoning state
     reasoning_state: Optional[dict] = None
 
-    # 自定义元数据
+    # Custom metadata
     metadata: dict = field(default_factory=dict)
 ```
+## State Storage Solutions
 
-## 状态存储方案
-
-### Redis存储
+### Redis Storage
 
 ```python
 import redis.asyncio as redis
 import pickle
 
 class RedisStateStore:
-    """基于Redis的状态存储"""
+    """Redis-based state storage"""
 
     def __init__(self, redis_url: str, ttl: int = 3600):
         self.client = redis.from_url(redis_url)
         self.ttl = ttl
 
     async def save(self, agent_id: str, state: AgentState):
-        """保存Agent状态"""
+        """Save Agent state"""
         key = f"agent:state:{agent_id}"
         serialized = pickle.dumps(state)
 
@@ -384,14 +384,14 @@ class RedisStateStore:
             value=serialized,
         )
 
-        # 保存状态索引
+        # Save state index
         await self.client.zadd(
             f"agent:checkpoints:{agent_id",
             {state.checkpoint_id: state.step_count},
         )
 
     async def load(self, agent_id: str) -> Optional[AgentState]:
-        """加载Agent状态"""
+        """Load Agent state"""
         key = f"agent:state:{agent_id}"
         data = await self.client.get(key)
 
@@ -405,13 +405,13 @@ class RedisStateStore:
         agent_id: str,
         checkpoint: Checkpoint,
     ):
-        """保存检查点"""
+        """Save checkpoint"""
         key = f"agent:checkpoint:{checkpoint.id}"
         serialized = pickle.dumps(checkpoint)
 
         await self.client.setex(
             name=key,
-            time=86400 * 7,  # 保留7天
+            time=86400 * 7,  # Retain for 7 days
             value=serialized,
         )
 
@@ -419,7 +419,7 @@ class RedisStateStore:
         self,
         checkpoint_id: str,
     ) -> Optional[Checkpoint]:
-        """加载检查点"""
+        """Load checkpoint"""
         key = f"agent:checkpoint:{checkpoint_id}"
         data = await self.client.get(key)
 
@@ -429,7 +429,7 @@ class RedisStateStore:
         return pickle.loads(data)
 ```
 
-### PostgreSQL存储
+### PostgreSQL Storage
 
 ```python
 from sqlalchemy import Column, String, DateTime, LargeBinary, Integer
@@ -439,7 +439,7 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 class AgentStateModel(Base):
-    """Agent状态数据库模型"""
+    """Agent state database model"""
     __tablename__ = "agent_states"
 
     agent_id = Column(String, primary_key=True)
@@ -451,7 +451,7 @@ class AgentStateModel(Base):
 
 
 class CheckpointModel(Base):
-    """检查点数据库模型"""
+    """Checkpoint database model"""
     __tablename__ = "agent_checkpoints"
 
     id = Column(String, primary_key=True)
@@ -464,7 +464,7 @@ class CheckpointModel(Base):
 
 
 class PostgreSQLStateStore:
-    """基于PostgreSQL的状态存储"""
+    """PostgreSQL-based state storage"""
 
     def __init__(self, database_url: str):
         self.engine = create_async_engine(database_url)
@@ -512,14 +512,14 @@ class PostgreSQLStateStore:
             ]
 ```
 
-### S3对象存储
+### S3 Object Storage
 
 ```python
 import boto3
 import json
 
 class S3StateStore:
-    """基于S3的状态存储，适合大规模长期存储"""
+    """S3-based state storage, suitable for large-scale long-term storage"""
 
     def __init__(self, bucket: str, prefix: str = "agent-states"):
         self.client = boto3.client("s3")
@@ -570,45 +570,44 @@ class S3StateStore:
             return None
 ```
 
-### 存储方案对比
+### Storage Solution Comparison
 
 ```
-方案对比:
+Solution Comparison:
 
 Redis:
-  延迟: <1ms
-  容量: 受限于内存（通常GB级）
-  持久化: 可选RDB/AOF
-  适用: 会话级状态、高频读写
-  成本: 高（内存成本）
+  Latency: <1ms
+  Capacity: Limited by memory (typically GB-scale)
+  Persistence: Optional RDB/AOF
+  Best for: Session-level state, high-frequency reads/writes
+  Cost: High (memory cost)
 
 PostgreSQL:
-  延迟: 1-10ms
-  容量: TB级
-  持久化: 原生ACID
-  适用: 结构化状态、需要查询
-  成本: 中等
+  Latency: 1-10ms
+  Capacity: TB-scale
+  Persistence: Native ACID
+  Best for: Structured state, query requirements
+  Cost: Moderate
 
-S3/对象存储:
-  延迟: 50-200ms
-  容量: 无限
-  持久化: 11个9持久性
-  适用: 长期存储、大对象
-  成本: 低
+S3/Object Storage:
+  Latency: 50-200ms
+  Capacity: Unlimited
+  Persistence: 11 nines durability
+  Best for: Long-term storage, large objects
+  Cost: Low
 
-推荐组合:
-  热状态 → Redis（当前会话）
-  温状态 → PostgreSQL（近期历史）
-  冷状态 → S3（长期归档）
+Recommended Combination:
+  Hot state  → Redis (current session)
+  Warm state → PostgreSQL (recent history)
+  Cold state → S3 (long-term archive)
 ```
+## State Replay and Debugging
 
-## 状态回放与调试
-
-### 回放引擎
+### Replay Engine
 
 ```python
 class StateReplayEngine:
-    """Agent状态回放引擎，用于调试和分析"""
+    """Agent state replay engine for debugging and analysis"""
 
     def __init__(self, checkpoint_store: CheckpointStore):
         self.checkpoint_store = checkpoint_store
@@ -619,7 +618,7 @@ class StateReplayEngine:
         from_checkpoint: Optional[str] = None,
         to_checkpoint: Optional[str] = None,
     ) -> list[ReplayStep]:
-        """回放Agent执行过程"""
+        """Replay the Agent execution process"""
         checkpoints = await self.checkpoint_store.list_checkpoints(
             agent_id,
         )
@@ -665,7 +664,7 @@ class StateReplayEngine:
         prev_checkpoint: Optional[Checkpoint],
         current_checkpoint: Checkpoint,
     ) -> StateDiff:
-        """计算两个检查点之间的差异"""
+        """Compute the difference between two checkpoints"""
         if prev_checkpoint is None:
             return StateDiff(
                 added_messages=len(
@@ -694,11 +693,11 @@ class StateReplayEngine:
         )
 ```
 
-### 调试工具
+### Debugging Tools
 
 ```python
 class AgentDebugger:
-    """Agent调试工具"""
+    """Agent debugging tool"""
 
     def __init__(self, replay_engine: StateReplayEngine):
         self.replay = replay_engine
@@ -708,7 +707,7 @@ class AgentDebugger:
         agent_id: str,
         checkpoint_id: str,
     ) -> StateInspection:
-        """检查特定检查点的状态"""
+        """Inspect the state at a specific checkpoint"""
         checkpoint = await self.replay.checkpoint_store.load_checkpoint(
             checkpoint_id,
         )
@@ -727,12 +726,12 @@ class AgentDebugger:
         self,
         agent_id: str,
     ) -> list[Anomaly]:
-        """检测执行异常"""
+        """Detect execution anomalies"""
         checkpoints = await self.replay.replay(agent_id)
         anomalies = []
 
         for i, step in enumerate(checkpoints):
-            # 检测重复工具调用
+            # Detect duplicate tool calls
             if i > 0:
                 prev = checkpoints[i - 1]
                 if (step.state_snapshot.tool_results ==
@@ -740,29 +739,29 @@ class AgentDebugger:
                     anomalies.append(Anomaly(
                         type="duplicate_tool_call",
                         checkpoint_id=step.checkpoint_id,
-                        description="工具调用结果未变化",
+                        description="Tool call results unchanged",
                     ))
 
-            # 检测异常长的对话
+            # Detect abnormally long conversations
             if step.state_snapshot.conversation_length > 100:
                 anomalies.append(Anomaly(
                     type="long_conversation",
                     checkpoint_id=step.checkpoint_id,
-                    description=f"对话长度异常: {step.state_snapshot.conversation_length}",
+                    description=f"Abnormal conversation length: {step.state_snapshot.conversation_length}",
                 ))
 
         return anomalies
 ```
 
-## 对话历史压缩
+## Conversation History Compression
 
-### 压缩策略
+### Compression Strategies
 
 ```python
 from abc import ABC, abstractmethod
 
 class HistoryCompressor(ABC):
-    """对话历史压缩器基类"""
+    """Base class for conversation history compressors"""
 
     @abstractmethod
     async def compress(
@@ -774,7 +773,7 @@ class HistoryCompressor(ABC):
 
 
 class SummaryCompressor(HistoryCompressor):
-    """摘要压缩器 - 用LLM生成摘要替代旧消息"""
+    """Summary compressor - uses an LLM to generate a summary in place of old messages"""
 
     def __init__(self, llm_client):
         self.llm = llm_client
@@ -787,37 +786,37 @@ class SummaryCompressor(HistoryCompressor):
         if len(messages) <= target_length:
             return messages
 
-        # 保留最近的消息
+        # Retain the most recent messages
         recent_messages = messages[-target_length:]
         old_messages = messages[:-target_length]
 
-        # 生成摘要
-        summary_prompt = f"""请将以下对话历史压缩为简洁的摘要，
-保留关键信息、决策和上下文:
+        # Generate a summary
+        summary_prompt = f"""Please compress the following conversation history into a concise summary,
+retaining key information, decisions, and context:
 
 {self._format_messages(old_messages)}
 
-输出格式: 
-- 关键决策: ...
-- 重要上下文: ...
-- 未完成任务: ..."""
+Output format:
+- Key decisions: ...
+- Important context: ...
+- Incomplete tasks: ..."""
 
         summary_response = await self.llm.chat(
             messages=[{"role": "user", "content": summary_prompt}],
         )
 
-        # 用摘要替代旧消息
+        # Replace old messages with the summary
         return [
             {
                 "role": "system",
-                "content": f"[历史对话摘要]\n{summary_response.content}",
+                "content": f"[Historical Conversation Summary]\n{summary_response.content}",
             },
             *recent_messages,
         ]
 
 
 class SlidingWindowCompressor(HistoryCompressor):
-    """滑动窗口压缩器 - 保留最近N轮对话"""
+    """Sliding window compressor - retains the most recent N rounds of conversation"""
 
     async def compress(
         self,
@@ -828,7 +827,7 @@ class SlidingWindowCompressor(HistoryCompressor):
 
 
 class ImportanceBasedCompressor(HistoryCompressor):
-    """基于重要性的压缩器 - 保留高重要性消息"""
+    """Importance-based compressor - retains high-importance messages"""
 
     def __init__(self, importance_scorer):
         self.scorer = importance_scorer
@@ -841,35 +840,34 @@ class ImportanceBasedCompressor(HistoryCompressor):
         if len(messages) <= target_length:
             return messages
 
-        # 为每条消息评分
+        # Score each message
         scored_messages = []
         for msg in messages:
             score = await self.scorer.score(msg)
             scored_messages.append((score, msg))
 
-        # 按重要性排序
+        # Sort by importance
         scored_messages.sort(key=lambda x: x[0], reverse=True)
 
-        # 保留最重要的消息
+        # Retain the most important messages
         important_messages = [
             msg for _, msg in scored_messages[:target_length]
         ]
 
-        # 按原始顺序排列
+        # Arrange in original order
         important_messages.sort(
             key=lambda m: messages.index(m)
         )
 
         return important_messages
 ```
+## Long-Term Memory Layering
 
-## 长时记忆分层
-
-### 三层记忆架构
+### Three-Layer Memory Architecture
 
 ```python
 class AgentMemory:
-    """分层Agent记忆系统"""
+    """Hierarchical Agent memory system"""
 
     def __init__(
         self,
@@ -882,16 +880,16 @@ class AgentMemory:
         self.episodic = EpisodicMemory(episodic_store)
 
     async def update(self, conversation: list[Message]):
-        """更新所有记忆层"""
-        # 短期记忆：更新当前会话上下文
+        """Update all memory layers"""
+        # Short-term memory: update current session context
         await self.short_term.update(conversation)
 
-        # 长期记忆：提取重要信息存入向量数据库
+        # Long-term memory: extract important information and store in vector database
         important_info = await self._extract_important_info(conversation)
         for info in important_info:
             await self.long_term.store(info)
 
-        # 情景记忆：记录完整交互事件
+        # Episodic memory: record complete interaction events
         await self.episodic.record_episode(conversation)
 
     async def recall(
@@ -899,14 +897,14 @@ class AgentMemory:
         query: str,
         context: dict,
     ) -> MemoryRecallResult:
-        """从所有记忆层召回相关信息"""
-        # 短期记忆：最近的对话上下文
+        """Recall relevant information from all memory layers"""
+        # Short-term memory: recent conversation context
         recent = await self.short_term.get_recent(limit=10)
 
-        # 长期记忆：语义相关的历史知识
+        # Long-term memory: semantically relevant historical knowledge
         relevant = await self.long_term.search(query, top_k=5)
 
-        # 情景记忆：相似的历史场景
+        # Episodic memory: similar historical scenarios
         similar_episodes = await self.episodic.find_similar(
             query=query,
             context=context,
@@ -921,11 +919,11 @@ class AgentMemory:
 
 
 class ShortTermMemory:
-    """短期记忆 - 当前会话上下文"""
+    """Short-term memory - current session context"""
 
     def __init__(self, store: StateStore):
         self.store = store
-        self.ttl = 3600  # 1小时TTL
+        self.ttl = 3600  # 1-hour TTL
 
     async def update(self, conversation: list[Message]):
         await self.store.save("short_term", {
@@ -941,7 +939,7 @@ class ShortTermMemory:
 
 
 class LongTermMemory:
-    """长期记忆 - 向量化的持久知识"""
+    """Long-term memory - vectorized persistent knowledge"""
 
     def __init__(self, vector_store: VectorStore):
         self.vector_store = vector_store
@@ -980,7 +978,7 @@ class LongTermMemory:
 
 
 class EpisodicMemory:
-    """情景记忆 - 完整交互事件记录"""
+    """Episodic memory - complete interaction event records"""
 
     def __init__(self, db: DatabaseStore):
         self.db = db
@@ -1004,7 +1002,7 @@ class EpisodicMemory:
         context: dict,
         top_k: int = 3,
     ) -> list[Episode]:
-        # 基于摘要的语义搜索
+        # Semantic search based on summaries
         results = await self.db.vector_search(
             collection="episodes",
             query=query,
@@ -1016,4 +1014,4 @@ class EpisodicMemory:
 
 ---
 
-*Agent状态管理是构建可靠Agent系统的基础设施，分层记忆架构使Agent具备持续学习和经验积累能力。*
+*Agent state management is the foundational infrastructure for building reliable Agent systems, and the layered memory architecture enables Agents to continuously learn and accumulate experience.*

@@ -1,7 +1,7 @@
 ---
-title: Agent通信协议
-description: 'MCP/A2A/ACP协议深度解析：Transport/Tool/Resource模型、Agent-to-Agent协作、协议选型与集成实践'
-summary: 'MCP/A2A/ACP协议深度解析：Transport/Tool/Resource模型、Agent-to-Agent协作、协议选型与集成实践'
+title: Agent Communication Protocols
+description: 'MCP/A2A/ACP Protocol Deep Dive: Transport/Tool/Resource Models, Agent-to-Agent Collaboration, Protocol Selection and Integration Practices'
+summary: 'MCP/A2A/ACP Protocol Deep Dive: Transport/Tool/Resource Models, Agent-to-Agent Collaboration, Protocol Selection and Integration Practices'
 category: ai-ml-infra
 tags:
 - ai
@@ -17,15 +17,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Agent通信协议 是什么
-- MCP协议详解
-- A2A协议详解
-- Agent协议选型对比
+- What is Agent Communication Protocol
+- MCP protocol explained
+- A2A protocol explained
+- Agent protocol selection comparison
 trigger_keywords:
 - mcp
 - a2a
@@ -43,38 +43,39 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/11-agent-communication-protocols.md
 ---
+# Agent Communication Protocols
 
-# Agent通信协议
+## Overview
 
-## 概述
-
-随着AI Agent从单体应用演变为分布式多Agent系统，Agent之间的通信协议成为基础设施层的关键组件。本文档深入解析三大主流Agent通信协议：MCP（Model Context Protocol）、A2A（Agent-to-Agent）和ACP（Agent Communication Protocol），并提供协议选型指南和集成实践。
+As AI Agents evolve from monolithic applications into distributed multi-agent systems, the communication protocols between agents become a critical component of the infrastructure layer. This document provides an in-depth analysis of three mainstream agent communication protocols: MCP (Model Context Protocol), A2A (Agent-to-Agent), and ACP (Agent Communication Protocol), along with a protocol selection guide and integration practices.
 
 ```
-协议定位:
+Protocol Positioning:
 
 MCP (Model Context Protocol):
-  - Anthropic主导的开放协议
-  - 定义LLM与外部工具/资源的标准化接口
-  - 类比: USB-C for AI - 统一的工具接入标准
+  - Open protocol led by Anthropic
+  - Defines standardized interfaces between LLMs and external tools/resources
+  - Analogy: USB-C for AI — a unified tool integration standard
 
 A2A (Agent-to-Agent Protocol):
-  - Google主导的开放协议
-  - 定义Agent之间的发现、协作和通信机制
-  - 类比: HTTP for Agents - Agent间通信标准
+  - Open protocol led by Google
+  - Defines discovery, collaboration, and communication mechanisms between agents
+  - Analogy: HTTP for Agents — the inter-agent communication standard
 
 ACP (Agent Communication Protocol):
-  - IBM主导的开放协议
-  - 基于消息的Agent通信中间件
-  - 类比: AMQP for Agents - 消息队列式通信
+  - Open protocol led by IBM
+  - Message-based agent communication middleware
+  - Analogy: AMQP for Agents — message-queue-style communication
 ```
 
-## MCP (Model Context Protocol) 深度解析
+## MCP (Model Context Protocol) Deep Dive
 
-### 协议架构
+### Protocol Architecture
 
-MCP采用客户端-服务器架构，定义了LLM应用与外部资源之间的标准化通信方式：
+MCP adopts a client-server architecture that defines standardized communication between LLM applications and external resources:
 
 ```
 +-------------------+     +-------------------+
@@ -89,17 +90,17 @@ MCP采用客户端-服务器架构，定义了LLM应用与外部资源之间的�
 | (Protocol Layer)  |     |   Resources       |
 +-------------------+     +-------------------+
 
-Transport层: stdio / SSE / Streamable HTTP
-协议层: JSON-RPC 2.0
-语义层: Tool / Resource / Prompt / Sampling
+Transport layer: stdio / SSE / Streamable HTTP
+Protocol layer: JSON-RPC 2.0
+Semantic layer: Tool / Resource / Prompt / Sampling
 ```
 
-### Transport层
+### Transport Layer
 
 ```python
-# MCP支持三种Transport方式
+# MCP supports three Transport methods
 
-# 1. stdio - 标准输入输出（本地进程）
+# 1. stdio - Standard input/output (local process)
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 
@@ -107,7 +108,7 @@ server = Server("my-tools")
 
 @server.tool()
 async def search_database(query: str) -> str:
-    """搜索数据库"""
+    """Search the database"""
     results = await db.search(query)
     return json.dumps(results)
 
@@ -116,7 +117,7 @@ async def main():
         await server.run(read_stream, write_stream)
 
 
-# 2. SSE - Server-Sent Events（HTTP长连接）
+# 2. SSE - Server-Sent Events (HTTP long connection)
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.routing import Route
@@ -136,7 +137,7 @@ app = Starlette(routes=[
 ])
 
 
-# 3. Streamable HTTP（推荐的新方式）
+# 3. Streamable HTTP (recommended new approach)
 from mcp.server.streamable_http import StreamableHTTPServerTransport
 
 transport = StreamableHTTPServerTransport("/mcp")
@@ -146,19 +147,19 @@ app = Starlette(routes=[
 ])
 ```
 
-### Tool定义与实现
+### Tool Definition and Implementation
 
 ```python
 from mcp.types import Tool, TextContent
 from pydantic import BaseModel, Field
 
 class SearchInput(BaseModel):
-    query: str = Field(description="搜索查询")
-    max_results: int = Field(default=10, description="最大结果数")
+    query: str = Field(description="Search query")
+    max_results: int = Field(default=10, description="Maximum number of results")
 
 @server.tool()
 async def web_search(input: SearchInput) -> list[TextContent]:
-    """搜索互联网获取最新信息"""
+    """Search the internet for the latest information"""
     results = await search_engine.search(
         query=input.query,
         limit=input.max_results,
@@ -175,13 +176,13 @@ async def execute_sql(
     database: str,
     query: str,
 ) -> list[TextContent]:
-    """执行SQL查询（只读）"""
-    # 安全检查
+    """Execute an SQL query (read-only)"""
+    # Safety check
     if any(keyword in query.upper() for keyword in
            ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER"]):
         return [TextContent(
             type="text",
-            text="错误: 只允许SELECT查询",
+            text="Error: Only SELECT queries are allowed",
         )]
 
     try:
@@ -193,16 +194,16 @@ async def execute_sql(
     except Exception as e:
         return [TextContent(
             type="text",
-            text=f"查询错误: {str(e)}",
+            text=f"Query error: {str(e)}",
         )]
 ```
 
-### Resource暴露
+### Resource Exposure
 
 ```python
 @server.resource("file:///{path}")
 async def read_file(path: str) -> str:
-    """读取文件内容"""
+    """Read file contents"""
     full_path = validate_path(path)
     with open(full_path, "r") as f:
         return f.read()
@@ -210,19 +211,19 @@ async def read_file(path: str) -> str:
 
 @server.resource("db:///{table}")
 async def get_table_schema(table: str) -> str:
-    """获取数据库表结构"""
+    """Get database table schema"""
     schema = await db.get_schema(table)
     return json.dumps(schema)
 
 
 @server.resource("config:///{key}")
 async def get_config(key: str) -> str:
-    """获取配置信息"""
+    """Get configuration information"""
     value = config.get(key)
     return json.dumps(value)
 ```
 
-### Prompt模板
+### Prompt Templates
 
 ```python
 @server.prompt()
@@ -230,18 +231,18 @@ async def code_review(
     code: str,
     language: str = "python",
 ) -> str:
-    """代码审查提示模板"""
-    return f"""请审查以下{language}代码，关注:
-1. 潜在的bug和错误
-2. 性能问题
-3. 安全漏洞
-4. 代码风格和最佳实践
+    """Code review prompt template"""
+    return f"""Please review the following {language} code, focusing on:
+1. Potential bugs and errors
+2. Performance issues
+3. Security vulnerabilities
+4. Code style and best practices
 
 ```{language}
 {code}
 ```
 
-请提供详细的审查报告。"""
+Please provide a detailed review report."""
 
 
 @server.prompt()
@@ -249,44 +250,44 @@ async def sql_generator(
     schema: str,
     requirement: str,
 ) -> str:
-    """SQL生成提示模板"""
-    return f"""基于以下数据库结构:
+    """SQL generation prompt template"""
+    return f"""Based on the following database schema:
 {schema}
 
-生成满足以下需求的SQL查询:
+Generate an SQL query that satisfies the following requirement:
 {requirement}
 
-要求:
-1. 只生成SELECT查询
-2. 添加适当的注释
-3. 考虑查询性能
+Requirements:
+1. Generate only SELECT queries
+2. Add appropriate comments
+3. Consider query performance
 """
 ```
 
-### 客户端集成
+### Client Integration
 
 ```python
 from mcp.client import ClientSession
 from mcp.client.sse import sse_client
 
 async def use_mcp_server():
-    """连接MCP服务器并使用工具"""
+    """Connect to an MCP server and use its tools"""
     async with sse_client("http://localhost:8080/sse") as (
         read_stream, write_stream
     ):
         async with ClientSession(read_stream, write_stream) as session:
-            # 初始化连接
+            # Initialize the connection
             await session.initialize()
 
-            # 列出可用工具
+            # List available tools
             tools = await session.list_tools()
-            print(f"可用工具: {[t.name for t in tools.tools]}")
+            print(f"Available tools: {[t.name for t in tools.tools]}")
 
-            # 列出可用资源
+            # List available resources
             resources = await session.list_resources()
-            print(f"可用资源: {[r.uri for r in resources.resources]}")
+            print(f"Available resources: {[r.uri for r in resources.resources]}")
 
-            # 调用工具
+            # Call a tool
             result = await session.call_tool(
                 "web_search",
                 arguments={
@@ -294,49 +295,48 @@ async def use_mcp_server():
                     "max_results": 5,
                 },
             )
-            print(f"搜索结果: {result.content}")
+            print(f"Search results: {result.content}")
 
-            # 读取资源
+            # Read a resource
             resource = await session.read_resource("file:///README.md")
-            print(f"文件内容: {resource.contents}")
+            print(f"File contents: {resource.contents}")
 ```
+## A2A (Agent-to-Agent) Protocol
 
-## A2A (Agent-to-Agent) 协议
+### Protocol Overview
 
-### 协议概述
-
-A2A协议定义了Agent之间的标准化通信方式，使不同框架构建的Agent能够相互发现和协作：
+The A2A protocol defines a standardized communication method between Agents, enabling Agents built with different frameworks to discover and collaborate with each other:
 
 ```
-A2A核心概念:
+A2A Core Concepts:
 
 Agent Card:
-  - Agent的自描述文档
-  - 包含能力、端点、认证信息
-  - 类似API的OpenAPI规范
+  - Self-describing document for an Agent
+  - Contains capabilities, endpoints, and authentication information
+  - Similar to an OpenAPI specification for APIs
 
 Task:
-  - Agent间的工作单元
-  - 包含状态机（submitted → working → completed）
-  - 支持长时间运行
+  - Unit of work between Agents
+  - Contains a state machine (submitted → working → completed)
+  - Supports long-running operations
 
 Artifact:
-  - Task的输出产物
-  - 支持多种内容类型
-  - 可以是文件、数据、流式内容
+  - Output produced by a Task
+  - Supports multiple content types
+  - Can be files, data, or streaming content
 
 Message:
-  - Agent间的通信消息
-  - 支持文本、结构化数据、文件
-  - 包含角色和上下文信息
+  - Communication message between Agents
+  - Supports text, structured data, and files
+  - Contains role and context information
 ```
 
-### Agent Card定义
+### Agent Card Definition
 
 ```json
 {
   "name": "Research Agent",
-  "description": "执行深度研究并生成报告的Agent",
+  "description": "An Agent that performs deep research and generates reports",
   "url": "https://research-agent.example.com",
   "version": "1.0.0",
   "capabilities": {
@@ -354,50 +354,50 @@ Message:
     {
       "id": "web-research",
       "name": "Web Research",
-      "description": "搜索互联网并提取信息",
+      "description": "Search the internet and extract information",
       "tags": ["research", "search", "information"],
       "examples": [
-        "研究Kubernetes最佳实践",
-        "查找最新的AI论文"
+        "Research Kubernetes best practices",
+        "Find the latest AI papers"
       ]
     },
     {
       "id": "report-generation",
       "name": "Report Generation",
-      "description": "生成结构化的研究报告",
+      "description": "Generate structured research reports",
       "tags": ["writing", "report", "analysis"]
     }
   ]
 }
 ```
 
-### Task生命周期
+### Task Lifecycle
 
 ```python
 from a2a.types import Task, TaskState, Message, Artifact
 from a2a.server import A2AServer
 
 class ResearchAgentServer(A2AServer):
-    """实现A2A协议的Research Agent"""
+    """Research Agent implementing the A2A protocol"""
 
     async def handle_task(
         self,
         task: Task,
     ) -> Task:
-        """处理Agent任务"""
-        # 更新任务状态为工作中
+        """Handle an Agent task"""
+        # Update task state to working
         task.status.state = TaskState.WORKING
         await self.notify_status_change(task)
 
         try:
-            # 提取用户消息
+            # Extract user message
             user_message = task.message
             query = user_message.parts[0].text
 
-            # 执行研究
+            # Conduct research
             research_result = await self.conduct_research(query)
 
-            # 创建输出产物
+            # Create output artifact
             artifact = Artifact(
                 name="research-report",
                 parts=[
@@ -418,7 +418,7 @@ class ResearchAgentServer(A2AServer):
                 ],
             )
 
-            # 更新任务状态为完成
+            # Update task state to completed
             task.status.state = TaskState.COMPLETED
             task.artifacts = [artifact]
 
@@ -429,14 +429,14 @@ class ResearchAgentServer(A2AServer):
         return task
 
     async def conduct_research(self, query: str) -> ResearchResult:
-        """执行研究任务"""
-        # 搜索相关信息
+        """Execute a research task"""
+        # Search for relevant information
         search_results = await self.web_search(query)
 
-        # 分析和综合
+        # Analyze and synthesize
         analysis = await self.analyze(search_results)
 
-        # 生成报告
+        # Generate report
         report = await self.generate_report(analysis)
 
         return ResearchResult(
@@ -445,15 +445,15 @@ class ResearchAgentServer(A2AServer):
         )
 ```
 
-### Agent间协作
+### Agent-to-Agent Collaboration
 
 ```python
 from a2a.client import A2AClient
 
 async def multi_agent_research(topic: str):
-    """多Agent协作研究"""
+    """Multi-Agent collaborative research"""
 
-    # 1. 发现可用Agent
+    # 1. Discover available Agents
     research_agent = await A2AClient.discover(
         "https://research-agent.example.com"
     )
@@ -464,47 +464,47 @@ async def multi_agent_research(topic: str):
         "https://review-agent.example.com"
     )
 
-    # 2. 创建研究任务
+    # 2. Create a research task
     research_task = await research_agent.create_task(
         message=Message(
             role="user",
-            parts=[{"type": "text", "text": f"深度研究: {topic}"}],
+            parts=[{"type": "text", "text": f"Deep research: {topic}"}],
         ),
     )
 
-    # 3. 等待研究完成
+    # 3. Wait for research to complete
     research_result = await research_agent.wait_for_completion(
         research_task.id,
     )
 
-    # 4. 将研究结果发送给写作Agent
+    # 4. Send research results to the writing Agent
     writing_task = await writing_agent.create_task(
         message=Message(
             role="user",
             parts=[{
                 "type": "text",
-                "text": f"基于以下研究结果撰写报告:\n{research_result.artifacts[0].parts[0].text}",
+                "text": f"Write a report based on the following research results:\n{research_result.artifacts[0].parts[0].text}",
             }],
         ),
     )
 
-    # 5. 等待写作完成
+    # 5. Wait for writing to complete
     writing_result = await writing_agent.wait_for_completion(
         writing_task.id,
     )
 
-    # 6. 发送给审查Agent
+    # 6. Send to the review Agent
     review_task = await review_agent.create_task(
         message=Message(
             role="user",
             parts=[{
                 "type": "text",
-                "text": f"审查以下报告:\n{writing_result.artifacts[0].parts[0].text}",
+                "text": f"Review the following report:\n{writing_result.artifacts[0].parts[0].text}",
             }],
         ),
     )
 
-    # 7. 获取最终结果
+    # 7. Get the final result
     review_result = await review_agent.wait_for_completion(
         review_task.id,
     )
@@ -514,39 +514,38 @@ async def multi_agent_research(topic: str):
         "review": review_result.artifacts[0].parts[0].text,
     }
 ```
-
 ## ACP (Agent Communication Protocol)
 
-### 协议概述
+### Protocol Overview
 
-ACP基于消息队列模式，提供异步、可靠的Agent通信：
+ACP is based on a message queue pattern, providing asynchronous, reliable Agent communication:
 
 ```
-ACP架构特点:
+ACP Architecture Features:
 
-消息驱动:
-  - 基于消息队列的异步通信
-  - 支持发布/订阅模式
-  - 消息持久化和可靠投递
+Message-Driven:
+  - Asynchronous communication based on message queues
+  - Supports publish/subscribe pattern
+  - Message persistence and reliable delivery
 
-松耦合:
-  - Agent无需知道对方地址
-  - 通过消息代理间接通信
-  - 支持动态扩缩容
+Loose Coupling:
+  - Agents do not need to know each other's addresses
+  - Indirect communication via message broker
+  - Supports dynamic scaling
 
-可靠性:
-  - 消息确认机制
-  - 死信队列处理失败消息
-  - 支持消息重试
+Reliability:
+  - Message acknowledgment mechanism
+  - Dead-letter queue for handling failed messages
+  - Supports message retry
 ```
 
-### ACP实现
+### ACP Implementation
 
 ```python
 from acp import ACPAgent, Message, MessageType
 
 class ResearchACPAgent(ACPAgent):
-    """基于ACP的Research Agent"""
+    """Research Agent based on ACP"""
 
     def __init__(self, agent_id: str, broker_url: str):
         super().__init__(agent_id, broker_url)
@@ -556,13 +555,13 @@ class ResearchACPAgent(ACPAgent):
         )
 
     async def handle_research_request(self, message: Message):
-        """处理研究请求"""
+        """Handle research request"""
         query = message.payload["query"]
 
-        # 执行研究
+        # Execute research
         result = await self.conduct_research(query)
 
-        # 发送响应
+        # Send response
         response = Message(
             type=MessageType.RESPONSE,
             sender=self.agent_id,
@@ -577,15 +576,15 @@ class ResearchACPAgent(ACPAgent):
         await self.send(response)
 
     async def conduct_research(self, query: str):
-        """执行研究逻辑"""
-        # 发布搜索请求到搜索Agent
+        """Execute research logic"""
+        # Publish search request to Search Agent
         search_response = await self.request(
             recipient="search-agent",
             payload={"query": query, "type": "web_search"},
             timeout=30,
         )
 
-        # 发布分析请求到分析Agent
+        # Publish analysis request to Analysis Agent
         analysis_response = await self.request(
             recipient="analysis-agent",
             payload={
@@ -601,26 +600,26 @@ class ResearchACPAgent(ACPAgent):
         )
 
 
-# 使用示例
+# Usage example
 async def main():
-    # 启动Agent
+    # Start Agent
     agent = ResearchACPAgent(
         agent_id="research-agent-001",
         broker_url="amqp://localhost:5672",
     )
 
-    # 订阅主题
+    # Subscribe to topic
     await agent.subscribe("research.requests")
 
-    # 开始处理消息
+    # Start processing messages
     await agent.start()
 ```
 
-### 消息路由
+### Message Routing
 
 ```python
 class ACPRouter:
-    """ACP消息路由器"""
+    """ACP message router"""
 
     def __init__(self, broker_url: str):
         self.broker = MessageBroker(broker_url)
@@ -631,26 +630,26 @@ class ACPRouter:
         pattern: str,
         handler: ACPAgent,
     ):
-        """注册消息路由"""
+        """Register message route"""
         self.routes[pattern] = handler
 
     async def route_message(self, message: Message):
-        """路由消息到目标Agent"""
-        # 基于消息类型路由
+        """Route message to target Agent"""
+        # Route based on message type
         if message.type == MessageType.REQUEST:
-            # 查找目标Agent
+            # Find target Agent
             recipient = message.recipient
             if recipient in self.routes:
                 await self.routes[recipient].receive(message)
             else:
-                # 广播到订阅者
+                # Broadcast to subscribers
                 await self.broker.publish(
                     topic=f"requests.{recipient}",
                     message=message,
                 )
 
         elif message.type == MessageType.PUBLISH:
-            # 发布/订阅模式
+            # Publish/subscribe pattern
             topic = message.payload.get("topic", "default")
             await self.broker.publish(
                 topic=topic,
@@ -660,18 +659,18 @@ class ACPRouter:
 
 ## OpenAI Agents SDK
 
-### SDK概述
+### SDK Overview
 
-OpenAI Agents SDK提供原生的多Agent协作能力：
+The OpenAI Agents SDK provides native multi-Agent collaboration capabilities:
 
 ```python
 from openai.agents import Agent, Runner
 
-# 定义Agent
+# Define Agents
 research_agent = Agent(
     name="Research Agent",
-    instructions="""你是一个研究助手。
-    搜索互联网获取信息，并提供准确、最新的答案。""",
+    instructions="""You are a research assistant.
+    Search the internet for information and provide accurate, up-to-date answers.""",
     model="gpt-4o",
     tools=[
         WebSearchTool(),
@@ -681,37 +680,37 @@ research_agent = Agent(
 
 writing_agent = Agent(
     name="Writing Agent",
-    instructions="""你是一个写作专家。
-    基于提供的材料撰写清晰、结构化的报告。""",
+    instructions="""You are a writing expert.
+    Write clear, structured reports based on the provided materials.""",
     model="gpt-4o",
 )
 
 review_agent = Agent(
     name="Review Agent",
-    instructions="""你是一个审查专家。
-    审查内容的准确性、完整性和质量。""",
+    instructions="""You are a review expert.
+    Review content for accuracy, completeness, and quality.""",
     model="gpt-4o",
     tools=[CodeInterpreterTool()],
 )
 
-# Agent间协作
+# Collaboration between Agents
 async def research_and_write(topic: str):
-    # 1. 研究阶段
+    # 1. Research phase
     research_result = await Runner.run(
         starting_agent=research_agent,
-        input=f"深度研究以下主题: {topic}",
+        input=f"Conduct in-depth research on the following topic: {topic}",
     )
 
-    # 2. 写作阶段
+    # 2. Writing phase
     writing_result = await Runner.run(
         starting_agent=writing_agent,
-        input=f"基于以下研究撰写报告:\n{research_result.final_output}",
+        input=f"Write a report based on the following research:\n{research_result.final_output}",
     )
 
-    # 3. 审查阶段
+    # 3. Review phase
     review_result = await Runner.run(
         starting_agent=review_agent,
-        input=f"审查以下报告:\n{writing_result.final_output}",
+        input=f"Review the following report:\n{writing_result.final_output}",
     )
 
     return {
@@ -721,133 +720,132 @@ async def research_and_write(topic: str):
     }
 ```
 
-### Handoff机制
+### Handoff Mechanism
 
 ```python
 from openai.agents import Agent, handoff
 
-# 定义带Handoff的Agent
+# Define Agent with Handoffs
 triage_agent = Agent(
     name="Triage Agent",
-    instructions="""你是任务分发Agent。
-    根据用户请求的类型，将任务转交给合适的Agent:
-    - 研究类请求 → Research Agent
-    - 写作类请求 → Writing Agent
-    - 代码类请求 → Code Agent""",
+    instructions="""You are a task dispatch Agent.
+    Based on the type of user request, hand off the task to the appropriate Agent:
+    - Research requests → Research Agent
+    - Writing requests → Writing Agent
+    - Code requests → Code Agent""",
     model="gpt-4o",
     handoffs=[
         handoff(
             agent=research_agent,
-            description="处理研究和信息收集类请求",
+            description="Handle research and information gathering requests",
         ),
         handoff(
             agent=writing_agent,
-            description="处理写作和内容生成类请求",
+            description="Handle writing and content generation requests",
         ),
         handoff(
             agent=code_agent,
-            description="处理编程和代码相关请求",
+            description="Handle programming and code-related requests",
         ),
     ],
 )
 
-# 使用
+# Usage
 result = await Runner.run(
     starting_agent=triage_agent,
-    input="研究Kubernetes网络策略的最佳实践",
+    input="Research best practices for Kubernetes network policies",
 )
 ```
+## Protocol Selection Comparison
 
-## 协议选型对比
-
-### 功能对比
+### Feature Comparison
 
 ```
-特性对比表:
+Feature Comparison Table:
 
                 MCP          A2A          ACP          OpenAI SDK
 ─────────────────────────────────────────────────────────────────
-定位         工具接入      Agent协作     消息通信      SDK集成
-通信模式     请求/响应     任务驱动      异步消息      函数调用
-发现机制     静态配置      Agent Card    主题订阅      代码定义
-状态管理     无状态        Task状态机    消息状态      Runner管理
-流式支持     SSE/HTTP      SSE           消息流        流式API
-安全性       OAuth/API Key mTLS/JWT      SASL/TLS     API Key
-适用场景     工具集成      跨组织协作    企业内部      快速原型
-成熟度       高(GA)        中(Preview)   中           高(GA)
+Role         Tool Access   Agent Collab  Messaging     SDK Integration
+Comm Mode    Req/Response  Task-Driven   Async Msg     Function Call
+Discovery    Static Config Agent Card    Topic Sub     Code-Defined
+State Mgmt   Stateless     Task FSM      Msg State     Runner Mgmt
+Streaming    SSE/HTTP      SSE           Msg Stream    Streaming API
+Security     OAuth/API Key mTLS/JWT      SASL/TLS     API Key
+Use Case     Tool Integ    Cross-Org     Enterprise    Rapid Proto
+Maturity     High(GA)      Mid(Preview)  Mid          High(GA)
 ```
 
-### 选型指南
+### Selection Guide
 
 ```
-选型决策树:
+Selection Decision Tree:
 
-需要接入外部工具/API?
-  └── 是 → MCP
-       统一的工具接入标准
-       广泛的生态支持
+Need to integrate external tools/APIs?
+  └── Yes → MCP
+       Unified tool integration standard
+       Wide ecosystem support
 
-需要跨组织Agent协作?
-  └── 是 → A2A
-       标准化的Agent发现
-       支持异构Agent
+Need cross-organization Agent collaboration?
+  └── Yes → A2A
+       Standardized Agent discovery
+       Supports heterogeneous Agents
 
-需要高可靠异步通信?
-  └── 是 → ACP
-       消息队列保证可靠投递
-       支持复杂路由
+Need highly reliable async communication?
+  └── Yes → ACP
+       Message queue guarantees reliable delivery
+       Supports complex routing
 
-快速原型或OpenAI生态?
-  └── 是 → OpenAI Agents SDK
-       开箱即用的多Agent支持
-       与OpenAI服务深度集成
+Rapid prototyping or OpenAI ecosystem?
+  └── Yes → OpenAI Agents SDK
+       Out-of-the-box multi-Agent support
+       Deep integration with OpenAI services
 
-组合使用:
-  MCP + A2A: 工具接入 + Agent协作
-  MCP + ACP: 工具接入 + 异步通信
-  A2A + ACP: Agent协作 + 消息可靠性
+Combined usage:
+  MCP + A2A: Tool integration + Agent collaboration
+  MCP + ACP: Tool integration + Async communication
+  A2A + ACP: Agent collaboration + Message reliability
 ```
 
-### 集成架构
+### Integration Architecture
 
 ```python
-# 组合使用MCP + A2A的Agent架构
+# Hybrid Agent architecture combining MCP + A2A
 class HybridAgent:
-    """支持MCP和A2A的混合Agent"""
+    """Hybrid Agent supporting both MCP and A2A"""
 
     def __init__(self):
-        # MCP: 作为Server暴露工具
+        # MCP: expose tools as a Server
         self.mcp_server = Server("hybrid-agent")
 
-        # A2A: 作为Agent参与协作
+        # A2A: participate in collaboration as an Agent
         self.a2a_server = A2AServer(
             agent_card=self._build_agent_card(),
         )
 
-        # 注册MCP工具
+        # Register MCP tools
         self._register_mcp_tools()
 
-        # 注册A2A处理器
+        # Register A2A handlers
         self._register_a2a_handlers()
 
     def _register_mcp_tools(self):
         @self.mcp_server.tool()
         async def search(query: str) -> str:
-            """搜索工具"""
+            """Search tool"""
             return await self.search(query)
 
         @self.mcp_server.tool()
         async def analyze(data: str) -> str:
-            """分析工具"""
+            """Analysis tool"""
             return await self.analyze(data)
 
     def _register_a2a_handlers(self):
         @self.a2a_server.task_handler()
         async def handle_research(task: Task) -> Task:
-            """处理研究任务"""
+            """Handle research tasks"""
             query = task.message.parts[0].text
 
-            # 使用MCP工具执行研究
+            # Use MCP tools to perform research
             search_result = await self.mcp_client.call_tool(
                 "search", {"query": query}
             )
@@ -862,7 +860,7 @@ class HybridAgent:
             return task
 
     async def start(self):
-        """启动Agent服务"""
+        """Start Agent services"""
         await asyncio.gather(
             self.mcp_server.run(),
             self.a2a_server.run(),
@@ -871,4 +869,4 @@ class HybridAgent:
 
 ---
 
-*MCP/A2A/ACP三大协议分别解决了工具接入、Agent协作和消息通信三个维度的问题，组合使用可以构建完整的Agent通信基础设施。*
+*The three major protocols — MCP, A2A, and ACP — address tool integration, Agent collaboration, and message communication respectively. Used in combination, they can build a complete Agent communication infrastructure.*

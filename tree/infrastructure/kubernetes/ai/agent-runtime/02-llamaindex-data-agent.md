@@ -1,7 +1,7 @@
 ---
-title: LlamaIndex 数据 Agent 深度指南
-description: 'LlamaIndex 核心架构与 Data Agent 全面解析，涵盖 Vector Store Index、Knowledge Graph Index、RAG Pipeline 编排、Tool 抽象及 K8s 生产部署'
-summary: 'LlamaIndex 核心架构与 Data Agent 全面解析'
+title: LlamaIndex Data Agent In-Depth Guide
+description: 'Comprehensive breakdown of LlamaIndex core architecture and Data Agents, covering Vector Store Index, Knowledge Graph Index, RAG Pipeline orchestration, Tool abstraction, and K8s production deployment'
+summary: 'Comprehensive breakdown of LlamaIndex core architecture and Data Agents'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,13 +16,13 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- LlamaIndex 数据 Agent 是什么
-- 如何 LlamaIndex 数据 Agent
+- What is a LlamaIndex Data Agent
+- How to use LlamaIndex Data Agents
 - LlamaIndex RAG Pipeline
 trigger_keywords:
 - llamaindex
@@ -43,29 +43,30 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/02-llamaindex-data-agent.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (will modify cluster state, but is generally reversible), 🟢 Low risk/read-only (information gathering, no side effects).
 
 
-# LlamaIndex 数据 Agent 深度指南
+# LlamaIndex Data Agent In-Depth Guide
 
-## 1. LlamaIndex 核心架构
+## 1. LlamaIndex Core Architecture
 
-### 1.1 设计定位
+### 1.1 Design Positioning
 
-LlamaIndex（原 GPT Index）专注于**数据连接与索引**，核心理念是将私有数据转化为 LLM 可查询的知识库。与 LangChain 的通用编排定位不同，LlamaIndex 的优势在于：
+LlamaIndex (formerly GPT Index) focuses on **data connection and indexing**. Its core philosophy is to transform private data into a knowledge base that LLMs can query. Unlike LangChain's general-purpose orchestration positioning, LlamaIndex's strengths lie in:
 
-- **数据摄取管道（Ingestion Pipeline）**：从 160+ 数据源加载文档
-- **索引抽象（Index）**：多种索引结构适配不同查询模式
-- **查询引擎（Query Engine）**：将索引暴露为自然语言查询接口
-- **Data Agent**：在索引之上构建工具调用型 Agent
+- **Ingestion Pipeline**: Load documents from 160+ data sources
+- **Index Abstraction**: Multiple index structures adapted to different query patterns
+- **Query Engine**: Exposes indexes as a natural language query interface
+- **Data Agent**: Builds tool-calling Agents on top of indexes
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   LlamaIndex 架构                    │
+│                  LlamaIndex Architecture             │
 │                                                     │
 │  ┌───────────┐    ┌──────────┐    ┌──────────────┐  │
 │  │ Data      │    │ Index    │    │ Query        │  │
@@ -87,7 +88,7 @@ LlamaIndex（原 GPT Index）专注于**数据连接与索引**，核心理念�
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 数据摄取管道
+### 1.2 Data Ingestion Pipeline
 
 ```python
 from llama_index.core import (
@@ -99,24 +100,24 @@ from llama_index.core import (
 from llama_index.llms.openai import OpenAI
 from llama_index.embeddings.openai import OpenAIEmbedding
 
-# 全局配置
+# Global configuration
 Settings.llm = OpenAI(model="gpt-4o", temperature=0)
 Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
 Settings.chunk_size = 512
 Settings.chunk_overlap = 64
 
-# 从目录加载文档
+# Load documents from directory
 documents = SimpleDirectoryReader(
     input_dir="./k8s-docs",
     recursive=True,
     required_exts=[".md", ".txt", ".pdf"],
 ).load_data()
 
-# 自定义 Reader
+# Custom Reader
 from llama_index.core.readers.base import BaseReader
 
 class K8sEventReader(BaseReader):
-    """从 Kubernetes Event 日志加载数据。"""
+    """Load data from Kubernetes Event logs."""
 
     def load_data(self, namespace: str = "default", **kwargs):
         import subprocess
@@ -142,7 +143,7 @@ class K8sEventReader(BaseReader):
         return documents
 ```
 
-### 1.3 Ingestion Pipeline（生产级）
+### 1.3 Ingestion Pipeline (Production-Grade)
 
 ```python
 from llama_index.core.ingestion import IngestionPipeline
@@ -154,7 +155,7 @@ from llama_index.core.extractors import (
 )
 from llama_index.core.ingestion.cache import IngestionCache
 
-# 生产级摄取管道
+# Production-grade ingestion pipeline
 pipeline = IngestionPipeline(
     transformations=[
         SentenceSplitter(chunk_size=512, chunk_overlap=64),
@@ -163,18 +164,18 @@ pipeline = IngestionPipeline(
         SummaryExtractor(llm=Settings.llm, summaries=["self"]),
         Settings.embed_model,
     ],
-    # 缓存避免重复处理
+    # Cache to avoid reprocessing
     cache=IngestionCache(
         collection="k8s_docs",
         persist_dir="./cache"
     ),
-    vector_store=vector_store,  # 直接写入向量数据库
+    vector_store=vector_store,  # Write directly to the vector database
 )
 
-# 执行摄取
+# Execute ingestion
 nodes = pipeline.run(documents=documents)
 
-# 增量摄取（只处理新文档）
+# Incremental ingestion (only process new documents)
 from llama_index.core.ingestion import IngestionPipeline
 pipeline.run(
     documents=new_documents,
@@ -185,25 +186,25 @@ pipeline.run(
 
 ---
 
-## 2. 索引类型详解
+## 2. Index Types Explained
 
 ### 2.1 Vector Store Index
 
-最常用的索引类型，基于向量相似度检索：
+The most commonly used index type, based on vector similarity retrieval:
 
 ```python
 from llama_index.core import VectorStoreIndex, StorageContext
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 
-# Qdrant 向量存储
+# Qdrant vector store
 client = qdrant_client.QdrantClient(host="qdrant", port=6333)
 vector_store = QdrantVectorStore(
     client=client,
     collection_name="k8s_knowledge",
 )
 
-# 构建索引
+# Build index
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 index = VectorStoreIndex(
     nodes=nodes,
@@ -211,36 +212,36 @@ index = VectorStoreIndex(
     show_progress=True,
 )
 
-# 查询
+# Query
 query_engine = index.as_query_engine(
     similarity_top_k=5,
-    response_mode="compact",  # 紧凑模式减少 token
+    response_mode="compact",  # Compact mode reduces tokens
 )
-response = query_engine.query("Pod OOMKilled 的常见原因？")
-print(response.source_nodes)  # 查看命中的文档片段
+response = query_engine.query("What are the common causes of Pod OOMKilled?")
+print(response.source_nodes)  # View the matched document fragments
 ```
 
-**向量存储后端对比：**
+**Vector Store Backend Comparison:**
 
-| 后端 | 分布式 | 混合搜索 | 适用场景 |
-|------|--------|----------|---------|
-| Qdrant | 是 | 是 | 生产推荐 |
-| Chroma | 否 | 是 | 开发测试 |
-| Pinecone | 是 | 是 | 全托管 SaaS |
-| Weaviate | 是 | 是 | 需要 BM25 混合 |
-| Milvus | 是 | 是 | 大规模向量 |
-| pgvector | 集成 PG | 否 | 已有 PostgreSQL |
+| Backend | Distributed | Hybrid Search | Use Case |
+|---------|-------------|---------------|----------|
+| Qdrant | Yes | Yes | Recommended for production |
+| Chroma | No | Yes | Development and testing |
+| Pinecone | Yes | Yes | Fully managed SaaS |
+| Weaviate | Yes | Yes | Requires BM25 hybrid |
+| Milvus | Yes | Yes | Large-scale vectors |
+| pgvector | Integrated with PG | No | Existing PostgreSQL |
 
 ### 2.2 Knowledge Graph Index
 
-构建实体-关系图谱，适合结构化知识查询：
+Builds an entity-relationship graph, suitable for structured knowledge queries:
 
 ```python
 from llama_index.core import KnowledgeGraphIndex
 from llama_index.core.storage.storage_context import StorageContext
 from llama_index.graph_stores.neo4j import Neo4jGraphStore
 
-# Neo4j 图存储
+# Neo4j graph store
 graph_store = Neo4jGraphStore(
     url="bolt://neo4j:7687",
     username="neo4j",
@@ -250,57 +251,57 @@ graph_store = Neo4jGraphStore(
 
 storage_context = StorageContext.from_defaults(graph_store=graph_store)
 
-# 构建知识图谱索引（自动提取实体和关系）
+# Build knowledge graph index (automatically extracts entities and relationships)
 kg_index = KnowledgeGraphIndex(
     nodes=nodes,
     storage_context=storage_context,
     max_triplets_per_chunk=5,
-    include_embeddings=True,  # 同时生成嵌入用于混合查询
+    include_embeddings=True,  # Also generate embeddings for hybrid queries
 )
 
-# 查询图谱
+# Query the graph
 kg_query_engine = kg_index.as_query_engine(
     response_mode="tree_summarize",
     verbose=True,
 )
-response = kg_query_engine.query("哪些 Deployment 依赖了 Redis？")
+response = kg_query_engine.query("Which Deployments depend on Redis?")
 ```
 
 ### 2.3 Summary Index
 
-适合文档摘要和全局概览查询：
+Suitable for document summarization and global overview queries:
 
 ```python
 from llama_index.core import SummaryIndex
 
 summary_index = SummaryIndex(nodes=nodes)
 summary_engine = summary_index.as_query_engine(
-    response_mode="tree_summarize",  # 递归汇总
+    response_mode="tree_summarize",  # Recursive summarization
 )
-response = summary_engine.query("总结这份 K8s 运维手册的核心要点")
+response = summary_engine.query("Summarize the core points of this K8s operations manual")
 ```
 
-### 2.4 复合索引策略
+### 2.4 Composite Index Strategy
 
 ```python
 from llama_index.core import ComposableGraph
 from llama_index.core.indices.keyword_table import SimpleKeywordTableIndex
 
-# 组合多种索引
+# Combine multiple index types
 vector_index = VectorStoreIndex(nodes, storage_context=ctx)
 keyword_index = SimpleKeywordTableIndex(nodes, storage_context=ctx)
 
-# 构建组合图
+# Build composite graph
 graph = ComposableGraph.from_indices(
     SimpleKeywordTableIndex,
     children_indices=[vector_index, keyword_index],
     index_summaries=[
-        "向量语义检索，适合自然语言问答",
-        "关键词精确匹配，适合技术术语查询"
+        "Vector semantic retrieval, suitable for natural language Q&A",
+        "Exact keyword matching, suitable for technical terminology queries"
     ],
 )
 
-# 自动路由到合适的子索引
+# Automatically route to the appropriate sub-index
 query_engine = graph.as_query_engine(
     query_configs=[
         {"index_struct_type": "keyword_table", "query_mode": "simple"},
@@ -310,26 +311,26 @@ query_engine = graph.as_query_engine(
 ```
 
 ---
-
 ## 3. Data Agent
 
 ### 3.1 OpenAI Function Agent
 
-使用 OpenAI 函数调用能力构建 Agent：
+Building an Agent using OpenAI function calling capabilities:
 
 ```python
 from llama_index.core.agent import OpenAIAgent
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 
-# 将查询引擎包装为工具
+# Wrap query engines as tools
 tools = [
     QueryEngineTool(
         query_engine=kg_query_engine,
         metadata=ToolMetadata(
             name="k8s_knowledge_base",
             description=(
-                "Kubernetes 知识库，包含 Pod、Service、Deployment 等资源的"
-                "文档、最佳实践和故障排查指南。适合回答 K8s 相关问题。"
+                "Kubernetes knowledge base containing documentation, best practices,"
+                " and troubleshooting guides for resources such as Pod, Service, and Deployment."
+                " Suitable for answering K8s-related questions."
             ),
         ),
     ),
@@ -338,46 +339,46 @@ tools = [
         metadata=ToolMetadata(
             name="k8s_event_log",
             description=(
-                "Kubernetes 集群事件日志查询工具。"
-                "查询 Pod 调度失败、容器崩溃、资源不足等实时事件。"
+                "Kubernetes cluster event log query tool."
+                " Query real-time events such as Pod scheduling failures, container crashes, and insufficient resources."
             ),
         ),
     ),
 ]
 
-# 创建 Function Agent
+# Create a Function Agent
 agent = OpenAIAgent.from_tools(
     tools=tools,
     llm=OpenAI(model="gpt-4o"),
     verbose=True,
     system_prompt=(
-        "你是 KuDig K8s 运维专家。"
-        "优先使用知识库查询文档，使用事件日志查询实时状态。"
-        "回答要包含具体命令和引用来源。"
+        "You are a KuDig K8s operations expert."
+        " Prefer querying the knowledge base for documentation; use the event log to check real-time status."
+        " Answers should include specific commands and cite sources."
     ),
 )
 
-# 流式交互
-response = agent.chat("default 命名空间下 nginx Pod 一直重启，帮我排查")
+# Interactive chat
+response = agent.chat("The nginx Pod in the default namespace keeps restarting. Help me troubleshoot.")
 print(response)
 
-# 流式输出
-stream_response = agent.stream_chat("分析集群资源使用情况")
+# Streaming output
+stream_response = agent.stream_chat("Analyze cluster resource usage")
 for token in stream_response.response_gen:
     print(token, end="", flush=True)
 ```
 
 ### 3.2 ReAct Agent
 
-基于 ReAct 推理范式的 Agent：
+An Agent based on the ReAct reasoning paradigm:
 
 ```python
 from llama_index.core.agent import ReActAgent
 from llama_index.core.tools import FunctionTool
 
-# 自定义函数工具
+# Custom function tools
 def query_pod_status(namespace: str, pod_name: str) -> str:
-    """查询指定 Pod 的状态详情。"""
+    """Query the status details of the specified Pod."""
     import subprocess
     result = subprocess.run(
         ["kubectl", "get", "pod", pod_name, "-n", namespace, "-o", "yaml"],
@@ -386,7 +387,7 @@ def query_pod_status(namespace: str, pod_name: str) -> str:
     return result.stdout
 
 def describe_node(node_name: str) -> str:
-    """查看节点的资源分配和健康状态。"""
+    """View resource allocation and health status of a node."""
     import subprocess
     result = subprocess.run(
         ["kubectl", "describe", "node", node_name],
@@ -394,7 +395,7 @@ def describe_node(node_name: str) -> str:
     )
     return result.stdout
 
-# 包装为 LlamaIndex 工具
+# Wrap as LlamaIndex tools
 tools = [
     FunctionTool.from_defaults(fn=query_pod_status),
     FunctionTool.from_defaults(fn=describe_node),
@@ -402,31 +403,31 @@ tools = [
         query_engine=knowledge_engine,
         metadata=ToolMetadata(
             name="knowledge",
-            description="K8s 知识库，查询最佳实践和排障指南"
+            description="K8s knowledge base for querying best practices and troubleshooting guides"
         ),
     ),
 ]
 
-# 创建 ReAct Agent
+# Create a ReAct Agent
 react_agent = ReActAgent.from_tools(
     tools=tools,
     llm=OpenAI(model="gpt-4o"),
     verbose=True,
-    max_iterations=10,  # 最大推理步数
+    max_iterations=10,  # Maximum number of reasoning steps
 )
 
-response = react_agent.chat("检查 node-1 的资源使用情况，是否有 Pod 被驱逐？")
+response = react_agent.chat("Check the resource usage of node-1. Are any Pods being evicted?")
 ```
 
 ### 3.3 Multi-Document Agent
 
-多文档 Agent，每个文档拥有独立的子 Agent：
+A multi-document Agent where each document has its own independent sub-Agent:
 
 ```python
 from llama_index.core.agent import FnAgentWorker
 from llama_index.core import SummaryIndex
 
-# 为每个文档创建子 Agent
+# Create a sub-Agent for each document
 doc_agents = []
 for doc_path in doc_files:
     docs = SimpleDirectoryReader(input_files=[doc_path]).load_data()
@@ -436,14 +437,14 @@ for doc_path in doc_files:
         index.as_query_engine().as_tools(
             tool_metadata=ToolMetadata(
                 name=f"doc_{Path(doc_path).stem}",
-                description=f"查询文档 {Path(doc_path).name}"
+                description=f"Query document {Path(doc_path).name}"
             )
         ),
-        system_prompt=f"你负责回答关于 {Path(doc_path).name} 的问题。",
+        system_prompt=f"You are responsible for answering questions about {Path(doc_path).name}.",
     )
     doc_agents.append(doc_agent)
 
-# 创建顶层 Agent 管理多个子 Agent
+# Create a top-level Agent to manage multiple sub-Agents
 top_agent = FnAgentWorker(
     agents=doc_agents,
     llm=OpenAI(model="gpt-4o"),
@@ -452,9 +453,9 @@ top_agent = FnAgentWorker(
 
 ---
 
-## 4. RAG Pipeline 高级特性
+## 4. Advanced RAG Pipeline Features
 
-### 4.1 混合检索（Hybrid Search）
+### 4.1 Hybrid Search
 
 ```python
 from llama_index.core.vector_stores import (
@@ -464,7 +465,7 @@ from llama_index.core.vector_stores import (
 )
 from llama_index.core.retrievers import VectorIndexRetriever
 
-# 向量检索 + 元数据过滤
+# Vector retrieval + metadata filtering
 retriever = VectorIndexRetriever(
     index=index,
     similarity_top_k=10,
@@ -476,18 +477,18 @@ retriever = VectorIndexRetriever(
     ),
 )
 
-# 混合检索（向量 + BM25）
+# Hybrid retrieval (vector + BM25)
 from llama_index.core.retrievers import QueryFusionRetriever
 
 hybrid_retriever = QueryFusionRetriever(
     retrievers=[vector_retriever, bm25_retriever],
     similarity_top_k=5,
-    num_queries=4,  # 生成多个查询变体
-    mode="reciprocal_rerank",  # RRF 融合
+    num_queries=4,  # Generate multiple query variants
+    mode="reciprocal_rerank",  # RRF fusion
 )
 ```
 
-### 4.2 节点后处理
+### 4.2 Node Post-processing
 
 ```python
 from llama_index.core.postprocessor import (
@@ -499,19 +500,19 @@ from llama_index.core.postprocessor import (
 
 query_engine = index.as_query_engine(
     node_postprocessors=[
-        # 过滤低相似度节点
+        # Filter out low-similarity nodes
         SimilarityPostprocessor(similarity_cutoff=0.7),
-        # 关键词过滤
+        # Keyword filtering
         KeywordNodePostprocessor(required_keywords=["OOM", "memory"]),
-        # 用原始文本替换 chunk
+        # Replace chunk with original text
         MetadataReplacementPostProcessor(target_metadata_key="window"),
-        # 嵌入相似度过滤
+        # Embedding similarity filtering
         SentenceEmbeddingPostprocessor(embedding_cutoff=0.75),
     ],
 )
 ```
 
-### 4.3 响应合成策略
+### 4.3 Response Synthesis Strategies
 
 ```python
 from llama_index.core.response_synthesizers import (
@@ -519,26 +520,26 @@ from llama_index.core.response_synthesizers import (
     get_response_synthesizer,
 )
 
-# 不同响应模式
+# Different response modes
 strategies = {
-    # 简单拼接上下文，一次性调用 LLM
+    # Simply concatenate context and call LLM once
     "compact": ResponseMode.COMPACT,
-    # 递归汇总（适合长文档）
+    # Recursive summarization (suitable for long documents)
     "tree_summarize": ResponseMode.TREE_SUMMARIZE,
-    # 逐节点生成，最后聚合
+    # Generate per node, then aggregate at the end
     "accumulate": ResponseMode.ACCUMULATE,
-    # 紧凑 + refine 迭代
+    # Compact + iterative refine
     "compact_accumulate": ResponseMode.COMPACT_ACCUMULATE,
 }
 
-# Refine 模式：逐步精炼答案
+# Refine mode: progressively refine the answer
 refine_synthesizer = get_response_synthesizer(
     response_mode=ResponseMode.REFINE,
     verbose=True,
 )
 ```
 
-### 4.4 评估框架
+### 4.4 Evaluation Framework
 
 ```python
 from llama_index.core.evaluation import (
@@ -548,16 +549,16 @@ from llama_index.core.evaluation import (
     BatchEvalRunner,
 )
 
-# 忠实度评估（答案是否基于上下文）
+# Faithfulness evaluation (whether the answer is grounded in context)
 faithfulness = FaithfulnessEvaluator(llm=OpenAI(model="gpt-4o-mini"))
 
-# 相关性评估（答案是否回答了问题）
+# Relevancy evaluation (whether the answer addresses the question)
 relevancy = RelevancyEvaluator(llm=OpenAI(model="gpt-4o-mini"))
 
-# 正确性评估（与标准答案对比）
+# Correctness evaluation (comparison with reference answers)
 correctness = CorrectnessEvaluator(llm=OpenAI(model="gpt-4o-mini"))
 
-# 批量评估
+# Batch evaluation
 runner = BatchEvalRunner(
     evaluators={
         "faithfulness": faithfulness,
@@ -573,44 +574,43 @@ eval_results = await runner.aevaluate_queries(
 ```
 
 ---
+## 5. Comparison and Selection: LlamaIndex vs LangChain
 
-## 5. 与 LangChain 对比选型
-
-| 维度 | LlamaIndex | LangChain |
+| Dimension | LlamaIndex | LangChain |
 |------|-----------|-----------|
-| 核心定位 | 数据索引与 RAG | 通用 LLM 编排 |
-| 数据连接 | 160+ 原生连接器 | 需第三方集成 |
-| 索引类型 | Vector/KG/Summary/Tree | 无原生索引抽象 |
-| Agent 能力 | OpenAI/ReAct Agent | 更丰富（多框架） |
-| 状态管理 | 基础 | LangGraph 强大 |
-| 学习曲线 | 中 | 中低 |
-| 生产成熟度 | 高 | 高 |
+| Core Focus | Data indexing and RAG | General-purpose LLM orchestration |
+| Data Connectivity | 160+ native connectors | Requires third-party integrations |
+| Index Types | Vector/KG/Summary/Tree | No native index abstraction |
+| Agent Capabilities | OpenAI/ReAct Agent | Richer (multi-framework) |
+| State Management | Basic | LangGraph is powerful |
+| Learning Curve | Medium | Medium-low |
+| Production Maturity | High | High |
 
-**选型建议：**
-- 数据密集型 RAG 应用 → LlamaIndex
-- 复杂 Agent 编排 → LangChain + LangGraph
-- 两者混用 → LlamaIndex 做数据层，LangChain 做编排层
+**Selection Recommendations:**
+- Data-intensive RAG applications → LlamaIndex
+- Complex Agent orchestration → LangChain + LangGraph
+- Mixed usage → LlamaIndex for the data layer, LangChain for the orchestration layer
 
 ```python
-# 混合使用示例
+# Example of hybrid usage
 from llama_index.core import VectorStoreIndex
 from langchain.agents import AgentExecutor, create_openai_functions_agent
 
-# LlamaIndex 提供数据工具
+# LlamaIndex provides data tools
 llama_index = VectorStoreIndex.from_documents(docs)
 query_engine = llama_index.as_query_engine()
-llama_tool = query_engine.as_tool("k8s_docs", "查询 K8s 文档")
+llama_tool = query_engine.as_tool("k8s_docs", "Query K8s documentation")
 
-# LangChain 做 Agent 编排
+# LangChain handles Agent orchestration
 agent = create_openai_functions_agent(llm, [llama_tool, other_tools])
 executor = AgentExecutor(agent=agent, tools=[llama_tool, other_tools])
 ```
 
 ---
 
-## 6. K8s 部署
+## 6. K8s Deployment
 
-### 6.1 Docker 化
+### 6.1 Dockerization
 
 ```dockerfile
 FROM python:3.11-slim
@@ -619,7 +619,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 
-# 健康检查
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
     CMD curl -f http://localhost:8000/healthz || exit 1
 
@@ -627,7 +627,7 @@ EXPOSE 8000
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### 6.2 K8s 资源配置
+### 6.2 K8s Resource Configuration
 
 ```yaml
 apiVersion: apps/v1
@@ -682,7 +682,7 @@ spec:
             periodSeconds: 5
 ```
 
-### 6.3 RBAC 配置
+### 6.3 RBAC Configuration
 
 ```yaml
 apiVersion: v1
@@ -720,13 +720,13 @@ roleRef:
 
 ## Related
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph 深度指南]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph Deep Dive Guide]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI 多 Agent 框架]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/05-dify-agent-platform|Dify Agent 平台]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI Multi-Agent Framework]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/05-dify-agent-platform|Dify Agent Platform]]
 
 
 <!-- risk-assessed -->

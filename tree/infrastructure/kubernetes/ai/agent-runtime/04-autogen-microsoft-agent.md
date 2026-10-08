@@ -1,7 +1,7 @@
 ---
-title: Microsoft AutoGen 多 Agent 框架深度指南
-description: 'AutoGen ConversableAgent 架构全面解析，涵盖 GroupChat 多 Agent 对话、代码执行沙箱、嵌套对话、AutoGen Studio 及 Semantic Kernel 集成'
-summary: 'AutoGen ConversableAgent 架构全面解析'
+title: Microsoft AutoGen Multi-Agent Framework In-Depth Guide
+description: 'Comprehensive analysis of AutoGen ConversableAgent architecture, covering GroupChat multi-agent conversations, code execution sandboxes, nested conversations, AutoGen Studio, and Semantic Kernel integration'
+summary: 'Comprehensive analysis of AutoGen ConversableAgent architecture'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Microsoft AutoGen 是什么
-- 如何 Microsoft AutoGen
-- AutoGen GroupChat 多 Agent 对话
+- What is Microsoft AutoGen
+- How to use Microsoft AutoGen
+- AutoGen GroupChat multi-agent conversations
 trigger_keywords:
 - autogen
 - conversable-agent
@@ -43,27 +43,28 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/04-autogen-microsoft-agent.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Security Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
-# Microsoft AutoGen 多 Agent 框架深度指南
+# Microsoft AutoGen Multi-Agent Framework In-Depth Guide
 
-## 1. AutoGen 架构概述
+## 1. AutoGen Architecture Overview
 
-### 1.1 设计哲学
+### 1.1 Design Philosophy
 
-AutoGen 是微软开源的多 Agent 对话框架，核心理念是**通过对话实现协作**。与 LangGraph 的状态机不同，AutoGen 将 Agent 间交互建模为**会话（Conversation）**，Agent 通过消息传递完成任务。
+AutoGen is an open-source multi-agent conversation framework from Microsoft. Its core concept is **collaboration through conversation**. Unlike LangGraph's state machine, AutoGen models inter-agent interactions as **Conversations**, where agents accomplish tasks through message passing.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                AutoGen 架构                      │
+│                AutoGen Architecture              │
 │                                                  │
 │  ┌──────────────────────────────────────────┐    │
-│  │         ConversableAgent (基类)          │    │
+│  │         ConversableAgent (Base Class)    │    │
 │  │  ┌────────┐ ┌────────┐ ┌──────────────┐  │    │
 │  │  │ System │ │ LLM    │ │ Code         │  │    │
 │  │  │ Prompt │ │ Config │ │ Executor     │  │    │
@@ -79,94 +80,94 @@ AutoGen 是微软开源的多 Agent 对话框架，核心理念是**通过对话
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.2 核心组件
+### 1.2 Core Components
 
-| 组件 | 职责 | 典型用途 |
+| Component | Responsibility | Typical Use |
 |------|------|---------|
-| ConversableAgent | 所有 Agent 的基类 | 自定义 Agent |
-| AssistantAgent | LLM 驱动的对话 Agent | 代码生成、推理 |
-| UserProxyAgent | 代理用户输入和代码执行 | 人机交互、工具调用 |
-| GroupChat | 多 Agent 群聊 | 复杂协作场景 |
-| GroupChatManager | 管理群聊流程 | 自动路由消息 |
+| ConversableAgent | Base class for all Agents | Custom Agents |
+| AssistantAgent | LLM-driven conversational Agent | Code generation, reasoning |
+| UserProxyAgent | Proxies user input and code execution | Human-computer interaction, tool invocation |
+| GroupChat | Multi-agent group chat | Complex collaborative scenarios |
+| GroupChatManager | Manages group chat flow | Automatic message routing |
 
 ---
 
-## 2. ConversableAgent 架构
+## 2. ConversableAgent Architecture
 
-### 2.1 基础 Agent 定义
+### 2.1 Basic Agent Definition
 
 ```python
 from autogen import ConversableAgent, AssistantAgent, UserProxyAgent
 
-# LLM 配置
+# LLM configuration
 llm_config = {
     "model": "gpt-4o",
     "api_key": os.environ["OPENAI_API_KEY"],
     "temperature": 0,
-    "cache_seed": None,  # 禁用缓存用于生产
+    "cache_seed": None,  # Disable cache for production
 }
 
-# Assistant Agent（LLM 驱动）
+# Assistant Agent (LLM-driven)
 assistant = AssistantAgent(
     name="k8s_expert",
     system_message=(
-        "你是 Kubernetes 集群诊断专家。\n"
-        "你有以下能力：\n"
-        "1. 分析 Pod 异常状态\n"
-        "2. 解读集群事件\n"
-        "3. 生成修复命令\n\n"
-        "在给出最终诊断结论时，用 TERMINATE 结束对话。"
+        "You are a Kubernetes cluster diagnostics expert.\n"
+        "You have the following capabilities:\n"
+        "1. Analyze abnormal Pod states\n"
+        "2. Interpret cluster events\n"
+        "3. Generate remediation commands\n\n"
+        "When delivering the final diagnostic conclusion, end the conversation with TERMINATE."
     ),
     llm_config=llm_config,
 )
 
-# User Proxy Agent（代理用户和执行代码）
+# User Proxy Agent (proxies the user and executes code)
 user_proxy = UserProxyAgent(
     name="user_proxy",
-    human_input_mode="NEVER",  # 不需要人工输入
+    human_input_mode="NEVER",  # No human input required
     max_consecutive_auto_reply=10,
     is_termination_msg=lambda x: x.get("content", "").rstrip().endswith("TERMINATE"),
     code_execution_config={
         "work_dir": "./workspace",
-        "use_docker": "python:3.11-slim",  # Docker 沙箱执行
+        "use_docker": "python:3.11-slim",  # Docker sandbox execution
         "timeout": 120,
     },
 )
 ```
 
-### 2.2 两 Agent 对话
+### 2.2 Two-Agent Conversation
 
 ```python
-# 最简单的对话模式：Assistant ↔ UserProxy
+# Simplest conversation pattern: Assistant ↔ UserProxy
 result = user_proxy.initiate_chat(
     assistant,
     message=(
-        "default 命名空间下的 nginx-deployment 的 Pod 一直 CrashLoopBackOff，"
-        "请帮我诊断问题并给出修复方案。"
+        "The Pod under the nginx-deployment in the default namespace keeps CrashLoopBackOff. "
+        "Please help me diagnose the problem and provide a remediation plan."
     ),
     max_turns=8,
 )
 
-# 查看对话历史
+# View conversation history
 for msg in result.chat_history:
     print(f"[{msg['role']}] {msg['content'][:200]}")
 
-# 获取摘要
-print(f"摘要: {result.summary}")
-print(f"总 Token: {result.cost}")
+# Get summary
+print(f"Summary: {result.summary}")
+print(f"Total Tokens: {result.cost}")
 ```
 
-### 2.3 自定义 ConversableAgent
+### 2.3 Custom ConversableAgent
 
 ```python
 from autogen import ConversableAgent
 
 class K8sDiagnosticAgent(ConversableAgent):
-    """自定义 K8s 诊断 Agent。"""
+    """Custom K8s Diagnostic Agent."""
 
     DEFAULT_SYSTEM_MESSAGE = (
-        "你是 KuDig K8s 诊断专家。"
-        "使用 kubectl 工具查询集群状态，分析根因。"
+        "You are KuDig's K8s diagnostics expert. "
+        "Use kubectl tools to query cluster state and analyze root causes."
     )
 
     def __init__(self, name="k8s_diagnostician", **kwargs):
@@ -180,10 +181,10 @@ class K8sDiagnosticAgent(ConversableAgent):
         self._register_tools()
 
     def _register_tools(self):
-        """注册 K8s 工具。"""
+        """Register K8s tools."""
 
         def get_pod_status(namespace: str, pod_name: str = "") -> str:
-            """查询 Pod 状态。"""
+            """Query Pod status."""
             import subprocess
             cmd = ["kubectl", "get", "pods", "-n", namespace, "-o", "wide"]
             if pod_name:
@@ -192,7 +193,7 @@ class K8sDiagnosticAgent(ConversableAgent):
             return result.stdout
 
         def get_events(namespace: str) -> str:
-            """获取命名空间事件。"""
+            """Get namespace events."""
             import subprocess
             result = subprocess.run(
                 ["kubectl", "get", "events", "-n", namespace,
@@ -201,96 +202,96 @@ class K8sDiagnosticAgent(ConversableAgent):
             )
             return result.stdout
 
-        # 注册为函数调用
+        # Register as function calls
         self.register_for_llm(
             name="get_pod_status",
-            description="查询指定命名空间的 Pod 状态",
+            description="Query Pod status in the specified namespace",
         )(get_pod_status)
 
         self.register_for_llm(
             name="get_events",
-            description="获取命名空间的事件列表",
+            description="Get the list of events in a namespace",
         )(get_events)
 ```
 
 ---
 
-## 3. GroupChat 多 Agent 对话
+## 3. GroupChat Multi-Agent Conversation
 
-### 3.1 基础群聊
+### 3.1 Basic Group Chat
 
 ```python
 from autogen import GroupChat, GroupChatManager
 
-# 定义多个专业 Agent
+# Define multiple specialized Agents
 diagnostician = AssistantAgent(
     name="diagnostician",
-    system_message="你是诊断专家，负责分析问题根因。",
+    system_message="You are a diagnostics expert responsible for analyzing root causes.",
     llm_config=llm_config,
 )
 
 fixer = AssistantAgent(
     name="fixer",
-    system_message="你是修复工程师，负责制定和执行修复方案。",
+    system_message="You are a remediation engineer responsible for formulating and executing remediation plans.",
     llm_config=llm_config,
 )
 
 validator = AssistantAgent(
     name="validator",
-    system_message="你是验证工程师，负责验证修复是否成功。",
+    system_message="You are a validation engineer responsible for verifying whether the fix was successful.",
     llm_config=llm_config,
 )
 
-# GroupChat 配置
+# GroupChat configuration
 group_chat = GroupChat(
     agents=[user_proxy, diagnostician, fixer, validator],
     messages=[],
     max_round=20,
-    speaker_selection_method="auto",  # 自动选择发言者
-    # speaker_selection_method="round_robin",  # 轮询
-    # speaker_selection_method="random",        # 随机
-    # speaker_selection_method="manual",        # 手动
-    allow_repeat_speaker=False,  # 不允许连续发言
+    speaker_selection_method="auto",  # Automatically select the next speaker
+    # speaker_selection_method="round_robin",  # Round-robin
+    # speaker_selection_method="random",        # Random
+    # speaker_selection_method="manual",        # Manual
+    allow_repeat_speaker=False,  # Do not allow consecutive speaking
 )
 
-# GroupChatManager 管理对话
+# GroupChatManager manages the conversation
 manager = GroupChatManager(
     groupchat=group_chat,
     llm_config=llm_config,
 )
 
-# 启动群聊
+# Start the group chat
 user_proxy.initiate_chat(
     manager,
-    message="Pod nginx-abc123 出现 OOMKilled，请团队协作排查。",
+    message="Pod nginx-abc123 has OOMKilled. Please have the team collaborate to investigate.",
 )
 ```
 
-### 3.2 自定义发言者选择
+### 3.2 Custom Speaker Selection
 
 ```python
 def custom_speaker_selection(last_speaker, group_chat):
-    """自定义发言者选择逻辑。"""
+    """Custom speaker selection logic."""
     messages = group_chat.messages
 
     if len(messages) == 0:
-        return user_proxy  # 第一个发言者
+        return user_proxy  # First speaker
 
     last_msg = messages[-1]["content"]
 
-    # 诊断完成后 → 修复工程师
-    if "根因" in last_msg and last_speaker == diagnostician:
+    # After diagnosis is complete → remediation engineer
+    if "root cause" in last_msg and last_speaker == diagnostician:
         return fixer
 
-    # 修复完成后 → 验证工程师
-    if "修复完成" in last_msg and last_speaker == fixer:
+    # After fix is complete → validation engineer
+    if "fix complete" in last_msg and last_speaker == fixer:
         return validator
 
-    # 验证失败 → 回到诊断
-    if "验证失败" in last_msg:
+    # Validation failed → back to diagnostics
+    if "validation failed" in last_msg:
         return diagnostician
 
-    # 默认：诊断专家发言
+    # Default: diagnostics expert speaks
     return diagnostician
 
 group_chat = GroupChat(
@@ -301,54 +302,53 @@ group_chat = GroupChat(
 )
 ```
 
-### 3.3 嵌套对话（Nested Chat）
+### 3.3 Nested Chat
 
-Agent 可以在内部启动子对话处理复杂子任务：
+Agents can initiate sub-conversations internally to handle complex sub-tasks:
 
 ```python
-# 诊断 Agent 的嵌套对话：调用知识库
+# Nested conversation for the diagnostics Agent: querying the knowledge base
 from autogen import AssistantAgent
 
 knowledge_agent = AssistantAgent(
     name="knowledge_base",
-    system_message="你是 K8s 知识库助手，提供文档查询。",
+    system_message="You are a K8s knowledge base assistant that provides documentation queries.",
     llm_config=llm_config,
 )
 
-# 为诊断 Agent 注册嵌套对话
+# Register nested chat for the diagnostics Agent
 diagnostician.register_nested_chats(
     [
         {
             "recipient": knowledge_agent,
             "message": lambda recipient, messages, sender, config: (
-                f"查询以下问题的相关文档: {messages[-1]['content']}"
+                f"Query related documentation for the following issue: {messages[-1]['content']}"
             ),
             "summary_method": "last_msg",
             "max_turns": 2,
         }
     ],
-    trigger=lambda sender: sender != knowledge_agent,  # 避免递归
+    trigger=lambda sender: sender != knowledge_agent,  # Avoid recursion
 )
 ```
 
 ---
+## 4. Code Execution Sandbox
 
-## 4. 代码执行沙箱
-
-### 4.1 Docker 沙箱（推荐）
+### 4.1 Docker Sandbox (Recommended)
 
 ```python
 user_proxy = UserProxyAgent(
     name="executor",
     code_execution_config={
-        "use_docker": "python:3.11-slim",  # 使用 Docker 镜像
+        "use_docker": "python:3.11-slim",  # Use Docker image
         "work_dir": "/workspace",
         "timeout": 120,
-        "last_n_messages": 3,  # 检查最近 N 条消息中的代码
+        "last_n_messages": 3,  # Check code in the last N messages
     },
 )
 
-# 自定义 Docker 镜像（包含 kubectl）
+# Custom Docker image (includes kubectl)
 docker_config = {
     "use_docker": "custom-k8s-agent:latest",
     "work_dir": "/workspace",
@@ -359,7 +359,7 @@ docker_config = {
 ```
 
 ```dockerfile
-# Dockerfile 用于代码执行沙箱
+# Dockerfile for code execution sandbox
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y curl jq
@@ -370,27 +370,27 @@ RUN curl -LO "https://dl.k8s.io/release/$(curl -Ls \
 WORKDIR /workspace
 ```
 
-### 4.2 本地执行（不推荐用于生产）
+### 4.2 Local Execution (Not Recommended for Production)
 
 ```python
 user_proxy = UserProxyAgent(
     name="executor",
     code_execution_config={
-        "use_docker": False,  # 本地执行
+        "use_docker": False,  # Local execution
         "work_dir": "/tmp/autogen-workspace",
         "timeout": 60,
     },
 )
 ```
 
-### 4.3 禁用代码执行
+### 4.3 Disable Code Execution
 
 ```python
-# 仅对话模式，不执行代码
+# Conversation-only mode, no code execution
 user_proxy = UserProxyAgent(
     name="user",
-    code_execution_config=False,  # 禁用代码执行
-    human_input_mode="ALWAYS",    # 每轮等待人工输入
+    code_execution_config=False,  # Disable code execution
+    human_input_mode="ALWAYS",    # Wait for human input each round
 )
 ```
 
@@ -398,31 +398,31 @@ user_proxy = UserProxyAgent(
 
 ## 5. AutoGen Studio
 
-### 5.1 安装与启动
+### 5.1 Installation and Startup
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 安装
+# 🟢 Low risk: read-only/information gathering, usually no side effects
+# Install
 pip install autogenstudio
 
-# 启动 Web UI
+# Start Web UI
 autogenstudio ui --port 8080 --host 0.0.0.0
 
-# Docker 启动
+# Docker startup
 docker run -p 8080:8080 \
     -e OPENAI_API_KEY=$OPENAI_API_KEY \
     ghcr.io/microsoft/autogen/autogenstudio:latest
 ```
-### 5.2 Studio 功能
+### 5.2 Studio Features
 
-AutoGen Studio 提供：
-- **可视化 Agent 编辑器**：拖拽式创建和配置 Agent
-- **技能管理**：定义和测试 Agent 技能（函数调用）
-- **会话管理**：创建、监控和调试 Agent 对话
-- **评估面板**：运行基准测试评估 Agent 性能
-- **API 暴露**：通过 REST API 集成到外部系统
+AutoGen Studio provides:
+- **Visual Agent Editor**: Drag-and-drop creation and configuration of Agents
+- **Skill Management**: Define and test Agent skills (function calls)
+- **Session Management**: Create, monitor, and debug Agent conversations
+- **Evaluation Dashboard**: Run benchmark tests to evaluate Agent performance
+- **API Exposure**: Integrate into external systems via REST API
 
-### 5.3 K8s 部署
+### 5.3 K8s Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -472,34 +472,34 @@ spec:
 
 ---
 
-## 6. 与 Semantic Kernel 集成
+## 6. Integration with Semantic Kernel
 
-### 6.1 集成模式
+### 6.1 Integration Pattern
 
-AutoGen 和 Semantic Kernel 可以互补使用：
+AutoGen and Semantic Kernel can be used in a complementary manner:
 
 ```python
 import semantic_kernel as sk
 from autogen import AssistantAgent
 
-# Semantic Kernel 提供插件和函数
+# Semantic Kernel provides plugins and functions
 kernel = sk.Kernel()
 kernel.add_plugin(K8sPlugin(), "k8s")
 
-# AutoGen 提供多 Agent 对话
+# AutoGen provides multi-agent conversation
 class SKPoweredAgent(AssistantAgent):
-    """使用 Semantic Kernel 的 Agent。"""
+    """Agent powered by Semantic Kernel."""
 
     def __init__(self, kernel: sk.Kernel, **kwargs):
         super().__init__(**kwargs)
         self.kernel = kernel
 
     def generate_reply(self, messages, sender, **kwargs):
-        # 使用 Semantic Kernel 执行函数
+        # Use Semantic Kernel to execute functions
         last_msg = messages[-1]["content"]
 
-        if "查询 Pod" in last_msg:
-            # 调用 SK 插件
+        if "query Pod" in last_msg:
+            # Call SK plugin
             result = asyncio.run(
                 self.kernel.invoke(
                     plugin_name="k8s",
@@ -509,11 +509,11 @@ class SKPoweredAgent(AssistantAgent):
             )
             return str(result)
 
-        # 回退到 LLM 对话
+        # Fall back to LLM conversation
         return super().generate_reply(messages, sender, **kwargs)
 ```
 
-### 6.2 SK Agent 与 AutoGen 对话
+### 6.2 SK Agent and AutoGen Conversation
 
 ```python
 from semantic_kernel.agents import ChatCompletionAgent
@@ -524,31 +524,31 @@ sk_agent = ChatCompletionAgent(
     service_id="default",
     kernel=kernel,
     name="sk_k8s_expert",
-    instructions="你是 K8s 专家，使用 SK 插件查询集群。",
+    instructions="You are a K8s expert who uses SK plugins to query the cluster.",
 )
 
 # AutoGen Agent
 autogen_agent = AssistantAgent(
     name="autogen_analyst",
-    system_message="你是分析专家，负责综合信息。",
+    system_message="You are an analysis expert responsible for synthesizing information.",
     llm_config=llm_config,
 )
 
-# 通过中间层桥接
+# Bridge via an intermediate layer
 class AgentBridge:
-    """在 SK Agent 和 AutoGen 之间桥接。"""
+    """Bridge between SK Agent and AutoGen."""
 
     def __init__(self, sk_agent, autogen_agent):
         self.sk_agent = sk_agent
         self.autogen_agent = autogen_agent
 
     async def process(self, query: str):
-        # SK Agent 获取数据
+        # SK Agent retrieves data
         sk_result = await self.sk_agent.invoke(query)
 
-        # AutoGen Agent 分析
+        # AutoGen Agent analyzes
         autogen_result = self.autogen_agent.generate_reply(
-            [{"role": "user", "content": f"分析以下数据:\n{sk_result}"}],
+            [{"role": "user", "content": f"Analyze the following data:\n{sk_result}"}],
             sender=None,
         )
 
@@ -556,36 +556,35 @@ class AgentBridge:
 ```
 
 ---
+## 7. Production Best Practices
 
-## 7. 生产最佳实践
-
-### 7.1 对话控制
+### 7.1 Conversation Control
 
 ```python
-# 限制对话轮数
+# Limit the number of conversation turns
 result = user_proxy.initiate_chat(
     assistant,
     message=query,
     max_turns=8,
-    summary_method="last_msg",  # 摘要方式: last_msg/llm/all
+    summary_method="last_msg",  # Summary method: last_msg/llm/all
 )
 
-# 设置终止条件
+# Set termination conditions
 def is_termination(msg):
     content = msg.get("content", "")
     return (
         "TERMINATE" in content or
-        "任务完成" in content or
+        "Task complete" in content or
         len(content) == 0
     )
 ```
 
-### 7.2 错误处理
+### 7.2 Error Handling
 
 ```python
 from autogen import ConversableAgent
 
-# 配置重试
+# Configure retries
 llm_config_with_retry = {
     "model": "gpt-4o",
     "api_key": os.environ["OPENAI_API_KEY"],
@@ -597,26 +596,26 @@ llm_config_with_retry = {
 }
 ```
 
-### 7.3 成本控制
+### 7.3 Cost Control
 
 ```python
-# 使用小模型处理简单任务
+# Use a smaller model for simple tasks
 simple_config = {"model": "gpt-4o-mini", "api_key": "..."}
 
-# 使用大模型处理复杂任务
+# Use a larger model for complex tasks
 complex_config = {"model": "gpt-4o", "api_key": "..."}
 
-# 按 Agent 分配模型
+# Assign models per Agent
 simple_agent = AssistantAgent(
     name="formatter",
-    system_message="你是格式化助手。",
-    llm_config=simple_config,  # 小模型
+    system_message="You are a formatting assistant.",
+    llm_config=simple_config,  # Small model
 )
 
 complex_agent = AssistantAgent(
     name="reasoner",
-    system_message="你是推理专家。",
-    llm_config=complex_config,  # 大模型
+    system_message="You are a reasoning expert.",
+    llm_config=complex_config,  # Large model
 )
 ```
 
@@ -624,12 +623,12 @@ complex_agent = AssistantAgent(
 
 ## Related
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph 深度指南]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel 企业级 Agent]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph Deep Dive Guide]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel Enterprise Agent]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 
 <!-- risk-assessed -->

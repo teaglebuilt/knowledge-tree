@@ -1,7 +1,7 @@
 ---
-title: Agent CI/CD流水线
-description: 'Agent as Code、Prompt版本管理、自动化测试、渐进式部署与Rollback策略'
-summary: 'Agent as Code、Prompt版本管理、自动化测试、渐进式部署与Rollback策略'
+title: Agent CI/CD Pipeline
+description: 'Agent as Code, Prompt Version Management, Automated Testing, Progressive Deployment and Rollback Strategies'
+summary: 'Agent as Code, Prompt Version Management, Automated Testing, Progressive Deployment and Rollback Strategies'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,15 +16,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- DevOps 工程师
-- 平台工程师
+- AI Engineers
+- DevOps Engineers
+- Platform Engineers
 estimated_read_time: 20min
 intent_queries:
-- Agent CI/CD流水线 是什么
-- 如何实现Agent持续部署
-- Prompt版本管理
-- Agent自动化测试
+- What is an Agent CI/CD Pipeline
+- How to implement continuous deployment for Agents
+- Prompt version management
+- Agent automated testing
 trigger_keywords:
 - agent ci cd
 - prompt versioning
@@ -43,29 +43,30 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/19-agent-ci-cd-pipeline.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are annotated as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state, but generally reversible), 🟢 Low risk / read-only (information gathering, no side effects).
 
 
-# Agent CI/CD流水线
+# Agent CI/CD Pipeline
 
-## 概述
+## Overview
 
-Agent的CI/CD不同于传统软件：Agent的行为由Prompt、工具配置、模型参数共同决定，这些"代码"的变更无法用传统编译器验证。Prompt的微小改动可能导致Agent行为剧变，而LLM的非确定性使得回归测试尤为关键。
+Agent CI/CD differs from traditional software: an Agent's behavior is jointly determined by Prompts, tool configurations, and model parameters — changes to this "code" cannot be verified by a traditional compiler. Minor modifications to a Prompt can cause dramatic shifts in Agent behavior, and the non-deterministic nature of LLMs makes regression testing especially critical.
 
-本文覆盖Agent as Code理念、Prompt版本管理、三层自动化测试、渐进式部署和Rollback策略。
+This document covers the Agent as Code philosophy, Prompt version management, three-layer automated testing, progressive deployment, and Rollback strategies.
 
 ## 1. Agent as Code
 
-### 1.1 Agent配置版本化
+### 1.1 Agent Configuration Versioning
 
-将Agent的全部配置——Prompt、工具定义、模型参数、知识库绑定——以代码形式管理：
+Manage all Agent configurations — Prompts, tool definitions, model parameters, knowledge base bindings — as code:
 
 ```yaml
-# agent-config.yaml - Agent完整配置
+# agent-config.yaml - Complete Agent configuration
 apiVersion: agent/v1
 kind: AgentConfig
 metadata:
@@ -76,7 +77,7 @@ metadata:
     env: production
 
 spec:
-  # 模型配置
+  # Model configuration
   model:
     primary: gpt-4o
     fallback: claude-sonnet
@@ -85,19 +86,19 @@ spec:
       max_tokens: 4096
       top_p: 0.9
 
-  # 系统提示词
+  # System prompt
   system_prompt: |
-    你是{{company_name}}的客服助手。
-    规则：
-    1. 使用友好专业的语气回答问题
-    2. 遇到无法回答的问题，转接人工客服
-    3. 不透露内部系统信息
-    4. 引用知识库内容时标注来源
+    You are the customer service assistant for {{company_name}}.
+    Rules:
+    1. Answer questions in a friendly and professional tone
+    2. For questions you cannot answer, transfer to a human agent
+    3. Do not disclose internal system information
+    4. Cite the source when referencing knowledge base content
 
-  # 工具定义
+  # Tool definitions
   tools:
     - name: search_products
-      description: 搜索产品目录
+      description: Search the product catalog
       schema:
         type: object
         properties:
@@ -112,7 +113,7 @@ spec:
         timeout: 5s
 
     - name: create_ticket
-      description: 创建工单
+      description: Create a support ticket
       schema:
         type: object
         properties:
@@ -129,7 +130,7 @@ spec:
         method: POST
         timeout: 10s
 
-  # 知识库
+  # Knowledge bases
   knowledge_bases:
     - id: product-docs
       retrieval:
@@ -137,7 +138,7 @@ spec:
         similarity_threshold: 0.7
         rerank: true
 
-  # 安全策略
+  # Safety policy
   safety:
     content_filter: true
     max_tool_calls_per_turn: 5
@@ -146,7 +147,7 @@ spec:
     blocked_patterns:
       - "密码|password|secret"
 
-  # 部署策略
+  # Deployment strategy
   deployment:
     strategy: canary
     canary_percentage: 10
@@ -156,7 +157,7 @@ spec:
       timeout: 5s
 ```
 
-### 1.2 GitOps工作流
+### 1.2 GitOps Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -197,14 +198,14 @@ jobs:
 
       - name: Lint Agent Config
         run: |
-          # YAML Schema验证
+          # YAML Schema validation
           ajv validate -s agent-schema.json -d agents/*.yaml
-          # Prompt质量检查
+          # Prompt quality check
           python scripts/lint_prompts.py agents/
 
       - name: Diff Analysis
         run: |
-          # 分析变更影响
+          # Analyze change impact
           python scripts/diff_analysis.py \
             --base main \
             --head ${{ github.sha }} \
@@ -242,9 +243,9 @@ jobs:
           python scripts/promote_or_rollback.py
 ```
 
-## 2. Prompt版本管理
+## 2. Prompt Version Management
 
-### 2.1 Prompt版本化存储
+### 2.1 Prompt Versioned Storage
 
 ```python
 from datetime import datetime
@@ -254,7 +255,7 @@ import hashlib
 
 @dataclass
 class PromptVersion:
-    """Prompt版本"""
+    """Prompt version"""
     version_id: str
     content: str
     hash: str
@@ -270,7 +271,7 @@ class PromptVersion:
 
 
 class PromptVersionManager:
-    """Prompt版本管理器"""
+    """Prompt version manager"""
 
     def __init__(self, storage_backend):
         self.storage = storage_backend
@@ -283,7 +284,7 @@ class PromptVersionManager:
         message: str,
         tags: Optional[list[str]] = None
     ) -> PromptVersion:
-        """提交新版本"""
+        """Commit a new version"""
         version_id = self._next_version(prompt_name)
         version = PromptVersion(
             version_id=version_id,
@@ -299,19 +300,19 @@ class PromptVersionManager:
         return version
 
     def get(self, prompt_name: str, version: str) -> PromptVersion:
-        """获取指定版本"""
+        """Get a specific version"""
         return self.storage.load(prompt_name, version)
 
     def get_latest(self, prompt_name: str) -> PromptVersion:
-        """获取最新版本"""
+        """Get the latest version"""
         return self.storage.load_latest(prompt_name)
 
     def list_versions(self, prompt_name: str) -> list[PromptVersion]:
-        """列出所有版本"""
+        """List all versions"""
         return self.storage.list_all(prompt_name)
 
     def diff(self, prompt_name: str, v1: str, v2: str) -> str:
-        """对比两个版本差异"""
+        """Compare the difference between two versions"""
         p1 = self.get(prompt_name, v1)
         p2 = self.get(prompt_name, v2)
 
@@ -325,7 +326,7 @@ class PromptVersionManager:
         return ''.join(diff)
 
     def tag(self, prompt_name: str, version: str, tag: str):
-        """为版本打标签"""
+        """Tag a version"""
         v = self.get(prompt_name, version)
         if tag not in v.tags:
             v.tags.append(tag)
@@ -336,17 +337,17 @@ class PromptVersionManager:
         if not versions:
             return "v1.0.0"
         latest = versions[-1].version_id
-        # 语义化版本
+        # Semantic versioning
         major, minor, patch = latest.lstrip('v').split('.')
         return f"v{major}.{minor}.{int(patch) + 1}"
 ```
 
-### 2.2 Prompt评估与测试
+### 2.2 Prompt Evaluation and Testing
 
 ```python
 @dataclass
 class EvalCase:
-    """评估用例"""
+    """Evaluation case"""
     input: str
     expected_output: str
     expected_contains: list[str] = field(default_factory=list)
@@ -355,7 +356,7 @@ class EvalCase:
 
 @dataclass
 class EvalResult:
-    """评估结果"""
+    """Evaluation result"""
     case_id: str
     passed: bool
     score: float
@@ -363,14 +364,14 @@ class EvalResult:
     metrics: dict
 
 class PromptEvaluator:
-    """Prompt评估器"""
+    """Prompt evaluator"""
 
     def __init__(self, agent_factory, eval_cases: list[EvalCase]):
         self.agent_factory = agent_factory
         self.cases = eval_cases
 
     async def evaluate(self, prompt_version: str) -> dict:
-        """评估指定版本的Prompt"""
+        """Evaluate the Prompt for a specified version"""
         agent = self.agent_factory(prompt_version=prompt_version)
         results: list[EvalResult] = []
 
@@ -378,7 +379,7 @@ class PromptEvaluator:
             result = await self._run_case(agent, case, i)
             results.append(result)
 
-        # 汇总统计
+        # Aggregate statistics
         total = len(results)
         passed = sum(1 for r in results if r.passed)
         avg_score = sum(r.score for r in results) / total
@@ -394,15 +395,15 @@ class PromptEvaluator:
         }
 
     async def _run_case(self, agent, case: EvalCase, case_id: int) -> EvalResult:
-        """运行单个评估用例"""
+        """Run a single evaluation case"""
         actual_output = await agent.execute(case.input)
 
-        # 内容匹配
+        # Content matching
         contains_pass = all(
             keyword in actual_output for keyword in case.expected_contains
         )
 
-        # 语义相似度（使用LLM评判）
+        # Semantic similarity (judged using LLM)
         semantic_score = await self._semantic_similarity(
             case.expected_output, actual_output
         )
@@ -422,49 +423,48 @@ class PromptEvaluator:
         )
 
     async def _semantic_similarity(self, expected: str, actual: str) -> float:
-        """语义相似度评分"""
-        # 使用LLM评判
+        """Semantic similarity scoring"""
+        # Judged using LLM
         judge_prompt = f"""
-        评分标准：回答与期望的语义相似度（0-1分）
-        期望回答: {expected}
-        实际回答: {actual}
-        只输出分数（0-1之间的数字）。
+        Scoring criteria: semantic similarity between the response and the expected answer (0-1 score)
+        Expected answer: {expected}
+        Actual answer: {actual}
+        Output only the score (a number between 0 and 1).
         """
-        # 简化实现
+        # Simplified implementation
         return 0.85
 ```
+## 3. Automated Testing
 
-## 3. 自动化测试
-
-### 3.1 三层测试体系
+### 3.1 Three-Layer Testing Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              Agent 测试金字塔                         │
+│              Agent Testing Pyramid                   │
 │                                                      │
 │                    ┌──────┐                          │
-│                    │ E2E  │  真实API + Golden Dataset │
-│                    │      │  少量、高成本、高置信      │
+│                    │ E2E  │  Real API + Golden Dataset│
+│                    │      │  Few, High Cost, High Confidence │
 │                   ─┴──────┴─                         │
 │                  ┌──────────┐                        │
-│                  │集成测试    │  真实API + Mock工具     │
-│                  │           │  中量、中成本           │
+│                  │Integration│  Real API + Mock Tools │
+│                  │   Tests   │  Medium Volume, Medium Cost │
 │                 ─┴──────────┴─                       │
 │                ┌──────────────┐                      │
-│                │  单元测试      │  Mock LLM + Mock工具 │
-│                │               │  大量、低成本、快速    │
+│                │  Unit Tests   │  Mock LLM + Mock Tools │
+│                │               │  High Volume, Low Cost, Fast │
 │               ─┴──────────────┴─                     │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 3.2 单元测试（Mock LLM）
+### 3.2 Unit Tests (Mock LLM)
 
 ```python
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 class MockLLMClient:
-    """Mock LLM客户端"""
+    """Mock LLM client"""
 
     def __init__(self, responses: list[dict]):
         self.responses = responses
@@ -483,36 +483,36 @@ class MockLLMClient:
 
 
 class TestAgentUnit:
-    """Agent单元测试"""
+    """Agent unit tests"""
 
     @pytest.fixture
     def mock_llm(self):
         return MockLLMClient(responses=[
-            {"content": "您好！请问有什么可以帮助您的？", "tool_calls": []},
+            {"content": "Hello! How can I assist you?", "tool_calls": []},
         ])
 
     @pytest.fixture
     def agent(self, mock_llm):
         return Agent(
             llm=mock_llm,
-            system_prompt="你是客服助手",
+            system_prompt="You are a customer service assistant",
             tools=[],
         )
 
     @pytest.mark.asyncio
     async def test_basic_response(self, agent):
-        """测试基本响应"""
-        result = await agent.execute("你好")
-        assert "您好" in result or "你好" in result
+        """Test basic response"""
+        result = await agent.execute("Hello")
+        assert "Hello" in result or "hello" in result
 
     @pytest.mark.asyncio
     async def test_tool_calling(self, mock_llm):
-        """测试工具调用"""
+        """Test tool calling"""
         mock_llm.responses = [
             {"content": "", "tool_calls": [
                 MagicMock(name="search", arguments='{"keyword": "iPhone"}')
             ]},
-            {"content": "iPhone 15 价格为 $999", "tool_calls": []},
+            {"content": "iPhone 15 is priced at $999", "tool_calls": []},
         ]
 
         mock_tool = AsyncMock(return_value='{"products": [{"name": "iPhone 15", "price": 999}]}')
@@ -522,14 +522,14 @@ class TestAgentUnit:
             tools=[{"name": "search", "func": mock_tool}],
         )
 
-        result = await agent.execute("搜索iPhone价格")
+        result = await agent.execute("Search for iPhone price")
         mock_tool.assert_called_once()
         assert "999" in result
 
     @pytest.mark.asyncio
     async def test_max_tool_calls(self, mock_llm):
-        """测试工具调用次数限制"""
-        # 始终返回工具调用
+        """Test tool call count limit"""
+        # Always return a tool call
         mock_llm.responses = [
             {"content": "", "tool_calls": [
                 MagicMock(name="search", arguments='{}')
@@ -542,25 +542,25 @@ class TestAgentUnit:
             max_tool_calls=5,
         )
 
-        result = await agent.execute("搜索")
-        assert mock_llm.call_count <= 6  # 5次工具调用 + 1次最终回答
+        result = await agent.execute("Search")
+        assert mock_llm.call_count <= 6  # 5 tool calls + 1 final answer
 ```
 
-### 3.3 集成测试（真实API + Mock工具）
+### 3.3 Integration Tests (Real API + Mock Tools)
 
 ```python
 class TestAgentIntegration:
-    """Agent集成测试（使用真实LLM API）"""
+    """Agent integration tests (using real LLM API)"""
 
     @pytest.fixture
     def agent(self):
         return Agent(
-            llm=RealLLMClient(model="gpt-4o-mini"),  # 使用小模型降低成本
-            system_prompt="你是测试助手",
+            llm=RealLLMClient(model="gpt-4o-mini"),  # Use smaller model to reduce cost
+            system_prompt="You are a test assistant",
             tools=[
                 {
                     "name": "get_time",
-                    "description": "获取当前时间",
+                    "description": "Get the current time",
                     "func": lambda: datetime.now().isoformat(),
                 }
             ],
@@ -568,33 +568,33 @@ class TestAgentIntegration:
 
     @pytest.mark.asyncio
     async def test_tool_selection(self, agent):
-        """测试工具选择准确性"""
-        result = await agent.execute("现在几点了？")
-        # 验证工具被调用
+        """Test tool selection accuracy"""
+        result = await agent.execute("What time is it now?")
+        # Verify the tool was called
         assert any(t["name"] == "get_time" for t in agent.last_tool_calls)
 
     @pytest.mark.asyncio
     async def test_no_unnecessary_tool_call(self, agent):
-        """测试不调用不必要的工具"""
-        result = await agent.execute("1+1等于几？")
-        # 验证没有调用工具
+        """Test that no unnecessary tools are called"""
+        result = await agent.execute("What is 1+1?")
+        # Verify no tools were called
         assert len(agent.last_tool_calls) == 0
 
     @pytest.mark.asyncio
     async def test_error_handling(self, agent):
-        """测试错误处理"""
-        agent.tools[0]["func"] = lambda: (_ for _ in ()).throw(Exception("API错误"))
-        result = await agent.execute("现在几点了？")
-        # 验证错误被优雅处理
-        assert "错误" in result or "抱歉" in result or "问题" in result
+        """Test error handling"""
+        agent.tools[0]["func"] = lambda: (_ for _ in ()).throw(Exception("API error"))
+        result = await agent.execute("What time is it now?")
+        # Verify error is handled gracefully
+        assert "error" in result or "sorry" in result or "problem" in result
 ```
 
-### 3.4 回归测试（Golden Dataset）
+### 3.4 Regression Tests (Golden Dataset)
 
 ```python
 @dataclass
 class GoldenCase:
-    """Golden Dataset用例"""
+    """Golden Dataset test case"""
     id: str
     category: str
     input: str
@@ -605,7 +605,7 @@ class GoldenCase:
     max_cost_usd: float
 
 class GoldenDatasetRegression:
-    """Golden Dataset回归测试"""
+    """Golden Dataset regression tests"""
 
     def __init__(self, golden_cases: list[GoldenCase]):
         self.cases = golden_cases
@@ -616,7 +616,7 @@ class GoldenDatasetRegression:
         agent_factory,
         model: str = "gpt-4o-mini"
     ) -> dict:
-        """运行完整回归测试"""
+        """Run full regression tests"""
         agent = agent_factory(model=model)
 
         for case in self.cases:
@@ -624,7 +624,7 @@ class GoldenDatasetRegression:
             result = await agent.execute(case.input)
             latency_ms = (time.time() - start_time) * 1000
 
-            # 验证
+            # Validation
             contains_pass = all(kw in result for kw in case.expected_contains)
             tools_pass = self._check_tools(agent.last_tool_calls, case.expected_tools)
             latency_pass = latency_ms <= case.max_latency_ms
@@ -668,10 +668,9 @@ class GoldenDatasetRegression:
             "failures": [r for r in self.results if not r["passed"]],
         }
 ```
+## 4. Progressive Deployment
 
-## 4. 渐进式部署
-
-### 4.1 Canary Agent部署
+### 4.1 Canary Agent Deployment
 
 ```yaml
 # Canary Agent Deployment
@@ -683,7 +682,7 @@ metadata:
     app: customer-agent
     version: canary
 spec:
-  replicas: 1  # Canary仅1个副本
+  replicas: 1  # Canary with only 1 replica
   selector:
     matchLabels:
       app: customer-agent
@@ -701,7 +700,7 @@ spec:
         - name: AGENT_VERSION
           value: "v2.3.1"
         - name: CANARY_WEIGHT
-          value: "10"  # 10%流量
+          value: "10"  # 10% of traffic
         resources:
           requests:
             cpu: "500m"
@@ -716,7 +715,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
 ---
-# 稳定版Deployment
+# Stable Version Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -725,7 +724,7 @@ metadata:
     app: customer-agent
     version: stable
 spec:
-  replicas: 9  # 稳定版9个副本
+  replicas: 9  # Stable version with 9 replicas
   selector:
     matchLabels:
       app: customer-agent
@@ -743,9 +742,9 @@ spec:
         - name: AGENT_VERSION
           value: "v2.3.0"
         - name: CANARY_WEIGHT
-          value: "90"  # 90%流量
+          value: "90"  # 90% of traffic
 ---
-# Istio流量分割
+# Istio Traffic Splitting
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -765,11 +764,11 @@ spec:
       weight: 10
 ```
 
-### 4.2 Canary监控与自动决策
+### 4.2 Canary Monitoring and Automated Decision-Making
 
 ```python
 class CanaryMonitor:
-    """Canary部署监控"""
+    """Canary deployment monitor"""
 
     def __init__(
         self,
@@ -783,11 +782,11 @@ class CanaryMonitor:
         self.metrics: list[dict] = []
 
     async def monitor(self, canary_endpoint: str, stable_endpoint: str) -> dict:
-        """监控Canary与Stable的对比"""
+        """Monitor the comparison between Canary and Stable"""
         start_time = time.time()
 
         while time.time() - start_time < self.duration:
-            # 采集Canary指标
+            # Collect Canary metrics
             canary_metrics = await self._collect_metrics(canary_endpoint)
             stable_metrics = await self._collect_metrics(stable_endpoint)
 
@@ -797,34 +796,34 @@ class CanaryMonitor:
                 "stable": stable_metrics,
             })
 
-            # 实时检查是否需要回滚
+            # Real-time check for whether a rollback is needed
             if self._should_rollback(canary_metrics, stable_metrics):
                 return {
                     "decision": "rollback",
-                    "reason": "Canary指标显著差于Stable",
+                    "reason": "Canary metrics are significantly worse than Stable",
                     "metrics": self.metrics[-1],
                 }
 
             await asyncio.sleep(10)
 
-        # 分析结果
+        # Analyze results
         return self._analyze_results()
 
     def _should_rollback(self, canary: dict, stable: dict) -> bool:
-        """判断是否需要回滚"""
-        # 成功率下降超过5%
+        """Determine whether a rollback is needed"""
+        # Success rate drops by more than 5%
         if canary["success_rate"] < stable["success_rate"] - 0.05:
             return True
-        # 延迟增加超过50%
+        # Latency increases by more than 50%
         if canary["p99_latency"] > stable["p99_latency"] * 1.5:
             return True
-        # 错误率超过阈值
+        # Error rate exceeds threshold
         if canary["error_rate"] > 0.1:
             return True
         return False
 
     def _analyze_results(self) -> dict:
-        """分析Canary结果"""
+        """Analyze Canary results"""
         canary_avg_success = sum(m["canary"]["success_rate"] for m in self.metrics) / len(self.metrics)
         canary_avg_latency = sum(m["canary"]["p99_latency"] for m in self.metrics) / len(self.metrics)
 
@@ -841,50 +840,50 @@ class CanaryMonitor:
         }
 ```
 
-## 5. Rollback策略
+## 5. Rollback Strategy
 
-### 5.1 多级回滚
+### 5.1 Multi-Level Rollback
 
 ```yaml
-回滚策略:
+Rollback Strategy:
 
-Level 1: 流量回滚（秒级）
-  方法: Istio VirtualService权重调整
-  操作: canary weight=0, stable weight=100
-  影响: 无中断，平滑切换
-  适用: Canary指标异常
+Level 1: Traffic Rollback (seconds)
+  Method: Istio VirtualService weight adjustment
+  Action: canary weight=0, stable weight=100
+  Impact: No interruption, seamless switchover
+  Applicable: Canary metrics anomalies
 
-Level 2: 版本回滚（分钟级）
-  方法: Deployment回滚
-  操作: kubectl rollout undo deployment/agent
-  影响: 短暂中断（滚动更新）
-  适用: Level 1无法解决
+Level 2: Version Rollback (minutes)
+  Method: Deployment rollback
+  Action: kubectl rollout undo deployment/agent
+  Impact: Brief interruption (rolling update)
+  Applicable: When Level 1 cannot resolve the issue
 
-Level 3: 配置回滚（分钟级）
-  方法: Git revert + ArgoCD同步
-  操作: git revert <commit> && argocd app sync
-  影响: 配置完全回退
-  适用: Prompt/配置变更导致问题
+Level 3: Configuration Rollback (minutes)
+  Method: Git revert + ArgoCD sync
+  Action: git revert <commit> && argocd app sync
+  Impact: Full configuration revert
+  Applicable: Issues caused by Prompt/configuration changes
 
-Level 4: 数据回滚（小时级）
-  方法: 知识库/向量数据库恢复
-  操作: 从备份恢复知识库
-  影响: 数据回退，可能丢失新数据
-  适用: 知识库更新导致幻觉增加
+Level 4: Data Rollback (hours)
+  Method: Knowledge base / vector database restore
+  Action: Restore knowledge base from backup
+  Impact: Data rollback, potential loss of new data
+  Applicable: Increased hallucinations caused by knowledge base updates
 ```
 
-### 5.2 自动回滚脚本
+### 5.2 Automated Rollback Script
 
 ```python
 class AgentRollbackManager:
-    """Agent回滚管理器"""
+    """Agent rollback manager"""
 
     def __init__(self, k8s_client, argocd_client):
         self.k8s = k8s_client
         self.argocd = argocd_client
 
     async def auto_rollback(self, deployment: str, namespace: str, level: int = 1):
-        """自动回滚"""
+        """Automated rollback"""
         if level == 1:
             await self._traffic_rollback(deployment, namespace)
         elif level == 2:
@@ -893,8 +892,8 @@ class AgentRollbackManager:
             await self._config_rollback(deployment, namespace)
 
     async def _traffic_rollback(self, deployment: str, namespace: str):
-        """Level 1: 流量回滚"""
-        # Istio VirtualService权重调整
+        """Level 1: Traffic rollback"""
+        # Istio VirtualService weight adjustment
         vs_patch = {
             "spec": {
                 "http": [{
@@ -908,18 +907,18 @@ class AgentRollbackManager:
         await self.k8s.patch_virtual_service(deployment, namespace, vs_patch)
 
     async def _version_rollback(self, deployment: str, namespace: str):
-        """Level 2: 版本回滚"""
+        """Level 2: Version rollback"""
         await self.k8s.rollback_deployment(deployment, namespace)
 
     async def _config_rollback(self, deployment: str, namespace: str):
-        """Level 3: 配置回滚"""
+        """Level 3: Configuration rollback"""
         await self.argocd.rollback(deployment)
 ```
 
-### 5.3 K8s部署配置
+### 5.3 K8s Deployment Configuration
 
 ```yaml
-# Agent CI/CD组件
+# Agent CI/CD Components
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -949,14 +948,13 @@ spec:
             cpu: "250m"
             memory: "256Mi"
 ```
+## Related Topics
 
-## 相关主题
+- [[domain-14-ai-ml-infra/03-agent-runtime/18-agent-retry-resilience|Agent Resilience Design]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/20-agent-multi-tenancy|Agent Multi-Tenancy Architecture]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime Architecture Overview]]
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/18-agent-retry-resilience|Agent弹性设计]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/20-agent-multi-tenancy|Agent多租户架构]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
-
-## 参考资料
+## References
 
 - Prompt Engineering Guide
 - Promptfoo Evaluation Framework

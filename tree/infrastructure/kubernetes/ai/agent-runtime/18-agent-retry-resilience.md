@@ -1,7 +1,7 @@
 ---
-title: Agent弹性设计
-description: 'Agent系统重试策略、熔断器、超时控制、幂等性、死信队列与Chaos Testing'
-summary: 'Agent系统重试策略、熔断器、超时控制、幂等性、死信队列与Chaos Testing'
+title: Agent Resilience Design
+description: 'Agent system retry strategies, circuit breakers, timeout control, idempotency, dead letter queues, and Chaos Testing'
+summary: 'Agent system retry strategies, circuit breakers, timeout control, idempotency, dead letter queues, and Chaos Testing'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,15 +16,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
+- AI Engineers
+- Platform Engineers
 - SRE
 estimated_read_time: 20min
 intent_queries:
-- Agent弹性设计 是什么
-- 如何实现Agent重试策略
-- LLM API熔断器
-- Agent幂等性保证
+- What is Agent Resilience Design
+- How to implement Agent retry strategies
+- LLM API circuit breaker
+- Agent idempotency guarantees
 trigger_keywords:
 - resilience
 - retry
@@ -45,21 +45,22 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/18-agent-retry-resilience.md
 ---
+# Agent Resilience Design
 
-# Agent弹性设计
+## Overview
 
-## 概述
+The reliability challenges of Agent systems differ from those of traditional microservices. LLM APIs have unique failure modes: 429 rate limiting, high latency fluctuations, non-deterministic outputs, and tool call timeouts. A single Agent execution chain may include 5–10 LLM calls and multiple tool calls, where a failure at any point affects the overall success rate.
 
-Agent系统的可靠性挑战不同于传统微服务。LLM API具有独特的故障模式：429限流、高延迟波动、非确定性输出、工具调用超时。一次Agent执行链路可能包含5-10次LLM调用和多次工具调用，任一环节失败都影响整体成功率。
+This article covers retry strategies, circuit breakers, timeout control, idempotency, dead-letter queues, and chaos testing to build an end-to-end Agent resilience system.
 
-本文覆盖重试策略、熔断器、超时控制、幂等性、死信队列和混沌测试，构建端到端的Agent弹性体系。
+## 1. Retry Strategies
 
-## 1. 重试策略
+### 1.1 Exponential Backoff + Jitter
 
-### 1.1 指数退避+Jitter
-
-LLM API的429错误需要退避重试，但简单指数退避会导致"惊群效应"（thundering herd）。加入Jitter抖动分散重试时间：
+LLM API 429 errors require backoff retries, but simple exponential backoff can cause a "thundering herd" effect. Adding Jitter randomization spreads out retry timing:
 
 ```python
 import asyncio
@@ -71,13 +72,13 @@ from dataclasses import dataclass
 @dataclass
 class RetryConfig:
     max_retries: int = 3
-    base_delay: float = 1.0        # 基础延迟（秒）
-    max_delay: float = 60.0        # 最大延迟
-    exponential_base: float = 2.0  # 指数基数
-    jitter_range: float = 0.5      # Jitter范围（0-1）
+    base_delay: float = 1.0        # Base delay (seconds)
+    max_delay: float = 60.0        # Maximum delay
+    exponential_base: float = 2.0  # Exponential base
+    jitter_range: float = 0.5      # Jitter range (0-1)
 
 class LLMRetryError(Exception):
-    """重试耗尽后的最终错误"""
+    """Final error after retries are exhausted"""
     def __init__(self, last_error: Exception, attempts: int):
         self.last_error = last_error
         self.attempts = attempts
@@ -90,7 +91,7 @@ async def retry_with_backoff(
     retryable_errors: tuple = (Exception,),
     on_retry: Optional[Callable] = None
 ) -> Any:
-    """指数退避+Jitter重试"""
+    """Exponential backoff + Jitter retry"""
     last_error = None
 
     for attempt in range(config.max_retries + 1):
@@ -102,17 +103,17 @@ async def retry_with_backoff(
             if attempt == config.max_retries:
                 break
 
-            # 指数退避
+            # Exponential backoff
             delay = min(
                 config.base_delay * (config.exponential_base ** attempt),
                 config.max_delay
             )
 
-            # Jitter抖动：全范围随机
+            # Jitter: full-range random
             jitter = delay * config.jitter_range * random.random()
             actual_delay = delay + jitter
 
-            # 特殊处理429：使用Retry-After头
+            # Special handling for 429: use Retry-After header
             if hasattr(e, 'response') and e.response and e.response.status == 429:
                 retry_after = e.response.headers.get('Retry-After')
                 if retry_after:
@@ -126,44 +127,44 @@ async def retry_with_backoff(
     raise LLMRetryError(last_error, config.max_retries + 1)
 ```
 
-### 1.2 针对不同错误的重试策略
+### 1.2 Retry Strategies for Different Error Types
 
 ```python
 class SmartRetryStrategy:
-    """根据错误类型采用不同重试策略"""
+    """Applies different retry strategies based on error type"""
 
-    # 错误分类与策略
+    # Error classification and strategies
     ERROR_STRATEGIES = {
-        # 限流错误：长退避
+        # Rate limit errors: long backoff
         "rate_limit": {
             "retryable": True,
             "base_delay": 5.0,
             "max_retries": 5,
             "max_delay": 120.0,
         },
-        # 服务端错误：标准退避
+        # Server errors: standard backoff
         "server_error": {
             "retryable": True,
             "base_delay": 1.0,
             "max_retries": 3,
             "max_delay": 30.0,
         },
-        # 超时：中等退避
+        # Timeouts: moderate backoff
         "timeout": {
             "retryable": True,
             "base_delay": 2.0,
             "max_retries": 2,
             "max_delay": 30.0,
         },
-        # 上下文过长：不重试
+        # Context too long: no retry
         "context_length": {
             "retryable": False,
         },
-        # 认证失败：不重试
+        # Authentication failure: no retry
         "auth_error": {
             "retryable": False,
         },
-        # 内容过滤：不重试
+        # Content filter: no retry
         "content_filter": {
             "retryable": False,
         },
@@ -171,7 +172,7 @@ class SmartRetryStrategy:
 
     @classmethod
     def classify_error(cls, error: Exception) -> str:
-        """分类错误类型"""
+        """Classify the error type"""
         error_msg = str(error).lower()
 
         if hasattr(error, 'status_code'):
@@ -190,16 +191,16 @@ class SmartRetryStrategy:
         elif "content_filter" in error_msg or "safety" in error_msg:
             return "content_filter"
 
-        return "server_error"  # 默认分类
+        return "server_error"  # Default classification
 
     @classmethod
     def get_retry_config(cls, error: Exception) -> RetryConfig:
-        """根据错误类型获取重试配置"""
+        """Get retry configuration based on error type"""
         error_type = cls.classify_error(error)
         strategy = cls.ERROR_STRATEGIES[error_type]
 
         if not strategy["retryable"]:
-            raise error  # 不可重试，直接抛出
+            raise error  # Not retryable, raise immediately
 
         return RetryConfig(
             max_retries=strategy["max_retries"],
@@ -208,20 +209,20 @@ class SmartRetryStrategy:
         )
 ```
 
-### 1.3 Agent级别重试
+### 1.3 Agent-Level Retry
 
-Agent推理失败时的重试需要特殊处理：
+Retrying after Agent reasoning failures requires special handling:
 
 ```python
 class AgentRetryHandler:
-    """Agent推理级别的重试"""
+    """Retry at the Agent reasoning level"""
 
     def __init__(self, llm_client, max_round_retries: int = 2):
         self.llm = llm_client
         self.max_round_retries = max_round_retries
 
     async def execute_with_retry(self, agent_config: dict, user_input: str) -> str:
-        """带重试的Agent执行"""
+        """Execute Agent with retry"""
         messages = [{"role": "user", "content": user_input}]
 
         for round_attempt in range(self.max_round_retries + 1):
@@ -232,15 +233,15 @@ class AgentRetryHandler:
                 if round_attempt == self.max_round_retries:
                     raise
 
-                # 重试时注入错误上下文
+                # Inject error context on retry
                 messages.append({
                     "role": "system",
-                    "content": f"上一轮推理失败: {e.reason}。请调整策略重试。"
+                    "content": f"Previous reasoning round failed: {e.reason}. Please adjust your strategy and retry."
                 })
                 continue
 
     async def _run_agent_loop(self, config: dict, messages: list) -> str:
-        """执行Agent推理循环"""
+        """Execute the Agent reasoning loop"""
         for step in range(config.get("max_steps", 10)):
             response = await retry_with_backoff(
                 lambda: self.llm.chat(messages, tools=config.get("tools")),
@@ -248,7 +249,7 @@ class AgentRetryHandler:
             )
 
             if response.tool_calls:
-                # 执行工具调用
+                # Execute tool calls
                 tool_results = await self._execute_tools(response.tool_calls)
                 messages.append(response)
                 messages.extend(tool_results)
@@ -257,22 +258,21 @@ class AgentRetryHandler:
 
         raise AgentLoopError("Max steps exceeded")
 ```
+## 2. Circuit Breaker
 
-## 2. 熔断器
-
-### 2.1 熔断器状态机
+### 2.1 Circuit Breaker State Machine
 
 ```
-┌──────────┐  连续失败≥阈值   ┌──────────┐  超时后    ┌──────────┐
-│  CLOSED  │ ───────────────→ │   OPEN   │ ────────→ │HALF-OPEN │
-│ (正常)    │                  │ (熔断)    │           │ (探测)    │
-└──────────┘                  └──────────┘           └──────────┘
-     ↑                             │                      │
-     │                             │ 探测失败             │ 探测成功
-     │                             ▼                      │
-     │                        ┌──────────┐                │
-     └────────────────────────│   OPEN   │←───────────────┘
-                              └──────────┘
+┌──────────┐  consecutive failures ≥ threshold   ┌──────────┐  after timeout   ┌──────────┐
+│  CLOSED  │ ──────────────────────────────────→ │   OPEN   │ ──────────────→ │HALF-OPEN │
+│ (normal) │                                      │ (tripped)│                  │ (probing)│
+└──────────┘                                      └──────────┘                  └──────────┘
+     ↑                                                 │                             │
+     │                                                 │ probe failed                │ probe succeeded
+     │                                                 ▼                             │
+     │                                            ┌──────────┐                      │
+     └────────────────────────────────────────────│   OPEN   │←─────────────────────┘
+                                                  └──────────┘
 ```
 
 ```python
@@ -281,19 +281,19 @@ from enum import Enum
 from dataclasses import dataclass, field
 
 class CircuitState(Enum):
-    CLOSED = "closed"         # 正常状态，允许请求
-    OPEN = "open"             # 熔断状态，拒绝请求
-    HALF_OPEN = "half_open"   # 探测状态，允许少量请求
+    CLOSED = "closed"         # Normal state, requests allowed
+    OPEN = "open"             # Tripped state, requests rejected
+    HALF_OPEN = "half_open"   # Probing state, limited requests allowed
 
 @dataclass
 class CircuitBreakerConfig:
-    failure_threshold: int = 5       # 连续失败阈值
-    recovery_timeout: float = 30.0   # 熔断恢复超时（秒）
-    half_open_max_calls: int = 3     # 半开状态最大探测次数
-    success_threshold: int = 2       # 半开状态连续成功阈值
+    failure_threshold: int = 5       # Consecutive failure threshold
+    recovery_timeout: float = 30.0   # Circuit recovery timeout (seconds)
+    half_open_max_calls: int = 3     # Maximum probe calls in half-open state
+    success_threshold: int = 2       # Consecutive success threshold in half-open state
 
 class CircuitBreaker:
-    """熔断器：保护不可用的Tool/Model"""
+    """Circuit Breaker: protects unavailable Tools/Models"""
 
     def __init__(self, name: str, config: CircuitBreakerConfig = CircuitBreakerConfig()):
         self.name = name
@@ -305,7 +305,7 @@ class CircuitBreaker:
         self.half_open_calls = 0
 
     async def call(self, func, *args, **kwargs):
-        """通过熔断器执行调用"""
+        """Execute a call through the circuit breaker"""
         if self.state == CircuitState.OPEN:
             if time.time() - self.last_failure_time > self.config.recovery_timeout:
                 self.state = CircuitState.HALF_OPEN
@@ -333,7 +333,7 @@ class CircuitBreaker:
             raise
 
     def _on_success(self):
-        """成功回调"""
+        """Success callback"""
         if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
             if self.success_count >= self.config.success_threshold:
@@ -343,7 +343,7 @@ class CircuitBreaker:
             self.failure_count = 0
 
     def _on_failure(self):
-        """失败回调"""
+        """Failure callback"""
         self.failure_count += 1
         self.last_failure_time = time.time()
 
@@ -362,51 +362,51 @@ class CircuitBreaker:
 
 
 class CircuitOpenError(Exception):
-    """熔断器打开异常"""
+    """Circuit breaker open exception"""
     pass
 ```
 
-### 2.2 多目标熔断管理
+### 2.2 Multi-Target Circuit Breaker Management
 
 ```python
 class CircuitBreakerManager:
-    """管理多个熔断器（每个Tool/Model一个）"""
+    """Manages multiple circuit breakers (one per Tool/Model)"""
 
     def __init__(self):
         self.breakers: dict[str, CircuitBreaker] = {}
 
     def get_breaker(self, target: str) -> CircuitBreaker:
-        """获取目标的熔断器"""
+        """Get the circuit breaker for a target"""
         if target not in self.breakers:
             self.breakers[target] = CircuitBreaker(target)
         return self.breakers[target]
 
     async def call(self, target: str, func, *args, **kwargs):
-        """通过熔断器调用目标"""
+        """Call a target through its circuit breaker"""
         breaker = self.get_breaker(target)
         return await breaker.call(func, *args, **kwargs)
 
     def get_all_states(self) -> list[dict]:
-        """获取所有熔断器状态"""
+        """Get the state of all circuit breakers"""
         return [b.get_state() for b in self.breakers.values()]
 
     def reset(self, target: str):
-        """重置指定熔断器"""
+        """Reset the specified circuit breaker"""
         if target in self.breakers:
             self.breakers[target] = CircuitBreaker(target)
 
 
-# 使用示例
+# Usage example
 manager = CircuitBreakerManager()
 
-# Tool调用通过熔断器
+# Tool calls through the circuit breaker
 async def call_tool(tool_name: str, params: dict):
     return await manager.call(
         f"tool:{tool_name}",
         lambda: tool_registry.execute(tool_name, params)
     )
 
-# Model调用通过熔断器
+# Model calls through the circuit breaker
 async def call_model(model_name: str, messages: list):
     return await manager.call(
         f"model:{model_name}",
@@ -414,9 +414,9 @@ async def call_model(model_name: str, messages: list):
     )
 ```
 
-## 3. 超时控制
+## 3. Timeout Control
 
-### 3.1 三级超时体系
+### 3.1 Three-Level Timeout System
 
 ```python
 import asyncio
@@ -424,19 +424,19 @@ from dataclasses import dataclass
 
 @dataclass
 class TimeoutConfig:
-    step_timeout: float = 30.0       # 单步超时（单次LLM/Tool调用）
-    round_timeout: float = 120.0     # 单轮超时（一次Agent推理循环）
-    global_timeout: float = 300.0    # 全局超时（整个Agent执行）
-    stream_timeout: float = 60.0     # Streaming首Token超时
+    step_timeout: float = 30.0       # Step timeout (single LLM/Tool call)
+    round_timeout: float = 120.0     # Round timeout (one Agent reasoning loop)
+    global_timeout: float = 300.0    # Global timeout (entire Agent execution)
+    stream_timeout: float = 60.0     # Streaming first-token timeout
 
 class TimeoutManager:
-    """Agent超时管理器"""
+    """Agent Timeout Manager"""
 
     def __init__(self, config: TimeoutConfig = TimeoutConfig()):
         self.config = config
 
     async def execute_with_timeout(self, func, timeout_type: str = "step"):
-        """带超时执行"""
+        """Execute with timeout"""
         timeout_map = {
             "step": self.config.step_timeout,
             "round": self.config.round_timeout,
@@ -454,36 +454,36 @@ class TimeoutManager:
             )
 
     async def execute_agent(self, agent_func, user_input: str):
-        """带完整超时控制的Agent执行"""
+        """Agent execution with full timeout control"""
         async def _inner():
             return await agent_func(user_input)
 
         return await self.execute_with_timeout(_inner, "global")
 
     async def execute_step(self, step_func):
-        """带超时的单步执行"""
+        """Single-step execution with timeout"""
         return await self.execute_with_timeout(step_func, "step")
 
     async def execute_streaming(self, stream_func):
-        """带超时的Streaming执行"""
+        """Streaming execution with timeout"""
         async def _first_token():
             async for chunk in stream_func():
                 yield chunk
-                break  # 只检查首Token
+                break  # Only check the first token
 
         return await self.execute_with_timeout(_first_token, "stream")
 
 
 class AgentTimeoutError(Exception):
-    """Agent超时异常"""
+    """Agent timeout exception"""
     pass
 ```
 
-### 3.2 Streaming超时
+### 3.2 Streaming Timeout
 
 ```python
 class StreamingTimeoutHandler:
-    """Streaming场景的超时处理"""
+    """Timeout handling for streaming scenarios"""
 
     def __init__(
         self,
@@ -494,7 +494,7 @@ class StreamingTimeoutHandler:
         self.inter_token_timeout = inter_token_timeout
 
     async def stream_with_timeout(self, stream_gen):
-        """带超时的Streaming消费"""
+        """Streaming consumption with timeout"""
         first_token = True
         last_token_time = time.monotonic()
 
@@ -502,7 +502,7 @@ class StreamingTimeoutHandler:
             now = time.monotonic()
 
             if first_token:
-                # 首Token超时检查
+                # First-token timeout check
                 elapsed = now - last_token_time
                 if elapsed > self.first_token_timeout:
                     raise StreamingTimeoutError(
@@ -510,7 +510,7 @@ class StreamingTimeoutHandler:
                     )
                 first_token = False
             else:
-                # Token间超时检查
+                # Inter-token timeout check
                 elapsed = now - last_token_time
                 if elapsed > self.inter_token_timeout:
                     raise StreamingTimeoutError(
@@ -524,12 +524,11 @@ class StreamingTimeoutHandler:
 class StreamingTimeoutError(Exception):
     pass
 ```
+## 4. Idempotency Guarantees
 
-## 4. 幂等性保证
+### 4.1 Tool Call Deduplication
 
-### 4.1 Tool调用去重
-
-Agent重试可能导致同一Tool被重复调用。通过幂等键确保同一调用只执行一次：
+Agent retries may cause the same Tool to be called multiple times. Use idempotency keys to ensure the same call is only executed once:
 
 ```python
 import hashlib
@@ -537,7 +536,7 @@ import json
 from typing import Optional
 
 class IdempotencyManager:
-    """Tool调用幂等性管理"""
+    """Idempotency management for Tool calls"""
 
     def __init__(self, redis_client, ttl: int = 3600):
         self.redis = redis_client
@@ -549,7 +548,7 @@ class IdempotencyManager:
         tool_name: str,
         parameters: dict
     ) -> str:
-        """生成幂等键"""
+        """Generate an idempotency key"""
         content = json.dumps({
             "agent": agent_id,
             "tool": tool_name,
@@ -564,29 +563,29 @@ class IdempotencyManager:
         parameters: dict,
         tool_func
     ) -> dict:
-        """确保Tool只执行一次"""
+        """Ensure the Tool is only executed once"""
         key = self.generate_idempotency_key(agent_id, tool_name, parameters)
 
-        # 检查是否已执行
+        # Check if already executed
         cached = self.redis.get(key)
         if cached:
             return json.loads(cached)
 
-        # 分布式锁防止并发重复执行
+        # Distributed lock to prevent concurrent duplicate execution
         lock_key = f"lock:{key}"
         lock = self.redis.lock(lock_key, timeout=30)
 
         if lock.acquire(blocking=True, blocking_timeout=5):
             try:
-                # 双重检查
+                # Double-check
                 cached = self.redis.get(key)
                 if cached:
                     return json.loads(cached)
 
-                # 执行Tool
+                # Execute Tool
                 result = await tool_func(parameters)
 
-                # 缓存结果
+                # Cache result
                 self.redis.setex(key, self.ttl, json.dumps(result))
                 return result
             finally:
@@ -595,7 +594,7 @@ class IdempotencyManager:
             raise IdempotencyLockError(f"Failed to acquire lock for {tool_name}")
 
     def invalidate(self, agent_id: str, tool_name: str, parameters: dict):
-        """使缓存失效（用于需要重新执行的场景）"""
+        """Invalidate cache (for scenarios that require re-execution)"""
         key = self.generate_idempotency_key(agent_id, tool_name, parameters)
         self.redis.delete(key)
 
@@ -604,11 +603,11 @@ class IdempotencyLockError(Exception):
     pass
 ```
 
-### 4.2 Agent会话幂等
+### 4.2 Agent Session Idempotency
 
 ```python
 class AgentSessionIdempotency:
-    """Agent会话级别的幂等性"""
+    """Session-level idempotency for Agents"""
 
     def __init__(self, redis_client):
         self.redis = redis_client
@@ -618,7 +617,7 @@ class AgentSessionIdempotency:
         request_id: str,
         agent_id: str
     ) -> Optional[dict]:
-        """检查请求是否已处理"""
+        """Check whether the request has already been processed"""
         key = f"request:{agent_id}:{request_id}"
         result = self.redis.get(key)
         if result:
@@ -632,7 +631,7 @@ class AgentSessionIdempotency:
         result: dict,
         ttl: int = 86400
     ):
-        """记录请求结果"""
+        """Record the request result"""
         key = f"request:{agent_id}:{request_id}"
         self.redis.setex(key, ttl, json.dumps(result))
 
@@ -642,21 +641,21 @@ class AgentSessionIdempotency:
         agent_id: str,
         agent_func
     ) -> dict:
-        """幂等执行Agent"""
-        # 检查是否已处理
+        """Execute Agent idempotently"""
+        # Check if already processed
         cached = self.check_request_id(request_id, agent_id)
         if cached:
             return cached
 
-        # 执行并记录
+        # Execute and record
         result = await agent_func()
         self.record_result(request_id, agent_id, result)
         return result
 ```
 
-## 5. 死信队列
+## 5. Dead Letter Queue
 
-### 5.1 失败任务处理
+### 5.1 Failed Task Handling
 
 ```python
 import json
@@ -670,7 +669,7 @@ class DLQStatus(Enum):
     ABANDONED = "abandoned"
 
 class DeadLetterQueue:
-    """Agent失败任务的死信队列"""
+    """Dead letter queue for failed Agent tasks"""
 
     def __init__(self, redis_client):
         self.redis = redis_client
@@ -683,7 +682,7 @@ class DeadLetterQueue:
         error: Exception,
         context: dict
     ):
-        """将失败任务加入死信队列"""
+        """Add a failed task to the dead letter queue"""
         entry = {
             "agent_id": agent_id,
             "task_id": task_id,
@@ -698,19 +697,19 @@ class DeadLetterQueue:
         self.redis.lpush(self.queue_key, json.dumps(entry))
 
     def dequeue(self) -> Optional[dict]:
-        """取出一个待处理任务"""
+        """Pop one pending task"""
         data = self.redis.rpop(self.queue_key)
         if data:
             return json.loads(data)
         return None
 
     def get_pending(self, limit: int = 100) -> list[dict]:
-        """获取待处理任务列表"""
+        """Get the list of pending tasks"""
         items = self.redis.lrange(self.queue_key, 0, limit - 1)
         return [json.loads(item) for item in items]
 
     def retry_task(self, task_id: str, max_retries: int = 3) -> bool:
-        """重试指定任务"""
+        """Retry a specific task"""
         items = self.redis.lrange(self.queue_key, 0, -1)
 
         for i, item_data in enumerate(items):
@@ -730,7 +729,7 @@ class DeadLetterQueue:
         return False
 
     def resolve_task(self, task_id: str):
-        """标记任务已解决"""
+        """Mark a task as resolved"""
         items = self.redis.lrange(self.queue_key, 0, -1)
 
         for i, item_data in enumerate(items):
@@ -742,7 +741,7 @@ class DeadLetterQueue:
                 return
 
     def get_stats(self) -> dict:
-        """获取DLQ统计"""
+        """Get DLQ statistics"""
         items = self.get_pending(limit=10000)
         stats = {"total": len(items), "by_status": {}, "by_agent": {}}
 
@@ -754,10 +753,9 @@ class DeadLetterQueue:
 
         return stats
 ```
-
 ## 6. Chaos Testing for Agent
 
-### 6.1 故障注入框架
+### 6.1 Fault Injection Framework
 
 ```python
 import asyncio
@@ -766,19 +764,19 @@ from typing import Callable, Optional
 from enum import Enum
 
 class ChaosType(Enum):
-    LATENCY = "latency"           # 延迟注入
-    ERROR = "error"               # 错误注入
-    TIMEOUT = "timeout"           # 超时注入
-    RATE_LIMIT = "rate_limit"     # 限流注入
-    PARTIAL_RESPONSE = "partial"  # 部分响应
-    SLOW_STREAM = "slow_stream"   # 慢Streaming
+    LATENCY = "latency"           # Latency injection
+    ERROR = "error"               # Error injection
+    TIMEOUT = "timeout"           # Timeout injection
+    RATE_LIMIT = "rate_limit"     # Rate limit injection
+    PARTIAL_RESPONSE = "partial"  # Partial response
+    SLOW_STREAM = "slow_stream"   # Slow streaming
 
 class ChaosConfig:
-    """混沌测试配置"""
+    """Chaos testing configuration"""
     def __init__(
         self,
         chaos_type: ChaosType,
-        probability: float = 0.1,  # 10%概率触发
+        probability: float = 0.1,  # 10% probability of triggering
         latency_ms: int = 5000,
         error_rate: float = 0.5
     ):
@@ -788,14 +786,14 @@ class ChaosConfig:
         self.error_rate = error_rate
 
 class ChaosAgent:
-    """Agent混沌测试注入器"""
+    """Agent chaos testing injector"""
 
     def __init__(self, configs: list[ChaosConfig]):
         self.configs = configs
         self.active = True
 
     async def inject_chaos(self, original_func: Callable, *args, **kwargs):
-        """在调用前注入混沌"""
+        """Inject chaos before invocation"""
         if not self.active:
             return await original_func(*args, **kwargs)
 
@@ -812,7 +810,7 @@ class ChaosAgent:
         *args,
         **kwargs
     ):
-        """应用混沌故障"""
+        """Apply chaos fault"""
         if config.chaos_type == ChaosType.LATENCY:
             delay = random.uniform(0, config.latency_ms / 1000)
             await asyncio.sleep(delay)
@@ -822,7 +820,7 @@ class ChaosAgent:
             raise ChaosInjectedError("Chaos: Injected LLM error")
 
         elif config.chaos_type == ChaosType.TIMEOUT:
-            await asyncio.sleep(999)  # 触发超时
+            await asyncio.sleep(999)  # Trigger timeout
             raise asyncio.TimeoutError("Chaos: Injected timeout")
 
         elif config.chaos_type == ChaosType.RATE_LIMIT:
@@ -830,7 +828,7 @@ class ChaosAgent:
 
         elif config.chaos_type == ChaosType.PARTIAL_RESPONSE:
             result = await original_func(*args, **kwargs)
-            # 截断响应
+            # Truncate response
             if isinstance(result, str):
                 return result[:len(result)//2]
             return result
@@ -853,14 +851,14 @@ class ChaosRateLimitError(Exception):
 
 ```python
 class AgentChaosTestSuite:
-    """Agent弹性测试套件"""
+    """Agent resilience test suite"""
 
     def __init__(self, agent_factory: Callable):
         self.agent_factory = agent_factory
         self.results: list[dict] = []
 
     async def test_retry_resilience(self):
-        """测试重试弹性"""
+        """Test retry resilience"""
         chaos = ChaosAgent([
             ChaosConfig(ChaosType.ERROR, probability=0.5),
         ])
@@ -885,7 +883,7 @@ class AgentChaosTestSuite:
         })
 
     async def test_circuit_breaker(self):
-        """测试熔断器"""
+        """Test circuit breaker"""
         chaos = ChaosAgent([
             ChaosConfig(ChaosType.ERROR, probability=1.0),
         ])
@@ -909,7 +907,7 @@ class AgentChaosTestSuite:
         })
 
     async def test_timeout_handling(self):
-        """测试超时处理"""
+        """Test timeout handling"""
         chaos = ChaosAgent([
             ChaosConfig(ChaosType.LATENCY, probability=1.0, latency_ms=60000),
         ])
@@ -932,7 +930,7 @@ class AgentChaosTestSuite:
         })
 
     async def test_graceful_degradation(self):
-        """测试优雅降级"""
+        """Test graceful degradation"""
         chaos = ChaosAgent([
             ChaosConfig(ChaosType.RATE_LIMIT, probability=0.8),
         ])
@@ -958,7 +956,7 @@ class AgentChaosTestSuite:
         })
 
     def get_report(self) -> dict:
-        """生成测试报告"""
+        """Generate test report"""
         total = len(self.results)
         passed = sum(1 for r in self.results if r.get("passed"))
 
@@ -971,10 +969,10 @@ class AgentChaosTestSuite:
         }
 ```
 
-### 6.3 K8s Chaos实验
+### 6.3 K8s Chaos Experiments
 
 ```yaml
-# Litmus Chaos实验：LLM API故障注入
+# Litmus Chaos experiment: LLM API fault injection
 apiVersion: litmuschaos.io/v1alpha1
 kind: ChaosEngine
 metadata:
@@ -991,9 +989,9 @@ spec:
         components:
           env:
             - name: NETWORK_LATENCY
-              value: "5000"   # 5秒延迟
+              value: "5000"   # 5-second delay
             - name: DESTINATION_PORTS
-              value: "443"    # HTTPS端口
+              value: "443"    # HTTPS port
         probe:
           - name: agent-success-rate-check
             type: httpProbe
@@ -1027,14 +1025,13 @@ spec:
                   responseCode: "200"
             mode: Edge
 ```
+## Related Topics
 
-## 相关主题
+- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent Rate Limiting and Cost Control]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/19-agent-ci-cd-pipeline|Agent CI/CD Pipeline]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime Architecture Overview]]
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent限流与成本控制]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/19-agent-ci-cd-pipeline|Agent CI/CD流水线]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
-
-## 参考资料
+## References
 
 - Exponential Backoff and Jitter
 - Circuit Breaker Pattern

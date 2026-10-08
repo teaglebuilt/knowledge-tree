@@ -1,7 +1,7 @@
 ---
-title: LangChain/LangGraph 深度指南
-description: 'LangChain 核心架构与 LangGraph 状态图引擎的全面深度解析，涵盖 Chain/Agent/Tool/Memory 四大组件、StateGraph 状态机、持久化检查点、Human-in-the-Loop、Streaming 及 K8s 生产部署'
-summary: 'LangChain 核心架构与 LangGraph 状态图引擎的全面深度解析'
+title: LangChain/LangGraph In-Depth Guide
+description: 'A comprehensive deep-dive into LangChain core architecture and the LangGraph state graph engine, covering the four major components Chain/Agent/Tool/Memory, StateGraph state machine, persistent checkpoints, Human-in-the-Loop, Streaming, and K8s production deployment'
+summary: 'A comprehensive deep-dive into LangChain core architecture and the LangGraph state graph engine'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,15 +16,15 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- LangChain/LangGraph 深度指南 是什么
-- 如何 LangChain/LangGraph 深度指南
-- LangChain 核心架构
-- LangGraph StateGraph 状态图
+- What is the LangChain/LangGraph In-Depth Guide
+- How to use the LangChain/LangGraph In-Depth Guide
+- LangChain core architecture
+- LangGraph StateGraph state graph
 trigger_keywords:
 - langchain
 - langgraph
@@ -44,20 +44,21 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/01-langchain-langgraph-deep-dive.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Security Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operations commands. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (will modify cluster state, but is generally reversible), 🟢 Low risk / Read-only (information gathering, no side effects).
 
 
-# LangChain/LangGraph 深度指南
+# LangChain/LangGraph In-Depth Guide
 
-## 1. LangChain 核心架构
+## 1. LangChain Core Architecture
 
-### 1.1 整体设计哲学
+### 1.1 Overall Design Philosophy
 
-LangChain 采用分层抽象设计，将 LLM 应用拆解为可组合的标准化组件。核心理念是**链式组合（Chain Composition）**——每个组件只做一件事，通过管道串联构建复杂应用。
+LangChain adopts a layered abstraction design, decomposing LLM applications into composable, standardized components. The core concept is **Chain Composition** — each component does one thing, and complex applications are built by connecting them through pipelines.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -78,52 +79,52 @@ LangChain 采用分层抽象设计，将 LLM 应用拆解为可组合的标准�
 
 ### 1.2 LCEL — LangChain Expression Language
 
-LCEL 是 LangChain 0.2+ 的核心编排语言，基于 Runnable 协议实现声明式管道：
+LCEL is the core orchestration language for LangChain 0.2+, implementing declarative pipelines based on the Runnable protocol:
 
 ```python
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
-# LCEL 管道：Prompt → Model → Parser
+# LCEL pipeline: Prompt → Model → Parser
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "你是一个 Kubernetes 专家。"),
+    ("system", "You are a Kubernetes expert."),
     ("human", "{question}")
 ])
 model = ChatOpenAI(model="gpt-4o", temperature=0)
 parser = StrOutputParser()
 
-# 使用 | 运算符串联
+# Chain together using the | operator
 chain = prompt | model | parser
 
-# 同步调用
-result = chain.invoke({"question": "解释 Pod 的 QoS 等级"})
+# Synchronous invocation
+result = chain.invoke({"question": "Explain Pod QoS levels"})
 
-# 批量调用
+# Batch invocation
 results = chain.batch([
-    {"question": "什么是 DaemonSet？"},
-    {"question": "什么是 StatefulSet？"}
+    {"question": "What is a DaemonSet?"},
+    {"question": "What is a StatefulSet?"}
 ])
 ```
 
-**Runnable 协议核心方法：**
+**Runnable Protocol Core Methods:**
 
-| 方法 | 用途 | 典型场景 |
-|------|------|---------|
-| `invoke` | 单次调用 | 同步请求-响应 |
-| `batch` | 批量调用 | 并行处理多条输入 |
-| `stream` | 流式输出 | 实时 UI 反馈 |
-| `ainvoke` | 异步调用 | 高并发服务 |
-| `astream` | 异步流式 | 异步实时输出 |
+| Method | Purpose | Typical Use Case |
+|--------|---------|-----------------|
+| `invoke` | Single invocation | Synchronous request-response |
+| `batch` | Batch invocation | Parallel processing of multiple inputs |
+| `stream` | Streaming output | Real-time UI feedback |
+| `ainvoke` | Async invocation | High-concurrency services |
+| `astream` | Async streaming | Async real-time output |
 
-### 1.3 Chain 组件
+### 1.3 Chain Components
 
-Chain 是 LangChain 的基础编排单元，LCEL 取代了旧版 `LLMChain`、`SequentialChain` 等遗留类：
+Chain is the fundamental orchestration unit in LangChain. LCEL replaces the legacy `LLMChain`, `SequentialChain`, and other deprecated classes:
 
 ```python
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 
-# 检索增强生成（RAG）管道
+# Retrieval-Augmented Generation (RAG) pipeline
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
@@ -137,17 +138,17 @@ rag_chain = (
     | parser
 )
 
-# 带回退的链
+# Chain with fallback
 from langchain_core.runnables import RunnableWithFallbacks
 
 chain_with_fallback = model.with_fallbacks([
-    ChatOpenAI(model="gpt-4o-mini"),  # 回退到更小模型
+    ChatOpenAI(model="gpt-4o-mini"),  # Fall back to a smaller model
 ])
 ```
 
-### 1.4 Agent 架构
+### 1.4 Agent Architecture
 
-Agent 是具有工具调用能力的自主决策单元。LangChain 0.3+ 推荐使用 LangGraph 构建 Agent，但 `create_react_agent` 提供了便捷封装：
+An Agent is an autonomous decision-making unit with tool-calling capabilities. LangChain 0.3+ recommends using LangGraph to build Agents, but `create_react_agent` provides a convenient wrapper:
 
 ```python
 from langgraph.prebuilt import create_react_agent
@@ -155,8 +156,8 @@ from langchain_core.tools import tool
 
 @tool
 def get_pod_status(namespace: str, pod_name: str) -> str:
-    """查询指定 Pod 的运行状态。"""
-    # 实际实现中调用 kubectl 或 K8s API
+    """Query the running status of the specified Pod."""
+    # In actual implementation, call kubectl or the K8s API
     import subprocess
     result = subprocess.run(
         ["kubectl", "get", "pod", pod_name, "-n", namespace, "-o", "json"],
@@ -166,7 +167,7 @@ def get_pod_status(namespace: str, pod_name: str) -> str:
 
 @tool
 def get_pod_logs(namespace: str, pod_name: str, tail_lines: int = 100) -> str:
-    """获取 Pod 的最近日志。"""
+    """Get recent logs from a Pod."""
     import subprocess
     result = subprocess.run(
         ["kubectl", "logs", pod_name, "-n", namespace,
@@ -175,61 +176,61 @@ def get_pod_logs(namespace: str, pod_name: str, tail_lines: int = 100) -> str:
     )
     return result.stdout
 
-# 创建 ReAct Agent
+# Create a ReAct Agent
 agent = create_react_agent(
     model=ChatOpenAI(model="gpt-4o"),
     tools=[get_pod_status, get_pod_logs],
-    state_modifier="你是 KuDig K8s 诊断专家。使用工具查询集群状态。"
+    state_modifier="You are a KuDig K8s diagnostics expert. Use tools to query cluster status."
 )
 
-# 执行
+# Execute
 result = agent.invoke({
-    "messages": [("user", "检查 default 命名空间下 nginx-pod 的状态")]
+    "messages": [("user", "Check the status of nginx-pod in the default namespace")]
 })
 ```
 
-### 1.5 Tool 抽象
+### 1.5 Tool Abstraction
 
-工具是 Agent 与外部世界交互的标准化接口：
+Tools are the standardized interface through which Agents interact with the external world:
 
 ```python
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-# 使用 Pydantic 定义输入 Schema
+# Define input schema using Pydantic
 class KubectlInput(BaseModel):
-    command: str = Field(description="kubectl 子命令，如 get/describe/logs")
-    namespace: str = Field(default="default", description="K8s 命名空间")
-    resource: str = Field(description="资源类型，如 pod/service/deployment")
+    command: str = Field(description="kubectl subcommand, e.g. get/describe/logs")
+    namespace: str = Field(default="default", description="K8s namespace")
+    resource: str = Field(description="Resource type, e.g. pod/service/deployment")
 
 def execute_kubectl(command: str, namespace: str, resource: str) -> str:
-    """执行 kubectl 命令。"""
+    """Execute a kubectl command."""
     import subprocess
     cmd = ["kubectl", command, resource, "-n", namespace]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if result.returncode != 0:
-        return f"命令失败: {result.stderr}"
+        return f"Command failed: {result.stderr}"
     return result.stdout
 
 kubectl_tool = StructuredTool.from_function(
     func=execute_kubectl,
     name="kubectl",
-    description="执行 kubectl 命令查询 K8s 集群资源",
+    description="Execute kubectl commands to query K8s cluster resources",
     args_schema=KubectlInput,
-    return_direct=False  # 设为 True 则直接返回给用户
+    return_direct=False  # Set to True to return directly to the user
 )
 ```
 
-### 1.6 Memory 系统
+### 1.6 Memory System
 
-Memory 维护跨轮次的对话上下文：
+Memory maintains conversational context across turns:
 
 ```python
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
-# 内存型存储（生产环境用 Redis/Postgres）
+# In-memory storage (use Redis/Postgres in production)
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
@@ -237,7 +238,7 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
         store[session_id] = ChatMessageHistory()
     return store[session_id]
 
-# 带历史的对话链
+# Conversation chain with history
 with_history = RunnableWithMessageHistory(
     chain,
     get_session_history,
@@ -245,74 +246,73 @@ with_history = RunnableWithMessageHistory(
     history_messages_key="history"
 )
 
-# 每次调用指定 session_id
+# Specify session_id on each call
 config = {"configurable": {"session_id": "user-123"}}
-result = with_history.invoke({"question": "刚才查的是什么 Pod？"}, config=config)
+result = with_history.invoke({"question": "What Pod was I just looking at?"}, config=config)
 ```
 
-**生产级 Memory 后端对比：**
+**Production-Grade Memory Backend Comparison:**
 
-| 后端 | 持久化 | 适用场景 | LangChain 模块 |
-|------|--------|---------|----------------|
-| 内存 | 无 | 开发测试 | `ChatMessageHistory` |
-| Redis | 有 | 高并发会话 | `RedisChatMessageHistory` |
-| PostgreSQL | 有 | 结构化查询 | `PostgresChatMessageHistory` |
-| MongoDB | 有 | 灵活文档存储 | `MongoDBChatMessageHistory` |
+| Backend | Persistence | Use Case | LangChain Module |
+|---------|------------|---------|-----------------|
+| In-Memory | No | Development & testing | `ChatMessageHistory` |
+| Redis | Yes | High-concurrency sessions | `RedisChatMessageHistory` |
+| PostgreSQL | Yes | Structured queries | `PostgresChatMessageHistory` |
+| MongoDB | Yes | Flexible document storage | `MongoDBChatMessageHistory` |
 
 ---
+## 2. LangGraph State Graph Engine
 
-## 2. LangGraph 状态图引擎
+### 2.1 Why LangGraph Is Needed
 
-### 2.1 为什么需要 LangGraph
-
-LangChain 的 Chain 是线性管道，无法表达分支、循环、并行等复杂控制流。LangGraph 将 LLM 应用建模为**有限状态机（FSM）**，每个节点是一个处理步骤，边定义状态转移。
+LangChain's Chain is a linear pipeline that cannot express complex control flows such as branching, loops, and parallelism. LangGraph models LLM applications as **Finite State Machines (FSM)**, where each node is a processing step and edges define state transitions.
 
 ```
-┌──────────┐     条件边     ┌──────────┐
-│  Start   │──────────────→│  LLM     │
-└──────────┘               └────┬─────┘
-                                │
-                    ┌───────────┼───────────┐
-                    ↓           ↓           ↓
-              ┌─────────┐ ┌─────────┐ ┌─────────┐
-              │ Tool A  │ │ Tool B  │ │ Tool C  │
-              └────┬────┘ └────┬────┘ └────┬────┘
-                   │           │           │
-                   └───────────┼───────────┘
-                               ↓
-                         ┌──────────┐
-                         │   End    │
-                         └──────────┘
+┌──────────┐   Conditional Edge   ┌──────────┐
+│  Start   │──────────────────→   │  LLM     │
+└──────────┘                      └────┬─────┘
+                                       │
+                           ┌───────────┼───────────┐
+                           ↓           ↓           ↓
+                     ┌─────────┐ ┌─────────┐ ┌─────────┐
+                     │ Tool A  │ │ Tool B  │ │ Tool C  │
+                     └────┬────┘ └────┬────┘ └────┬────┘
+                          │           │           │
+                          └───────────┼───────────┘
+                                      ↓
+                                ┌──────────┐
+                                │   End    │
+                                └──────────┘
 ```
 
-### 2.2 StateGraph 基础
+### 2.2 StateGraph Basics
 
 ```python
 from typing import TypedDict, Annotated
 from langgraph.graph import StateGraph, END
 import operator
 
-# 定义状态 Schema
+# Define state schema
 class DiagnosisState(TypedDict):
-    # messages 使用 add 操作符累加
+    # messages accumulate using the add operator
     messages: Annotated[list, operator.add]
-    # 诊断阶段
+    # diagnosis phase
     phase: str
-    # 收集的证据
+    # collected evidence
     evidence: Annotated[list, operator.add]
-    # 诊断结论
+    # diagnosis conclusion
     conclusion: str
 
-# 创建状态图
+# Create state graph
 graph = StateGraph(DiagnosisState)
 
-# 定义节点函数
+# Define node functions
 def collect_info(state: DiagnosisState) -> dict:
-    """信息采集节点。"""
+    """Information collection node."""
     last_msg = state["messages"][-1]
-    # 调用 LLM 分析需要哪些信息
+    # Call LLM to analyze what information is needed
     response = llm.invoke([
-        SystemMessage(content="分析当前问题，列出需要采集的信息。"),
+        SystemMessage(content="Analyze the current issue and list the information that needs to be collected."),
         *state["messages"]
     ])
     return {
@@ -321,10 +321,10 @@ def collect_info(state: DiagnosisState) -> dict:
     }
 
 def analyze_root_cause(state: DiagnosisState) -> dict:
-    """根因分析节点。"""
+    """Root cause analysis node."""
     evidence_summary = "\n".join(state["evidence"])
     response = llm.invoke([
-        SystemMessage(content=f"基于以下证据分析根因：\n{evidence_summary}"),
+        SystemMessage(content=f"Analyze the root cause based on the following evidence:\n{evidence_summary}"),
         *state["messages"]
     ])
     return {
@@ -334,167 +334,167 @@ def analyze_root_cause(state: DiagnosisState) -> dict:
     }
 
 def generate_fix(state: DiagnosisState) -> dict:
-    """生成修复方案节点。"""
+    """Generate fix plan node."""
     response = llm.invoke([
-        SystemMessage(content=f"根因: {state['conclusion']}。生成修复方案。"),
+        SystemMessage(content=f"Root cause: {state['conclusion']}. Generate a fix plan."),
         *state["messages"]
     ])
     return {"messages": [response], "phase": "fixing"}
 
-# 添加节点
+# Add nodes
 graph.add_node("collect_info", collect_info)
 graph.add_node("analyze", analyze_root_cause)
 graph.add_node("fix", generate_fix)
 
-# 设置入口
+# Set entry point
 graph.set_entry_point("collect_info")
 
-# 添加边
+# Add edges
 graph.add_edge("collect_info", "analyze")
 graph.add_edge("analyze", "fix")
 graph.add_edge("fix", END)
 
-# 编译
+# Compile
 diagnosis_app = graph.compile()
 ```
 
-### 2.3 条件路由
+### 2.3 Conditional Routing
 
-条件边根据状态动态决定下一步：
+Conditional edges dynamically determine the next step based on state:
 
 ```python
 from langgraph.graph import END
 
 def should_continue(state: DiagnosisState) -> str:
-    """条件路由：决定是否需要更多信息。"""
+    """Conditional routing: decide whether more information is needed."""
     last_message = state["messages"][-1]
 
-    # 如果 LLM 表示信息不足，继续采集
-    if "需要更多信息" in last_message.content:
+    # If the LLM indicates insufficient information, continue collecting
+    if "need more information" in last_message.content:
         return "collect_info"
 
-    # 如果已生成修复方案，进入评审
+    # If a fix plan has been generated, proceed to review
     if state["phase"] == "fixing":
         return "review"
 
-    # 默认继续分析
+    # Default: continue analyzing
     return "analyze"
 
-# 添加条件边
+# Add conditional edge
 graph.add_conditional_edges(
-    "collect_info",        # 源节点
-    should_continue,       # 路由函数
+    "collect_info",        # source node
+    should_continue,       # routing function
     {
-        "collect_info": "collect_info",  # 循环采集
-        "analyze": "analyze",            # 进入分析
-        "review": "review",              # 进入评审
+        "collect_info": "collect_info",  # loop back to collect
+        "analyze": "analyze",            # proceed to analysis
+        "review": "review",              # proceed to review
     }
 )
 ```
 
-### 2.4 持久化检查点（Checkpointer）
+### 2.4 Persistent Checkpointer
 
-Checkpointer 实现状态快照，支持断点恢复、时间旅行和 Human-in-the-Loop：
+The Checkpointer implements state snapshots, supporting breakpoint recovery, time travel, and Human-in-the-Loop:
 
 ```python
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.checkpoint.memory import MemorySaver
 
-# 内存型（开发）
+# In-memory (development)
 checkpointer = MemorySaver()
 
-# PostgreSQL 型（生产）
+# PostgreSQL (production)
 checkpointer = PostgresSaver.from_conn_string(
     "postgresql://user:pass@postgres:5432/langgraph"
 )
 
-# 编译时绑定 Checkpointer
+# Bind Checkpointer at compile time
 app = graph.compile(checkpointer=checkpointer)
 
-# 执行时指定 thread_id（会话标识）
+# Specify thread_id (session identifier) at execution time
 config = {"configurable": {"thread_id": "diag-session-001"}}
 result = app.invoke(
-    {"messages": [("user", "Pod nginx-0 一直 CrashLoop")]},
+    {"messages": [("user", "Pod nginx-0 keeps CrashLooping")]},
     config=config
 )
 
-# 获取检查点快照
+# Get checkpoint snapshot
 snapshot = app.get_state(config)
-print(f"当前阶段: {snapshot.values['phase']}")
-print(f"消息数: {len(snapshot.values['messages'])}")
+print(f"Current phase: {snapshot.values['phase']}")
+print(f"Message count: {len(snapshot.values['messages'])}")
 
-# 时间旅行：回溯到某个检查点
+# Time travel: rewind to a specific checkpoint
 history = list(app.get_state_history(config))
 for i, state in enumerate(history):
     print(f"  [{i}] step={state.metadata['step']}")
 
-# 恢复到特定检查点
+# Restore to a specific checkpoint
 old_config = history[2].config
 app.update_state(old_config, {"phase": "collecting"})
 ```
 
-### 2.5 Human-in-the-Loop 模式
+### 2.5 Human-in-the-Loop Pattern
 
-在关键决策点暂停等待人工确认：
+Pause at critical decision points to wait for human confirmation:
 
 ```python
 from langgraph.graph import StateGraph, END
 
 graph = StateGraph(DiagnosisState)
 
-# 使用 interrupt_before 在节点执行前暂停
+# Use interrupt_before to pause before a node executes
 app = graph.compile(
     checkpointer=checkpointer,
-    interrupt_before=["fix"]  # 在执行修复前暂停
+    interrupt_before=["fix"]  # pause before executing the fix
 )
 
-# 执行到 fix 节点前会暂停
+# Execution will pause before the fix node
 config = {"configurable": {"thread_id": "diag-002"}}
 result = app.invoke(
     {"messages": [("user", "Pod OOMKilled")]},
     config=config
 )
 
-# 查看当前状态，等待人工确认
+# View current state and wait for human confirmation
 snapshot = app.get_state(config)
-print(f"建议的修复方案: {snapshot.values.get('conclusion')}")
+print(f"Suggested fix plan: {snapshot.values.get('conclusion')}")
 
-# 人工确认后继续执行
+# Continue execution after human approval
 user_approved = True
 if user_approved:
-    app.invoke(None, config=config)  # 从断点继续
+    app.invoke(None, config=config)  # resume from breakpoint
 else:
-    # 人工修改状态后继续
+    # Modify state manually then continue
     app.update_state(config, {
-        "conclusion": "修改后的方案: 先扩容内存到 512Mi",
+        "conclusion": "Revised plan: first scale memory up to 512Mi",
     })
     app.invoke(None, config=config)
 ```
 
-### 2.6 Streaming 支持
+### 2.6 Streaming Support
 
-LangGraph 提供多种流式输出模式：
+LangGraph provides multiple streaming output modes:
 
 ```python
-# 模式 1: 流式 token（LLM 输出）
+# Mode 1: streaming tokens (LLM output)
 for event in app.stream(input_data, config=config, stream_mode="messages"):
     print(event.content, end="", flush=True)
 
-# 模式 2: 流式状态更新（节点级）
+# Mode 2: streaming state updates (node level)
 for event in app.stream(input_data, config=config, stream_mode="updates"):
     for node, update in event.items():
-        print(f"[{node}] 更新: {update}")
+        print(f"[{node}] update: {update}")
 
-# 模式 3: 混合流
+# Mode 3: mixed streaming
 for event in app.stream(input_data, config=config, stream_mode=["updates", "messages"]):
     if isinstance(event, tuple):
         mode, data = event
         if mode == "updates":
-            print(f"状态更新: {data}")
+            print(f"State update: {data}")
         elif mode == "messages":
             print(f"Token: {data.content}", end="")
 
-# 模式 4: 自定义事件流
+# Mode 4: custom event stream
 from langchain_core.callbacks import StreamingStdOutCallbackHandler
 
 async for event in app.astream_events(input_data, config=config, version="v2"):
@@ -502,16 +502,15 @@ async for event in app.astream_events(input_data, config=config, version="v2"):
     if kind == "on_chat_model_stream":
         print(event["data"]["chunk"].content, end="")
     elif kind == "on_tool_start":
-        print(f"\n[调用工具] {event['name']}")
+        print(f"\n[Calling tool] {event['name']}")
     elif kind == "on_tool_end":
-        print(f"[工具返回] {event['data'].content[:100]}...")
+        print(f"[Tool returned] {event['data'].content[:100]}...")
 ```
 
 ---
+## 3. K8s Production Deployment
 
-## 3. K8s 生产部署
-
-### 3.1 Docker 化
+### 3.1 Dockerization
 
 ```dockerfile
 # Dockerfile
@@ -519,12 +518,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 系统依赖
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl jq && \
     rm -rf /var/lib/apt/lists/*
 
-# 安装 kubectl
+# Install kubectl
 RUN curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && mv kubectl /usr/local/bin/
 
@@ -533,7 +532,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
 
-# 非 root 用户
+# Non-root user
 RUN useradd -m agent && chown -R agent:agent /app
 USER agent
 
@@ -583,15 +582,15 @@ resources:
     cpu: "2000m"
     memory: "2Gi"
 
-# 专用 ServiceAccount（最小权限）
+# Dedicated ServiceAccount (least privilege)
 serviceAccount:
   create: true
   name: langgraph-agent
   annotations:
-    # IRSA / Workload Identity 绑定
+    # IRSA / Workload Identity binding
     eks.amazonaws.com/role-arn: arn:aws:iam::123456789:role/langgraph-agent
 
-# RBAC：只读 Pod/Service/Event
+# RBAC: read-only Pod/Service/Event
 rbac:
   create: true
   rules:
@@ -602,7 +601,7 @@ rbac:
       resources: ["deployments", "replicasets"]
       verbs: ["get", "list", "watch"]
 
-# HPA 自动扩缩容
+# HPA autoscaling
 autoscaling:
   enabled: true
   minReplicas: 2
@@ -610,7 +609,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 
-# 健康检查
+# Health checks
 healthCheck:
   liveness:
     path: /healthz
@@ -622,7 +621,7 @@ healthCheck:
     periodSeconds: 5
 ```
 
-### 3.3 FastAPI 服务封装
+### 3.3 FastAPI Service Wrapper
 
 ```python
 # src/main.py
@@ -633,12 +632,12 @@ import uuid
 
 app = FastAPI(title="LangGraph K8s Agent")
 
-# 初始化 Checkpointer
+# Initialize Checkpointer
 checkpointer = PostgresSaver.from_conn_string(
     os.environ["POSTGRES_URL"]
 )
 
-# 编译 Agent
+# Compile Agent
 agent = build_diagnosis_agent(checkpointer)
 
 class ChatRequest(BaseModel):
@@ -675,7 +674,7 @@ async def healthz():
 
 @app.get("/readyz")
 async def readyz():
-    # 检查 PostgreSQL 连接
+    # Check PostgreSQL connection
     try:
         checkpointer.conn.execute("SELECT 1")
         return {"status": "ready"}
@@ -685,21 +684,21 @@ async def readyz():
 
 ---
 
-## 4. 生产最佳实践
+## 4. Production Best Practices
 
-### 4.1 错误处理与重试
+### 4.1 Error Handling and Retries
 
 ```python
 from langchain_core.runnables import RunnableRetry
 
-# 自动重试
+# Automatic retry
 chain_with_retry = model.with_retry(
     retry_if_exception_type=(TimeoutError, ConnectionError),
     wait_exponential_jitter=True,
     stop_after_attempt=3
 )
 
-# 带回退的链
+# Chain with fallback
 from langchain_core.runnables import RunnableWithFallbacks
 
 resilient_chain = chain.with_fallbacks(
@@ -708,93 +707,92 @@ resilient_chain = chain.with_fallbacks(
 )
 ```
 
-### 4.2 可观测性
+### 4.2 Observability
 
 ```python
-# LangSmith 追踪
+# LangSmith tracing
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "your-key"
 os.environ["LANGCHAIN_PROJECT"] = "kudig-k8s-agent"
 
-# OpenTelemetry 集成
+# OpenTelemetry integration
 from langchain_community.callbacks.tracers import OpenTelemetryTracer
 
-# 自定义回调
+# Custom callback
 from langchain_core.callbacks import BaseCallbackHandler
 
 class MetricsCallback(BaseCallbackHandler):
     def on_llm_end(self, response, **kwargs):
         tokens = response.llm_output.get("token_usage", {})
-        # 推送到 Prometheus
+        # Push to Prometheus
         LLM_TOKENS.labels(model="gpt-4o").inc(tokens.get("total_tokens", 0))
 
     def on_tool_error(self, error, **kwargs):
         TOOL_ERRORS.labels(tool=kwargs.get("name", "unknown")).inc()
 ```
 
-### 4.3 安全注意事项
+### 4.3 Security Considerations
 
-| 风险 | 缓解措施 |
-|------|---------|
-| Prompt 注入 | 输入校验 + `RunnablePassthrough.with_types` 类型守卫 |
-| 工具权限 | RBAC 最小权限 + Tool 输入 Schema 校验 |
-| 代码执行 | 沙箱隔离（Docker/Kata）+ 超时控制 |
-| API Key 泄露 | K8s Secret + External Secrets Operator |
-| 输出泄露 | 输出过滤 + PII 检测中间件 |
+| Risk | Mitigation |
+|------|-----------|
+| Prompt injection | Input validation + `RunnablePassthrough.with_types` type guards |
+| Tool permissions | RBAC least privilege + Tool input schema validation |
+| Code execution | Sandbox isolation (Docker/Kata) + timeout control |
+| API key leakage | K8s Secret + External Secrets Operator |
+| Output leakage | Output filtering + PII detection middleware |
 
-### 4.4 性能优化
+### 4.4 Performance Optimization
 
 ```python
-# 1. 并行工具调用
+# 1. Parallel tool calls
 from langgraph.prebuilt import ToolNode
 
 tool_node = ToolNode(tools, handle_tool_errors=True)
 
-# 2. 嵌入缓存
+# 2. Embedding cache
 from langchain_community.cache import RedisCache
 import langchain
 langchain.llm_cache = RedisCache(redis.Redis(host="redis"))
 
-# 3. 批量嵌入
+# 3. Batch embedding
 from langchain_openai import OpenAIEmbeddings
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 batch_vectors = embeddings.embed_documents(texts, chunk_size=100)
 
-# 4. 流式减少首字延迟
+# 4. Streaming to reduce time-to-first-token
 async for chunk in agent.astream(input_data, config=config):
     print(chunk, end="")
 ```
 
 ---
+## 5. Summary & Selection Recommendations
 
-## 5. 总结与选型建议
-
-| 特性 | LangChain | LangGraph |
+| Feature | LangChain | LangGraph |
 |------|-----------|-----------|
-| 定位 | 通用 LLM 编排框架 | 状态图 Agent 引擎 |
-| 控制流 | 线性管道 (LCEL) | 状态机（分支/循环/并行） |
-| 状态管理 | 依赖 Memory 组件 | 原生 State + Checkpointer |
-| 适用场景 | RAG、简单 Agent、工具链 | 复杂 Agent、多步推理、人机协作 |
-| 学习曲线 | 低 | 中 |
-| 生产成熟度 | 高（v0.3 稳定） | 中高（快速迭代中） |
+| Positioning | General-purpose LLM orchestration framework | Stateful graph agent engine |
+| Control flow | Linear pipeline (LCEL) | State machine (branching / loops / parallel) |
+| State management | Relies on Memory components | Native State + Checkpointer |
+| Use cases | RAG, simple agents, tool chains | Complex agents, multi-step reasoning, human-in-the-loop |
+| Learning curve | Low | Medium |
+| Production maturity | High (v0.3 stable) | Medium-high (rapidly iterating) |
 
-**推荐选择路径：**
-- 简单 RAG / 工具调用 → LangChain LCEL
-- 复杂 Agent / 需要状态持久化 → LangGraph
-- 已有 LangChain 项目 → 逐步迁移到 LangGraph
+**Recommended selection path:**
+- Simple RAG / tool calling → LangChain LCEL
+- Complex agents / state persistence required → LangGraph
+- Existing LangChain projects → Gradually migrate to LangGraph
 
 ---
 
 ## Related
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/02-llamaindex-data-agent|LlamaIndex 数据 Agent]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/02-llamaindex-data-agent|LlamaIndex Data Agent]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI 多 Agent 框架]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel 企业级 Agent]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI Multi-Agent Framework]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel Enterprise Agent]]
 
 
 <!-- risk-assessed -->

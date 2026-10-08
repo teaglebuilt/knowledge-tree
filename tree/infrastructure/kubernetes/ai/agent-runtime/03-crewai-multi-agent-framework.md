@@ -1,7 +1,7 @@
 ---
-title: CrewAI 多 Agent 框架深度指南
-description: 'CrewAI 四层抽象（Crew/Agent/Task/Tool）全面解析，涵盖角色定义、任务委派、流程模式、记忆机制及 K8s 生产部署'
-summary: 'CrewAI 四层抽象全面解析，涵盖角色定义、任务委派、流程模式及 K8s 部署'
+title: CrewAI Multi-Agent Framework In-Depth Guide
+description: 'Comprehensive breakdown of CrewAI's four-layer abstraction (Crew/Agent/Task/Tool), covering role definition, task delegation, process patterns, memory mechanisms, and K8s production deployment'
+summary: 'Comprehensive breakdown of CrewAI's four-layer abstraction, covering role definition, task delegation, process patterns, and K8s deployment'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- CrewAI 多 Agent 框架 是什么
-- 如何 CrewAI 多 Agent 框架
-- CrewAI 角色定义与任务委派
+- What is the CrewAI multi-agent framework
+- How to use the CrewAI multi-agent framework
+- CrewAI role definition and task delegation
 trigger_keywords:
 - crewai
 - multi-agent
@@ -44,144 +44,145 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/03-crewai-multi-agent-framework.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (will modify cluster state, but is generally reversible), 🟢 Low risk / Read-only (information gathering, no side effects).
 
 
-# CrewAI 多 Agent 框架深度指南
+# CrewAI Multi-Agent Framework In-Depth Guide
 
-## 1. 核心架构
+## 1. Core Architecture
 
-### 1.1 四层抽象模型
+### 1.1 Four-Layer Abstraction Model
 
-CrewAI 围绕四个核心概念构建多 Agent 协作系统：
+CrewAI builds a multi-Agent collaboration system around four core concepts:
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low risk: Read-only / information gathering, generally no side effects
 ┌─────────────────────────────────────────────────┐
-│                   Crew（团队）                    │
+│                   Crew (Team)                    │
 │  ┌──────────────────────────────────────────┐    │
 │  │  Process: Sequential / Hierarchical      │    │
 │  └──────────────────────────────────────────┘    │
 │                                                  │
 │  ┌──────────────┐  ┌──────────────┐              │
 │  │ Agent A      │  │ Agent B      │              │
-│  │ Role: 诊断师  │  │ Role: 修复师  │              │
-│  │ Goal: 定位根因 │  │ Goal: 执行修复 │              │
+│  │ Role: Diagnostician │ Role: Fixer │            │
+│  │ Goal: Locate root cause │ Goal: Execute fix │  │
 │  │ Tools: [k8s] │  │ Tools: [kubectl]│            │
 │  └──────┬───────┘  └──────┬───────┘              │
 │         │                  │                     │
 │  ┌──────┴───────┐  ┌──────┴───────┐              │
 │  │ Task 1       │  │ Task 2       │              │
-│  │ 诊断 Pod 异常  │  │ 执行修复方案   │              │
+│  │ Diagnose Pod anomaly │ Execute fix plan │      │
 │  │ Context: []  │  │ Context: [T1] │              │
 │  └──────────────┘  └──────────────┘              │
 └─────────────────────────────────────────────────┘
 ```
-### 1.2 Agent 定义
+### 1.2 Agent Definition
 
 ```python
 from crewai import Agent
 
-# K8s 诊断专家 Agent
+# K8s Diagnostics Expert Agent
 diagnostician = Agent(
-    role="K8s 诊断专家",
-    goal="快速准确地定位 Kubernetes 集群中 Pod 异常的根因",
+    role="K8s Diagnostics Expert",
+    goal="Quickly and accurately locate the root cause of Pod anomalies in Kubernetes clusters",
     backstory=(
-        "你是一位资深的 Kubernetes SRE 工程师，拥有 10 年集群运维经验。"
-        "你擅长从日志、事件和指标中提取关键信息，用排除法缩小故障范围。"
-        "你总是先收集足够的数据再下结论，从不猜测。"
+        "You are a senior Kubernetes SRE engineer with 10 years of cluster operations experience."
+        "You excel at extracting key information from logs, events, and metrics, using elimination to narrow down the fault scope."
+        "You always collect sufficient data before drawing conclusions and never guess."
     ),
     tools=[kubectl_tool, log_analyzer_tool, metrics_query_tool],
     llm="gpt-4o",
     verbose=True,
-    allow_delegation=False,  # 是否允许委派任务给其他 Agent
-    max_iter=15,             # 最大推理迭代次数
-    max_retry_limit=3,       # 最大重试次数
-    memory=True,             # 启用短期记忆
+    allow_delegation=False,  # Whether to allow delegating tasks to other Agents
+    max_iter=15,             # Maximum reasoning iteration count
+    max_retry_limit=3,       # Maximum retry count
+    memory=True,             # Enable short-term memory
 )
 
-# 修复执行 Agent
+# Fix Execution Agent
 fixer = Agent(
-    role="K8s 修复工程师",
-    goal="安全高效地执行 Kubernetes 集群修复操作",
+    role="K8s Repair Engineer",
+    goal="Safely and efficiently execute Kubernetes cluster repair operations",
     backstory=(
-        "你是 K8s 集群修复专家，擅长在最小影响范围内恢复服务。"
-        "你总是先确认回滚方案再执行任何写操作。"
+        "You are a K8s cluster repair expert, skilled at restoring services with minimal impact."
+        "You always confirm the rollback plan before executing any write operations."
     ),
     tools=[kubectl_apply_tool, rollout_tool],
     llm="gpt-4o",
     allow_delegation=False,
 )
 
-# 验证 Agent
+# Validation Agent
 validator = Agent(
-    role="修复验证工程师",
-    goal="验证修复操作是否成功，确认服务恢复正常",
+    role="Repair Validation Engineer",
+    goal="Verify whether the repair operation was successful and confirm service has returned to normal",
     backstory=(
-        "你负责在修复后进行全面验证，确保问题已解决且无副作用。"
+        "You are responsible for comprehensive validation after a repair to ensure the issue is resolved with no side effects."
     ),
     tools=[kubectl_tool, health_check_tool, metrics_query_tool],
     llm="gpt-4o",
-    allow_delegation=True,  # 可以委派任务
+    allow_delegation=True,  # Can delegate tasks
 )
 ```
 
-### 1.3 Task 定义
+### 1.3 Task Definition
 
 ```python
 from crewai import Task
 
-# 诊断任务
+# Diagnosis task
 diagnosis_task = Task(
     description=(
-        "分析 default 命名空间下 nginx-deployment 的 Pod 异常。"
-        "具体步骤：\n"
-        "1. 查看 Pod 状态和最近事件\n"
-        "2. 检查容器日志（最近 500 行）\n"
-        "3. 查看 Pod 资源使用情况\n"
-        "4. 检查相关 ConfigMap 和 Secret 是否存在\n"
-        "5. 输出根因分析报告"
+        "Analyze Pod anomalies for nginx-deployment in the default namespace."
+        "Specific steps:\n"
+        "1. Check Pod status and recent events\n"
+        "2. Check container logs (last 500 lines)\n"
+        "3. Check Pod resource usage\n"
+        "4. Check whether related ConfigMaps and Secrets exist\n"
+        "5. Output a root cause analysis report"
     ),
     expected_output=(
-        "一份结构化的诊断报告，包含：\n"
-        "- 问题描述\n"
-        "- 证据列表（日志片段、事件、指标）\n"
-        "- 根因分析\n"
-        "- 修复建议（含具体命令）\n"
-        "- 风险评估"
+        "A structured diagnostic report containing:\n"
+        "- Problem description\n"
+        "- Evidence list (log excerpts, events, metrics)\n"
+        "- Root cause analysis\n"
+        "- Fix recommendations (including specific commands)\n"
+        "- Risk assessment"
     ),
     agent=diagnostician,
-    # 输出文件（可选）
+    # Output file (optional)
     output_file="diagnosis_report.md",
 )
 
-# 修复任务（依赖诊断任务的输出）
+# Fix task (depends on the output of the diagnosis task)
 fix_task = Task(
     description=(
-        "根据诊断报告执行修复操作。要求：\n"
-        "1. 先列出修复步骤和回滚方案\n"
-        "2. 逐步执行，每步验证\n"
-        "3. 记录执行过程和结果"
+        "Execute repair operations based on the diagnostic report. Requirements:\n"
+        "1. First list the repair steps and rollback plan\n"
+        "2. Execute step by step, verifying each step\n"
+        "3. Record the execution process and results"
     ),
-    expected_output="修复执行报告，包含每步操作和结果",
+    expected_output="Repair execution report, including each operation and its result",
     agent=fixer,
-    context=[diagnosis_task],  # 依赖诊断任务的输出
+    context=[diagnosis_task],  # Depends on the output of the diagnosis task
 )
 
-# 验证任务
+# Validation task
 validation_task = Task(
     description=(
-        "验证修复是否成功：\n"
-        "1. 检查 Pod 状态是否 Running\n"
-        "2. 验证健康检查是否通过\n"
-        "3. 确认无新的错误事件\n"
-        "4. 对比修复前后的指标"
+        "Verify whether the repair was successful:\n"
+        "1. Check whether the Pod status is Running\n"
+        "2. Verify that health checks pass\n"
+        "3. Confirm there are no new error events\n"
+        "4. Compare metrics before and after the repair"
     ),
-    expected_output="验证报告，确认服务已恢复正常",
+    expected_output="Validation report confirming the service has returned to normal",
     agent=validator,
     context=[fix_task],
 )
@@ -189,38 +190,38 @@ validation_task = Task(
 
 ---
 
-## 2. 流程模式
+## 2. Process Modes
 
-### 2.1 顺序流程（Sequential）
+### 2.1 Sequential Process
 
-任务按顺序依次执行，前一个任务的输出自动传递给下一个：
+Tasks are executed one by one in sequence; the output of the previous task is automatically passed to the next:
 
 ```python
 from crewai import Crew, Process
 
-# 顺序流程：诊断 → 修复 → 验证
+# Sequential process: Diagnose → Fix → Validate
 crew = Crew(
     agents=[diagnostician, fixer, validator],
     tasks=[diagnosis_task, fix_task, validation_task],
     process=Process.sequential,
     verbose=True,
-    memory=True,           # 启用团队记忆
-    max_rpm=10,            # API 调用速率限制
-    share_crew=False,      # 是否共享 Crew 上下文
+    memory=True,           # Enable team memory
+    max_rpm=10,            # API call rate limit
+    share_crew=False,      # Whether to share Crew context
 )
 
-# 执行
+# Execute
 result = crew.kickoff(inputs={
     "namespace": "default",
     "pod_name": "nginx-abc123",
 })
-print(result.raw)          # 最终输出
-print(result.tasks_output) # 各任务输出列表
+print(result.raw)          # Final output
+print(result.tasks_output) # List of outputs from each task
 ```
 
-### 2.2 层级流程（Hierarchical）
+### 2.2 Hierarchical Process
 
-由 Manager Agent 自动协调任务分配：
+A Manager Agent automatically coordinates task assignment:
 
 ```python
 from crewai import Crew, Process
@@ -229,46 +230,46 @@ crew = Crew(
     agents=[diagnostician, fixer, validator],
     tasks=[diagnosis_task, fix_task, validation_task],
     process=Process.hierarchical,
-    manager_llm="gpt-4o",  # Manager Agent 使用的 LLM
-    manager_agent=None,     # 可自定义 Manager Agent
+    manager_llm="gpt-4o",  # LLM used by the Manager Agent
+    manager_agent=None,     # Can customize the Manager Agent
     verbose=True,
 )
 
-# Manager Agent 会自动：
-# 1. 分析任务依赖关系
-# 2. 决定执行顺序
-# 3. 将任务分配给合适的 Agent
-# 4. 处理任务间的上下文传递
+# The Manager Agent will automatically:
+# 1. Analyze task dependencies
+# 2. Decide execution order
+# 3. Assign tasks to appropriate Agents
+# 4. Handle context passing between tasks
 result = crew.kickoff()
 ```
 
-### 2.3 并行执行
+### 2.3 Parallel Execution
 
-独立任务可以并行执行：
+Independent tasks can be executed in parallel:
 
 ```python
-# 并行收集不同维度的信息
+# Collect information from different dimensions in parallel
 collect_logs_task = Task(
-    description="收集 Pod 日志",
+    description="Collect Pod logs",
     agent=log_analyzer,
-    async_execution=True,  # 标记为异步执行
+    async_execution=True,  # Mark as asynchronous execution
 )
 
 collect_metrics_task = Task(
-    description="收集资源指标",
+    description="Collect resource metrics",
     agent=metrics_analyzer,
     async_execution=True,
 )
 
 collect_events_task = Task(
-    description="收集集群事件",
+    description="Collect cluster events",
     agent=event_analyzer,
     async_execution=True,
 )
 
-# 汇总任务（等待所有并行任务完成）
+# Synthesis task (waits for all parallel tasks to complete)
 synthesize_task = Task(
-    description="汇总所有信息，分析根因",
+    description="Synthesize all information and analyze the root cause",
     agent=diagnostician,
     context=[
         collect_logs_task,
@@ -290,36 +291,35 @@ crew = Crew(
 ```
 
 ---
+## 3. Custom Tool Development
 
-## 3. 自定义工具开发
-
-### 3.1 工具基类
+### 3.1 Tool Base Class
 
 ```python
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import Type
 
-# 工具输入 Schema
+# Tool input schema
 class KubectlQueryInput(BaseModel):
     namespace: str = Field(
         default="default",
-        description="Kubernetes 命名空间"
+        description="Kubernetes namespace"
     )
     resource: str = Field(
-        description="资源类型：pod/service/deployment/configmap"
+        description="Resource type: pod/service/deployment/configmap"
     )
     name: str = Field(
         default="",
-        description="资源名称，留空则列出所有"
+        description="Resource name, leave empty to list all"
     )
 
-# 工具实现
+# Tool implementation
 class KubectlQueryTool(BaseTool):
     name: str = "kubectl_query"
     description: str = (
-        "查询 Kubernetes 集群资源状态。"
-        "可以查看 Pod、Service、Deployment 等资源的详细信息。"
+        "Query Kubernetes cluster resource status. "
+        "Can view detailed information for Pod, Service, Deployment, and other resources."
     )
     args_schema: Type[BaseModel] = KubectlQueryInput
 
@@ -339,27 +339,27 @@ class KubectlQueryTool(BaseTool):
             cmd, capture_output=True, text=True, timeout=30
         )
         if result.returncode != 0:
-            return f"命令执行失败: {result.stderr}"
+            return f"Command execution failed: {result.stderr}"
         return result.stdout
 ```
 
-### 3.2 高级工具示例
+### 3.2 Advanced Tool Example
 
 ```python
 from crewai.tools import BaseTool
 from typing import Type
 
 class LogAnalysisInput(BaseModel):
-    namespace: str = Field(description="命名空间")
-    pod_name: str = Field(description="Pod 名称")
-    keyword: str = Field(default="", description="过滤关键词")
-    tail_lines: int = Field(default=200, description="获取最后 N 行日志")
+    namespace: str = Field(description="Namespace")
+    pod_name: str = Field(description="Pod name")
+    keyword: str = Field(default="", description="Filter keyword")
+    tail_lines: int = Field(default=200, description="Retrieve the last N lines of logs")
 
 class LogAnalysisTool(BaseTool):
     name: str = "log_analysis"
     description: str = (
-        "分析 Pod 日志，支持关键词过滤和错误模式识别。"
-        "返回最近的日志条目和错误统计。"
+        "Analyze Pod logs with support for keyword filtering and error pattern recognition. "
+        "Returns recent log entries and error statistics."
     )
     args_schema: Type[BaseModel] = LogAnalysisInput
 
@@ -374,7 +374,7 @@ class LogAnalysisTool(BaseTool):
         import re
         from collections import Counter
 
-        # 获取日志
+        # Fetch logs
         cmd = [
             "kubectl", "logs", pod_name,
             "-n", namespace,
@@ -382,37 +382,37 @@ class LogAnalysisTool(BaseTool):
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode != 0:
-            return f"获取日志失败: {result.stderr}"
+            return f"Failed to retrieve logs: {result.stderr}"
 
         lines = result.stdout.strip().split("\n")
 
-        # 关键词过滤
+        # Keyword filtering
         if keyword:
             lines = [l for l in lines if keyword.lower() in l.lower()]
 
-        # 错误模式统计
+        # Error pattern statistics
         error_patterns = Counter()
         for line in lines:
             if re.search(r"\b(error|exception|fatal|panic)\b", line, re.I):
-                # 提取错误类型
+                # Extract error type
                 match = re.search(r"(\w+Error|\w+Exception)", line)
                 if match:
                     error_patterns[match.group()] += 1
 
-        # 格式化输出
-        output = f"=== 日志分析 ({namespace}/{pod_name}) ===\n"
-        output += f"总行数: {len(lines)}\n"
-        output += f"错误模式:\n"
+        # Format output
+        output = f"=== Log Analysis ({namespace}/{pod_name}) ===\n"
+        output += f"Total lines: {len(lines)}\n"
+        output += f"Error patterns:\n"
         for pattern, count in error_patterns.most_common(10):
-            output += f"  {pattern}: {count} 次\n"
-        output += f"\n最近 20 行日志:\n"
+            output += f"  {pattern}: {count} occurrences\n"
+        output += f"\nLast 20 log lines:\n"
         for line in lines[-20:]:
             output += f"  {line}\n"
 
         return output
 ```
 
-### 3.3 异步工具
+### 3.3 Async Tools
 
 ```python
 import aiohttp
@@ -420,7 +420,7 @@ from crewai.tools import BaseTool
 
 class PrometheusQueryTool(BaseTool):
     name: str = "prometheus_query"
-    description: str = "执行 PromQL 查询获取集群指标"
+    description: str = "Execute PromQL queries to retrieve cluster metrics"
 
     def _run(self, query: str, duration: str = "1h") -> str:
         import requests
@@ -434,24 +434,24 @@ class PrometheusQueryTool(BaseTool):
         resp = requests.get(url, params=params, timeout=30)
         data = resp.json()
         if data["status"] != "success":
-            return f"查询失败: {data.get('error', 'unknown')}"
+            return f"Query failed: {data.get('error', 'unknown')}"
         return json.dumps(data["data"]["result"][:5], indent=2)
 ```
 
 ---
 
-## 4. 记忆与委派机制
+## 4. Memory and Delegation Mechanisms
 
-### 4.1 短期记忆
+### 4.1 Short-Term Memory
 
-CrewAI 内置记忆系统，跨任务保持上下文：
+CrewAI has a built-in memory system that maintains context across tasks:
 
 ```python
 crew = Crew(
     agents=[diagnostician, fixer, validator],
     tasks=[diagnosis_task, fix_task, validation_task],
-    memory=True,          # 启用短期记忆
-    embedder={            # 自定义嵌入模型
+    memory=True,          # Enable short-term memory
+    embedder={            # Custom embedding model
         "provider": "openai",
         "config": {
             "model": "text-embedding-3-small",
@@ -460,15 +460,15 @@ crew = Crew(
 )
 ```
 
-### 4.2 长期记忆
+### 4.2 Long-Term Memory
 
-持久化记忆存储，跨会话保留知识：
+Persistent memory storage that retains knowledge across sessions:
 
 ```python
 from crewai.memory import LongTermMemory, EntityMemory
 from crewai.memory.storage import SQLiteStorage
 
-# 配置持久化存储
+# Configure persistent storage
 crew = Crew(
     agents=[diagnostician, fixer],
     tasks=[diagnosis_task],
@@ -482,30 +482,29 @@ crew = Crew(
 )
 ```
 
-### 4.3 任务委派
+### 4.3 Task Delegation
 
-Agent 可以将子任务委派给其他 Agent：
+Agents can delegate subtasks to other agents:
 
 ```python
-# 允许委派的 Agent
+# Agent with delegation enabled
 supervisor = Agent(
-    role="运维主管",
-    goal="协调团队完成集群故障排查",
-    allow_delegation=True,  # 启用委派
+    role="Operations Supervisor",
+    goal="Coordinate the team to complete cluster troubleshooting",
+    allow_delegation=True,  # Enable delegation
     tools=[],
 )
 
-# Agent 可以：
-# 1. 将工具调用委派给更专业的 Agent
-# 2. 请求其他 Agent 的输入
-# 3. 委托验证和确认任务
+# Agents can:
+# 1. Delegate tool calls to more specialized agents
+# 2. Request input from other agents
+# 3. Delegate validation and confirmation tasks
 ```
 
 ---
+## 5. K8s Deployment and Scaling
 
-## 5. K8s 部署与扩展
-
-### 5.1 Docker 化
+### 5.1 Dockerization
 
 ```dockerfile
 FROM python:3.11-slim
@@ -514,7 +513,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 
-# 安装 kubectl
+# Install kubectl
 RUN curl -LO "https://dl.k8s.io/release/$(curl -Ls \
     https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && mv kubectl /usr/local/bin/
@@ -542,7 +541,7 @@ env:
   - name: CREW_MEMORY_DB
     value: "/data/crew_memory.db"
 
-# 持久化存储（记忆数据库）
+# Persistent storage (memory database)
 persistence:
   enabled: true
   storageClass: gp3
@@ -572,7 +571,7 @@ rbac:
       verbs: ["get", "list", "watch", "patch", "update"]
 ```
 
-### 5.3 FastAPI 服务封装
+### 5.3 FastAPI Service Wrapper
 
 ```python
 from fastapi import FastAPI, BackgroundTasks
@@ -593,7 +592,7 @@ class TaskStatus(BaseModel):
     status: str  # pending/running/completed/failed
     result: str | None = None
 
-# 任务存储
+# Task storage
 tasks_db: dict[str, TaskStatus] = {}
 
 @app.post("/diagnose")
@@ -636,42 +635,42 @@ async def run_diagnosis(task_id: str, req: DiagnosisRequest):
 
 ---
 
-## 6. 生产最佳实践
+## 6. Production Best Practices
 
-### 6.1 速率限制与成本控制
+### 6.1 Rate Limiting and Cost Control
 
 ```python
 crew = Crew(
     agents=agents,
     tasks=tasks,
-    max_rpm=20,           # 每分钟最大请求数
-    language="zh-CN",     # 输出语言
-    full_output=True,     # 完整输出（含中间步骤）
+    max_rpm=20,           # Maximum requests per minute
+    language="zh-CN",     # Output language
+    full_output=True,     # Full output (including intermediate steps)
 )
 ```
 
-### 6.2 错误处理
+### 6.2 Error Handling
 
 ```python
 try:
     result = crew.kickoff()
 except Exception as e:
-    # CrewAI 会自动重试 max_retry_limit 次
-    # 超出后抛出异常
-    logger.error(f"Crew 执行失败: {e}")
-    # 降级到单 Agent 模式
+    # CrewAI will automatically retry up to max_retry_limit times
+    # An exception is raised after the limit is exceeded
+    logger.error(f"Crew execution failed: {e}")
+    # Fall back to single-agent mode
     fallback_result = diagnostician.kickoff()
 ```
 
-### 6.3 可观测性
+### 6.3 Observability
 
 ```python
-# CrewAI 集成 LangSmith
+# CrewAI integrates with LangSmith
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "your-key"
 
-# 自定义回调
+# Custom callbacks
 from crewai.utilities.events import CrewAgentExecutionEvent
 
 def on_agent_step(event: CrewAgentExecutionEvent):
@@ -684,12 +683,12 @@ crew = Crew(agents=agents, tasks=tasks, verbose=True)
 
 ## Related
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph 深度指南]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph Deep Dive Guide]]
 - [[domain-14-ai-ml-infra/03-agent-runtime/04-autogen-microsoft-agent|Microsoft AutoGen]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 
 <!-- risk-assessed -->

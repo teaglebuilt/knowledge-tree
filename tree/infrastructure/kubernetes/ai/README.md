@@ -1,6 +1,10 @@
+---
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/README.md
+---
 ---title: AI/ML Infrastructure
-description: 整合原 domain-14-ai-ml-infra/41 的 AI 基础设施知识，涵盖 GPU 调度、分布式训练、AI Agent 和 MLOps。
-summary: 整合原 domain-14-ai-ml-infra/41 的 AI 基础设施知识，涵盖 GPU 调度、分布式训练、AI Agent 和 MLOps。
+description: Consolidates AI infrastructure knowledge from the original domain-14-ai-ml-infra/41, covering GPU scheduling, distributed training, AI Agents, and MLOps.
+summary: Consolidates AI infrastructure knowledge from the original domain-14-ai-ml-infra/41, covering GPU scheduling, distributed training, AI Agents, and MLOps.
 category: domain
 tags:
 - ai
@@ -17,12 +21,12 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 5min
 intent_queries:
-- AI/ML Infrastructure 是什么
-- 如何 AI/ML Infrastructure
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AI/ML Infrastructure
+- How to AI/ML Infrastructure
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - AI
 - ML
@@ -39,53 +43,53 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state, but generally reversible), 🟢 Low risk / Read-only (information gathering, no side effects).
 
 
 
 
 # AI/ML Infrastructure
 
-整合原 domain-14-ai-ml-infra/41 的 AI 基础设施知识，涵盖 GPU 调度、分布式训练、AI Agent 和 MLOps。
+Consolidates AI infrastructure knowledge from the original domain-14-ai-ml-infra/41, covering GPU scheduling, distributed training, AI Agents, and MLOps.
 
-## 目录结构
+## Directory Structure
 
-| 子目录 | 内容 |
+| Subdirectory | Contents |
 |---|---|
-| 01-ai-infra/ | GPU 调度、DCGM、分布式训练框架 |
-| 02-ai-agents/ | AI Agent 框架、RAG、工具调用、Agent Harness 工程 |
-| 03-agent-runtime/ | Agent 运行时与生产部署 |
-| topic-ai-coding/ | AI 编码工具（OpenRouter、OpenCode）集成 |
+| 01-ai-infra/ | GPU scheduling, DCGM, distributed training frameworks |
+| 02-ai-agents/ | AI Agent frameworks, RAG, tool calling, Agent Harness engineering |
+| 03-agent-runtime/ | Agent runtime and production deployment |
+| topic-ai-coding/ | AI coding tools (OpenRouter, OpenCode) integration |
 
-## 与其他 Domain 的关系
+## Relationship with Other Domains
 
-- [[domain-02-workloads-applications/README.md|domain-02-workloads-applications]] — 工作负载调度
-- [[domain-07-platform-engineering/README.md|domain-07-platform-engineering]] — 平台资源管理
+- [[domain-02-workloads-applications/README.md|domain-02-workloads-applications]] — Workload scheduling
+- [[domain-07-platform-engineering/README.md|domain-07-platform-engineering]] — Platform resource management
 
 ## Related
 
-- Domain-34: CNCF Landscape 开源项目 — Cross-reference
-- networking|发布说明索引 — 网络]] — Cross-reference
+- Domain-34: CNCF Landscape Open Source Projects — Cross-reference
+- networking|Release Notes Index — Networking]] — Cross-reference
 - domain-03-networking-traffic KUDIG Database — Global MOC — Cross-reference
-- Topic 应用层架构设计最佳实践 — Cross-reference
+- Topic Application Layer Architecture Design Best Practices — Cross-reference
 - topic-application-architecture MOC — Cross-reference
-- [[concepts/bp-common-best-practices.md|Kubernetes 通用最佳实践参考]] — Cross-reference
+- [[concepts/bp-common-best-practices.md|Kubernetes Common Best Practices Reference]] — Cross-reference
 - [[concepts/KUDIG Knowledge Base Architecture.md|KUDIG Knowledge Base Architecture]] — Cross-reference
-- [[domain-14-ai-ml-infra/01-ai-infra/03-gpu-scheduling-management.md|GPU 调度与管理]] — Cross-reference
-- [[domain-14-ai-ml-infra/01-ai-infra/05-distributed-training-frameworks.md|分布式训练框架]] — Cross-reference
+- [[domain-14-ai-ml-infra/01-ai-infra/03-gpu-scheduling-management.md|GPU Scheduling and Management]] — Cross-reference
+- [[domain-14-ai-ml-infra/01-ai-infra/05-distributed-training-frameworks.md|Distributed Training Frameworks]] — Cross-reference
 - domain-08-release-change-management MOC — Cross-reference
-- [[skills/learn-decision-tree-mermaid.md|故障排查决策树 - Mermaid 可视化版]] — Cross-reference
-- [[skills/skill-22-daemonset-failure.md|DaemonSet 故障诊断与修复 / DaemonSet Failure Diagnosis & Remediation]] — Cross-reference
-- [[domain-07-platform-engineering/operate/06-monitoring-alerting-system.md|监控告警体系]] — Cross-reference
-- Domain 30: 企业级灾备与业务连续性 (Enterprise Disaster Recovery & Business Continuity) — Cross-reference
-- [[entities/ecosystem-changelog.md|生态组件变更日志索引]] — Cross-reference
-- [[domain-19-landscape-references/topic-index/cluster-index.md|Cluster 集群知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/pvc-index.md|PVC 知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/terway-index.md|Terway 知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/nginx-ingress-index.md|nginx-ingress-controller 知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/higress-index.md|Higress 知识图谱索引]]
+- [[skills/learn-decision-tree-mermaid.md|Troubleshooting Decision Tree - Mermaid Visualization]] — Cross-reference
+- [[skills/skill-22-daemonset-failure.md|DaemonSet Failure Diagnosis & Remediation]] — Cross-reference
+- [[domain-07-platform-engineering/operate/06-monitoring-alerting-system.md|Monitoring and Alerting System]] — Cross-reference
+- Domain 30: Enterprise Disaster Recovery & Business Continuity — Cross-reference
+- [[entities/ecosystem-changelog.md|Ecosystem Component Changelog Index]] — Cross-reference
+- [[domain-19-landscape-references/topic-index/cluster-index.md|Cluster Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/pvc-index.md|PVC Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/terway-index.md|Terway Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/nginx-ingress-index.md|nginx-ingress-controller Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/higress-index.md|Higress Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

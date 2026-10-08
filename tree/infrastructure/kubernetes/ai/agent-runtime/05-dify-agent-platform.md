@@ -1,7 +1,7 @@
 ---
-title: Dify Agent 平台深度指南
-description: 'Dify 平台架构全面解析，涵盖 API/Worker/Plugin/Proxy 四层架构、Workflow 编排、Agent 策略、知识库管理及 K8s Helm 部署'
-summary: 'Dify 平台架构全面解析'
+title: Dify Agent Platform In-Depth Guide
+description: 'Comprehensive analysis of the Dify platform architecture, covering the four-layer architecture of API/Worker/Plugin/Proxy, Workflow orchestration, Agent strategies, knowledge base management, and K8s Helm deployment'
+summary: 'Comprehensive analysis of the Dify platform architecture'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Dify Agent 平台 是什么
-- 如何 Dify Agent 平台
-- Dify Workflow 编排
+- What is the Dify Agent Platform
+- How to use the Dify Agent Platform
+- Dify Workflow orchestration
 trigger_keywords:
 - dify
 - workflow
@@ -43,24 +43,25 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/05-dify-agent-platform.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but usually reversible), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
-# Dify Agent 平台深度指南
+# Dify Agent Platform In-Depth Guide
 
-## 1. 平台架构
+## 1. Platform Architecture
 
-### 1.1 整体架构
+### 1.1 Overall Architecture
 
-Dify 是一个开源 LLM 应用开发平台，提供可视化的 Agent 和 Workflow 构建能力：
+Dify is an open-source LLM application development platform that provides visual Agent and Workflow building capabilities:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Dify 架构                               │
+│                      Dify Architecture                       │
 │                                                              │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐ │
 │  │ Web UI   │  │ REST API │  │ Plugin   │  │ Model Proxy  │ │
@@ -85,49 +86,49 @@ Dify 是一个开源 LLM 应用开发平台，提供可视化的 Agent 和 Workf
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 核心服务
+### 1.2 Core Services
 
-| 服务 | 职责 | 技术栈 |
+| Service | Responsibility | Tech Stack |
 |------|------|--------|
-| API Server | REST API + 业务逻辑 | Python / Flask |
-| Web Frontend | 可视化控制台 | Next.js / React |
-| Worker | 异步任务处理 | Celery / Redis |
-| Plugin Service | 插件加载与管理 | Python |
-| Model Proxy | LLM 调用代理 | Python / 多供应商适配 |
+| API Server | REST API + Business Logic | Python / Flask |
+| Web Frontend | Visual Console | Next.js / React |
+| Worker | Asynchronous Task Processing | Celery / Redis |
+| Plugin Service | Plugin Loading and Management | Python |
+| Model Proxy | LLM Call Proxy | Python / Multi-vendor Adaptation |
 
-### 1.3 数据存储
+### 1.3 Data Storage
 
-| 存储 | 用途 |
+| Storage | Purpose |
 |------|------|
-| PostgreSQL | 应用配置、用户数据、对话记录 |
-| Redis | 缓存、会话状态、Celery Broker |
-| Weaviate / Qdrant | 向量存储（知识库） |
-| S3 / MinIO | 文件存储（上传文档） |
+| PostgreSQL | Application configuration, user data, conversation records |
+| Redis | Cache, session state, Celery Broker |
+| Weaviate / Qdrant | Vector storage (knowledge base) |
+| S3 / MinIO | File storage (uploaded documents) |
 
 ---
 
-## 2. Workflow 编排
+## 2. Workflow Orchestration
 
-### 2.1 应用类型
+### 2.1 Application Types
 
-Dify 提供两种核心应用类型：
+Dify provides two core application types:
 
-**Chatflow（对话流）：**
-- 面向多轮对话场景
-- 自动管理会话状态
-- 支持上下文记忆
+**Chatflow (Conversational Flow):**
+- Designed for multi-turn conversation scenarios
+- Automatically manages session state
+- Supports context memory
 
-**Workflow（工作流）：**
-- 面向自动化任务
-- 无状态的一次性处理
-- 适合批量处理、数据管道
+**Workflow:**
+- Designed for automated tasks
+- Stateless, one-time processing
+- Suitable for batch processing and data pipelines
 
-### 2.2 节点类型
+### 2.2 Node Types
 
 ```yaml
-# Dify Workflow 节点类型
+# Dify Workflow node types
 nodes:
-  # 开始节点
+  # Start node
   - type: start
     config:
       variables:
@@ -138,24 +139,24 @@ nodes:
           type: string
           required: true
 
-  # LLM 节点
+  # LLM node
   - type: llm
     config:
       model: gpt-4o
       prompt: |
-        你是 K8s 诊断专家。
-        Pod {{pod_name}} 在 {{namespace}} 命名空间出现异常。
-        请分析可能的原因。
+        You are a K8s diagnostics expert.
+        Pod {{pod_name}} in namespace {{namespace}} has encountered an anomaly.
+        Please analyze the possible causes.
       temperature: 0
 
-  # 知识检索节点
+  # Knowledge retrieval node
   - type: knowledge_retrieval
     config:
       knowledge_base: k8s_docs
       query: "{{start.output}}"
       top_k: 5
 
-  # 代码执行节点
+  # Code execution node
   - type: code
     config:
       language: python
@@ -167,7 +168,7 @@ nodes:
         )
         return {"pod_status": result.stdout}
 
-  # 条件分支节点
+  # Conditional branch node
   - type: if_else
     config:
       conditions:
@@ -177,7 +178,7 @@ nodes:
           then: llm_diagnosis
           else: end_success
 
-  # HTTP 请求节点
+  # HTTP request node
   - type: http_request
     config:
       method: GET
@@ -185,7 +186,7 @@ nodes:
       params:
         query: 'container_memory_usage_bytes{pod="{{pod_name}}"}'
 
-  # 变量聚合节点
+  # Variable aggregator node
   - type: variable_aggregator
     config:
       variables:
@@ -193,22 +194,22 @@ nodes:
         - "{{knowledge.output}}"
         - "{{http.output}}"
 
-  # 结束节点
+  # End node
   - type: end
     config:
       output: "{{variable_aggregator.output}}"
 ```
 
-### 2.3 工作流示例：K8s 自动诊断
+### 2.3 Workflow Example: K8s Automatic Diagnosis
 
 ```python
-# 通过 API 创建和运行 Workflow
+# Create and run a Workflow via API
 import requests
 
 API_BASE = "http://dify-api/v1"
 API_KEY = "app-xxxxx"
 
-# 运行 Workflow
+# Run Workflow
 response = requests.post(
     f"{API_BASE}/workflows/run",
     headers={"Authorization": f"Bearer {API_KEY}"},
@@ -222,47 +223,47 @@ response = requests.post(
     },
 )
 
-# 流式处理结果
+# Process results as stream
 for line in response.iter_lines():
     if line:
         event = json.loads(line.decode())
         if event["event"] == "node_started":
-            print(f"[节点开始] {event['data']['node_id']}")
+            print(f"[Node Started] {event['data']['node_id']}")
         elif event["event"] == "node_finished":
-            print(f"[节点完成] {event['data']['node_id']}")
-            print(f"  输出: {event['data'].get('outputs', {})}")
+            print(f"[Node Finished] {event['data']['node_id']}")
+            print(f"  Output: {event['data'].get('outputs', {})}")
         elif event["event"] == "workflow_finished":
-            print(f"[工作流完成] 状态: {event['data']['status']}")
-            print(f"  最终输出: {event['data']['outputs']}")
+            print(f"[Workflow Finished] Status: {event['data']['status']}")
+            print(f"  Final Output: {event['data']['outputs']}")
 ```
 
 ---
 
-## 3. Agent 策略
+## 3. Agent Strategies
 
-### 3.1 ReAct 策略
+### 3.1 ReAct Strategy
 
 ```yaml
-# Agent 配置（ReAct 模式）
+# Agent configuration (ReAct mode)
 agent:
   strategy: react
   model: gpt-4o
   max_iterations: 10
   tools:
     - name: kubectl_query
-      description: "查询 K8s 集群资源状态"
+      description: "Query K8s cluster resource status"
       parameters:
         namespace:
           type: string
-          description: "命名空间"
+          description: "Namespace"
           default: default
         resource:
           type: string
-          description: "资源类型"
+          description: "Resource type"
       api_endpoint: "http://kubectl-proxy/get"
 
     - name: log_search
-      description: "搜索 Pod 日志中的错误"
+      description: "Search Pod logs for errors"
       parameters:
         pod_name:
           type: string
@@ -271,21 +272,21 @@ agent:
       api_endpoint: "http://log-service/search"
 
   system_prompt: |
-    你是 KuDig K8s 运维专家。
-    使用工具查询集群状态，分析问题根因。
-    每次只调用一个工具，等待结果后再决定下一步。
+    You are a KuDig K8s operations expert.
+    Use tools to query cluster status and analyze the root cause of issues.
+    Call only one tool at a time, wait for the result before deciding the next step.
 ```
 
-### 3.2 Function Calling 策略
+### 3.2 Function Calling Strategy
 
 ```yaml
-# Function Calling 模式
+# Function Calling mode
 agent:
   strategy: function_calling
   model: gpt-4o
   tools:
     - name: get_pod_status
-      description: "获取 Pod 状态"
+      description: "Get Pod status"
       parameters:
         type: object
         properties:
@@ -294,23 +295,23 @@ agent:
           pod_name:
             type: string
         required: [namespace]
-      # 直接映射到 OpenAI Function Schema
+      # Directly mapped to OpenAI Function Schema
 ```
 
-### 3.3 工具集成方式
+### 3.3 Tool Integration Methods
 
-Dify 提供三种工具集成方式：
+Dify provides three tool integration methods:
 
 ```python
-# 1. 内置工具（Dify 官方提供）
+# 1. Built-in tools (officially provided by Dify)
 builtin_tools = [
-    "web_search",      # 网页搜索
-    "calculator",      # 计算器
-    "wikipedia",       # 维基百科查询
-    "code_interpreter", # 代码解释器
+    "web_search",       # Web search
+    "calculator",       # Calculator
+    "wikipedia",        # Wikipedia query
+    "code_interpreter", # Code interpreter
 ]
 
-# 2. API 工具（通过 OpenAPI Schema 导入）
+# 2. API tools (imported via OpenAPI Schema)
 api_tool_schema = {
     "openapi": "3.0.0",
     "info": {"title": "K8s API", "version": "1.0"},
@@ -318,7 +319,7 @@ api_tool_schema = {
         "/api/v1/pods": {
             "get": {
                 "operationId": "listPods",
-                "summary": "列出 Pod",
+                "summary": "List Pods",
                 "parameters": [
                     {
                         "name": "namespace",
@@ -331,33 +332,32 @@ api_tool_schema = {
     }
 }
 
-# 3. 自定义工具（通过插件开发）
-# 在 Dify 插件系统中注册
+# 3. Custom tools (developed via plugins)
+# Register in the Dify plugin system
 ```
 
 ---
+## 4. Knowledge Base Management
 
-## 4. 知识库管理
-
-### 4.1 知识库创建
+### 4.1 Creating a Knowledge Base
 
 ```python
-# 通过 API 创建知识库
+# Create a knowledge base via API
 import requests
 
-# 创建知识库
+# Create knowledge base
 resp = requests.post(
     f"{API_BASE}/datasets",
     headers={"Authorization": f"Bearer {API_KEY}"},
     json={
-        "name": "K8s 运维手册",
+        "name": "K8s Operations Manual",
         "indexing_technique": "high_quality",  # high_quality / economy
         "permission": "all_team_members",
     },
 )
 dataset_id = resp.json()["id"]
 
-# 上传文档
+# Upload document
 with open("k8s-troubleshooting.md", "rb") as f:
     resp = requests.post(
         f"{API_BASE}/datasets/{dataset_id}/documents",
@@ -381,10 +381,10 @@ with open("k8s-troubleshooting.md", "rb") as f:
     )
 ```
 
-### 4.2 检索模式
+### 4.2 Retrieval Modes
 
 ```yaml
-# 混合检索配置
+# Hybrid retrieval configuration
 retrieval:
   model: text-embedding-3-small
   search_method: hybrid  # semantic / keyword / hybrid
@@ -398,38 +398,38 @@ retrieval:
     value: 0.5
 ```
 
-### 4.3 多知识库检索
+### 4.3 Multi-Knowledge Base Retrieval
 
 ```yaml
-# Agent 配置多个知识库
+# Agent configured with multiple knowledge bases
 agent:
   knowledge_bases:
     - name: k8s_docs
-      description: "K8s 官方文档"
+      description: "Official K8s documentation"
       weight: 1.0
     - name: troubleshooting_guides
-      description: "故障排查指南"
+      description: "Troubleshooting guides"
       weight: 0.8
     - name: best_practices
-      description: "最佳实践"
+      description: "Best practices"
       weight: 0.6
 ```
 
 ---
 
-## 5. 插件生态
+## 5. Plugin Ecosystem
 
-### 5.1 插件结构
+### 5.1 Plugin Structure
 
 ```
 dify-plugin-k8s/
-├── manifest.yaml          # 插件元数据
+├── manifest.yaml          # Plugin metadata
 ├── provider/
-│   ├── k8s.yaml          # Provider 定义
-│   └── k8s.py            # Provider 实现
+│   ├── k8s.yaml          # Provider definition
+│   └── k8s.py            # Provider implementation
 ├── tools/
-│   ├── get_pod.yaml      # 工具定义
-│   ├── get_pod.py        # 工具实现
+│   ├── get_pod.yaml      # Tool definition
+│   ├── get_pod.py        # Tool implementation
 │   ├── get_logs.yaml
 │   └── get_logs.py
 └── requirements.txt
@@ -439,7 +439,7 @@ dify-plugin-k8s/
 # manifest.yaml
 name: k8s-tools
 version: 1.0.0
-description: "Kubernetes 集群管理工具集"
+description: "Kubernetes cluster management toolset"
 author: Dillan Teagle
 type: plugin
 icon: k8s.png
@@ -452,19 +452,19 @@ plugins:
 ```yaml
 # tools/get_pod.yaml
 name: get_pod_status
-description: "查询 Pod 状态详情"
+description: "Query Pod status details"
 parameters:
   namespace:
     type: string
-    description: "命名空间"
+    description: "Namespace"
     required: true
   pod_name:
     type: string
-    description: "Pod 名称"
+    description: "Pod name"
     required: false
 ```
 
-### 5.2 插件实现
+### 5.2 Plugin Implementation
 
 ```python
 # tools/get_pod.py
@@ -484,16 +484,16 @@ class GetPodTool(Tool):
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0:
-            return self.create_text_message(f"查询失败: {result.stderr}")
+            return self.create_text_message(f"Query failed: {result.stderr}")
 
         return self.create_json_message(json.loads(result.stdout))
 ```
 
 ---
 
-## 6. K8s Helm 部署
+## 6. K8s Helm Deployment
 
-### 6.1 Helm Chart 配置
+### 6.1 Helm Chart Configuration
 
 ```yaml
 # values.yaml
@@ -537,26 +537,26 @@ web:
     repository: langgenius/dify-web
     tag: "0.6.0"
 
-# 外部 PostgreSQL（推荐 RDS）
+# External PostgreSQL (recommended: RDS)
 externalPostgres:
   enabled: true
   host: "dify-db.xxxx.rds.amazonaws.com"
   port: 5432
   database: "dify"
 
-# 外部 Redis
+# External Redis
 externalRedis:
   enabled: true
   host: "dify-redis.xxxx.cache.amazonaws.com"
   port: 6379
 
-# 向量数据库
+# Vector database
 vectorStore:
   type: qdrant  # qdrant / weaviate / milvus
   qdrant:
     endpoint: "http://qdrant:6333"
 
-# 文件存储
+# File storage
 storage:
   type: s3  # s3 / azure_blob / local
   s3:
@@ -564,33 +564,32 @@ storage:
     region: "us-east-1"
 ```
 
-### 6.2 安装
+### 6.2 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 添加 Helm 仓库
+# 🟡 Medium risk: modifies cluster/resource state — confirm target, scope, and authorization before executing
+# Add Helm repository
 helm repo add dify https://langgenius.github.io/dify-helm
 helm repo update
 
-# 安装
+# Install
 helm install dify dify/dify \
   -n ai-platform \
   --create-namespace \
   -f values.yaml
 
-# 升级
+# Upgrade
 helm upgrade dify dify/dify -n ai-platform -f values.yaml
 ```
 ---
+## 7. Multi-Tenant Configuration
 
-## 7. 多租户配置
-
-### 7.1 工作空间隔离
+### 7.1 Workspace Isolation
 
 ```yaml
-# Dify 支持多工作空间
+# Dify supports multiple workspaces
 workspace:
-  # 每个团队独立工作空间
+  # Each team has an independent workspace
   teams:
     - name: "sre-team"
       plan: "professional"
@@ -602,16 +601,16 @@ workspace:
       max_knowledge_docs: 1000
 ```
 
-### 7.2 API 密钥管理
+### 7.2 API Key Management
 
 ```python
-# 每个应用独立 API Key
-# 通过 Dify 控制台创建
+# Each application has an independent API Key
+# Created via the Dify console
 
-# 应用级别访问控制
+# Application-level access control
 headers = {"Authorization": "Bearer app-xxxxx"}
 
-# 用户级别标识
+# User-level identification
 payload = {"user": "user-id-123"}
 ```
 
@@ -619,13 +618,13 @@ payload = {"user": "user-id-123"}
 
 ## Related
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph 深度指南]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent 框架选型决策树]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/01-langchain-langgraph-deep-dive|LangChain/LangGraph Deep Dive Guide]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/07-agent-framework-selection-guide|Agent Framework Selection Decision Tree]]
 
 ## See Also
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI 多 Agent 框架]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel 企业级 Agent]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/03-crewai-multi-agent-framework|CrewAI Multi-Agent Framework]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/06-semantic-kernel-enterprise|Semantic Kernel Enterprise-Grade Agent]]
 
 
 <!-- risk-assessed -->

@@ -1,7 +1,7 @@
 ---
-title: Prefect/Inngest Agent工作流
-description: '基于Prefect和Inngest的Agent工作流编排：Flow/Task模型、事件驱动Step Functions、Durable Execution语义与K8s部署'
-summary: '基于Prefect和Inngest的Agent工作流编排：Flow/Task模型、事件驱动Step Functions、Durable Execution语义与K8s部署'
+title: Prefect/Inngest Agent Workflow
+description: 'Agent workflow orchestration based on Prefect and Inngest: Flow/Task model, event-driven Step Functions, Durable Execution semantics, and K8s deployment'
+summary: 'Agent workflow orchestration based on Prefect and Inngest: Flow/Task model, event-driven Step Functions, Durable Execution semantics, and K8s deployment'
 category: ai-ml-infra
 tags:
 - ai
@@ -17,14 +17,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Prefect Agent工作流 是什么
-- 如何用Inngest编排Agent执行
-- Durable Execution语义详解
+- What is Prefect Agent Workflow
+- How to orchestrate Agent execution with Inngest
+- Detailed explanation of Durable Execution semantics
 trigger_keywords:
 - prefect
 - inngest
@@ -42,35 +42,36 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/09-prefect-inngest-agent-workflow.md
 ---
+# Prefect/Inngest Agent Workflow
 
-# Prefect/Inngest Agent工作流
+## Overview
 
-## 概述
+Prefect and Inngest represent two different Agent workflow orchestration paradigms. Prefect provides a Python-native Flow/Task orchestration model, suitable for data-intensive Agent tasks requiring fine-grained control; Inngest is based on event-driven Step Functions, providing fully managed Durable Execution semantics, suitable for building reactive Agent systems. Both solve the core problem in Agent execution: how to reliably orchestrate long-running Agent tasks in a distributed environment.
 
-Prefect和Inngest代表了两种不同的Agent工作流编排范式。Prefect提供Python原生的Flow/Task编排模型，适合需要精细控制的数据密集型Agent任务；Inngest基于事件驱动的Step Functions，提供完全托管的Durable Execution语义，适合构建响应式Agent系统。两者都解决了Agent执行中的核心问题：如何在分布式环境中可靠地编排长时间运行的Agent任务。
+## Prefect Flow/Task Orchestration for Agent Execution
 
-## Prefect Flow/Task编排Agent执行
+### Core Concepts
 
-### 核心概念
-
-Prefect的编程模型基于Flow和Task两级抽象：
+Prefect's programming model is based on a two-level abstraction of Flow and Task:
 
 ```
-Flow（流）:
-  - Agent任务的顶层编排单元
-  - 管理整体执行流程和状态
-  - 支持参数化、调度和重试
-  - 可以嵌套调用其他Flow
+Flow:
+  - Top-level orchestration unit for Agent tasks
+  - Manages overall execution flow and state
+  - Supports parameterization, scheduling, and retries
+  - Can nested-call other Flows
 
-Task（任务）:
-  - Flow中的最小执行单元
-  - 自动缓存和重试
-  - 支持并发执行
-  - 可配置超时和重试策略
+Task:
+  - Smallest execution unit within a Flow
+  - Automatic caching and retries
+  - Supports concurrent execution
+  - Configurable timeout and retry policies
 ```
 
-### Agent Flow实现
+### Agent Flow Implementation
 
 ```python
 from prefect import flow, task
@@ -90,7 +91,7 @@ async def llm_inference(
     messages: list,
     model: str = "gpt-4o",
 ) -> dict:
-    """LLM推理任务"""
+    """LLM inference task"""
     client = AsyncOpenAI()
 
     response = await client.chat.completions.create(
@@ -122,7 +123,7 @@ async def execute_tool(
     tool_name: str,
     arguments: dict,
 ) -> dict:
-    """工具执行任务"""
+    """Tool execution task"""
     tools = {
         "web_search": web_search_tool,
         "database_query": database_query_tool,
@@ -142,17 +143,17 @@ async def evaluate_response(
     response: dict,
     evaluation_criteria: dict,
 ) -> dict:
-    """评估Agent响应质量"""
+    """Evaluate Agent response quality"""
     eval_prompt = f"""
-    评估以下Agent响应的质量:
-    响应: {response['content']}
-    标准: {json.dumps(evaluation_criteria)}
+    Evaluate the quality of the following Agent response:
+    Response: {response['content']}
+    Criteria: {json.dumps(evaluation_criteria)}
 
-    返回JSON格式评分 (0-100) 和改进建议。
+    Return a JSON-formatted score (0-100) and improvement suggestions.
     """
 
     eval_result = await llm_inference(
-        system_prompt="你是一个评估专家。",
+        system_prompt="You are an evaluation expert.",
         messages=[{"role": "user", "content": eval_prompt}],
         model="gpt-4o-mini",
     )
@@ -162,7 +163,7 @@ async def evaluate_response(
 
 @flow(
     name="agent-execution-flow",
-    description="持久化Agent执行流程",
+    description="Persistent Agent execution flow",
     retries=1,
     retry_delay_seconds=60,
     timeout_seconds=3600,
@@ -173,24 +174,24 @@ async def agent_flow(
     max_iterations: int = 20,
     evaluation_threshold: float = 80.0,
 ) -> dict:
-    """Agent执行主流程"""
+    """Agent execution main flow"""
     conversation_history = [{"role": "user", "content": query}]
     tool_results = []
     total_tokens = {"prompt": 0, "completion": 0}
 
     for iteration in range(max_iterations):
-        # LLM推理
+        # LLM inference
         llm_response = await llm_inference(
             system_prompt=system_prompt,
             messages=conversation_history,
         )
 
-        # 累计Token用量
+        # Accumulate token usage
         total_tokens["prompt"] += llm_response["usage"]["prompt_tokens"]
         total_tokens["completion"] += llm_response["usage"]["completion_tokens"]
 
         if llm_response["tool_calls"]:
-            # 执行工具调用
+            # Execute tool calls
             for tool_call in llm_response["tool_calls"]:
                 result = await execute_tool(
                     tool_name=tool_call["name"],
@@ -212,13 +213,13 @@ async def agent_flow(
                     "tool_call_id": tool_call["id"],
                 })
         else:
-            # Agent生成最终响应
+            # Agent generates final response
             evaluation = await evaluate_response(
                 response=llm_response,
                 evaluation_criteria={
-                    "accuracy": "响应是否准确回答了问题",
-                    "completeness": "响应是否完整",
-                    "clarity": "响应是否清晰易懂",
+                    "accuracy": "Whether the response accurately answers the question",
+                    "completeness": "Whether the response is complete",
+                    "clarity": "Whether the response is clear and easy to understand",
                 },
             )
 
@@ -232,10 +233,10 @@ async def agent_flow(
                     "status": "completed",
                 }
 
-            # 评分不达标，继续迭代
+            # Score below threshold, continue iterating
             conversation_history.append({
                 "role": "user",
-                "content": f"请改进你的回答。评估反馈: {evaluation['feedback']}",
+                "content": f"Please improve your answer. Evaluation feedback: {evaluation['feedback']}",
             })
 
         conversation_history.append({
@@ -244,7 +245,7 @@ async def agent_flow(
         })
 
     return {
-        "output": "达到最大迭代次数",
+        "output": "Maximum number of iterations reached",
         "iterations": max_iterations,
         "tool_results": tool_results,
         "total_tokens": total_tokens,
@@ -252,7 +253,7 @@ async def agent_flow(
     }
 ```
 
-### 并行Agent编排
+### Parallel Agent Orchestration
 
 ```python
 @flow(name="parallel-agent-flow")
@@ -260,8 +261,8 @@ async def parallel_agent_flow(
     queries: list[str],
     system_prompts: list[str],
 ) -> list[dict]:
-    """并行执行多个Agent任务"""
-    # Prefect自动并行执行独立的Flow/Task
+    """Execute multiple Agent tasks in parallel"""
+    # Prefect automatically executes independent Flows/Tasks in parallel
     futures = []
     for query, prompt in zip(queries, system_prompts):
         future = agent_flow.submit(
@@ -280,24 +281,24 @@ async def parallel_agent_flow(
 
 @flow(name="hierarchical-agent-flow")
 async def hierarchical_agent_flow(task: str) -> dict:
-    """分层Agent编排 - Supervisor + Workers"""
-    # Supervisor Agent分析任务并分配
+    """Hierarchical Agent orchestration - Supervisor + Workers"""
+    # Supervisor Agent analyzes the task and delegates
     supervisor_response = await agent_flow(
-        query=f"分析以下任务并拆分为子任务: {task}",
+        query=f"Analyze the following task and break it down into subtasks: {task}",
         system_prompt=SUPERVISOR_PROMPT,
     )
 
     subtasks = json.loads(supervisor_response["output"])["subtasks"]
 
-    # Worker Agents并行执行子任务
+    # Worker Agents execute subtasks in parallel
     worker_results = await parallel_agent_flow(
         queries=[st["description"] for st in subtasks],
         system_prompts=[WORKER_PROMPT] * len(subtasks),
     )
 
-    # Aggregator Agent合并结果
+    # Aggregator Agent merges results
     aggregator_response = await agent_flow(
-        query=f"合并以下结果: {json.dumps(worker_results)}",
+        query=f"Merge the following results: {json.dumps(worker_results)}",
         system_prompt=AGGREGATOR_PROMPT,
     )
 
@@ -308,7 +309,7 @@ async def hierarchical_agent_flow(task: str) -> dict:
     }
 ```
 
-### Prefect部署配置
+### Prefect Deployment Configuration
 
 ```yaml
 # prefect-deployment.yaml
@@ -353,29 +354,28 @@ spec:
               cpu: "2"
               memory: "4Gi"
 ```
+## Inngest Step Functions Event-Driven Agent
 
-## Inngest Step Functions事件驱动Agent
+### Inngest Core Concepts
 
-### Inngest核心概念
-
-Inngest是一个事件驱动的Durable Execution平台，通过Step Functions提供可靠的异步任务编排：
+Inngest is an event-driven Durable Execution platform that provides reliable asynchronous task orchestration through Step Functions:
 
 ```
-Event（事件）:
-  - 触发Function执行的消息
-  - 包含类型(type)和数据(data)
-  - 异步投递，支持批量处理
+Event:
+  - A message that triggers Function execution
+  - Contains type and data
+  - Asynchronous delivery, supports batch processing
 
-Function（函数）:
-  - 响应事件执行的逻辑
-  - 由多个Step组成
-  - 自动重试和持久化
+Function:
+  - Logic that executes in response to events
+  - Composed of multiple Steps
+  - Automatic retry and persistence
 
-Step（步骤）:
-  - Function中的最小执行单元
-  - 结果自动缓存
-  - 支持并行执行
-  - 提供sleep/waitUntil能力
+Step:
+  - The smallest execution unit within a Function
+  - Results are automatically cached
+  - Supports parallel execution
+  - Provides sleep/waitUntil capabilities
 ```
 
 ### Inngest Agent Function
@@ -383,14 +383,14 @@ Step（步骤）:
 ```typescript
 import { inngest } from "./client";
 
-// 定义Agent事件
+// Define Agent event
 export const agentRequested = inngest.createFunction(
   { id: "agent-execution", name: "Agent Execution" },
   { event: "agent/requested" },
   async ({ event, step }) => {
     const { query, config } = event.data;
 
-    // Step 1: 初始化对话
+    // Step 1: Initialize conversation
     const conversation = await step.run("init-conversation", async () => {
       return {
         messages: [{ role: "user", content: query }],
@@ -398,12 +398,12 @@ export const agentRequested = inngest.createFunction(
       };
     });
 
-    // Agent主循环
+    // Agent main loop
     let iteration = 0;
     const maxIterations = config.maxIterations || 20;
 
     while (iteration < maxIterations) {
-      // Step 2: LLM推理（每步都是持久化的）
+      // Step 2: LLM inference (each step is persisted)
       const llmResponse = await step.run(
         `llm-inference-${iteration}`,
         async () => {
@@ -425,7 +425,7 @@ export const agentRequested = inngest.createFunction(
       );
 
       if (llmResponse.toolCalls.length > 0) {
-        // Step 3: 执行工具调用（支持并行）
+        // Step 3: Execute tool calls (supports parallel execution)
         const toolResults = await Promise.all(
           llmResponse.toolCalls.map((toolCall, index) =>
             step.run(`tool-exec-${iteration}-${index}`, async () => {
@@ -437,7 +437,7 @@ export const agentRequested = inngest.createFunction(
           )
         );
 
-        // 更新对话历史
+        // Update conversation history
         conversation.messages.push({
           role: "assistant",
           content: llmResponse.content,
@@ -453,7 +453,7 @@ export const agentRequested = inngest.createFunction(
           conversation.tool_results.push(result);
         });
       } else {
-        // Step 4: 等待人工审批（如果需要）
+        // Step 4: Wait for human approval (if required)
         if (config.requireApproval) {
           await step.waitForEvent("human-approval", {
             event: "agent/approval",
@@ -462,7 +462,7 @@ export const agentRequested = inngest.createFunction(
           });
         }
 
-        // Step 5: 返回最终结果
+        // Step 5: Return final result
         await step.sendEvent("agent-completed", {
           name: "agent/completed",
           data: {
@@ -482,35 +482,35 @@ export const agentRequested = inngest.createFunction(
 
       iteration++;
 
-      // Step 6: 迭代间延迟（防止速率限制）
+      // Step 6: Inter-iteration delay (to prevent rate limiting)
       await step.sleep("iteration-delay", "2s");
     }
 
     return {
-      output: "达到最大迭代次数",
+      output: "Maximum iteration count reached",
       iterations: maxIterations,
       status: "max_iterations_exceeded",
     };
   }
 );
 
-// 多Agent协作Function
+// Multi-Agent collaboration Function
 export const multiAgentOrchestration = inngest.createFunction(
   { id: "multi-agent", name: "Multi-Agent Orchestration" },
   { event: "agent/multi-agent-requested" },
   async ({ event, step }) => {
     const { task, agents } = event.data;
 
-    // Step 1: Supervisor分析任务
+    // Step 1: Supervisor analyzes the task
     const plan = await step.run("supervisor-plan", async () => {
       const response = await agentExecute({
-        query: `分析任务并制定执行计划: ${task}`,
+        query: `Analyze the task and formulate an execution plan: ${task}`,
         config: { systemPrompt: SUPERVISOR_PROMPT },
       });
       return JSON.parse(response.output);
     });
 
-    // Step 2: 并行执行Worker Agents
+    // Step 2: Execute Worker Agents in parallel
     const workerResults = await Promise.all(
       plan.subtasks.map((subtask, index) =>
         step.run(`worker-${index}`, async () => {
@@ -525,10 +525,10 @@ export const multiAgentOrchestration = inngest.createFunction(
       )
     );
 
-    // Step 3: Aggregator合并结果
+    // Step 3: Aggregator merges results
     const finalResult = await step.run("aggregator", async () => {
       return await agentExecute({
-        query: `合并以下结果: ${JSON.stringify(workerResults)}`,
+        query: `Merge the following results: ${JSON.stringify(workerResults)}`,
         config: { systemPrompt: AGGREGATOR_PROMPT },
       });
     });
@@ -542,7 +542,7 @@ export const multiAgentOrchestration = inngest.createFunction(
 );
 ```
 
-### Inngest部署配置
+### Inngest Deployment Configuration
 
 ```typescript
 // inngest/client.ts
@@ -551,9 +551,9 @@ import { Inngest } from "inngest";
 export const inngest = new Inngest({
   id: "agent-service",
   eventKey: process.env.INNGEST_EVENT_KEY,
-  // 生产环境配置
+  // Production configuration
   middleware: [
-    // OpenTelemetry集成
+    // OpenTelemetry integration
     inngestMiddleware({
       name: "otel-middleware",
       init() {
@@ -561,10 +561,10 @@ export const inngest = new Inngest({
           onFunctionRun({ ctx }) {
             return {
               beforeExecution() {
-                // 创建Span
+                // Create Span
               },
               afterExecution() {
-                // 关闭Span
+                // Close Span
               },
             };
           },
@@ -576,7 +576,7 @@ export const inngest = new Inngest({
 ```
 
 ```yaml
-# K8s部署Inngest Agent服务
+# K8s deployment for Inngest Agent service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -617,66 +617,65 @@ spec:
               cpu: "1"
               memory: "2Gi"
 ```
+## Durable Execution Semantics
 
-## Durable Execution语义
+### Core Guarantees
 
-### 核心保证
-
-Durable Execution提供以下关键保证：
-
-```
-1. 自动检查点:
-   - 每个Step完成后自动持久化结果
-   - 崩溃恢复时从最后成功的Step继续
-   - 不重复执行已完成的Step
-
-2. 精确一次语义:
-   - 每个Step的副作用只执行一次
-   - 幂等性由框架保证
-   - 开发者无需手动实现重试去重
-
-3. 无限运行时间:
-   - Function可以运行数天、数月
-   - 支持长时间sleep
-   - 不受进程生命周期限制
-
-4. 透明恢复:
-   - 开发者无需编写恢复逻辑
-   - 框架自动处理状态重建
-   - 代码从头执行，Step结果从缓存返回
-```
-
-### Prefect vs Inngest对比
+Durable Execution provides the following key guarantees:
 
 ```
-特性对比:
+1. Automatic Checkpointing:
+   - Results are automatically persisted after each Step completes
+   - Recovery from crashes resumes from the last successful Step
+   - Already-completed Steps are not re-executed
 
-持久化机制:
-  Prefect: 基于数据库的状态跟踪
-  Inngest: 基于事件日志的Step缓存
+2. Exactly-Once Semantics:
+   - Side effects of each Step are executed only once
+   - Idempotency is guaranteed by the framework
+   - Developers do not need to manually implement retry deduplication
 
-编程模型:
-  Prefect: Python装饰器，同步/异步支持
-  Inngest: TypeScript/Python，事件驱动
+3. Unlimited Runtime:
+   - Functions can run for days or months
+   - Supports long-duration sleep
+   - Not limited by process lifecycle
 
-部署模型:
-  Prefect: 自托管或Prefect Cloud
-  Inngest: 完全托管（Inngest Cloud）
-
-适用场景:
-  Prefect: 数据密集型、批处理、传统工作流
-  Inngest: 事件驱动、实时响应、Serverless
-
-Agent特性:
-  Prefect: 成熟的并发控制和资源管理
-  Inngest: 原生的事件等待和Step Functions
-
-监控能力:
-  Prefect: 内置UI、指标、日志
-  Inngest: 内置UI、实时追踪、调试工具
+4. Transparent Recovery:
+   - Developers do not need to write recovery logic
+   - The framework automatically handles state reconstruction
+   - Code executes from the beginning; Step results are returned from cache
 ```
 
-## 与Agent框架集成
+### Prefect vs Inngest Comparison
+
+```
+Feature Comparison:
+
+Persistence Mechanism:
+  Prefect: Database-based state tracking
+  Inngest: Event-log-based Step caching
+
+Programming Model:
+  Prefect: Python decorators, sync/async support
+  Inngest: TypeScript/Python, event-driven
+
+Deployment Model:
+  Prefect: Self-hosted or Prefect Cloud
+  Inngest: Fully managed (Inngest Cloud)
+
+Use Cases:
+  Prefect: Data-intensive, batch processing, traditional workflows
+  Inngest: Event-driven, real-time response, Serverless
+
+Agent Features:
+  Prefect: Mature concurrency control and resource management
+  Inngest: Native event waiting and Step Functions
+
+Monitoring Capabilities:
+  Prefect: Built-in UI, metrics, logs
+  Inngest: Built-in UI, real-time tracing, debugging tools
+```
+
+## Integration with Agent Frameworks
 
 ### Prefect + LangChain
 
@@ -690,7 +689,7 @@ async def run_langchain_agent(
     query: str,
     agent_config: dict,
 ) -> dict:
-    """在Prefect Task中执行LangChain Agent"""
+    """Execute a LangChain Agent inside a Prefect Task"""
     llm = ChatOpenAI(
         model=agent_config.get("model", "gpt-4o"),
         temperature=0.1,
@@ -728,7 +727,7 @@ async def langchain_agent_flow(
     query: str,
     config: dict,
 ) -> dict:
-    """LangChain Agent的Prefect Flow包装"""
+    """Prefect Flow wrapper for a LangChain Agent"""
     result = await run_langchain_agent(
         query=query,
         agent_config=config,
@@ -747,21 +746,21 @@ export const openaiAssistantAgent = inngest.createFunction(
   async ({ event, step }) => {
     const { assistantId, query } = event.data;
 
-    // Step 1: 创建Thread
+    // Step 1: Create Thread
     const thread = await step.run("create-thread", async () => {
       return await openai.beta.threads.create({
         messages: [{ role: "user", content: query }],
       });
     });
 
-    // Step 2: 创建Run
+    // Step 2: Create Run
     const run = await step.run("create-run", async () => {
       return await openai.beta.threads.runs.create(thread.id, {
         assistant_id: assistantId,
       });
     });
 
-    // Step 3: 轮询Run状态（带超时）
+    // Step 3: Poll Run status (with timeout)
     let runStatus = run;
     while (runStatus.status !== "completed") {
       runStatus = await step.run(
@@ -775,7 +774,7 @@ export const openaiAssistantAgent = inngest.createFunction(
       );
 
       if (runStatus.status === "requires_action") {
-        // 处理工具调用
+        // Handle tool calls
         const toolCalls =
           runStatus.required_action.submit_tool_outputs.tool_calls;
 
@@ -803,11 +802,11 @@ export const openaiAssistantAgent = inngest.createFunction(
         });
       }
 
-      // 等待后再轮询
+      // Wait before polling again
       await step.sleep("poll-delay", "2s");
     }
 
-    // Step 4: 获取最终消息
+    // Step 4: Retrieve final messages
     const messages = await step.run("get-messages", async () => {
       return await openai.beta.threads.messages.list(thread.id);
     });
@@ -824,13 +823,12 @@ export const openaiAssistantAgent = inngest.createFunction(
   }
 );
 ```
+## Key Production Practices
 
-## 生产实践要点
-
-### 监控与告警
+### Monitoring & Alerting
 
 ```python
-# Prefect监控配置
+# Prefect monitoring configuration
 from prefect import flow
 from prefect.runtime import flow_run
 
@@ -840,8 +838,8 @@ from prefect.runtime import flow_run
     on_completion=[log_metrics],
 )
 async def monitored_agent_flow(query: str) -> dict:
-    """带监控的Agent Flow"""
-    # 记录自定义指标
+    """Agent Flow with monitoring"""
+    # Record custom metrics
     from prometheus_client import Counter, Histogram
 
     agent_iterations = Counter(
@@ -867,35 +865,35 @@ async def monitored_agent_flow(query: str) -> dict:
     return result
 ```
 
-### 部署清单
+### Deployment Checklist
 
 ```
-Prefect/Inngest Agent部署检查项:
+Prefect/Inngest Agent Deployment Checklist:
 
 Prefect:
-  □ Prefect Server高可用部署或使用Prefect Cloud
-  □ Worker Pool配置（CPU/Memory限制、并发限制）
-  □ Work Queue优先级设置（不同Agent类型）
-  □ 存储后端配置（S3/GCS用于Flow结果）
-  □ Secret管理（通过Prefect Blocks或K8s Secrets）
-  □ 监控集成（Prometheus指标、日志聚合）
+  □ Prefect Server high-availability deployment or use Prefect Cloud
+  □ Worker Pool configuration (CPU/Memory limits, concurrency limits)
+  □ Work Queue priority settings (for different Agent types)
+  □ Storage backend configuration (S3/GCS for Flow results)
+  □ Secret management (via Prefect Blocks or K8s Secrets)
+  □ Monitoring integration (Prometheus metrics, log aggregation)
 
 Inngest:
-  □ Inngest Cloud账户配置或自托管部署
-  □ Event Key和Signing Key管理
-  □ Function并发限制配置
-  □ Step超时设置
-  □ 错误处理和Dead Letter Queue配置
-  □ 监控集成（Inngest Dashboard、Webhook告警）
+  □ Inngest Cloud account configuration or self-hosted deployment
+  □ Event Key and Signing Key management
+  □ Function concurrency limit configuration
+  □ Step timeout settings
+  □ Error handling and Dead Letter Queue configuration
+  □ Monitoring integration (Inngest Dashboard, Webhook alerting)
 
-通用:
-  □ LLM API密钥管理
-  □ 速率限制和配额管理
-  □ 成本追踪和预算告警
-  □ 日志聚合和结构化日志
-  □ 分布式追踪集成
+General:
+  □ LLM API key management
+  □ Rate limiting and quota management
+  □ Cost tracking and budget alerting
+  □ Log aggregation and structured logging
+  □ Distributed tracing integration
 ```
 
 ---
 
-*Prefect和Inngest为Agent执行提供了互补的持久化编排能力，选择取决于事件驱动vs批处理的场景需求。*
+*Prefect and Inngest provide complementary durable orchestration capabilities for Agent execution; the choice depends on whether the use case is event-driven vs. batch processing.*

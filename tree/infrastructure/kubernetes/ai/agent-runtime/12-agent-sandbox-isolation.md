@@ -1,7 +1,7 @@
 ---
-title: Agent沙箱与隔离
-description: 'Agent执行沙箱架构：Docker容器隔离、gVisor系统调用拦截、Firecracker microVM、云端沙箱服务与K8s安全策略'
-summary: 'Agent执行沙箱架构：Docker容器隔离、gVisor系统调用拦截、Firecracker microVM、云端沙箱服务与K8s安全策略'
+title: Agent Sandbox and Isolation
+description: 'Agent execution sandbox architecture: Docker container isolation, gVisor syscall interception, Firecracker microVM, cloud sandbox services, and K8s security policies'
+summary: 'Agent execution sandbox architecture: Docker container isolation, gVisor syscall interception, Firecracker microVM, cloud sandbox services, and K8s security policies'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,14 +16,14 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- Agent沙箱隔离 是什么
-- 如何为Agent构建安全沙箱
-- gVisor Firecracker Agent隔离
+- What is Agent sandbox isolation
+- How to build a secure sandbox for Agents
+- gVisor Firecracker Agent isolation
 trigger_keywords:
 - agent-sandbox
 - isolation
@@ -42,62 +42,63 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/12-agent-sandbox-isolation.md
 ---
-
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are marked as: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state, but generally reversible), 🟢 Low risk/Read-only (information gathering, no side effects).
 
 
-# Agent沙箱与隔离
+# Agent Sandbox and Isolation
 
-## 概述
+## Overview
 
-AI Agent的安全隔离是生产部署的核心挑战。与传统应用不同，Agent通常需要执行LLM生成的代码、调用外部API、访问文件系统，这些操作都带来了显著的安全风险。一个失控的Agent可能导致数据泄露、资源滥用甚至系统入侵。
+Security isolation for AI Agents is a core challenge in production deployments. Unlike traditional applications, Agents typically need to execute LLM-generated code, call external APIs, and access the file system — all of which introduce significant security risks. An out-of-control Agent can lead to data leakage, resource abuse, or even system intrusion.
 
-本文档系统介绍Agent沙箱的多种实现方案：从轻量级的Docker容器隔离到强隔离的Firecracker microVM，以及E2B、Modal等云端沙箱服务，并提供K8s环境下的安全策略配置。
+This document systematically introduces multiple Agent sandbox implementation approaches: from lightweight Docker container isolation to strongly isolated Firecracker microVMs, as well as cloud-based sandbox services such as E2B and Modal, along with security policy configurations in K8s environments.
 
 ```
-隔离级别对比:
+Isolation Level Comparison:
 
-级别          技术              隔离强度    启动时间    资源开销
-────────────────────────────────────────────────────────────
-进程级        Docker容器         中          ~100ms      低
-系统调用级    gVisor             中高        ~200ms      中
-硬件级        Firecracker microVM 高         ~125ms      中高
-云端          E2B/Modal          高          ~500ms      按需
+Level         Technology              Isolation Strength    Startup Time    Resource Overhead
+──────────────────────────────────────────────────────────────────────────────────────────
+Process       Docker container        Medium                ~100ms          Low
+Syscall       gVisor                  Medium-High           ~200ms          Medium
+Hardware      Firecracker microVM     High                  ~125ms          Medium-High
+Cloud         E2B/Modal               High                  ~500ms          On-demand
 ```
 
-## Docker容器沙箱
+## Docker Container Sandbox
 
-### 基础容器配置
+### Basic Container Configuration
 
 ```dockerfile
-# Agent沙箱基础镜像
+# Agent sandbox base image
 FROM python:3.11-slim AS base
 
-# 创建非root用户
+# Create non-root user
 RUN groupadd -r agent && useradd -r -g agent -d /home/agent agent
 
-# 安装最小依赖
+# Install minimal dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# 设置工作目录
+# Set working directory
 WORKDIR /workspace
 
-# 切换到非root用户
+# Switch to non-root user
 USER agent
 
-# 入口点
+# Entrypoint
 ENTRYPOINT ["python", "-m", "agent_executor"]
 ```
 
-### 资源限制
+### Resource Limits
 
 ```yaml
-# K8s Pod资源配置
+# K8s Pod resource configuration
 apiVersion: v1
 kind: Pod
 metadata:
@@ -149,7 +150,7 @@ spec:
         sizeLimit: 100Mi
 ```
 
-### seccomp配置
+### seccomp Configuration
 
 ```json
 {
@@ -188,7 +189,7 @@ spec:
 }
 ```
 
-### AppArmor配置
+### AppArmor Configuration
 
 ```bash
 # /etc/apparmor.d/agent-sandbox
@@ -199,63 +200,63 @@ profile agent-sandbox flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/python>
   #include <abstractions/openssl>
 
-  # 允许读取系统库
+  # Allow reading system libraries
   /usr/lib/** r,
   /lib/** r,
 
-  # 工作目录读写
+  # Read/write working directory
   /workspace/** rw,
   /tmp/** rw,
 
-  # 禁止访问敏感目录
+  # Deny access to sensitive directories
   deny /etc/shadow r,
   deny /etc/passwd w,
   deny /root/** rwx,
   deny /home/**/.* rwx,
 
-  # 网络访问（限制出站）
+  # Network access (restrict outbound)
   network inet stream,
   network inet dgram,
   deny network inet6,
 
-  # 禁止挂载
+  # Deny mounting
   deny mount,
   deny umount,
   deny pivot_root,
 
-  # 禁止加载内核模块
+  # Deny loading kernel modules
   deny /sbin/modprobe x,
   deny /sbin/insmod x,
 
-  # 信号限制
+  # Signal restrictions
   signal receive,
   signal send,
 }
 ```
 
-## gVisor沙箱
+## gVisor Sandbox
 
-### gVisor原理
+### gVisor Principles
 
-gVisor是一个用户空间内核，通过拦截系统调用提供强隔离：
+gVisor is a user-space kernel that provides strong isolation by intercepting system calls:
 
 ```
-传统容器:
-  应用 → 系统调用 → 宿主机内核 → 硬件
+Traditional container:
+  Application → syscall → host kernel → hardware
   
 gVisor:
-  应用 → 系统调用 → Sentry(用户空间内核) → Gofer(文件代理) → 宿主机内核 → 硬件
+  Application → syscall → Sentry (user-space kernel) → Gofer (file proxy) → host kernel → hardware
 
-gVisor核心组件:
-  Sentry: 用户空间内核，实现Linux系统调用接口
-  Gofer: 文件系统代理，限制主机文件访问
-  Runsc: OCI兼容的容器运行时
+gVisor core components:
+  Sentry: User-space kernel, implements the Linux syscall interface
+  Gofer: File system proxy, restricts host file access
+  Runsc: OCI-compatible container runtime
 ```
 
-### K8s集成gVisor
+### Integrating gVisor with K8s
 
 ```yaml
-# 安装gVisor RuntimeClass
+# Install gVisor RuntimeClass
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
@@ -265,7 +266,7 @@ scheduling:
   nodeSelector:
     node.kubernetes.io/gvisor: "true"
 ---
-# 使用gVisor的Agent Pod
+# Agent Pod using gVisor
 apiVersion: v1
 kind: Pod
 metadata:
@@ -287,7 +288,7 @@ spec:
         readOnlyRootFilesystem: true
 ```
 
-### gVisor运行时配置
+### gVisor Runtime Configuration
 
 ```json
 // /etc/docker/daemon.json
@@ -310,61 +311,60 @@ spec:
 ```
 
 ```yaml
-# runsc配置文件
+# runsc configuration file
 # /etc/runsc/config.toml
 [runsc]
-  # 网络隔离
+  # Network isolation
   network = "sandbox"
   
-  # 文件系统
+  # File system
   file-access = "exclusive"
   overlay2 = "all:memory"
   
-  # 系统调用过滤
+  # Syscall filtering
   platform = "systrap"
   
-  # 内存限制
+  # Memory limit
   total-memory-limit = "1Gi"
   
-  # CPU限制
+  # CPU limit
   cpu-rate-limit = 100000
   
-  # 日志
+  # Logging
   debug = false
   log = "/var/log/runsc/"
   log-packets = false
 ```
-
 ## Firecracker microVM
 
-### Firecracker原理
+### Firecracker Principles
 
-Firecracker是AWS开发的轻量级虚拟机监视器，提供硬件级隔离：
+Firecracker is a lightweight virtual machine monitor developed by AWS that provides hardware-level isolation:
 
 ```
-Firecracker架构:
+Firecracker Architecture:
 
-传统VM:
-  应用 → Guest OS → Hypervisor(KVM) → 宿主机内核 → 硬件
+Traditional VM:
+  Application → Guest OS → Hypervisor (KVM) → Host Kernel → Hardware
   
 Firecracker microVM:
-  应用 → 精简Guest OS → Firecracker VMM → KVM → 宿主机内核 → 硬件
+  Application → Slim Guest OS → Firecracker VMM → KVM → Host Kernel → Hardware
 
-特点:
-  - 启动时间: ~125ms
-  - 内存开销: <5MB per microVM
-  - 支持>4000个microVM/主机
-  - 最小化攻击面（约50K行Rust代码）
+Features:
+  - Boot time: ~125ms
+  - Memory overhead: <5MB per microVM
+  - Supports >4000 microVMs per host
+  - Minimized attack surface (approximately 50K lines of Rust code)
 ```
 
-### Firecracker Agent沙箱
+### Firecracker Agent Sandbox
 
 ```python
 import firectl
 from firectl import FirecrackerClient
 
 class FirecrackerAgentSandbox:
-    """基于Firecracker的Agent沙箱"""
+    """Agent sandbox based on Firecracker"""
 
     def __init__(self, socket_path: str):
         self.client = FirecrackerClient(socket_path)
@@ -374,8 +374,8 @@ class FirecrackerAgentSandbox:
         agent_id: str,
         config: SandboxConfig,
     ) -> str:
-        """创建Firecracker microVM沙箱"""
-        # 配置VM
+        """Create a Firecracker microVM sandbox"""
+        # Configure VM
         vm_config = {
             "boot-source": {
                 "kernel_image_path": config.kernel_path,
@@ -403,10 +403,10 @@ class FirecrackerAgentSandbox:
             ],
         }
 
-        # 启动microVM
+        # Start microVM
         await self.client.create_vm(vm_config)
 
-        # 配置cgroup限制
+        # Configure cgroup limits
         await self._setup_cgroups(agent_id, config)
 
         return agent_id
@@ -416,8 +416,8 @@ class FirecrackerAgentSandbox:
         agent_id: str,
         command: str,
     ) -> ExecutionResult:
-        """在microVM中执行命令"""
-        # 通过API执行命令
+        """Execute a command inside the microVM"""
+        # Execute command via API
         result = await self.client.api_put(
             f"/actions",
             {
@@ -431,26 +431,26 @@ class FirecrackerAgentSandbox:
         agent_id: str,
         config: SandboxConfig,
     ):
-        """配置cgroup资源限制"""
+        """Configure cgroup resource limits"""
         cgroup_path = f"/sys/fs/cgroup/firecracker/{agent_id}"
 
-        # CPU限制
+        # CPU limit
         with open(f"{cgroup_path}/cpu.max", "w") as f:
             f.write(f"{config.cpu_quota} {config.cpu_period}")
 
-        # 内存限制
+        # Memory limit
         with open(f"{cgroup_path}/memory.max", "w") as f:
             f.write(str(config.memory_limit_bytes))
 
-        # I/O限制
+        # I/O limit
         with open(f"{cgroup_path}/io.max", "w") as f:
             f.write(f"8:0 rbps={config.read_bps} wbps={config.write_bps}")
 ```
 
-### Kata Containers (Firecracker集成)
+### Kata Containers (Firecracker Integration)
 
 ```yaml
-# K8s使用Kata Containers (Firecracker后端)
+# K8s using Kata Containers (Firecracker backend)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -472,17 +472,17 @@ spec:
         runAsNonRoot: true
 ```
 
-## E2B云端沙箱
+## E2B Cloud Sandbox
 
-### E2B概述
+### E2B Overview
 
-E2B（Environment to Build）提供托管的云端代码执行沙箱：
+E2B (Environment to Build) provides managed cloud-based code execution sandboxes:
 
 ```python
 from e2b_code_interpreter import Sandbox
 
 class E2BAgentSandbox:
-    """基于E2B的Agent代码执行沙箱"""
+    """Agent code execution sandbox based on E2B"""
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -492,11 +492,11 @@ class E2BAgentSandbox:
         code: str,
         language: str = "python",
     ) -> ExecutionResult:
-        """在E2B沙箱中执行代码"""
+        """Execute code in an E2B sandbox"""
         sandbox = Sandbox(api_key=self.api_key)
 
         try:
-            # 执行代码
+            # Execute code
             execution = sandbox.run_code(code)
 
             return ExecutionResult(
@@ -513,18 +513,18 @@ class E2BAgentSandbox:
         code: str,
         files: dict[str, bytes],
     ) -> ExecutionResult:
-        """上传文件并在沙箱中执行"""
+        """Upload files and execute in sandbox"""
         sandbox = Sandbox(api_key=self.api_key)
 
         try:
-            # 上传文件
+            # Upload files
             for filename, content in files.items():
                 sandbox.files.write(filename, content)
 
-            # 执行代码
+            # Execute code
             execution = sandbox.run_code(code)
 
-            # 下载结果文件
+            # Download result files
             output_files = {}
             for path in sandbox.files.list("/workspace"):
                 if path.endswith(".out") or path.endswith(".result"):
@@ -540,39 +540,38 @@ class E2BAgentSandbox:
             sandbox.kill()
 ```
 
-### E2B自定义模板
+### E2B Custom Templates
 
 ```dockerfile
-# E2B自定义沙箱模板
+# E2B custom sandbox template
 # e2b.Dockerfile
 FROM e2bdev/code-interpreter:latest
 
-# 安装额外依赖
+# Install additional dependencies
 RUN pip install pandas numpy matplotlib scikit-learn
 
-# 安装Node.js
+# Install Node.js
 RUN apt-get update && apt-get install -y nodejs npm
 
-# 复制自定义工具
+# Copy custom tools
 COPY tools/ /usr/local/bin/tools/
 
-# 配置环境
+# Configure environment
 ENV PYTHONUNBUFFERED=1
 ENV E2B_TEMPLATE_ID="custom-agent-sandbox"
 ```
+## Modal Serverless Sandbox
 
-## Modal无服务器沙箱
+### Modal Overview
 
-### Modal概述
-
-Modal提供无服务器的代码执行环境，支持GPU加速：
+Modal provides a serverless code execution environment with GPU acceleration support:
 
 ```python
 import modal
 
 app = modal.App("agent-sandbox")
 
-# 定义沙箱镜像
+# Define sandbox image
 sandbox_image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("pandas", "numpy", "scikit-learn")
@@ -584,26 +583,26 @@ sandbox_image = (
     timeout=300,
     cpu=2,
     memory=1024,
-    # GPU支持
+    # GPU support
     # gpu="A10G",
 )
 def execute_agent_code(code: str, context: dict) -> dict:
-    """在Modal沙箱中执行Agent生成的代码"""
+    """Execute Agent-generated code in a Modal sandbox"""
     import io
     import sys
 
-    # 捕获输出
+    # Capture output
     old_stdout = sys.stdout
     old_stderr = sys.stderr
     sys.stdout = io.StringIO()
     sys.stderr = io.StringIO()
 
     try:
-        # 注入上下文变量
+        # Inject context variables
         exec_globals = {"__builtins__": __builtins__}
         exec_globals.update(context)
 
-        # 执行代码
+        # Execute code
         exec(code, exec_globals)
 
         return {
@@ -622,10 +621,10 @@ def execute_agent_code(code: str, context: dict) -> dict:
         sys.stderr = old_stderr
 
 
-# Modal Sandbox API (推荐)
+# Modal Sandbox API (recommended)
 @app.function()
 async def run_in_sandbox(code: str) -> dict:
-    """使用Modal Sandbox API"""
+    """Use the Modal Sandbox API"""
     sb = modal.Sandbox.create(
         image=sandbox_image,
         timeout=300,
@@ -633,7 +632,7 @@ async def run_in_sandbox(code: str) -> dict:
         memory=1024,
     )
 
-    # 执行命令
+    # Execute command
     process = sb.exec("python", "-c", code)
 
     return {
@@ -643,18 +642,18 @@ async def run_in_sandbox(code: str) -> dict:
     }
 ```
 
-## 代码执行安全策略
+## Code Execution Security Policies
 
-### 代码静态分析
+### Static Code Analysis
 
 ```python
 import ast
 from typing import Optional
 
 class CodeSafetyAnalyzer:
-    """代码安全性静态分析器"""
+    """Static analyzer for code safety"""
 
-    # 禁止的模块
+    # Blocked modules
     BLOCKED_MODULES = {
         "os", "subprocess", "shutil", "sys",
         "socket", "http", "urllib", "requests",
@@ -662,61 +661,61 @@ class CodeSafetyAnalyzer:
         "compile", "exec", "eval",
     }
 
-    # 禁止的内置函数
+    # Blocked built-in functions
     BLOCKED_BUILTINS = {
         "exec", "eval", "compile",
         "__import__", "globals", "locals",
         "getattr", "setattr", "delattr",
     }
 
-    # 危险的AST节点类型
+    # Dangerous AST node types
     DANGEROUS_NODE_TYPES = {
         ast.Import,
         ast.ImportFrom,
         ast.Exec,
-        ast.Yield,  # 可能用于生成器攻击
+        ast.Yield,  # May be used for generator-based attacks
     }
 
     def analyze(self, code: str) -> SafetyReport:
-        """分析代码安全性"""
+        """Analyze code safety"""
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
             return SafetyReport(
                 safe=False,
-                violations=[f"语法错误: {str(e)}"],
+                violations=[f"Syntax error: {str(e)}"],
             )
 
         violations = []
 
         for node in ast.walk(tree):
-            # 检查导入
+            # Check imports
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.split(".")[0] in self.BLOCKED_MODULES:
                         violations.append(
-                            f"禁止导入模块: {alias.name} (行 {node.lineno})"
+                            f"Blocked module import: {alias.name} (line {node.lineno})"
                         )
 
             if isinstance(node, ast.ImportFrom):
                 if node.module and node.module.split(".")[0] in self.BLOCKED_MODULES:
                     violations.append(
-                        f"禁止从模块导入: {node.module} (行 {node.lineno})"
+                        f"Blocked from-module import: {node.module} (line {node.lineno})"
                     )
 
-            # 检查危险函数调用
+            # Check dangerous function calls
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name):
                     if node.func.id in self.BLOCKED_BUILTINS:
                         violations.append(
-                            f"禁止调用: {node.func.id}() (行 {node.lineno})"
+                            f"Blocked call: {node.func.id}() (line {node.lineno})"
                         )
 
-            # 检查属性访问
+            # Check attribute access
             if isinstance(node, ast.Attribute):
                 if node.attr.startswith("__"):
                     violations.append(
-                        f"禁止访问魔术属性: {node.attr} (行 {node.lineno})"
+                        f"Blocked magic attribute access: {node.attr} (line {node.lineno})"
                     )
 
         return SafetyReport(
@@ -725,14 +724,14 @@ class CodeSafetyAnalyzer:
         )
 ```
 
-### 运行时沙箱
+### Runtime Sandbox
 
 ```python
 import resource
 import signal
 
 class RuntimeSandbox:
-    """运行时代码执行沙箱"""
+    """Runtime code execution sandbox"""
 
     def __init__(
         self,
@@ -745,18 +744,18 @@ class RuntimeSandbox:
         self.max_output_bytes = max_output_bytes
 
     def execute(self, code: str, context: dict) -> ExecutionResult:
-        """在沙箱中执行代码"""
+        """Execute code inside the sandbox"""
         import io
         import sys
 
-        # 设置资源限制
+        # Set resource limits
         self._set_resource_limits()
 
-        # 设置超时信号
+        # Set timeout signal
         signal.signal(signal.SIGALRM, self._timeout_handler)
         signal.alarm(self.max_cpu_seconds)
 
-        # 捕获输出
+        # Capture output
         stdout_capture = io.StringIO()
         stderr_capture = io.StringIO()
 
@@ -766,12 +765,12 @@ class RuntimeSandbox:
         sys.stderr = stderr_capture
 
         try:
-            # 创建受限的命名空间
+            # Create a restricted namespace
             safe_builtins = self._create_safe_builtins()
             exec_globals = {"__builtins__": safe_builtins}
             exec_globals.update(context)
 
-            # 执行代码
+            # Execute code
             exec(code, exec_globals)
 
             return ExecutionResult(
@@ -782,13 +781,13 @@ class RuntimeSandbox:
         except TimeoutError:
             return ExecutionResult(
                 stdout="",
-                stderr="执行超时",
+                stderr="Execution timed out",
                 exit_code=124,
             )
         except MemoryError:
             return ExecutionResult(
                 stdout="",
-                stderr="内存超限",
+                stderr="Memory limit exceeded",
                 exit_code=137,
             )
         except Exception as e:
@@ -803,31 +802,31 @@ class RuntimeSandbox:
             signal.alarm(0)
 
     def _set_resource_limits(self):
-        """设置系统资源限制"""
-        # 内存限制
+        """Set system resource limits"""
+        # Memory limit
         memory_bytes = self.max_memory_mb * 1024 * 1024
         resource.setrlimit(
             resource.RLIMIT_AS,
             (memory_bytes, memory_bytes),
         )
 
-        # CPU时间限制
+        # CPU time limit
         resource.setrlimit(
             resource.RLIMIT_CPU,
             (self.max_cpu_seconds, self.max_cpu_seconds),
         )
 
-        # 文件大小限制
+        # File size limit
         resource.setrlimit(
             resource.RLIMIT_FSIZE,
             (100 * 1024 * 1024, 100 * 1024 * 1024),  # 100MB
         )
 
     def _timeout_handler(self, signum, frame):
-        raise TimeoutError("执行超时")
+        raise TimeoutError("Execution timed out")
 
     def _create_safe_builtins(self) -> dict:
-        """创建安全的内置函数集合"""
+        """Create a safe set of built-in functions"""
         import builtins
 
         safe = {}
@@ -847,13 +846,12 @@ class RuntimeSandbox:
 
         return safe
 ```
-
 ## K8s Pod Security Standards
 
-### PSS/PSA配置
+### PSS/PSA Configuration
 
 ```yaml
-# Pod Security Standards - Restricted级别
+# Pod Security Standards - Restricted level
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -867,7 +865,7 @@ metadata:
 ### NetworkPolicy
 
 ```yaml
-# Agent网络隔离策略
+# Agent network isolation policy
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -881,7 +879,7 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # 只允许来自API Gateway的入站流量
+    # Allow inbound traffic only from API Gateway
     - from:
         - namespaceSelector:
             matchLabels:
@@ -893,7 +891,7 @@ spec:
         - port: 8080
           protocol: TCP
   egress:
-    # 允许DNS查询
+    # Allow DNS queries
     - to:
         - namespaceSelector: {}
           podSelector:
@@ -904,12 +902,12 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # 允许访问LLM API（限制IP范围）
+    # Allow access to LLM API (restricted IP range)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
-              - 10.0.0.0/8      # 禁止访问内网
+              - 10.0.0.0/8      # Block access to internal network
               - 172.16.0.0/12
               - 192.168.0.0/16
       ports:
@@ -917,10 +915,10 @@ spec:
           protocol: TCP
 ```
 
-### SecurityContext约束
+### SecurityContext Constraints
 
 ```yaml
-# 完整的安全约束Pod模板
+# Fully hardened Pod template with security constraints
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1009,7 +1007,7 @@ spec:
 
 ---
 
-*Agent沙箱是安全执行LLM生成代码的关键基础设施，选择合适的隔离级别需要在安全性、性能和成本之间找到平衡。*
+*The agent sandbox is critical infrastructure for securely executing LLM-generated code; choosing the appropriate isolation level requires striking a balance between security, performance, and cost.*
 
 
 <!-- risk-assessed -->
