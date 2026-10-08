@@ -11,7 +11,7 @@ BUILDKIT_PROGRESS ?= plain
 
 .DEFAULT_GOAL := help
 .PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
-        docker-build docker-login docker-push helm-deploy mcp-image \
+        docker-build docker-login docker-push helm-deploy mcp-image translate-scan \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -56,13 +56,15 @@ docker-login: ## Login to GHCR using gh auth token (write:packages)
 docker-push: docker-build docker-login ## Push kb-retrieval image to IMAGE_REPO
 	docker push $(IMAGE)
 
-helm-deploy: ## Install/upgrade chart; qdrant.apikey from QDRANT_API_KEY (.envrc)
-	@test -n "$${QDRANT_API_KEY}" || { \
-		echo "QDRANT_API_KEY not set — run: direnv allow  (or export from .envrc)"; \
+helm-deploy: ## Install/upgrade chart; key comes from the qdrant-apikey Secret in ai
+	@kubectl -n ai get secret qdrant-apikey >/dev/null 2>&1 || { \
+		echo "Secret ai/qdrant-apikey missing — apply platform/ai/kubernetes/mcp first"; \
 		exit 1; \
 	}
-	helm upgrade --install knowledge-tree chart -n ai \
-		--set-string qdrant.apikey="$${QDRANT_API_KEY}"
+	helm upgrade --install knowledge-tree chart -n ai
+
+translate-scan: ## Scan tree for non-English; dry-run (add WRITE=1 to overwrite)
+	$(PY) scripts/translation_scan.py tree/ $(if $(WRITE),--write,)
 
 golden: ## Measure retrieval quality (recall@k / MRR) against eval/golden.yaml
 	$(PY) -m kb eval

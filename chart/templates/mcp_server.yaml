@@ -33,7 +33,7 @@ spec:
       {{- if .Values.qdrant.verify }}
       QDRANT_VERIFY: {{ .Values.qdrant.verify | quote }}
       {{- end }}
-      {{- if .Values.qdrant.apikey }}
+      {{- if and (not .Values.qdrant.existingSecretEnabled) .Values.qdrant.apikey }}
       QDRANT_API_KEY: {{ .Values.qdrant.apikey | quote }}
       {{- end }}
       COLLECTION_NAME: {{ .Values.qdrant.collection | quote }}
@@ -45,7 +45,8 @@ spec:
       PYTHONDONTWRITEBYTECODE: "1"
       FASTEMBED_CACHE_PATH: {{ .Values.fastembedCachePath | quote }}
     {{- if and .Values.qdrant.existingSecretEnabled .Values.qdrant.existingSecret }}
-    # Secret keys become env vars (kmcp envFrom). Expect key: QDRANT_API_KEY
+    secretRefs:
+      - name: {{ .Values.qdrant.existingSecret | quote }}
     {{- end }}
     volumeMounts:
       {{- if .Values.writableVolumes.home }}

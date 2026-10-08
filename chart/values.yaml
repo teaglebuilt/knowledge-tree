@@ -32,18 +32,16 @@ qdrant:
   network: internal
   internalUrl: http://qdrant.data.svc.cluster.local:6333
   externalUrl: https://qdrant.homelab.internal
-  # Set via `make helm-deploy` from QDRANT_API_KEY in .envrc — do not commit real keys.
+  # Dev fallback only; ignored when existingSecretEnabled.
   apikey: ""
   # Optional hard override (wins over network mode when set).
   url: ""
   # Empty → kb.config defaults (verify=true for internal HTTP, false for external TLS).
   verify: ""
   collection: knowledge
-  # Existing Secret in the same namespace; keys are injected as env (envFrom).
-  # Create e.g.: kubectl -n ai create secret generic qdrant-apikey --from-literal=QDRANT_API_KEY=...
-  # Prefer existingSecret over --set for production.
-  # Set false to omit secretRefs (local/dev without auth).
-  existingSecretEnabled: false
+  # Secret in the chart namespace; keys become env vars. Expects key QDRANT_API_KEY.
+  existingSecretEnabled: true
+  existingSecret: qdrant-apikey
 
 embedding:
   model: BAAI/bge-small-en-v1.5
