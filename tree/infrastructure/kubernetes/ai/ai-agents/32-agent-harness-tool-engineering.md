@@ -1,6 +1,7 @@
----title: Agent Harness 工具工程：从设计到精简的完整实践 (domain-14-ai-ml-infra)
-description: 'title: Agent Harness 工具工程：从设计到精简的完整实践'
-summary: 'title: Agent Harness 工具工程：从设计到精简的完整实践'
+---
+title: Agent Harness Tool Engineering: A Complete Practice from Design to Simplification (domain-14-ai-ml-infra)
+description: 'title: Agent Harness Tool Engineering: A Complete Practice from Design to Simplification'
+summary: 'title: Agent Harness Tool Engineering: A Complete Practice from Design to Simplification'
 category: general
 tags:
 - ai
@@ -17,16 +18,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 35min
 intent_queries:
-- Agent Harness 工具工程：从设计到精简的完整实践 是什么
-- 如何 Agent Harness 工具工程：从设计到精简的完整实践
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent Harness Tool Engineering: A Complete Practice from Design to Simplification
+- How does Agent Harness Tool Engineering: A Complete Practice from Design to Simplification
+- Kubernetes 14 ai ml infra Best Practices
 trigger_keywords:
 - Agent
 - Harness
-- 工具工程：从设计到精简的完整实践
+- What is a Complete Practice from Design to Simplification
 - ai
 - ml
 - infra
@@ -37,108 +38,61 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/32-agent-harness-tool-engineering.md
+---
+
+# Agent Harness Tooling: A Comprehensive Practice from Design to Simplification
+
+> **Document Type**: Harness Engineering Deep Dive Topics | **Last Updated**: 2026-04 | **Keywords**: Tool Engineering, Tool Design, Function Calling, Tool Simplification, Tool Orchestration, MCP, Tool Security, Schema Design, Tool Registration, Tool Discovery
 
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+## Overview
 
+Tools (tool layer) is the second layer of the six-layer architecture of Agent Harness, enabling Agents to transition from "just saying" to "doing things." However, tool design is not about "having more tools" — as evidenced by Vercel's experience, reducing 15 tools to just 2 improved accuracy from 80% to 100%.
 
-
-
-title: Agent Harness 工具工程：从设计到精简的完整实践
-description: '# Agent Harness 工具工程：从设计到精简的完整实践'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- [[Prometheus|prometheus]]
-- [[Helm|helm]]
-- [[Ingress|ingress]]
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI 工程师
-- 架构师
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- Agent Harness 工具工程：从设计到精简的完整实践 是什么
-- 如何 Agent Harness 工具工程：从设计到精简的完整实践
-trigger_keywords:
-- Agent
-- Harness
-- 工具工程：从设计到精简的完整实践
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# Agent Harness 工具工程：从设计到精简的完整实践
-
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Tool Engineering, 工具设计, Function Calling, 工具精简, 工具编排, MCP, 工具安全, Schema 设计, 工具注册, 工具发现
+This article systematically discusses the principles of tool layer design, Schema standards, registration discovery mechanisms, orchestration patterns, security sandboxes, error recovery strategies, and best practices for tool engineering in Kubernetes operational scenarios.
 
 ---
 
-<!-- chunk: 概述 -->## 概述
+## 1. Tool Design Principles
 
-Tools（工具层）是 Agent Harness 六层架构的第二层，让 Agent 从"只能说"变为"能做事"。但工具设计绝非"越多越好"——Vercel 的实证表明，将 15 个工具精简为 2 个后，准确率从 80% 跃升至 100%。
-
-本文系统性地阐述工具层的设计原则、Schema 规范、注册发现机制、工具编排模式、安全沙箱、错误恢复策略，以及 K8S 运维场景中的工具工程最佳实践。
-
----
-
-<!-- chunk: 1. 工具设计原则 -->## 1. 工具设计原则
-
-## 1.1 Less is More：精简的力量
+## 1.1 Less is More: The Power of Simplicity
 
 ```
-工具精简的业务价值:
+Tool simplicity business value:
 
-工具数量与决策质量的关系（实证数据）:
-  2  个工具 → 决策准确率 ~100%（Vercel 实证）
-  5  个工具 → 决策准确率 ~95%
-  10 个工具 → 决策准确率 ~85%
-  15 个工具 → 决策准确率 ~80%（Vercel 实证）
-  25 个工具 → 决策准确率 ~65%
-  50 个工具 → 决策准确率 ~45%
+Relationship between tool quantity and decision quality (empirical data):
+  2  tools → Decision accuracy ~100% (Vercel empirical)
+  5  tools → Decision accuracy ~95%
+  10 tools → Decision accuracy ~85% (Vercel empirical)
+  15 tools → Decision accuracy ~80% (Vercel empirical)
+  25 tools → Decision accuracy ~65%
+  50 tools → Decision accuracy ~45%
 
-原因分析:
-  1. 工具越多，LLM 需要阅读的 Schema 越长 → 占用上下文窗口
-  2. 相似功能的工具导致 LLM 选择困难 → "read_file vs search_file vs grep_file"
-  3. 工具描述的细微差别被忽略 → 调用错误工具
-  4. 更多工具 = 更多参数组合 = 更多错误可能
+Reason analysis:
+  1. More tools mean longer Schemas for LLM to read → Context window consumption
+  2. Similar functionality tools lead to LLM's decision difficulty → "read_file vs search_file vs grep_file"
+  3. Minor differences in tool descriptions are overlooked → Incorrectly calling a tool
+  4. More tools = More parameter combinations = More error possibilities
 ```
 
-## 1.2 工具设计六大原则
+## 1.2 Six Major Principles of Tool Design
 
-| 原则 | 说明 | 实践指南 |
+| Principle | Explanation | Practice Guide |
 |------|------|---------|
-| **最小必要** | 只提供完成当前任务必需的工具 | 动态工具集：根据任务类型加载不同工具 |
-| **无歧义** | 每个工具的用途必须唯一明确 | 工具名和描述不能让 LLM 混淆 |
-| **自解释** | Schema 本身就是完整的使用文档 | 参数描述包含示例和约束 |
-| **安全优先** | 工具执行不应产生不可逆后果 | 危险操作需要确认机制 |
-| **幂等性** | 相同输入产生相同结果 | 避免工具有隐含的副作用 |
-| **错误友好** | 失败时返回有意义的错误信息 | 帮助 Agent 理解为什么失败、如何修复 |
+| **Minimal Sufficiency** | Provide only the necessary tools for the current task | Dynamic toolkit: load different tools based on task type |
+| **Unambiguous** | Each tool must have a uniquely clear purpose | Tool names and descriptions should not confuse LLMs |
+| **Self-Explanatory** | The Schema itself serves as comprehensive usage documentation | Parameter descriptions include examples and constraints |
+| **Security First** | Tool execution should not produce irreversible consequences | Dangerous operations require confirmation mechanisms |
+| **Idempotent** | Same inputs yield same outputs | Avoid tools with hidden side effects |
+| **Error-Friendly** | Return meaningful error messages on failure | Help the Agent understand why it failed and how to fix it |
 
 ---
 
-<!-- chunk: 2. 工具 Schema 设计规范 -->## 2. 工具 Schema 设计规范
+## 2. Tool Schema Design Standards
 
-## 2.1 标准工具接口
+## 2.1 Standard Tool Interfaces
 
 ```python
 from abc import ABC, abstractmethod
@@ -148,7 +102,7 @@ import json
 
 @dataclass
 class ToolParameter:
-    """工具参数定义"""
+    """tool parameter definition"""
     name: str
     type: str                           # string, integer, boolean, array, object
     description: str
@@ -162,7 +116,7 @@ class ToolParameter:
 
 @dataclass
 class ToolSchema:
-    """工具 Schema 完整定义"""
+    """complete tool schema definition"""
     name: str
     description: str                    # 一句话描述（LLM 选择工具的依据）
     long_description: str = ""          # 详细说明
@@ -175,7 +129,7 @@ class ToolSchema:
     timeout_seconds: int = 30
 
     def to_openai_format(self) -> dict:
-        """转换为 OpenAI Function Calling 格式"""
+        """convert to OpenAI Function Calling format"""
         properties = {}
         required = []
         for param in self.parameters:
@@ -183,7 +137,7 @@ class ToolSchema:
             if param.enum:
                 prop["enum"] = param.enum
             if param.example:
-                prop["description"] += f" (例: {param.example})"
+                prop["description"] += f" (example: {param.example})"
             properties[param.name] = prop
             if param.required:
                 required.append(param.name)
@@ -202,45 +156,45 @@ class ToolSchema:
         }
 
 class BaseTool(ABC):
-    """工具基类"""
+    """tool base class"""
 
     @abstractmethod
     def get_schema(self) -> ToolSchema:
-        """返回工具的 Schema 定义"""
+        """return the schema definition of the tool"""
         ...
 
     @abstractmethod
     def execute(self, **kwargs) -> dict:
-        """执行工具"""
+        """execute the tool"""
         ...
 
     def validate(self, **kwargs) -> tuple[bool, str]:
-        """参数验证"""
+        """parameter validation"""
         schema = self.get_schema()
         for param in schema.parameters:
             if param.required and param.name not in kwargs:
-                return False, f"缺少必需参数: {param.name}"
+                return False, f"missing required parameter: {param.name}"
             if param.name in kwargs and param.enum:
                 if kwargs[param.name] not in param.enum:
-                    return False, f"参数 {param.name} 的值必须是: {param.enum}"
+                    return False, f"parameter {param.name} must be: {param.enum}"
         return True, "OK"
 ```
 
-## 2.2 K8S 运维工具集设计
+## 2.2 Design of Kubernetes Maintenance Toolset
 
 ```python
 class KubectlGetTool(BaseTool):
-    """kubectl get 工具：获取 K8S 资源信息"""
+    """kubectl get tool: obtain K8S resource information"""
 
     def get_schema(self) -> ToolSchema:
         return ToolSchema(
             name="kubectl_get",
-            description="获取 Kubernetes 资源的列表或详细信息。用于查看 Pod、Node、Service 等资源状态。",
+            description="Get a list or detailed information about Kubernetes resources. Used to view the status of resources such as Pods, Nodes, and Services."
             parameters=[
                 ToolParameter(
                     name="resource",
                     type="string",
-                    description="资源类型",
+                    description="resource type",
                     enum=["pods", "nodes", "services", "deployments",
                           "events", "pvc", "configmaps", "ingress"],
                     example="pods",
@@ -248,7 +202,7 @@ class KubectlGetTool(BaseTool):
                 ToolParameter(
                     name="namespace",
                     type="string",
-                    description="命名空间。使用 '--all-namespaces' 查看所有",
+                    description="Namespace. Use '--all-namespaces' to view all",
                     required=False,
                     default="default",
                     example="kube-system",
@@ -256,14 +210,14 @@ class KubectlGetTool(BaseTool):
                 ToolParameter(
                     name="name",
                     type="string",
-                    description="资源名称。不指定则列出所有",
+                    description="Resource name. Specify to list all."
                     required=False,
                     example="nginx-deployment-7fb96c846b-xxxxx",
                 ),
                 ToolParameter(
                     name="output",
                     type="string",
-                    description="输出格式",
+                    description="Output format"
                     required=False,
                     enum=["wide", "yaml", "json", "name"],
                     default="wide",
@@ -271,21 +225,21 @@ class KubectlGetTool(BaseTool):
                 ToolParameter(
                     name="selector",
                     type="string",
-                    description="标签选择器",
+                    description="tag selector",
                     required=False,
                     example="app=nginx",
                 ),
             ],
-            returns="资源信息的文本输出",
+            returns="Text output of resource information"
             risk_level="low",
             category="kubernetes",
             idempotent=True,
             timeout_seconds=15,
             examples=[
                 {"args": {"resource": "pods", "namespace": "default"},
-                 "description": "获取 default 命名空间的所有 Pod"},
+                 "description": "get all Pods in the default namespace"}
                 {"args": {"resource": "nodes", "output": "wide"},
-                 "description": "获取所有节点详细信息"},
+                 "description": "Get all node detailed information"}
             ],
         )
 
@@ -314,17 +268,17 @@ class KubectlGetTool(BaseTool):
 
 
 class KubectlDescribeTool(BaseTool):
-    """kubectl describe 工具：获取资源详细描述"""
+    """kubectl describe tool: obtain resource detailed description"""
 
     def get_schema(self) -> ToolSchema:
         return ToolSchema(
             name="kubectl_describe",
-            description="获取 Kubernetes 资源的详细描述信息，包括 Events、Conditions、配置。用于诊断资源问题。",
+            description: "Retrieve detailed information about Kubernetes resources, including Events and Conditions. Used for diagnosing resource issues."
             parameters=[
                 ToolParameter(
                     name="resource",
                     type="string",
-                    description="资源类型",
+                    description="resource type",
                     enum=["pod", "node", "service", "deployment",
                           "pvc", "ingress", "configmap"],
                     example="pod",
@@ -332,18 +286,18 @@ class KubectlDescribeTool(BaseTool):
                 ToolParameter(
                     name="name",
                     type="string",
-                    description="资源名称",
+                    description="Resource name",
                     example="nginx-pod-xxxxx",
                 ),
                 ToolParameter(
                     name="namespace",
                     type="string",
-                    description="命名空间",
+                    description="namespace"
                     required=False,
                     default="default",
                 ),
             ],
-            returns="资源的详细描述文本，包含 Events 和 Conditions",
+            returns="a detailed description of the resource, including Events and Conditions"
             risk_level="low",
             category="kubernetes",
             idempotent=True,
@@ -360,23 +314,23 @@ class KubectlDescribeTool(BaseTool):
 
 
 class PrometheusQueryTool(BaseTool):
-    """Prometheus 查询工具：执行 PromQL 获取监控指标"""
+    """Prometheus query tool: execute PromQL to obtain monitoring metrics"""
 
     def get_schema(self) -> ToolSchema:
         return ToolSchema(
             name="prometheus_query",
-            description="执行 PromQL 查询获取监控指标数据。用于查看 CPU、内存、网络等系统指标。",
+            description: "Execute PromQL queries to obtain monitoring metric data. Used to view system metrics such as CPU, memory, and network."
             parameters=[
                 ToolParameter(
                     name="query",
                     type="string",
-                    description="PromQL 查询表达式",
+                    description="PromQL query expression"
                     example='sum(rate(container_cpu_usage_seconds_total{namespace="default"}[5m]))',
                 ),
                 ToolParameter(
                     name="time_range",
                     type="string",
-                    description="查询时间范围",
+                    description="Query time range"
                     required=False,
                     enum=["5m", "15m", "1h", "6h", "24h"],
                     default="15m",
@@ -384,12 +338,12 @@ class PrometheusQueryTool(BaseTool):
                 ToolParameter(
                     name="step",
                     type="string",
-                    description="数据点间隔",
+                    description="Data point interval",
                     required=False,
                     default="30s",
                 ),
             ],
-            returns="指标数据（JSON 格式）",
+            returns="Metric data (JSON format)",
             risk_level="low",
             category="monitoring",
             timeout_seconds=30,
@@ -398,16 +352,16 @@ class PrometheusQueryTool(BaseTool):
     def execute(self, **kwargs) -> dict:
         query = kwargs["query"]
         time_range = kwargs.get("time_range", "15m")
-        # 调用 Prometheus API
+        # call Prometheus API
         result = self._query_prometheus(query, time_range)
         return {"query": query, "data": result, "time_range": time_range}
 ```
 
 ---
 
-<!-- chunk: 3. 工具注册与发现 -->## 3. 工具注册与发现
+## 3. Tool Registration and Discovery
 
-## 3.1 工具注册中心
+## 3.1 Tool Registration Center
 
 ```python
 from typing import Optional
@@ -416,7 +370,7 @@ import logging
 logger = logging.getLogger("agent.tools")
 
 class ToolRegistry:
-    """工具注册中心：管理工具的注册、发现和生命周期"""
+    """tool registration center: manage tool registration, discovery, and lifecycle"""
 
     def __init__(self):
         self._tools: dict[str, BaseTool] = {}
@@ -425,29 +379,29 @@ class ToolRegistry:
         self._usage_stats: dict[str, dict] = {}
 
     def register(self, tool: BaseTool, override: bool = False):
-        """注册工具"""
+        """register the tool"""
         schema = tool.get_schema()
         name = schema.name
 
         if name in self._tools and not override:
-            raise ValueError(f"工具 '{name}' 已注册，使用 override=True 覆盖")
+            raise ValueError(f"tool '{name}' has been registered, use override=True to override")
 
         self._tools[name] = tool
 
-        # 分类索引
+        # category index
         category = schema.category or "uncategorized"
         self._categories.setdefault(category, []).append(name)
 
-        # 风险等级索引
+        # risk level index
         self._risk_levels.setdefault(schema.risk_level, []).append(name)
 
-        # 初始化使用统计
+        # initialization usage statistics
         self._usage_stats[name] = {
             "total_calls": 0, "success": 0, "failures": 0,
             "total_latency_ms": 0, "last_used": None,
         }
 
-        logger.info(f"注册工具: {name} (category={category}, risk={schema.risk_level})")
+        logger.info(f"Registered tool: {name} (category={category}, risk={schema.risk_level})")
 
     def get_tools_for_task(
         self,
@@ -456,9 +410,9 @@ class ToolRegistry:
         max_risk: str = "medium",
         max_tools: int = 8,
     ) -> list[BaseTool]:
-        """根据任务类型和约束获取可用工具集
+        """obtain a set of available tools according to task type and constraints
 
-        实现"最小必要工具集"原则：只返回完成当前任务所需的工具。
+        Implement the principle of "minimum necessary set of tools": only return the tools required to complete the current task.
         """
         risk_order = {"low": 0, "medium": 1, "high": 2, "critical": 3}
         max_risk_level = risk_order.get(max_risk, 1)
@@ -467,47 +421,47 @@ class ToolRegistry:
         for name, tool in self._tools.items():
             schema = tool.get_schema()
 
-            # 风险过滤
+            # risk filtering
             if risk_order.get(schema.risk_level, 0) > max_risk_level:
                 continue
 
-            # 分类过滤
+            # category filtering
             if categories and schema.category not in categories:
                 continue
 
             candidates.append(tool)
 
-        # 按使用频率排序（常用工具优先）
+        # sort by usage frequency (popular tools first)
         candidates.sort(
             key=lambda t: self._usage_stats.get(t.get_schema().name, {}).get("total_calls", 0),
             reverse=True,
         )
 
-        # 截断到最大工具数
+        # Truncate to maximum number of tools
         return candidates[:max_tools]
 
     def execute(self, tool_name: str, args: dict) -> dict:
-        """安全执行工具调用"""
+        """Securely execute tool calls"""
         import time
 
         tool = self._tools.get(tool_name)
         if not tool:
-            return {"success": False, "error": f"未知工具: {tool_name}",
+            return {"success": False, "error": f"Unknown tool: {tool_name}",
                     "available_tools": list(self._tools.keys())}
 
-        # 参数验证
+        # Parameter validation
         valid, msg = tool.validate(**args)
         if not valid:
-            return {"success": False, "error": f"参数验证失败: {msg}"}
+            return {"success": False, "error": f"Validation failed: {msg}"}
 
-        # 执行
+        # Execution
         start = time.time()
         try:
             schema = tool.get_schema()
             result = tool.execute(**args)
             latency = (time.time() - start) * 1000
 
-            # 更新统计
+            # Update statistics
             stats = self._usage_stats[tool_name]
             stats["total_calls"] += 1
             stats["success"] += 1
@@ -522,12 +476,12 @@ class ToolRegistry:
             self._usage_stats[tool_name]["total_calls"] += 1
             self._usage_stats[tool_name]["failures"] += 1
 
-            logger.error(f"工具执行失败: {tool_name}, error={e}")
+            logger.error(f"Tool execution failed: {tool_name}, error={e}")
             return {"success": False, "error": str(e), "tool": tool_name,
                     "latency_ms": latency}
 
     def get_usage_report(self) -> dict:
-        """获取工具使用报告"""
+        """Retrieve tool usage report"""
         report = {}
         for name, stats in self._usage_stats.items():
             total = stats["total_calls"]
@@ -539,13 +493,13 @@ class ToolRegistry:
         return report
 ```
 
-## 3.2 动态工具加载
+## 3.2 Dynamic Tool Loading
 
 ```python
 class DynamicToolLoader:
-    """动态工具加载器：根据任务上下文按需加载工具"""
+    """Dynamic Tool Loader: Load tools on-demand based on task context"""
 
-    # 任务类型到工具集的映射
+    # Mapping of task types to tool sets
     TASK_TOOL_MAPPING = {
         "pod_diagnosis": [
             "kubectl_get", "kubectl_describe", "kubectl_logs",
@@ -571,7 +525,7 @@ class DynamicToolLoader:
         self.registry = registry
 
     def load_for_task(self, task: str) -> list[dict]:
-        """根据任务描述动态加载工具集"""
+        """Dynamically load tool set based on task description"""
         task_type = self._classify_task(task)
         tool_names = self.TASK_TOOL_MAPPING.get(task_type, [])
 
@@ -583,70 +537,70 @@ class DynamicToolLoader:
         return tools
 
     def _classify_task(self, task: str) -> str:
-        """基于关键词的快速任务分类"""
+        """Quick task classification by keywords"""
         task_lower = task.lower()
-        if any(kw in task_lower for kw in ["pod", "容器", "pending", "crashloop"]):
+        if any(kw in task_lower for kw in ["pod", "container", "pending", "crashloop"]):
             return "pod_diagnosis"
-        elif any(kw in task_lower for kw in ["node", "节点", "notready"]):
+        elif any(kw in task_lower for kw in ["node", "node", "notready"]):
             return "node_diagnosis"
-        elif any(kw in task_lower for kw in ["网络", "network", "dns", "service"]):
+        elif any(kw in task_lower for kw in ["network", "network", "dns", "service"]):
             return "network_diagnosis"
-        elif any(kw in task_lower for kw in ["存储", "storage", "pvc", "volume"]):
+        elif any(kw in task_lower for kw in ["storage", "storage", "pvc", "volume"]):
             return "storage_diagnosis"
-        elif any(kw in task_lower for kw in ["性能", "cpu", "memory", "延迟"]):
+        elif any(kw in task_lower for kw in ["performance", "cpu", "memory", "latency"]):
             return "performance_analysis"
         return "pod_diagnosis"  # 默认
 ```
 
 ---
 
-<!-- chunk: 4. 工具编排模式 -->## 4. 工具编排模式
+## 4. Tool Orchestration Patterns
 
-## 4.1 五种编排模式
+## 4.1 Five Orchestration Patterns
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-工具编排模式:
+# 🟢 Low-risk: Read-only/information gathering, typically with no side effects
+Tool orchestration patterns:
 
-1. 顺序编排（Sequential）
-   工具 A → 工具 B → 工具 C
-   前一个工具的输出是后一个的输入
-   示例: describe pod → 解析 events → query prometheus
+1. Sequential Orchestration
+   Tool A → Tool B → Tool C
+   Output of previous tool is input for next
+   Example: describe pod → Parse events → Query prometheus
 
-2. 并行编排（Parallel）
-   工具 A ─┐
-   工具 B ─┼→ 聚合结果
-   工具 C ─┘
-   多个独立工具同时执行
-   示例: 同时获取 pod、node、event 信息
+2. Parallel Orchestration
+   Tool A ─┐
+   Tool B ─┼→ Aggregate Results
+   Tool C ─┘
+   Multiple independent tools run simultaneously
+   Example: Fetch pod, node, event information simultaneously
 
-3. 条件编排（Conditional）
-   工具 A → 条件判断 → 工具 B 或 工具 C
-   根据中间结果选择下一个工具
-   示例: 如果 CPU > 90% → 查 top pods，否则 → 查 network
+3. Conditional Orchestration (Conditional)
+   Tool A → Conditional Judgment → Tool B or Tool C
+   Choose next tool based on intermediate results
+   Example: If CPU > 90% → Check top pods, otherwise → Check network
 
-4. 瀑布编排（Waterfall）
-   工具 A → 工具 B → 失败? → 工具 C（备选）
-   失败时自动切换到备选工具
-   示例: prometheus query 失败 → 切换到 kubectl top
+4. Waterfall Orchestration (Waterfall)
+   Tool A → Tool B → Failure? → Tool C (Alternative)
+   Switch automatically to alternative tool on failure
+   Example: Prometheus query fails → Switch to kubectl top
 
-5. 管道编排（Pipeline）
-   工具 A 的输出经过转换后作为工具 B 的输入
-   中间有数据清洗/转换步骤
-   示例: kubectl get -o json → jq 提取 → prometheus query
+5. Pipeline Orchestration (Pipeline)
+   Tool A's output is transformed and used as Tool B's input
+   Includes data cleaning/transformation steps
+   Example: kubectl get -o json → jq Extract → Prometheus query
 ```
-## 4.2 工具链构建器
+## 4.2 Toolchain Builder
 
 ```python
 class ToolChainBuilder:
-    """工具链构建器：声明式构建工具编排"""
+    """Toolchain Builder: Declarative orchestration of tool builds"""
 
     def __init__(self, registry: ToolRegistry):
         self.registry = registry
         self._chain: list[dict] = []
 
     def then(self, tool_name: str, args_builder=None) -> 'ToolChainBuilder':
-        """顺序添加工具"""
+        """Sequential addition of tools"""
         self._chain.append({
             "type": "sequential",
             "tool": tool_name,
@@ -655,7 +609,7 @@ class ToolChainBuilder:
         return self
 
     def parallel(self, *tool_specs) -> 'ToolChainBuilder':
-        """并行添加多个工具"""
+        """Parallel addition of multiple tools"""
         self._chain.append({
             "type": "parallel",
             "tools": [{"tool": name, "args": args} for name, args in tool_specs],
@@ -663,7 +617,7 @@ class ToolChainBuilder:
         return self
 
     def conditional(self, condition, if_true, if_false) -> 'ToolChainBuilder':
-        """条件分支"""
+        """Conditional branching"""
         self._chain.append({
             "type": "conditional",
             "condition": condition,
@@ -676,7 +630,7 @@ class ToolChainBuilder:
         return self._chain
 
     def execute(self, initial_context: dict = None) -> dict:
-        """执行工具链"""
+        """Execute toolchain"""
         context = initial_context or {}
         results = []
 
@@ -703,19 +657,19 @@ class ToolChainBuilder:
         return {"chain_results": results, "final_context": context}
 
 
-# 使用示例
+# Usage Example
 def build_pod_diagnosis_chain(registry: ToolRegistry, pod_name: str, namespace: str):
-    """构建 Pod 诊断工具链"""
+    """Build a Pod diagnostic toolchain"""
     chain = ToolChainBuilder(registry)
 
-    # Step 1: 并行收集基础信息
+    # Step 1: Parallel collection of foundational information
     chain.parallel(
         ("kubectl_get", {"resource": "pods", "name": pod_name, "namespace": namespace}),
         ("kubectl_describe", {"resource": "pod", "name": pod_name, "namespace": namespace}),
         ("kubectl_events", {"namespace": namespace, "field_selector": f"involvedObject.name={pod_name}"}),
     )
 
-    # Step 2: 根据 Pod 状态条件分支
+    # Step 2: Conditionally branch based on Pod status
     chain.conditional(
         condition=lambda ctx: "Pending" in str(ctx.get("parallel_results", [{}])[0].get("result", "")),
         if_true={"tool": "kubectl_get", "args": {"resource": "nodes", "output": "wide"}},
@@ -727,9 +681,9 @@ def build_pod_diagnosis_chain(registry: ToolRegistry, pod_name: str, namespace: 
 
 ---
 
-<!-- chunk: 5. 工具安全沙箱 -->## 5. 工具安全沙箱
+## 5. Tool Security Sandbox
 
-## 5.1 安全执行环境
+## 5.1 Secure Execution Environment
 
 ```python
 import subprocess
@@ -737,7 +691,7 @@ import shlex
 import re
 
 class ToolSandbox:
-    """工具安全沙箱：控制工具的执行边界"""
+    """Tool Safety Sandbox: Control the execution boundary of tools"""
 
     def __init__(self, config: dict = None):
         self.config = config or {}
@@ -748,8 +702,8 @@ class ToolSandbox:
         self.audit_log: list[dict] = []
 
     def execute_command(self, command: str, dry_run: bool = False) -> dict:
-        """在沙箱中执行命令"""
-        # 1. 安全检查
+        """Execute commands within the sandbox"""
+        # 1. Security Checks
         safety_check = self._check_command_safety(command)
         if not safety_check["safe"]:
             self.audit_log.append({
@@ -759,13 +713,13 @@ class ToolSandbox:
             return {"success": False, "error": safety_check["reason"],
                     "blocked": True}
 
-        # 2. Dry-run 模式
+        # 2. Dry-run Mode
         if dry_run:
             self.audit_log.append({"command": command, "action": "dry_run"})
             return {"success": True, "dry_run": True,
                     "would_execute": command}
 
-        # 3. 实际执行
+        # 3. Actual Execution
         try:
             result = subprocess.run(
                 shlex.split(command),
@@ -776,7 +730,7 @@ class ToolSandbox:
 
             output = result.stdout[:self.max_output_size]
             if len(result.stdout) > self.max_output_size:
-                output += f"\n... (输出被截断，总长度 {len(result.stdout)} bytes)"
+                output += f"\n... (Output truncated, total length {len(result.stdout)} bytes)"
 
             self.audit_log.append({
                 "command": command, "action": "executed",
@@ -794,27 +748,27 @@ class ToolSandbox:
             self.audit_log.append({
                 "command": command, "action": "timeout",
             })
-            return {"success": False, "error": f"命令超时 ({self.command_timeout}s)"}
+            return {"success": False, "error": f"Command timed out ({self.command_timeout}s)"}
 
     def _check_command_safety(self, command: str) -> dict:
-        """命令安全检查"""
-        # 检查阻止模式
+        """Command Security Check"""
+        # Check Block Mode
         for pattern in self.blocked_patterns:
             if re.search(pattern, command, re.IGNORECASE):
-                return {"safe": False, "reason": f"匹配禁止模式: {pattern}"}
+                return {"safe": False, "reason": f"Match prohibited mode: {pattern}"}
 
-        # 检查命令白名单
+        # Check Command Whitelist
         if self.allowed_commands:
             cmd_base = command.split()[0] if command else ""
             allowed = any(command.startswith(ac) for ac in self.allowed_commands)
             if not allowed:
                 return {"safe": False,
-                        "reason": f"命令 '{cmd_base}' 不在允许列表中"}
+                        "reason": f"Command '{cmd_base}' not in allowed list"}
 
         return {"safe": True}
 
 
-# K8S 运维沙箱配置
+# Kubernetes Operations Sandbox Configuration
 K8S_SANDBOX_CONFIG = {
     "allowed_commands": [
         "kubectl get", "kubectl describe", "kubectl logs",
@@ -839,13 +793,13 @@ K8S_SANDBOX_CONFIG = {
 }
 ```
 
-## 5.2 工具权限模型
+## 5.2 Tool Permission Model
 
 ```python
 from enum import IntEnum
 
 class ToolPermission(IntEnum):
-    """工具权限等级"""
+    """Tool Permission Level"""
     READ = 1         # 只读操作
     SUGGEST = 2      # 可建议修改但不执行
     WRITE_SAFE = 3   # 可执行安全写操作（如 scale up）
@@ -853,7 +807,7 @@ class ToolPermission(IntEnum):
     ADMIN = 5        # 管理员操作
 
 class ToolPermissionManager:
-    """工具权限管理器"""
+    """Tool Permission Manager"""
 
     def __init__(self, default_permission: ToolPermission = ToolPermission.READ):
         self.default_permission = default_permission
@@ -867,7 +821,7 @@ class ToolPermissionManager:
         self._namespace_permissions[namespace] = permission
 
     def check_permission(self, tool_name: str, args: dict) -> tuple[bool, str]:
-        """检查工具调用权限"""
+        """Check Tool Invocation Permissions"""
         required = self._tool_permissions.get(tool_name, self.default_permission)
         namespace = args.get("namespace", "default")
         ns_permission = self._namespace_permissions.get(namespace, self.default_permission)
@@ -876,22 +830,22 @@ class ToolPermissionManager:
 
         if effective > self.default_permission:
             if effective >= ToolPermission.WRITE_RISKY:
-                return False, f"需要人工审批: {tool_name} 在 {namespace} 的权限等级为 {effective.name}"
+                return False, f"Approval needed: {tool_name} has permission level {effective.name} in {namespace}"
             if effective >= ToolPermission.WRITE_SAFE:
-                return True, f"允许执行安全写操作: {tool_name}"
+                return True, f"Allow safe write operation: {tool_name}"
 
         return True, "OK"
 ```
 
 ---
 
-<!-- chunk: 6. 错误处理与恢复 -->## 6. 错误处理与恢复
+## 6. Error Handling and Recovery
 
-## 6.1 工具错误分类与恢复策略
+## 6.1 Classification and Recovery Strategies for Tools
 
 ```python
 class ToolErrorClassifier:
-    """工具错误分类器"""
+    """Tool Error Classifier"""
 
     ERROR_PATTERNS = {
         "auth_error": {
@@ -933,7 +887,7 @@ class ToolErrorClassifier:
     }
 
     def classify(self, error_message: str) -> dict:
-        """分类错误并建议恢复策略"""
+        """Classify errors and suggest recovery strategies"""
         for error_type, config in self.ERROR_PATTERNS.items():
             for pattern in config["patterns"]:
                 if pattern.lower() in error_message.lower():
@@ -952,7 +906,7 @@ class ToolErrorClassifier:
 
 
 class ToolRetryHandler:
-    """工具重试处理器"""
+    """Tool Retry Handler"""
 
     def __init__(self, max_retries: int = 3, base_delay: float = 1.0):
         self.max_retries = max_retries
@@ -960,7 +914,7 @@ class ToolRetryHandler:
         self.error_classifier = ToolErrorClassifier()
 
     def execute_with_retry(self, tool, args: dict) -> dict:
-        """带智能重试的工具执行"""
+        """Smart Retry for Tool Execution"""
         import time
 
         last_error = None
@@ -970,7 +924,7 @@ class ToolRetryHandler:
                 if result.get("success"):
                     return result
 
-                # 分类错误
+                # Classify Errors
                 error = result.get("error", "Unknown error")
                 classified = self.error_classifier.classify(error)
 
@@ -984,7 +938,7 @@ class ToolRetryHandler:
 
                 last_error = classified
 
-                # 指数退避
+                # Exponential Backoff
                 delay = self.base_delay * (2 ** attempt)
                 time.sleep(delay)
 
@@ -995,7 +949,7 @@ class ToolRetryHandler:
 
         return {
             "success": False,
-            "error": f"重试 {self.max_retries} 次后仍失败",
+            "error": f"Failed after retrying {self.max_retries} times"
             "last_error": last_error,
             "attempts": self.max_retries + 1,
         }
@@ -1003,13 +957,13 @@ class ToolRetryHandler:
 
 ---
 
-<!-- chunk: 7. MCP（Model Context Protocol）集成 -->## 7. MCP（Model Context Protocol）集成
+## 7. MCP (Model Context Protocol) Integration
 
-## 7.1 MCP 工具适配器
+## 7.1 MCP Tool Adapter
 
 ```python
 class MCPToolAdapter:
-    """MCP 协议工具适配器
+    """MCP Protocol Tool Adapter
 
     将 MCP Server 的工具转换为 Agent Harness 标准工具接口。
     支持动态发现和注册 MCP Server 提供的工具。
@@ -1021,7 +975,7 @@ class MCPToolAdapter:
         self._discovered_tools: dict = {}
 
     async def discover_tools(self) -> list[ToolSchema]:
-        """从 MCP Server 发现可用工具"""
+        """Discover Available Tools from MCP Server"""
         response = await self._call_mcp("tools/list")
         tools = []
         for tool_def in response.get("tools", []):
@@ -1031,9 +985,9 @@ class MCPToolAdapter:
         return tools
 
     async def execute_tool(self, tool_name: str, args: dict) -> dict:
-        """通过 MCP 协议调用工具"""
+        """Call the MCP protocol using a tool"""
         if tool_name not in self._discovered_tools:
-            return {"success": False, "error": f"MCP 工具未发现: {tool_name}"}
+            return {"success": False, "error": f"MCP tool did not find: {tool_name}"}
 
         response = await self._call_mcp("tools/call", {
             "name": tool_name,
@@ -1046,7 +1000,7 @@ class MCPToolAdapter:
         }
 
     def _convert_mcp_to_schema(self, mcp_tool: dict) -> ToolSchema:
-        """将 MCP 工具定义转换为标准 Schema"""
+        """Convert the MCP tool definition to a standard Schema"""
         params = []
         input_schema = mcp_tool.get("inputSchema", {})
         properties = input_schema.get("properties", {})
@@ -1071,75 +1025,75 @@ class MCPToolAdapter:
 
 ---
 
-<!-- chunk: 8. 最佳实践总结 -->## 8. 最佳实践总结
+## 8. Best Practices Summary
 
-## 8.1 工具设计核心原则
+## 8.1 Tool Design Core Principles
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Suggestions |
 |------|------|---------|
-| **最小工具集** | 每个任务类型只加载必需的工具 | 使用 DynamicToolLoader 按需加载 |
-| **清晰的 Schema** | 工具描述必须准确，避免歧义 | 包含示例和使用场景 |
-| **参数验证** | 调用前校验参数合法性 | 在 validate() 中实现完整校验 |
-| **安全沙箱** | 所有工具在沙箱中执行 | 使用 ToolSandbox 控制执行边界 |
-| **智能重试** | 根据错误类型决定是否重试 | 使用 ToolErrorClassifier 分类错误 |
-| **使用统计** | 记录每个工具的调用指标 | 使用 ToolRegistry 内置统计 |
-| **权限控制** | 按命名空间和操作类型控制权限 | 使用 ToolPermissionManager |
-| **MCP 标准化** | 遵循 MCP 协议实现工具互操作 | 使用 MCPToolAdapter 集成 |
+| **Minimum Toolset** | Each task type loads only necessary tools | Uses DynamicToolLoader to load on demand |
+| **Clear Schema** | Tool descriptions must be accurate, avoiding ambiguity | Includes examples and use cases |
+| **Parameter Validation** | Validates parameter validity before calls | Implements complete validation in validate() |
+| **Secure Sandbox** | Executes all tools in a sandbox | Uses ToolSandbox to control execution boundaries |
+| **Smart Retry** | Decides whether to retry based on error type | Uses ToolErrorClassifier to classify errors |
+| **Usage Statistics** | Records call metrics for each tool | Uses ToolRegistry for built-in statistics |
+| **Permission Control** | Controls permissions by namespace and operation type | Uses ToolPermissionManager |
+| **MCP Standardization** | Implements tool interoperability following MCP protocol | Uses MCPToolAdapter for integration |
 
-## 8.2 反模式
+## 8.2 Anti-patterns
 
-| 反模式 | 问题 | 正确做法 |
+| Anti-pattern | Problem | Correct approach |
 |--------|------|----------|
-| **工具过载** | 给 Agent 所有可能的工具 | 动态加载，最小必要集 |
-| **模糊描述** | 工具描述含糊不清 | 每个工具一句话精确描述 |
-| **无参数验证** | 接受任意输入 | 类型检查 + 枚举限制 + 正则校验 |
-| **无错误处理** | 工具失败返回 "Error" | 返回具体错误类型和恢复建议 |
-| **硬编码工具** | 所有场景用同一套工具 | 按任务类型动态组合 |
-| **无审计日志** | 不记录工具调用历史 | 每次调用记入审计日志 |
+| **Overloaded Tools** | Provides Agent with all possible tools | Dynamically loads, minimal essential set |
+| **Vague Descriptions** | Tool descriptions are unclear | Each tool has a precise one-liner description |
+| **No Parameter Validation** | Accepts arbitrary inputs | Type checking + enum restrictions + regex validation |
+| **No Error Handling** | Returns "Error" on tool failure | Returns specific error types and recovery suggestions |
+| **Hardcoded Tools** | Same set of tools for all scenarios | Dynamically combines by task type |
+| **No Audit Logs** | Does not record tool invocation history | Logs each invocation for audit |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Documentation | Related content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | Harness 六层架构总览，工具精简原则 |
-| [31 - Loop 与执行引擎](./31-agent-harness-loop-execution.md) | 工具调用在 Loop 中的执行流程 |
-| [35 - 安全与约束](./35-agent-harness-security-constraints.md) | 工具安全沙箱和权限控制 |
-| [05 - Tool Use & Function Calling](./05-tool-use-function-calling.md) | 工具调用的基础理论和规范 |
-| [25 - MCP 集成](./25-agent-cli-mcp-integration.md) | MCP 协议工具集成详解 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Overview of Harness six-layer architecture, principle of tool simplification |
+| [31 - Loops and Execution Engine](./31-agent-harness-loop-execution.md) | Flow of tool calls within Loops |
+| [35 - Security and Constraints](./35-agent-harness-security-constraints.md) | Tool security sandbox and permission control |
+| [05 - Tool Usage and Function Calls](./05-tool-use-function-calling.md) | Foundation theory and guidelines for tool usage |
+| [25 - MCP Integration](./25-agent-cli-mcp-integration.md) | MCP Protocol Tools Integration Detailed Explanation |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Vercel 团队 | 工具精简实验 15→2，准确率 80%→100% | 2025 |
+| Vercel Team | Experiment 15→2: Accuracy Rises from 80% to 100% | 2025 |
 | Anthropic | Tool Use Best Practices | 2025-12 |
-| OpenAI | Function Calling 规范与最佳实践 | 2025 |
-| MCP 规范 | Model Context Protocol 1.0 | 2025-2026 |
+| OpenAI | Best Practices for Function Calling | 2025 |
+| MCP Specification | Model Context Protocol 1.0 | 2025-2026 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness 工具工程设计。*
+*This document is original content by kudig-database project 02-ai-agents series, delving into the engineering design of the Agent Harness tool.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Special Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide on Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Usage and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Architecture for Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Evaluation System and Observability of Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

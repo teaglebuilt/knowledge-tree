@@ -1,7 +1,8 @@
----title: Agent CLI 企业级自动化与 CI/CD 集成 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 工程实践专题 | **最后更新**: 2026-03 | **关键词**: Agent
+---
+title: Agent CLI Enterprise Automation and CI/CD Integration (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Engineering Practice Series | **Last Updated**: 2026-03 | **Keywords**: Agent
   CLI Automation,'
-summary: 'description: ''**文档类型**: 工程实践专题 | **最后更新**: 2026-03 | **关键词**: Agent CLI
+summary: 'description: ''**Document Type**: Engineering Practice Series | **Last Updated**: 2026-03 | **Keywords**: Agent CLI
   Automation,'
 category: general
 tags:
@@ -20,19 +21,19 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- Agent CLI 企业级自动化与 CI/CD 集成 是什么
-- 如何 Agent CLI 企业级自动化与 CI/CD 集成
-- Kubernetes 14 ai ml infra 最佳实践
+- Agent CLI Enterprise Automation and CI/CD Integration is what
+- How does Agent CLI Enterprise Automation and CI/CD Integration work
+- Best Practices for Kubernetes 14 AI ML Infra
 trigger_keywords:
 - Agent
 - CLI
-- 企业级自动化与
+- Enterprise Automation and
 - CI
 - CD
-- 集成
+- Integration
 - ai
 - ml
 prerequisites:
@@ -43,18 +44,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/28-agent-cli-enterprise-automation.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained within this document are executable directly. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: Agent CLI 企业级自动化与 CI/CD 集成
-description: '**文档类型**: 工程实践专题 | **最后更新**: 2026-03 | **关键词**: Agent CLI Automation,
-  CI/CD, GitHub Actions, Headless Mode, Batch Processing, Code Review Bot, 自动化流水线'
+title: Agent CLI Enterprise-Level Automation and CI/CD Integration
+description: '**Document Type**: Engineering Practice Series | **Last Updated**: 2026-03 | **Keywords**: Agent CLI Automation,
+  CI/CD, GitHub Actions, Headless Mode, Batch Processing, Code Review Bot, Automated Pipeline'
 category: ai-agent
 tags:
 - ai
@@ -70,20 +73,20 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent CLI 企业级自动化与 CI/CD 集成 是什么
-- 如何 Agent CLI 企业级自动化与 CI/CD 集成
+- What is Agent CLI Enterprise-Level Automation and CI/CD Integration
+- How to use Agent CLI Enterprise-Level Automation and CI/CD Integration
 trigger_keywords:
 - Agent
 - CLI
-- 企业级自动化与
+- What is
 - CI
 - CD
-- 集成
+- Integration
 - ai
 - agent
 authors:
@@ -97,67 +100,67 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent CLI 企业级自动化与 CI/CD 集成
+# Agent CLI Enterprise Automation and CI/CD Integration
 
-> **文档类型**: 工程实践专题 | **最后更新**: 2026-03 | **关键词**: Agent CLI Automation, CI/CD, GitHub Actions, Headless Mode, Batch Processing, Code Review Bot, 自动化流水线
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-Agent CLI 的**无头模式（Headless Mode）** 使其能够脱离交互式终端，作为 CI/CD 流水线中的自动化节点运行。这将 AI 编码助手从"个人工具"提升为"团队级自动化基础设施"——自动生成 PR 描述、自动修复 Lint 错误、自动审查代码变更、自动响应 Issue。
-
-本文系统介绍 Agent CLI 在 CI/CD 场景下的集成模式、配置方法、安全实践和企业级部署架构。
+> **Document Type**: Engineering Practice Series | **Last Updated**: 2026-03 | **Keywords**: Agent CLI Automation, CI/CD, GitHub Actions, Headless Mode, Batch Processing, Code Review Bot, Automated Pipeline
 
 ---
 
-<!-- chunk: 1. 无头模式（Headless Mode）详解 -->## 1. 无头模式（Headless Mode）详解
+## Overview
 
-## 1.1 各工具无头模式对比
+Agent CLI's **headless mode (Headless Mode)** enables it to run as an automated node within a CI/CD pipeline without requiring an interactive terminal. This elevates the AI coding assistant from a "personal tool" to a "team-level automation infrastructure"—generating PR descriptions automatically, fixing lint errors, reviewing code changes, and responding to issues autonomously.
 
-| 工具 | 无头命令 | 输入方式 | 输出格式 | 工具权限控制 |
+This comprehensive guide introduces the integration modes, configuration methods, security practices, and enterprise-level deployment architecture for Agent CLI in CI/CD scenarios.
+
+---
+
+## 1. Headless Mode (Headless Mode)
+
+## 1.1 Comparison of Headless Modes for Various Tools
+
+| Tool | Headless Command | Input Method | Output Format | Tool Permission Control |
 |------|---------|---------|---------|------------|
-| **Claude Code** | `claude -p "<prompt>"` | `-p` 参数 / stdin | Text / JSON stream | `--allowedTools` |
-| **Codex CLI** | `codex --quiet "<prompt>"` | 参数 / stdin | JSON | `--approval-mode full-auto` |
-| **Gemini CLI** | `gemini -p "<prompt>"` | `-p` 参数 | Text / JSON | `--sandbox` |
-| **Aider** | `echo "<prompt>" | aider --yes` | stdin / `--message` | Text / Git diff | `--yes` 自动确认 |
+| **Claude Code** | `claude -p "<prompt>"` | `-p` parameter / stdin | Text / JSON stream | `--allowedTools` |
+| **Codex CLI** | `codex --quiet "<prompt>"` | Parameter / stdin | JSON | `--approval-mode full-auto` |
+| **Gemini CLI** | `gemini -p "<prompt>"` | `-p` parameter | Text / JSON | `--sandbox` |
+| **Aider** | `echo "<prompt>" | aider --yes` | stdin / `--message` | Text / Git diff | `--yes` auto-confirm |
 
-## 1.2 Claude Code 无头模式深度配置
+## 1.2 Deep Configuration of Headless Mode for Claude Code
 
 ```bash
-# 基础用法
-claude -p "修复所有 TypeScript 编译错误"
+# Basic Usage
+claud -p "Fix all TypeScript compilation errors"
 
-# 指定工具权限
-claude -p "重构 auth 模块" \
+# Specify Tool Permissions
+claud -p "Refactor auth module" \
   --allowedTools "Read,Write,Grep,Glob,Bash(npm test)"
 
-# JSON 流式输出 (CI/CD 解析友好)
-claude -p "为所有公开函数添加 JSDoc" \
+# JSON Stream Output (CI/CD Friendly Parsing)
+claud -p "Add JSDoc to all public functions" \
   --output-format stream-json
 
-# 多轮对话 (通过 stdin)
-echo '{"prompt": "分析并修复测试失败", "continue": true}' | \
+# Multi-round Dialogue (via stdin)
+echo '{"prompt": "Analyze and fix test failures", "continue": true}' | \
   claude --input-format stream-json --output-format stream-json
 
-# 结合 MCP 工具
-claude -p "查看 staging 环境的 Pod 状态并诊断异常" \
+# Combine with MCP Tool
+claud -p "View Pod status in the staging environment and diagnose anomalies" \
   --allowedTools "Read,mcp__kubernetes__list_pods,mcp__kubernetes__get_pod_logs"
 ```
 
-## 1.3 输出解析
+## 1.3 Output Parsing
 
 ```bash
-# Claude Code JSON stream 输出格式
+# Claude Code JSON stream Output Format
 {
   "type": "result",
-  "result": "已完成以下修改:\n1. src/auth/jwt.ts: 修复 Token 过期校验\n2. src/auth/middleware.ts: 添加 refresh 逻辑",
+  "result": "Completed the following modifications:\n1. src/auth/jwt.ts: Fix token expiration validation\n2. src/auth/middleware.ts: Add refresh logic"
   "cost_usd": 0.042,
   "duration_ms": 15230,
   "num_turns": 3
 }
 
-# 在 CI 脚本中解析
+# Parse in CI Script
 RESULT=$(claude -p "$PROMPT" --output-format stream-json 2>/dev/null | \
   jq -r 'select(.type == "result") | .result')
 echo "$RESULT"
@@ -165,9 +168,9 @@ echo "$RESULT"
 
 ---
 
-<!-- chunk: 2. GitHub Actions 集成 -->## 2. GitHub Actions 集成
+## 2. GitHub Actions Integration
 
-## 2.1 自动代码审查（PR Review Bot）
+## 2.1 Automatic Code Review (PR Review Bot)
 
 ```yaml
 # .github/workflows/agent-code-review.yml
@@ -196,10 +199,10 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # 获取 PR diff
+          # Get PR diff
           git diff origin/main...HEAD > /tmp/pr-diff.txt
           
-          # Agent 审查
+          # Agent Review
           claude -p "审查以下代码变更，重点关注:
           1. 安全漏洞
           2. 性能问题
@@ -223,11 +226,11 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `<!-- chunk: 🤖 Agent Code Review\n\n${review}` -->## 🤖 Agent Code Review\n\n${review}`
+              body: `## 🤖 Agent Code Review\n\n${review}`
             });
 ```
 
-## 2.2 自动修复 Lint/Test 错误
+## 2.2 Automatic Fixing of Lint/Test Errors
 
 ```yaml
 # .github/workflows/agent-auto-fix.yml
@@ -283,7 +286,7 @@ jobs:
             --base main
 ```
 
-## 2.3 Issue 自动响应与修复
+## 2.3 Automatic Response and Repair of Issues
 
 ```yaml
 # .github/workflows/agent-issue-fix.yml
@@ -336,9 +339,9 @@ jobs:
 
 ---
 
-<!-- chunk: 3. GitLab CI/CD 集成 -->## 3. GitLab CI/CD 集成
+## 3. GitLab CI/CD Integration
 
-## 3.1 Merge Request 审查
+## 3.1 Review of Merge Requests
 
 ```yaml
 # .gitlab-ci.yml
@@ -356,11 +359,11 @@ agent-review:
       $(cat /tmp/mr-diff.txt)" \
       --allowedTools "Read,Grep" --output-format text)
       
-      # 通过 GitLab API 发布评论
+      # Publish Comments via GitLab API
       curl --request POST \
         --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
         --header "Content-Type: application/json" \
-        --data "{\"body\": \"<!-- chunk: Agent Review\\n\\n$REVIEW\"}" \ -->## Agent Review\\n\\n$REVIEW\"}" \
+        --data "{\"body\": \"## Agent Review\\n\\n$REVIEW\"}" \
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
   variables:
     ANTHROPIC_API_KEY: $ANTHROPIC_API_KEY
@@ -368,13 +371,13 @@ agent-review:
 
 ---
 
-<!-- chunk: 4. 批量处理与多仓库管理 -->## 4. 批量处理与多仓库管理
+## 4. Batch Processing and Multi-Repository Management
 
-## 4.1 批量代码迁移
+## 4.1 Batch Code Migration
 
 ```bash
 #!/bin/bash
-# batch-migrate.sh — 批量迁移多个仓库的 API 版本
+# batch-migrate.sh — Batch migrate API versions of multiple repositories
 
 REPOS=(
   "company/service-auth"
@@ -422,7 +425,7 @@ for repo in "${REPOS[@]}"; do
 done
 ```
 
-## 4.2 定期维护任务
+## 4.2 Scheduled Maintenance Tasks
 
 ```yaml
 # .github/workflows/agent-maintenance.yml
@@ -467,27 +470,27 @@ jobs:
 
 ---
 
-<!-- chunk: 5. 企业级部署架构 -->## 5. 企业级部署架构
+## 5. Enterprise Deployment Architecture
 
-## 5.1 集中式 Agent CLI 服务
+## 5.1 Centralized Agent CLI Service Deployment
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│             企业级 Agent CLI 自动化架构               │
+│             Enterprise Agent CLI Automation Architecture               │
 │                                                      │
 │  ┌──────────────────────────────────────────────┐    │
-│  │           触发层 (Event Sources)              │    │
+│  │           Trigger Layer (Event Sources)              │    │
 │  │  GitHub Events │ GitLab Webhooks │ Cron       │    │
 │  │  Jira Issues   │ Slack Commands  │ API Call   │    │
 │  └──────────────────┬───────────────────────────┘    │
 │                     ▼                                │
 │  ┌──────────────────────────────────────────────┐    │
-│  │         调度层 (Orchestrator)                 │    │
-│  │  任务队列 │ 优先级 │ 并发控制 │ 重试策略       │    │
+│  │         Orchestration Layer (Orchestrator)                 │    │
+│  │  Task Queue │ Priority │ Concurrency Control │ Retry Strategy       │    │
 │  └──────────────────┬───────────────────────────┘    │
 │                     ▼                                │
 │  ┌──────────────────────────────────────────────┐    │
-│  │      执行层 (Agent CLI Workers — K8s)        │    │
+│  │      Execution Layer (Agent CLI Workers — K8s)        │    │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐     │    │
 │  │  │ Worker 1 │ │ Worker 2 │ │ Worker N │     │    │
 │  │  │Claude Code│ │Claude Code│ │Claude Code│    │    │
@@ -496,18 +499,18 @@ jobs:
 │  └──────────────────┬───────────────────────────┘    │
 │                     ▼                                │
 │  ┌──────────────────────────────────────────────┐    │
-│  │         输出层 (Results)                      │    │
+│  │         Output Layer (Results)                      │    │
 │  │  PR/MR │ Issue Comment │ Slack Message │ Log  │    │
 │  └──────────────────────────────────────────────┘    │
 │                                                      │
 │  ┌──────────────────────────────────────────────┐    │
-│  │         监控层 (Observability)                │    │
+│  │         Monitoring Layer (Observability)                │    │
 │  │  Cost Tracking │ Audit Log │ Performance      │    │
 │  └──────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────┘
 ```
 
-## 5.2 K8s Worker 部署
+## 5.2 Deployment of K8s Workers
 
 ```yaml
 # agent-cli-worker.yaml
@@ -558,57 +561,57 @@ spec:
           sizeLimit: 10Gi
 ```
 
-## 5.3 成本控制策略
+## 5.3 Cost Control Strategies
 
-| 策略 | 实现方式 | 效果 |
+| Policy | Implementation | Effect |
 |------|---------|------|
-| **Token 预算** | 每任务设置最大 Token 上限 | 防止失控消耗 |
-| **任务优先级** | P0 用大模型，P2 用小模型 | 成本降低 40-60% |
-| **缓存复用** | 相似任务结果缓存 | 减少重复调用 |
-| **批量聚合** | 小任务合并为批次执行 | 减少 API 调用次数 |
-| **时段调度** | 非紧急任务低峰时段执行 | 可能获得更低费率 |
-| **预算告警** | 日/周/月消耗告警 | 及时发现异常 |
+| **Token Budget** | Set maximum token limit per task | Prevent overconsumption |
+| **Task Priority** | Use large models for P0, small models for P2 | Cost reduction of 40-60% |
+| **Cache Reuse** | Cache similar task results | Reduce redundant calls |
+| **Batch Aggregation** | Batch small tasks for execution | Reduce API call frequency |
+| **Time Scheduling** | Execute non-urgent tasks during low-demand periods | Possibly lower rates |
+| **Budget Alerts** | Daily/Weekly/Monthly consumption alerts |in time detect anomalies |
 
 ```bash
-# 设置 Token 预算 (Claude Code)
+# Set Token Budget (Claude Code)
 claude -p "$PROMPT" \
-  --max-turns 20 \          # 限制最大循环次数
-  --allowedTools "Read,Grep"  # 限制工具范围减少消耗
+  --max-turns 20 \          # Limit maximum number of turns
+  --allowedTools "Read,Grep"  # Limit tool scope to reduce consumption
 ```
 
 ---
 
-<!-- chunk: 6. 监控与可观测性 -->## 6. 监控与可观测性
+## 6. Monitoring and Observability
 
-## 6.1 关键指标
+## 6.1 Key Metrics
 
-| 指标 | 说明 | 告警阈值 |
+| Metrics | Description | Alert Thresholds |
 |------|------|---------|
-| **任务成功率** | 成功完成 / 总任务数 | < 80% |
-| **平均耗时** | 任务从提交到完成的时间 | > 5min (简单任务) |
-| **Token 消耗** | 每任务平均 Token 使用量 | > 日预算的 120% |
-| **API 错误率** | LLM API 调用失败率 | > 5% |
-| **代码采纳率** | Agent PR 被合并 / 总 PR | 跟踪趋势 |
-| **测试通过率** | Agent 修改后测试通过率 | < 95% |
+| **Task Success Rate** | Successful tasks / Total tasks | < 80% |
+| **Average Time** | Time from submission to completion | > 5min (simple tasks) |
+| **Token Consumption** | Average token usage per task | > 120% of daily budget |
+| **API Error Rate** | Failure rate of LLM API calls | > 5% |
+| **Code Adoption Rate** | Ratio of Agent PRs merged / Total PRs | Track trends |
+| **Test Pass Rate** | Test pass rate after Agent modifications | < 95% |
 
-## 6.2 Grafana 仪表板指标
+## 6.2 Grafana Dashboard Metrics
 
 ```
 ┌─────────────────────────────────────────────────┐
 │         Agent CLI Automation Dashboard           │
 │                                                 │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ 任务成功率 │  │ 日消耗($) │  │ 活跃任务  │      │
+│  │ Task Success Rate │  │ Daily Consumption ($) │  │ Active Tasks  │      │
 │  │  94.2%   │  │  $42.50  │  │   7      │      │
 │  └──────────┘  └──────────┘  └──────────┘      │
 │                                                 │
 │  ┌─────────────────────────────────────────┐    │
-│  │  任务耗时分布 (P50 / P90 / P99)         │    │
+│  │  Task Duration Distribution (P50 / P90 / P99)         │    │
 │  │  ████████░░ 12s / 45s / 180s           │    │
 │  └─────────────────────────────────────────┘    │
 │                                                 │
 │  ┌─────────────────────────────────────────┐    │
-│  │  按任务类型分布                          │    │
+│  │  Distribution by Task Type                          │    │
 │  │  Code Review: 45%  │  Auto Fix: 30%    │    │
 │  │  Test Gen: 15%     │  Other: 10%       │    │
 │  └─────────────────────────────────────────┘    │
@@ -617,72 +620,72 @@ claude -p "$PROMPT" \
 
 ---
 
-<!-- chunk: 7. 常见集成模式 -->## 7. 常见集成模式
+## 7. Common Integration Patterns
 
-## 7.1 模式总览
+## 7.2 Security Considerations
 
-| 模式 | 触发 | 任务 | 输出 |
+| Models | Trigger | Task | Output |
 |------|------|------|------|
-| **PR Review Bot** | PR 创建/更新 | 代码审查 | PR 评论 |
-| **Auto Fixer** | CI 失败 | 修复 lint/test | 修复 PR |
-| **Issue Resolver** | Issue 打标签 | 分析+修复 | 修复 PR |
-| **Dependency Updater** | 定时/手动 | 更新依赖 | 更新 PR |
-| **Doc Generator** | 代码变更 | 生成/更新文档 | 文档 PR |
-| **Migration Helper** | 手动触发 | 批量代码迁移 | 迁移 PR |
-| **Security Scanner** | 定时/PR | 安全审计 | 报告/Issue |
+| **PR Review Bot** | PR creation/update | Code review | PR comments |
+| **Auto Fixer** | CI failure | Fix lint/test | Fix PR |
+| **Issue Resolver** | Tagging issues | Analyze+fix | Fix PR |
+| **Dependency Updater** | Scheduled/manual | Update dependencies | Update PR |
+| **Doc Generator** | Code changes | Generate/update docs | Doc PR |
+| **Migration Helper** | Manual trigger | Batch code migration | Migration PR |
+| **Security Scanner** | Scheduled/PR | Security Audit | Report/Issue |
 
-## 7.2 安全注意事项
+## 7.3 Summary and Navigation
 
-| 风险 | 缓解措施 |
+| Risk | Mitigation Measures |
 |------|---------|
-| Agent 修改可能引入 Bug | 所有 Agent PR 必须通过 CI 测试 + 人工 Review |
-| API Key 泄露 | 使用 GitHub Secrets / Vault，不硬编码 |
-| 无限循环消耗 | 设置 `--max-turns` 和 Token 预算 |
-| 权限过大 | 精确限制 `--allowedTools`，最小权限原则 |
-| 并发冲突 | 任务队列 + 锁机制，避免同时修改同一文件 |
+| Agent Modifications May Introduce Bugs | All Agent PRs Must Pass CI Testing + Manual Review |
+| API Key Leakage | Use GitHub Secrets / Vault, Not Hardcoded |
+| Infinite Loops Consuming Resources | Set `--max-turns` and Token Budget |
+| Excessive Permissions | Precisely Limit `--allowedTools`, Principle of Least Privilege |
+| Concurrent Conflicts | Task Queues + Lock Mechanisms, Avoid Simultaneous Modification of Same File |
 
 ---
 
-<!-- chunk: 8. 小结与导航 -->## 8. 小结与导航
+## 8. Conclusion and Navigation
 
-Agent CLI 的 CI/CD 集成是将 AI 编码能力从"个人提效"扩展到"团队级自动化"的关键一步：
+Agent CLI's CI/CD Integration Is a Critical Step in Expanding AI Coding Capabilities from "Personal Efficiency" to "Team-Level Automation":
 
-1. **无头模式**是 CI/CD 集成的基础，各工具都已良好支持
-2. **GitHub Actions / GitLab CI** 集成最为成熟，可快速落地
-3. **安全和成本控制**是企业规模化部署的核心关注点
-4. **监控与可观测性**确保自动化系统的可靠运行
+1. **Headless Mode** is the Foundation for CI/CD Integration, Which All Tools Have Already Well Supported
+2. **GitHub Actions / GitLab CI** Integration Is the Most Mature, Making Quick Deployment Possible
+3. **Security and Cost Control** Are Core Concerns for Enterprise-Scale Deployment
+4. **Monitoring and Observability** Ensure the Reliable Operation of Automated Systems
 
-**核心原则**：
-- 从简单任务（Lint 修复）开始，逐步扩展到复杂场景
-- Agent PR 必须经人工 Review 和 CI 验证
-- 设置成本预算和任务上限，防止失控
+**Core Principles**:
+- Start With Simple Tasks (e.g., Lint Fixes), Gradually Expand to Complex Scenarios
+- Agent PRs Must Be Reviewed Manually and Verified by CI
+- Set Cost Budgets and Task Limits to Prevent Out-of-Control Situations
 
-**后续阅读**：
-- [27 - Agent CLI 安全治理与权限模型](./27-agent-cli-security-governance.md)：安全深度配置
-- [26 - Agent CLI 开发工作流最佳实践](./26-agent-cli-development-workflow.md)：日常使用技巧
-- [09 - 生产部署指南](./09-production-deployment-guide.md)：K8s 上的 Agent 服务
-- [08 - Agent 评测体系与可观测性](./08-agent-evaluation-observability.md)：Agent 质量评估
-
----
-
-*本文档为 kudig-database 项目原创内容，所有 CI/CD 模式经生产环境验证。*
+**Further Reading**:
+- [27 - Agent CLI Security Governance and Permission Model](./27-agent-cli-security-governance.md): Deep Security Configurations
+- [26 - Agent CLI Development Workflow Best Practices](./26-agent-cli-development-workflow.md): Daily Usage Tips
+- [09 - Production Deployment Guide](./09-production-deployment-guide.md): Agent Services on K8s
+- [08 - Agent Evaluation Framework and Observability](./08-agent-evaluation-observability.md): Agent Quality Assessment
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+*This document is original content created by kudig-database project, all CI/CD modes have been validated in production environments.*
+
+---
+
+## Obsidian Related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation: RAG Knowledge Retrieval]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Deep Architecture of Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation Framework and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

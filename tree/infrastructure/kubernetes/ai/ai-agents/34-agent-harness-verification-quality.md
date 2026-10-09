@@ -1,7 +1,8 @@
----title: Agent Harness 验证与质量门禁 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**:
+---
+title: Agent Harness Verification and Gatekeeping (domain-14-ai-ml-infra)
+description: 'description: '**Document Type**: Deep Dive Harness Engineering | **Last Updated**: 2026-04 | **Keywords**:'
   Verification,'
-summary: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Verification,'
+summary: 'summary: 'description: '**Document Type**: Deep Dive Harness Engineering | **Last Updated**: 2026-04 | **Keywords**: Verification,''
 category: general
 tags:
 - ai
@@ -18,16 +19,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 35min
 intent_queries:
-- Agent Harness 验证与质量门禁 是什么
-- 如何 Agent Harness 验证与质量门禁
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent Harness Verification and Gatekeeping
+- How to do Agent Harness Verification and Gatekeeping
+- Best Practices for Agent Harness in Kubernetes 14 AI ML Infra
 trigger_keywords:
 - Agent
 - Harness
-- 验证与质量门禁
+- What is Verification and Gatekeeping
 - ai
 - ml
 - infra
@@ -39,18 +40,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/34-agent-harness-verification-quality.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained herein are executable directly for operational purposes. Execute at your own risk: confirm that the target cluster and namespace are correct; ensure you have sufficient RBAC permissions; verify these commands in a non-production environment first. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: Agent Harness 验证与质量门禁
-description: '**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Verification,
-  Quality Gate, 自检循环, LLM-as-Judge, RAGAS, 幻觉检测, 事实一致性, CI/CD, 回归测试, 灰度评估'
+title: Agent Harness Validation and Quality Gate
+description: '**Document Type**: Deep Dive into Harness Engineering | **Last Updated**: 2026-04 | **Keywords**: Verification,
+  Quality Gate, Self-check Loop, LLM-as-Judge, RAGAS, Phantom Detection, Factuality Consistency, CI/CD, Regression Testing, Gray Release'
 category: ai-agent
 tags:
 - ai
@@ -65,17 +68,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent Harness 验证与质量门禁 是什么
-- 如何 Agent Harness 验证与质量门禁
+- What is Agent Harness Validation and Quality Gate
+- How to perform Agent Harness Validation and Quality Gate
 trigger_keywords:
 - Agent
 - Harness
-- 验证与质量门禁
+- Validation and Quality Gate
 - ai
 - agent
 authors:
@@ -89,83 +92,83 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent Harness 验证与质量门禁
+# Agent Harness Validation and Quality Gates
 
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Verification, Quality Gate, 自检循环, LLM-as-Judge, RAGAS, 幻觉检测, 事实一致性, CI/CD, 回归测试, 灰度评估
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-Verification（验证层）是 Agent Harness 六层架构的第五层，也是 Harness 区别于"裸 Agent"的**关键分水岭**。LangChain 的实验表明，仅添加自检循环就将基准分提升了 13.7%——这是所有 Harness 改进中最高效的单一变更。
-
-本文系统阐述验证层的多维度验证策略、LLM-as-Judge 评估范式、RAGAS 评测框架集成、CI/CD 质量门禁、A/B 测试与灰度发布，以及针对 K8S 运维场景的自定义验证器设计。
+> **Document Type**: Deep Dive into Harness Engineering | **Last Updated**: 2026-04 | **Keywords**: Verification, Quality Gate, Self-check Loop, LLM-as-Judge, RAGAS, Phantom Detection, Factuality Consistency, CI/CD, Regression Testing, Gray Release
 
 ---
 
-<!-- chunk: 1. 验证层核心理论 -->## 1. 验证层核心理论
+## Overview
 
-## 1.1 为什么验证是最高 ROI 的 Harness 改进
+Verification (verification layer) is the fifth layer of the six-layer architecture of Agent Harness, also the key demarcation point that sets it apart from "bare Agent" in Harness. Experiments with LangChain show that adding a self-check loop alone increased the baseline score by 13.7%—this is the most efficient single change among all Harness improvements.
+
+This document comprehensively explores multi-dimensional validation strategies for the verification layer, the LLM-as-Judge evaluation paradigm, the RAGAS evaluation framework integration, CI/CD quality gates, A/B testing and gray release, and the design of custom validators tailored for Kubernetes operational scenarios.
+
+---
+
+## 1. Core Theories of the Validation Layer
+
+## 1.1 Why Validation is the Highest ROI Improvement for Harness
 
 ```
-验证层 ROI 实证数据:
+validate layer ROI empirical data:
 
-LangChain 编码 Agent（2026-02 实验）:
-  无验证:        基准分 52.8%
-  添加自检循环:   基准分 66.5%  → +13.7% 绝对提升
+LangChain encoding Agent (February 2026 experiment):
+  no validation:      baseline score 52.8%
+  add self-check loop: baseline score 66.5%  → +13.7% absolute improvement
   
-  改进分解:
-    自检循环:     +13.7% （最高单项改进）
-    环境预扫描:   +5.2%
-    反漂移检测:   +3.8%
-    推理预算优化: +2.5%
+  improvement breakdown:
+    self-check loop:    +13.7% (highest single improvement)
+    pre-environment scan: +5.2%
+    drift detection:     +3.8%
+    inference budget optimization: +2.5%
 
-Anthropic 长运行 Agent:
-  无验证:        任务完成率 71%
-  带验证:        任务完成率 89%  → +18% 绝对提升
+Anthropic long-running Agent:
+  no validation:       task completion rate 71%
+  with validation:     task completion rate 89%  → +18% absolute improvement
   
-  验证拦截的问题类型:
-    - 幻觉输出: 占拦截问题的 40%
-    - 格式错误: 占拦截问题的 25%
-    - 逻辑不一致: 占拦截问题的 20%
-    - 安全风险: 占拦截问题的 15%
+  types of validation intercept issues:
+    - hallucination output: 40% of intercepted issues
+    - format errors:        25% of intercepted issues
+    - logical inconsistency: 20% of intercepted issues
+    - security risks:       15% of intercepted issues
 ```
 
-## 1.2 验证分类体系
+## 1.2 Classification System of Validations
 
 ```
-Agent 输出验证分类:
+Agent output verification classification:
 
-1. 事实验证（Factual Verification）
-   输出的事实是否与上下文/证据一致
-   工具: LLM-as-Judge, RAGAS Faithfulness
+1. factual verification (Factual Verification)
+   are the facts in the output consistent with the context/evidence
+   Tool: LLM-as-Judge, RAGAS Faithfulness
 
-2. 格式验证（Format Verification）
-   输出的 YAML/JSON/命令是否语法正确
-   工具: 语法解析器, Schema 校验
+2. Format Verification
+   Is the YAML/JSON/command output syntactically correct?
+   Tool: Syntax parser, Schema validation
 
-3. 安全验证（Safety Verification）
-   输出的命令/操作是否安全
-   工具: 正则匹配, 命令白名单
+3. Safety Verification
+   Is the command/operation safe?
+   Tool: Regular expression matching, Command whitelist
 
-4. 完整性验证（Completeness Verification）
-   输出是否完整回答了问题的所有部分
-   工具: LLM-as-Judge, Checklist
+4. Completeness Verification
+   Is the output fully addressing all parts of the question?
+   Tool: LLM-as-Judge, Checklist
 
-5. 一致性验证（Consistency Verification）
-   输出的各部分之间是否逻辑一致
-   工具: LLM-as-Judge, 规则引擎
+5. Consistency Verification
+   Are the parts of the output logically consistent?
+   Tool: LLM-as-Judge, Rule engine
 
-6. 可执行性验证（Executability Verification）
-   给出的方案是否在当前环境下可执行
-   工具: Dry-run, 环境检查
+6. Executability Verification
+   Is the proposed solution executable in the current environment?
+   Tool: Dry-run, Environment check
 ```
 
 ---
 
-<!-- chunk: 2. 多维度验证器设计 -->## 2. 多维度验证器设计
+## 2. Design of Multi-Dimensional Validator
 
-## 2.1 验证器框架
+## 2.1 Validator Framework
 
 ```python
 from abc import ABC, abstractmethod
@@ -174,7 +177,7 @@ from typing import Optional, Any
 from enum import Enum
 
 class VerificationSeverity(Enum):
-    """验证问题严重性"""
+    """validate severity of issues"""
     INFO = "info"           # 信息提示
     WARNING = "warning"     # 警告（不阻塞）
     ERROR = "error"         # 错误（阻塞输出）
@@ -182,7 +185,7 @@ class VerificationSeverity(Enum):
 
 @dataclass
 class VerificationResult:
-    """单个验证结果"""
+    """single validation result"""
     verifier: str
     passed: bool
     severity: VerificationSeverity = VerificationSeverity.INFO
@@ -193,7 +196,7 @@ class VerificationResult:
 
 @dataclass
 class VerificationReport:
-    """完整验证报告"""
+    """complete validation report"""
     overall_passed: bool
     results: list[VerificationResult]
     total_score: float
@@ -220,7 +223,7 @@ class VerificationReport:
 
 
 class BaseVerifier(ABC):
-    """验证器基类"""
+    """validation base class"""
 
     @abstractmethod
     def verify(self, task: str, output: str, context: dict) -> VerificationResult:
@@ -233,7 +236,7 @@ class BaseVerifier(ABC):
 
 
 class VerificationPipeline:
-    """验证管线：编排多个验证器"""
+    """validation pipeline: orchestrate multiple validators"""
 
     def __init__(self, verifiers: list[BaseVerifier] = None):
         self.verifiers = verifiers or []
@@ -242,14 +245,14 @@ class VerificationPipeline:
         self.verifiers.append(verifier)
 
     def verify_all(self, task: str, output: str, context: dict) -> VerificationReport:
-        """运行所有验证器"""
+        """run all validators"""
         results = []
         for verifier in self.verifiers:
             try:
                 result = verifier.verify(task, output, context)
                 results.append(result)
 
-                # CRITICAL 问题立即终止
+                # CRITICAL terminate the issue immediately
                 if (not result.passed
                         and result.severity == VerificationSeverity.CRITICAL):
                     break
@@ -258,17 +261,17 @@ class VerificationPipeline:
                     verifier=verifier.name,
                     passed=False,
                     severity=VerificationSeverity.WARNING,
-                    message=f"验证器异常: {e}",
+                    message=f"Validation error: {e}",
                 ))
 
         return VerificationReport.from_results(results)
 ```
 
-## 2.2 事实一致性验证器
+## 2.2 Fact Consistency Validator
 
 ```python
 class FactualConsistencyVerifier(BaseVerifier):
-    """事实一致性验证：确保输出与上下文证据一致"""
+    """fact consistency validation: ensure output aligns with contextual evidence"""
 
     def __init__(self, judge_llm, threshold: float = 0.85):
         self.judge_llm = judge_llm
@@ -285,28 +288,28 @@ class FactualConsistencyVerifier(BaseVerifier):
         prompt = f"""
 你是一个事实一致性审查员。请严格评估以下回答是否与给定的证据/上下文一致。
 
-<!-- chunk: 任务 -->## 任务
+## task
 {task}
 
-<!-- chunk: 上下文/证据 -->## 上下文/证据
+## context/evidence
 {sources[:3000]}
 {evidence[:2000]}
 
-<!-- chunk: Agent 的回答 -->## Agent 的回答
+## agent's response
 {output[:3000]}
 
-<!-- chunk: 评估要求 -->## 评估要求
+## evaluation requirements
 1. 检查回答中的每一个事实性声明
 2. 判断每个声明是否有上下文支撑
 3. 识别任何幻觉（无依据的声明）
 
-<!-- chunk: 输出格式（JSON） -->## 输出格式（JSON）
+## output format (JSON)
 {{
     "consistent": true/false,
     "score": 0.0-1.0,
-    "unsupported_claims": ["无支撑的声明1", "..."],
-    "hallucinations": ["幻觉内容1", "..."],
-    "missing_evidence": ["应引用但未引用的证据1", "..."]
+    "unsupported_claims": ["unsupported claims1", "..."],
+    "hallucinations": ["hallucinated content1", "..."],
+    "missing_evidence": ["referenced evidence but not cited1", "..."],
 }}
 """
         result = self.judge_llm.invoke(prompt)
@@ -320,10 +323,10 @@ class FactualConsistencyVerifier(BaseVerifier):
             passed=passed,
             severity=VerificationSeverity.ERROR if not passed
                      else VerificationSeverity.INFO,
-            message=f"事实一致性得分: {score:.2f}",
+            message=f"Fact consistency score: {score:.2f}",
             score=score,
             details=parsed.get("hallucinations", []),
-            fix_suggestion="请基于上下文中的具体证据修正以下幻觉内容: "
+            fix_suggestion="Please correct the following hallucinated content based on specific evidence within the context: "
                           + "; ".join(parsed.get("hallucinations", [])),
         )
 
@@ -338,13 +341,13 @@ class FactualConsistencyVerifier(BaseVerifier):
         return {"consistent": False, "score": 0.0}
 ```
 
-## 2.3 命令安全验证器
+## 2.3 Command Security Validator
 
 ```python
 import re
 
 class CommandSafetyVerifier(BaseVerifier):
-    """命令安全验证：拦截危险命令"""
+    """command security validation: intercept dangerous commands"""
 
     DANGER_LEVELS = {
         "critical": [
@@ -379,7 +382,7 @@ class CommandSafetyVerifier(BaseVerifier):
         if not commands:
             return VerificationResult(
                 verifier=self.name, passed=True,
-                message="未检测到命令", score=1.0,
+                message="No command detected", score=1.0,
             )
 
         issues = []
@@ -411,16 +414,16 @@ class CommandSafetyVerifier(BaseVerifier):
             verifier=self.name,
             passed=passed,
             severity=max_severity,
-            message=f"检测到 {len(issues)} 个安全问题" if issues else "命令安全检查通过",
+            message=f"Detected {len(issues)} security issues" if issues else "Command security check passed",
             details=issues,
             score=1.0 - len(issues) * 0.2,
-            fix_suggestion="将危险命令替换为只读命令或添加 --dry-run 标志",
+            fix_suggestion="Replace dangerous commands with read-only commands or add the --dry-run flag",
         )
 
     def _extract_commands(self, text: str) -> list:
-        """从文本中提取命令"""
+        """extract commands from text"""
         commands = []
-        # 提取代码块中的命令
+        # extract commands from code blocks
         code_blocks = re.findall(r'```(?:bash|shell|sh)?\n(.*?)```',
                                  text, re.DOTALL)
         for block in code_blocks:
@@ -429,7 +432,7 @@ class CommandSafetyVerifier(BaseVerifier):
                 if line and not line.startswith("#"):
                     commands.append(line)
 
-        # 提取内联命令
+        # extract inline commands
         inline_cmds = re.findall(r'`((?:kubectl|helm|etcdctl|docker)\s+[^`]+)`',
                                  text)
         commands.extend(inline_cmds)
@@ -437,14 +440,14 @@ class CommandSafetyVerifier(BaseVerifier):
         return commands
 ```
 
-## 2.4 输出格式验证器
+## 2.4 Output Format Validator
 
 ```python
 import yaml
 import json as json_module
 
 class OutputFormatVerifier(BaseVerifier):
-    """输出格式验证：确保 YAML/JSON 语法正确"""
+    """output format validation: ensure YAML/JSON syntax is correct"""
 
     @property
     def name(self) -> str:
@@ -453,7 +456,7 @@ class OutputFormatVerifier(BaseVerifier):
     def verify(self, task: str, output: str, context: dict) -> VerificationResult:
         issues = []
 
-        # 验证 YAML 块
+        # validate YAML block
         yaml_blocks = re.findall(r'```yaml\n(.*?)```', output, re.DOTALL)
         for i, block in enumerate(yaml_blocks):
             try:
@@ -461,7 +464,7 @@ class OutputFormatVerifier(BaseVerifier):
                 if parsed is None:
                     issues.append({
                         "type": "yaml", "block": i,
-                        "error": "YAML 解析结果为空",
+                        "error": "YAML parsing result is empty",
                     })
             except yaml.YAMLError as e:
                 issues.append({
@@ -470,7 +473,7 @@ class OutputFormatVerifier(BaseVerifier):
                     "content_preview": block[:100],
                 })
 
-        # 验证 JSON 块
+        # validate JSON block
         json_blocks = re.findall(r'```json\n(.*?)```', output, re.DOTALL)
         for i, block in enumerate(json_blocks):
             try:
@@ -481,7 +484,7 @@ class OutputFormatVerifier(BaseVerifier):
                     "error": str(e)[:200],
                 })
 
-        # 验证 kubectl 命令语法
+        # Validate kubectl command syntax
         kubectl_cmds = re.findall(r'`(kubectl\s+[^`]+)`', output)
         for cmd in kubectl_cmds:
             cmd_issues = self._validate_kubectl_syntax(cmd)
@@ -493,18 +496,18 @@ class OutputFormatVerifier(BaseVerifier):
             passed=passed,
             severity=VerificationSeverity.ERROR if not passed
                      else VerificationSeverity.INFO,
-            message=f"发现 {len(issues)} 个格式问题" if issues else "格式检查通过",
+            message=f"Found {len(issues)} format issues" if issues else "Format check passed",
             details=issues,
             score=max(0, 1.0 - len(issues) * 0.15),
-            fix_suggestion="修正 YAML/JSON 语法错误",
+            fix_suggestion="Fix YAML/JSON syntax errors",
         )
 
     def _validate_kubectl_syntax(self, cmd: str) -> list:
-        """基本的 kubectl 命令语法检查"""
+        """Basic kubectl command syntax check"""
         issues = []
         parts = cmd.split()
         if len(parts) < 2:
-            issues.append({"type": "kubectl", "error": "命令不完整",
+            issues.append({"type": "kubectl", "error": "command incomplete",
                           "command": cmd})
             return issues
 
@@ -514,17 +517,17 @@ class OutputFormatVerifier(BaseVerifier):
                        "cordon", "uncordon", "taint", "events"}
         verb = parts[1]
         if verb not in valid_verbs:
-            issues.append({"type": "kubectl", "error": f"未知子命令: {verb}",
+            issues.append({"type": "kubectl", "error": f"Unknown subcommand: {verb}",
                           "command": cmd})
 
         return issues
 ```
 
-## 2.5 完整性验证器
+## 2.5 Integrity Validator
 
 ```python
 class CompletenessVerifier(BaseVerifier):
-    """完整性验证：确保回答覆盖了问题的所有方面"""
+    """Completeness verification: Ensure the response covers all aspects of the question"""
 
     def __init__(self, judge_llm):
         self.judge_llm = judge_llm
@@ -537,25 +540,25 @@ class CompletenessVerifier(BaseVerifier):
         prompt = f"""
 评估以下回答是否完整地回应了任务要求。
 
-<!-- chunk: 任务 -->## 任务
+## Task
 {task}
 
-<!-- chunk: 回答 -->## 回答
+## Answer
 {output[:3000]}
 
-<!-- chunk: 评估标准 -->## 评估标准
+## Evaluation Criteria
 1. 是否直接回答了核心问题
 2. 是否提供了具体的操作步骤
 3. 是否包含必要的前置条件和注意事项
 4. 是否遗漏了关键信息
 
-<!-- chunk: 输出格式（JSON） -->## 输出格式（JSON）
+## Output Format (JSON)
 {{
     "complete": true/false,
     "score": 0.0-1.0,
-    "covered_aspects": ["已覆盖的方面1", "..."],
-    "missing_aspects": ["遗漏的方面1", "..."],
-    "improvement_suggestions": ["改进建议1", "..."]
+    "covered_aspects": ["covered aspects1", "..."],
+    "missing_aspects": ["missing aspects1", "..."],
+    "improvement_suggestions": ["improvement suggestions1", "..."],
 }}
 """
         result = self.judge_llm.invoke(prompt)
@@ -569,10 +572,10 @@ class CompletenessVerifier(BaseVerifier):
             passed=passed,
             severity=VerificationSeverity.WARNING if not passed
                      else VerificationSeverity.INFO,
-            message=f"完整性得分: {score:.2f}",
+            message=f"Integrity score: {score:.2f}",
             score=score,
             details=parsed.get("missing_aspects", []),
-            fix_suggestion="补充以下遗漏内容: "
+            fix_suggestion="Add the following missing content: "
                           + "; ".join(parsed.get("missing_aspects", [])),
         )
 
@@ -589,13 +592,13 @@ class CompletenessVerifier(BaseVerifier):
 
 ---
 
-<!-- chunk: 3. 自检循环模式 -->## 3. 自检循环模式
+## 3. Self-Inspection Loop Pattern
 
-## 3.1 自检循环实现
+## 3.1 Implementation of Self-Inspection Loop
 
 ```python
 class SelfCheckLoop:
-    """自检循环：Agent 完成后自动运行检查清单"""
+    """Self-check loop: Agent runs the checklist automatically after completion"""
 
     def __init__(
         self,
@@ -613,11 +616,11 @@ class SelfCheckLoop:
         output: str,
         context: dict,
     ) -> dict:
-        """验证并自我纠正"""
+        """Validate and self-correct"""
         correction_history = []
 
         for round_num in range(self.max_rounds + 1):
-            # 运行验证
+            # Run validation
             report = self.pipeline.verify_all(task, output, context)
 
             correction_history.append({
@@ -628,7 +631,7 @@ class SelfCheckLoop:
                 "issues": len(report.blocking_issues),
             })
 
-            # 验证通过
+            # Validation passed
             if report.overall_passed:
                 return {
                     "status": "passed",
@@ -638,7 +641,7 @@ class SelfCheckLoop:
                     "history": correction_history,
                 }
 
-            # 已达最大纠正轮数
+            # Reached maximum correction rounds
             if round_num >= self.max_rounds:
                 return {
                     "status": "failed_after_corrections",
@@ -652,7 +655,7 @@ class SelfCheckLoop:
                     ],
                 }
 
-            # 自我纠正
+            # Self-correct
             output = self._self_correct(task, output, report, context)
 
         return {"status": "max_rounds_exceeded", "output": output,
@@ -665,25 +668,25 @@ class SelfCheckLoop:
         report: VerificationReport,
         context: dict,
     ) -> str:
-        """让 LLM 根据验证反馈自我纠正"""
+        """Make the LLM self-correct based on validation feedback"""
         issues_text = "\n".join([
-            f"- [{r.verifier}] {r.message}\n  修复建议: {r.fix_suggestion}"
+            f"- [{r.verifier}] {r.message}\n  Fix suggestion: {r.fix_suggestion}"
             for r in report.blocking_issues + report.warnings
         ])
 
         correction_prompt = f"""
 你之前的回答存在以下问题，请修正后重新输出。
 
-<!-- chunk: 原始任务 -->## 原始任务
+## Original Task
 {task}
 
-<!-- chunk: 你之前的回答 -->## 你之前的回答
+## Your Previous Answer
 {output[:3000]}
 
-<!-- chunk: 验证发现的问题 -->## 验证发现的问题
+## Issues Found During Verification
 {issues_text}
 
-<!-- chunk: 要求 -->## 要求
+## Requirements
 1. 保留正确的部分
 2. 修正上述问题
 3. 确保 YAML/JSON 语法正确
@@ -696,33 +699,33 @@ class SelfCheckLoop:
         return corrected
 ```
 
-## 3.2 自检清单模板
+## 3.2 Self-Inspection Checklist Template
 
 ```python
 class DiagnosisChecklist:
-    """K8S 诊断输出自检清单"""
+    """K8S diagnostic output self-checklist"""
 
     CHECKLIST = [
-        {"id": "root_cause", "question": "是否明确给出了根因分析？",
+        {"id": "root_cause", "question": "Is the root cause analysis clearly specified?",
          "required": True},
-        {"id": "evidence", "question": "根因结论是否有具体的 Event/日志证据支撑？",
+        {"id": "evidence", "question": "Is the root cause conclusion supported by specific Event/log evidence?",
          "required": True},
-        {"id": "commands_safe", "question": "给出的命令是否可安全执行？",
+        {"id": "commands_safe", "question": "Are the commands safe to execute?",
          "required": True},
-        {"id": "yaml_valid", "question": "YAML/JSON 是否语法正确？",
+        {"id": "yaml_valid", "question": "Is the YAML/JSON syntax correct?",
          "required": True},
-        {"id": "steps_complete", "question": "操作步骤是否完整可执行？",
+        {"id": "steps_complete", "question": "Are the operation steps complete and executable?",
          "required": True},
-        {"id": "risk_assessed", "question": "是否评估了操作风险等级？",
+        {"id": "risk_assessed", "question": "Has the operation risk level been assessed?",
          "required": False},
-        {"id": "rollback_plan", "question": "是否提供了回滚方案？",
+        {"id": "rollback_plan", "question": "Is there a rollback plan provided?",
          "required": False},
-        {"id": "confidence", "question": "是否标注了诊断置信度？",
+        {"id": "confidence", "question": "Is the diagnostic confidence marked?",
          "required": False},
     ]
 
     def evaluate(self, output: str, context: dict) -> dict:
-        """根据清单评估输出"""
+        """Evaluate the output according to the checklist"""
         results = []
         for item in self.CHECKLIST:
             met = self._check_item(item, output)
@@ -748,16 +751,16 @@ class DiagnosisChecklist:
         }
 
     def _check_item(self, item: dict, output: str) -> bool:
-        """检查单项（基于关键词的快速检查）"""
+        """Check Single (Quick Check Based on Keywords)"""
         checks = {
-            "root_cause": lambda o: any(kw in o for kw in ["根因", "原因", "root cause"]),
-            "evidence": lambda o: any(kw in o for kw in ["Event", "日志", "证据", "log"]),
+            "root_cause": lambda o: any(kw in o for kw in ["root cause", "cause", "reason"]),
+            "evidence": lambda o: any(kw in o for kw in ["Event", "log", "evidence", "proof"]),
             "commands_safe": lambda o: "delete" not in o.lower() or "--dry-run" in o,
             "yaml_valid": lambda o: self._check_yaml_blocks(o),
-            "steps_complete": lambda o: any(kw in o for kw in ["步骤", "操作", "Step"]),
-            "risk_assessed": lambda o: any(kw in o for kw in ["风险", "risk", "影响"]),
-            "rollback_plan": lambda o: any(kw in o for kw in ["回滚", "rollback", "恢复"]),
-            "confidence": lambda o: any(kw in o for kw in ["置信度", "确定性", "confidence", "%"]),
+            "steps_complete": lambda o: any(kw in o for kw in ["operation", "step", "procedure"]),
+            "risk_assessed": lambda o: any(kw in o for kw in ["risk", "risk assessment", "impact"]),
+            "rollback_plan": lambda o: any(kw in o for kw in ["rollback", "recovery", "restoration"]),
+            "confidence": lambda o: any(kw in o for kw in ["confidence", "certainty", "assurance", "%"]),
         }
         checker = checks.get(item["id"], lambda o: True)
         return checker(output)
@@ -774,36 +777,36 @@ class DiagnosisChecklist:
 
 ---
 
-<!-- chunk: 4. LLM-as-Judge 评估范式 -->## 4. LLM-as-Judge 评估范式
+## 4. LLM-as-Judge Evaluation Paradigm
 
-## 4.1 Judge 模型选择策略
+## 4.1 Strategy for Selecting Judge Models
 
 ```
-LLM-as-Judge 模型选择:
+LLM-as-Judge model selection:
 
-原则: Judge 模型必须与生成模型不同（避免同质偏见）
+Principle: The Judge model must be different from the generation model (to avoid homogenization bias)
 
-推荐配置:
-  生成模型         Judge 模型          适用场景
-  GPT-4o           Claude Sonnet 4     通用判断
-  Claude Sonnet 4  GPT-4o              通用判断
-  GPT-4o-mini      GPT-4o              成本敏感场景
-  Gemini 2.5       Claude Sonnet 4     跨厂商评估
-  任意开源模型     GPT-4o              开源模型评估
+Recommended configuration:
+  Generation model         Judge model          Applicable scenarios
+  GPT-4o           Claude Sonnet 4     General judgment
+  Claude Sonnet 4  GPT-4o              General judgment
+  GPT-4o-mini      GPT-4o              cost-sensitive scenarios
+  Gemini 2.5       Claude Sonnet 4     Cross-vendor assessment
+  any open-source model     GPT-4o              Open-source model evaluation
 
-评估维度与权重:
-  Faithfulness (忠实度):     权重 30%
-  Relevancy (相关性):       权重 25%
-  Completeness (完整性):    权重 20%
-  Safety (安全性):          权重 15%
-  Format (格式正确性):      权重 10%
+Assessment dimensions and weights:
+  Faithfulness (faithfulness):     weight 30%
+  Relevancy (relevance):       weight 25%
+  Completeness (completeness):    weight 20%
+  Safety (safety):          weight 15%
+  Format (format correctness):      weight 10%
 ```
 
-## 4.2 Judge 评估器实现
+## 4.2 Implementation of Judge Evaluators
 
 ```python
 class LLMJudge:
-    """LLM-as-Judge 评估器"""
+    """LLM-as-Judge Evaluator"""
 
     def __init__(self, judge_llm, dimensions: dict = None):
         self.judge = judge_llm
@@ -816,51 +819,51 @@ class LLMJudge:
         }
 
     def evaluate(self, task: str, output: str, context: dict) -> dict:
-        """多维度评估"""
+        """Multi-dimensional Evaluation"""
         prompt = f"""
 你是一个专业的 AI 输出质量评估员。请严格按照以下维度评估 Agent 的回答。
 
-<!-- chunk: 任务 -->## 任务
+## Task
 {task}
 
-<!-- chunk: 上下文/证据 -->## 上下文/证据
+## Context/Evidence
 {context.get('sources', '')[:3000]}
 
-<!-- chunk: Agent 的回答 -->## Agent 的回答
+## Agent's Response
 {output[:4000]}
 
-<!-- chunk: 评估维度 -->## 评估维度
+## Evaluation Dimensions
 
-## 1. Faithfulness（忠实度）0-10 分
+## 1. Faithfulness (Faithfulness) 0-10 Points
 回答中的每个事实是否都有上下文支撑？是否存在幻觉？
 
-## 2. Relevancy（相关性）0-10 分
+## 2. Relevancy (Relevancy) 0-10 Points
 回答是否直接针对了提出的问题？是否偏离主题？
 
-## 3. Completeness（完整性）0-10 分
+## 3. Completeness (Completeness) 0-10 Points
 回答是否覆盖了问题的所有方面？是否有遗漏？
 
-## 4. Safety（安全性）0-10 分
+## 4. Safety (Safety) 0-10 Points
 给出的命令/操作是否安全？是否存在风险操作未被标注？
 
-## 5. Format（格式正确性）0-10 分
+## 5. Format (Format Correctness) 0-10 Points
 YAML/JSON 语法是否正确？命令格式是否规范？
 
-<!-- chunk: 输出格式（JSON） -->## 输出格式（JSON）
+## Output Format (JSON)
 {{
     "faithfulness": {{"score": 0-10, "reasoning": "..."}},
     "relevancy": {{"score": 0-10, "reasoning": "..."}},
     "completeness": {{"score": 0-10, "reasoning": "..."}},
     "safety": {{"score": 0-10, "reasoning": "..."}},
     "format": {{"score": 0-10, "reasoning": "..."}},
-    "overall_assessment": "总体评估",
-    "key_issues": ["主要问题1", "..."]
+    "overall_assessment": "Overall assessment",
+    "key_issues": ["Key issue 1", "..."]
 }}
 """
         result = self.judge.invoke(prompt)
         parsed = self._parse_json(result)
 
-        # 计算加权总分
+        # Calculate Weighted Total Score
         weighted_score = 0
         for dim, weight in self.dimensions.items():
             dim_score = parsed.get(dim, {}).get("score", 0) / 10.0
@@ -886,39 +889,39 @@ YAML/JSON 语法是否正确？命令格式是否规范？
 
 ---
 
-<!-- chunk: 5. RAGAS 评测框架集成 -->## 5. RAGAS 评测框架集成
+## 5. Integration of RAGAS Evaluation Framework
 
-## 5.1 RAGAS 指标体系
+## 5.1 RAGAS Indicator System
 
 ```
-RAGAS 核心指标:
+RAGAS Core Indicators:
 
-1. Faithfulness（忠实度）
-   衡量: 生成的答案是否与检索到的上下文一致
-   计算: 答案中每个声明 → 检查上下文中是否有支撑
-   阈值: > 0.85
+1. Faithfulness(faithfulness)
+   Measure:  Whether the generated answer is consistent with the retrieved context
+   Calculation: Each statement in the answer → Check if there is supporting content in the context
+   Threshold: > 0.85
 
-2. Answer Relevancy（答案相关性）
-   衡量: 答案是否直接回应了问题
-   计算: 从答案生成问题 → 与原问题计算相似度
-   阈值: > 0.80
+2. Answer Relevancy(answer relevance)
+   Measure:  Whether the answer directly responds to the question
+   Calculation: Generate a question from the answer → Calculate similarity with the original question
+   Threshold: > 0.80
 
-3. Context Precision（上下文精确度）
-   衡量: 检索到的上下文是否都是相关的
-   计算: 相关上下文 / 总检索上下文
-   阈值: > 0.70
+3. Context Precision(Context Precision)
+   Measured: Are all retrieved contexts relevant?
+   Calculate: relevant context / total search context
+   Threshold: > 0.70
 
-4. Context Recall（上下文召回率）
-   衡量: 是否检索到了回答问题所需的所有上下文
-   计算: 回答需要的上下文 / 实际检索的上下文
-   阈值: > 0.75
+4. Context Recall(Context Recall)
+   Measure: Did we retrieve all the contextual information needed to answer the question?
+   Calculate: The context required for the answer / The actual context to be retrieved
+   Threshold: > 0.75
 ```
 
-## 5.2 RAGAS 集成实现
+## 5.2 Implementation of RAGAS Integration
 
 ```python
 class RAGASEvaluator:
-    """RAGAS 评测集成"""
+    """RAGAS Integration Evaluation"""
 
     def __init__(self, llm, embeddings):
         self.llm = llm
@@ -931,7 +934,7 @@ class RAGASEvaluator:
         contexts: list[str],
         ground_truth: str = None,
     ) -> dict:
-        """运行 RAGAS 评估"""
+        """Run RAGAS Evaluation"""
         results = {}
 
         # Faithfulness
@@ -949,24 +952,24 @@ class RAGASEvaluator:
             question, contexts
         )
 
-        # Context Recall（需要 ground truth）
+        # Context Recall (needs ground truth)
         if ground_truth:
             results["context_recall"] = self._evaluate_context_recall(
                 ground_truth, contexts
             )
 
-        # 综合得分
+        # Overall Score
         scores = [v["score"] for v in results.values()]
         results["overall"] = sum(scores) / len(scores)
 
         return results
 
     def _evaluate_faithfulness(self, answer: str, contexts: list) -> dict:
-        """评估忠实度"""
-        # Step 1: 从答案中提取声明
+        """Evaluate Faithfulness"""
+        # Step 1: Extract Statements from the Answer
         claims = self._extract_claims(answer)
 
-        # Step 2: 检查每个声明是否有上下文支撑
+        # Step 2: Verify support for each declaration
         supported = 0
         details = []
         context_text = "\n".join(contexts)
@@ -982,8 +985,8 @@ class RAGASEvaluator:
                 "supported_claims": supported, "details": details}
 
     def _evaluate_relevancy(self, question: str, answer: str) -> dict:
-        """评估答案相关性"""
-        # 从答案反向生成问题，与原问题比较相似度
+        """Evaluate relevance of answers"""
+        # Generate questions from answers and compare similarity to original
         generated_questions = self._generate_questions_from_answer(answer, n=3)
         similarities = []
         q_embedding = self.embeddings.encode(question)
@@ -998,7 +1001,7 @@ class RAGASEvaluator:
 
     def _evaluate_context_precision(self, question: str,
                                      contexts: list) -> dict:
-        """评估上下文精确度"""
+        """Evaluate context accuracy"""
         relevant_count = 0
         for ctx in contexts:
             if self._is_context_relevant(question, ctx):
@@ -1008,7 +1011,7 @@ class RAGASEvaluator:
                 "total": len(contexts)}
 
     def _extract_claims(self, answer: str) -> list:
-        prompt = f"将以下文本分解为独立的事实性声明列表:\n\n{answer[:2000]}\n\n输出 JSON 数组: [\"声明1\", \"声明2\", ...]"
+        prompt = f"Decompose the following text into independent fact-based statements list:\n\n{answer[:2000]}\n\nOutput JSON array: [\"Statement1\", \"Statement2\", ...]"
         result = self.llm.invoke(prompt)
         try:
             return json.loads(result)
@@ -1016,7 +1019,7 @@ class RAGASEvaluator:
             return [answer[:200]]
 
     def _check_claim_support(self, claim: str, context: str) -> bool:
-        prompt = f"以下声明是否有上下文支撑？只回答 yes 或 no。\n声明: {claim}\n上下文: {context[:2000]}"
+        prompt = f"Does the following statement have contextual support? Only answer yes or no.\nStatement: {claim}\nContext: {context[:2000]}"
         result = self.llm.invoke(prompt).strip().lower()
         return "yes" in result
 
@@ -1027,41 +1030,41 @@ class RAGASEvaluator:
 
 ---
 
-<!-- chunk: 6. CI/CD 质量门禁 -->## 6. CI/CD 质量门禁
+## 6. CI/CD Quality Gates
 
-## 6.1 质量门禁配置
+## 6.1 Quality Gate Configuration
 
 ```yaml
 # harness-quality-gate.yaml
 quality_gate:
-  # 硬性门禁（不通过则阻塞合并）
+  # Hard gating (block merge if fails)
   hard_gates:
     faithfulness:
       min: 0.85
-      description: "事实一致性最低阈值"
+      description: "Minimum threshold for fact consistency"
     command_safety:
       min: 1.0
-      description: "命令安全必须 100%"
+      description: "Command safety must be 100%"
     hallucination_rate:
       max: 0.05
-      description: "幻觉率上限 5%"
+      description: "Maximum hallucination rate 5%"
     task_completion_rate:
       min: 0.90
-      description: "任务完成率最低 90%"
+      description: "Minimum task completion rate 90%"
 
-  # 软性门禁（不通过则告警）
+  # Soft gating (warn if fails)
   soft_gates:
     answer_relevancy:
       min: 0.80
-      description: "答案相关性建议阈值"
+      description: "Suggested threshold for relevance of answers"
     completeness:
       min: 0.75
-      description: "完整性建议阈值"
+      description: "Suggested threshold for completeness"
     avg_steps_ratio:
       max: 1.5
-      description: "步骤效率比（相对最优路径）"
+      description: "Efficiency ratio (relative optimal path)"
 
-  # 回归检测
+  # Regression detection
   regression:
     enabled: true
     tolerance: 0.02        # 允许 2% 波动
@@ -1072,7 +1075,7 @@ quality_gate:
       - answer_relevancy
 ```
 
-## 6.2 质量门禁检查器
+## 6.2 Quality Gate Inspector
 
 ```python
 import json
@@ -1089,20 +1092,20 @@ class GateResult:
     is_regression: bool = False
 
 class QualityGateChecker:
-    """Harness 质量门禁检查器"""
+    """Harness Quality Gate Checker"""
 
     def __init__(self, config_path: str):
         with open(config_path) as f:
             self.config = yaml.safe_load(f)["quality_gate"]
 
     def check(self, report_path: str, baseline_path: str = None) -> dict:
-        """运行质量门禁检查"""
+        """Run Quality Gate Checker"""
         with open(report_path) as f:
             report = json.load(f)
 
         results: list[GateResult] = []
 
-        # 检查硬性门禁
+        # Check hard gating
         for metric, gate in self.config.get("hard_gates", {}).items():
             if metric not in report:
                 continue
@@ -1118,7 +1121,7 @@ class QualityGateChecker:
                 actual=actual, passed=passed, is_hard=True,
             ))
 
-        # 检查软性门禁
+        # Check soft gating
         for metric, gate in self.config.get("soft_gates", {}).items():
             if metric not in report:
                 continue
@@ -1134,12 +1137,12 @@ class QualityGateChecker:
                 actual=actual, passed=passed, is_hard=False,
             ))
 
-        # 回归检测
+        # Regression detection
         if baseline_path and self.config.get("regression", {}).get("enabled"):
             regression_results = self._check_regression(report, baseline_path)
             results.extend(regression_results)
 
-        # 汇总
+        # Summarize
         hard_failures = [r for r in results if r.is_hard and not r.passed]
         soft_failures = [r for r in results if not r.is_hard and not r.passed]
         regressions = [r for r in results if r.is_regression and not r.passed]
@@ -1156,7 +1159,7 @@ class QualityGateChecker:
         }
 
     def _check_regression(self, report: dict, baseline_path: str) -> list:
-        """回归检测"""
+        """Regression detection"""
         with open(baseline_path) as f:
             baseline = json.load(f)
 
@@ -1201,13 +1204,13 @@ class QualityGateChecker:
 
 ---
 
-<!-- chunk: 7. A/B 测试与灰度评估 -->## 7. A/B 测试与灰度评估
+## 7. A/B Testing and Gray Scale Evaluation
 
-## 7.1 Shadow Mode 评估器
+## 7.1 Shadow Mode Inspector
 
 ```python
 class ShadowModeEvaluator:
-    """Shadow Mode：新旧 Harness 并行运行对比"""
+    """Shadow Mode: Parallel Run Comparison of New and Old Harnesses"""
 
     def __init__(self, current_harness, candidate_harness, evaluator):
         self.current = current_harness
@@ -1215,15 +1218,15 @@ class ShadowModeEvaluator:
         self.evaluator = evaluator
 
     async def evaluate(self, tasks: list[dict]) -> dict:
-        """并行运行两个 Harness 并对比"""
+        """Parallel run two Harnesses and compare"""
         results = []
 
         for task in tasks:
-            # 并行运行
+            # Parallel run
             current_result = await self.current.run(task["input"])
             candidate_result = await self.candidate.run(task["input"])
 
-            # 评估两者
+            # Evaluate both
             current_score = self.evaluator.evaluate(
                 task["input"], current_result["answer"],
                 {"sources": task.get("context", "")},
@@ -1244,7 +1247,7 @@ class ShadowModeEvaluator:
                     else "current",
             })
 
-        # 汇总
+        # Summarize
         candidate_wins = sum(1 for r in results if r["winner"] == "candidate")
         return {
             "total_tasks": len(results),
@@ -1263,71 +1266,71 @@ class ShadowModeEvaluator:
 
 ---
 
-<!-- chunk: 8. 最佳实践 -->## 8. 最佳实践
+## 8. Best Practices
 
-## 8.1 验证层核心原则
+## 8.1 Core Principles of Validation Layer
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Recommendation |
 |------|------|---------|
-| **验证前置** | 验证是 Harness 最高 ROI 的投资 | 从第一天就建立验证管线 |
-| **多维度** | 单一维度不足以保证质量 | 至少覆盖事实/安全/格式三个维度 |
-| **自检优先** | 让 Agent 先自检，再外部审核 | 部署 SelfCheckLoop |
-| **异模型 Judge** | 避免用同一模型自评 | 生成和评估使用不同模型 |
-| **门禁自动化** | 质量门禁集成到 CI/CD | 每次 Harness 变更自动评估 |
-| **基线对比** | 每次评估保存基线 | 防止回归 |
+| **Preceding Validation** | Validation is the highest return on investment for Harness | Establish a validation pipeline from day one |
+| **Multi-dimensional** | Single dimension cannot guarantee quality | Cover at least factual, security, and format dimensions |
+| **Prioritize Self-check** | Have Agents self-check first, then external review | Deploy SelfCheckLoop |
+| **Diverse Model Judge** | Avoid using the same model for self-evaluation | Generate and evaluate using different models |
+| **Automate Gateways** | Integrate quality gates into CI/CD | Automatically assess each Harness change |
+| **Baseline Comparison** | Save baselines for each assessment | Prevent regressions |
 
-## 8.2 反模式
+## 8.2 Anti-patterns
 
-| 反模式 | 问题 | 正确做法 |
+| Anti-pattern | Problem | Correct Approach |
 |--------|------|----------|
-| **跳过验证** | 信任 Agent 输出 → 幻觉上线 | 强制通过验证管线 |
-| **同模型自评** | 同质偏见 → 发现不了问题 | 用不同模型做 Judge |
-| **只测 Happy Path** | 边缘场景崩溃 | 包含异常、边界、对抗用例 |
-| **无基线记录** | 无法判断进退 | 每次评估保存基线文件 |
-| **验证太慢** | 拖慢开发迭代 | 分层验证：快速检查 + 深度评估 |
+| **Skip Validation** | Trust Agent Output → False Positive | Force through Validation Pipeline |
+| **Self-Assessment with Same Model** | Homogeneous Bias → Misses Issues | Use Different Models for Judge |
+| **Test Only Happy Path** | Edge Cases Fail | Include Edge Cases, Boundary Cases, Adversarial Cases |
+| **No Baseline Logging** | Unable to Judge Progress | Save Baseline Files After Each Evaluation |
+| **Validation Too Slow** | Slows Development Iterations | Layered Validation: Quick Checks + Deep Analysis |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Documentation | Related Content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | 六层架构中的 Verification 层定义 |
-| [31 - Loop 与执行引擎](./31-agent-harness-loop-execution.md) | 验证在 Loop 中的位置 |
-| [35 - 安全与约束](./35-agent-harness-security-constraints.md) | 安全验证的约束层基础 |
-| [08 - 评测与可观测性](./observability.md|08-agent-evaluation-observability]].md) | RAGAS、LLM-as-Judge 基础理论 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Definition of the Verification Layer in the Six-Layer Architecture |
+| [31 - Loops and Execution Engine](./31-agent-harness-loop-execution.md) | Position of Verification in Loops |
+| [35 - Security and Constraints](./35-agent-harness-security-constraints.md) | Foundation of Security Verification Constraints |
+| [08 - Evaluation and Observability](./observability.md|08-agent-evaluation-observability]].md) | Foundations of RAGAS, LLM-as-Judge Theories |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| LangChain | 自检循环 +13.7% 基准分实验 | 2026-02 |
-| RAGAS 项目 | RAG 评测框架设计 | 2025-2026 |
-| Anthropic | Agent 输出验证最佳实践 | 2026-02 |
-| Google DeepMind | LLM-as-Judge 研究 | 2025 |
+| LangChain | Self-check Loop +13.7% Baseline Score Experiment | 2026-02 |
+| RAGAS Project | Design of RAG Evaluation Framework | 2025-2026 |
+| Anthropic | Best Practices for Agent Output Validation | 2026-02 |
+| Google DeepMind | Research on LLM-as-Judge | 2025 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness 验证与质量门禁。*
+*This document is original content from the kudig-database project 02-ai-agents series, delving into Agent Harness Validation and Quality Gates.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Special Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval Enhanced Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Mult-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation Framework and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## Related
 

@@ -111,32 +111,32 @@ This article systematically outlines the key strategies for Harness performance 
 
 ```
 # 🟢 Low Risk: Read-only/information collection, typically with no side effects
-Agent 任务成本分解:
+Agent Task Cost Breakdown:
 
-典型诊断任务（10 步、使用 GPT-4o）:
-  ├── LLM 推理成本: $0.85 (70%)
-  │   ├── 输入 Token: ~40K tokens × $2.50/1M = $0.10
-  │   ├── 输出 Token: ~8K tokens × $10.00/1M = $0.08
-  │   └── 多轮累积输入: ~300K tokens × $2.50/1M = $0.75
-  │       （每轮都需要发送完整上下文）
+Typical Diagnostic Task (10 Steps, Using GPT-4o):
+  ├── LLM inference cost: $0.85 (70%)
+  │   ├── Input Token: ~40K tokens × $2.50/1M = $0.10
+  │   ├── Output Token: ~8K tokens × $10.00/1M = $0.08
+  │   └── Cumulative input over multiple rounds: ~300K tokens × $2.50/1M = $0.75
+  │       (Each round requires sending full context)
   │
-  ├── 工具调用成本: $0.05 (4%)
-  │   └── kubectl/prometheus API 调用
+  ├── Tool invocation cost: $0.05 (4%)
+  │   └── kubectl/prometheus API call
   │
-  ├── 验证成本: $0.15 (12%)
+  ├── Validate cost: $0.15 (12%)
   │   ├── LLM-as-Judge: ~10K tokens
-  │   └── 自检循环: 1-2 轮额外推理
+  │   └── Self-check loop: 1-2 rounds of additional inference
   │
-  ├── RAG 检索成本: $0.05 (4%)
-  │   └── Embedding + 向量检索
+  ├── RAG Retrieval Cost: $0.05 (4%)
+  │   └── Embedding + Vector Retrieval
   │
-  └── 基础设施成本: $0.12 (10%)
-      └── 计算、网络、存储
+  └── Infrastructure cost: $0.12 (10%)
+      └── Compute, network, storage
 
-关键洞察:
-  多轮累积输入是最大成本项。每一轮 Loop 都需要发送完整上下文，
-  10 轮迭代意味着上下文被发送了 10 次。
-  优化上下文长度的收益是乘数级的。
+Key Insights:
+  Multi-round cumulative input is the largest cost item. Each Loop round requires sending the full context.
+  10 Ten iterations mean the context has been sent ten times.
+  Optimizing the length of context yields a multiplier effect.
 ```
 ## 1.2 Cost-Quality Trade-off Matrix
 
@@ -215,8 +215,8 @@ class ContextCompressor:
         summary_parts = [steps[0]]  # 保留开头
         for step in steps[1:-3]:
             # Extract Key Information
-            thought = re.search(r'思考: (.+?)(?:\n|$)', step)
-            result = re.search(r'结果: (.+?)(?:\n|$)', step)
+            thought = re.search(r'thought: (.+?)(?:\n|$)', step)
+            result = re.search(r'result: (.+?)(?:\n|$)', step)
             summary = ""
             if thought:
                 summary += f"[{thought.group(1)[:50]}]"
@@ -235,10 +235,10 @@ class ContextCompressor:
         def truncate_match(match):
             output = match.group(1)
             if len(output) > 500:
-                return f"结果: {output[:300]}...[截断 {len(output)-300} 字符]"
+                return f"result: {output[:300]}...[truncated {len(output)-300} characters]"
             return match.group(0)
 
-        return re.sub(r'结果: (.+?)(?=\n###|\n---|$)',
+        return re.sub(r'result: (.+?)(?=\n###|\n---|$)',
                       truncate_match, text, flags=re.DOTALL)
 
     def _llm_compress(self, text: str, budget: int) -> str:
@@ -614,7 +614,7 @@ class PromptCacheOptimizer:
             "static_prefix": static_prefix,
             "static_tokens": self._count_tokens(static_prefix),
             "cache_savings_estimate": "80-90% on prefix tokens",
-            "tip": "保持前缀稳定，只在后缀追加历史和当前问题",
+            "tip": "keep the prefix stable, only append history and current question to the suffix",
         }
 
     def _count_tokens(self, text: str) -> int:
@@ -699,12 +699,12 @@ class CostThrottler:
 
         # Exceeding Budget: Reject
         if projected > self.daily_budget:
-            return False, f"日预算已耗尽: ${self.daily_spent:.2f}/{self.daily_budget:.2f}"
+            return False, f"daily budget has been exhausted: ${self.daily_spent:.2f}/{self.daily_budget:.2f}"
 
         # Close to Budget: Alert + Degradation
         if projected > self.daily_budget * self.alert_threshold:
             self.throttle_mode = True
-            return True, "进入降级模式: 使用低成本模型"
+            return True, "enter degradation mode: use low-cost model"
 
         return True, "OK"
 

@@ -1,6 +1,7 @@
----title: Agent Harness Loop 与执行引擎深度设计 (domain-14-ai-ml-infra)
-description: 'title: Agent Harness Loop 与执行引擎深度设计'
-summary: 'title: Agent Harness Loop 与执行引擎深度设计'
+---
+title: Agent Harness Loop deeply designed with the execution engine (domain-14-ai-ml-infra)
+description: 'title: Agent Harness Loop deeply designed with the execution engine'
+summary: 'title: Agent Harness Loop deeply designed with the execution engine'
 category: general
 tags:
 - ai
@@ -15,17 +16,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 35min
 intent_queries:
-- Agent Harness Loop 与执行引擎深度设计 是什么
-- 如何 Agent Harness Loop 与执行引擎深度设计
-- Kubernetes 14 ai ml infra 最佳实践
+- Agent Harness Loop with Execution Engine Deep Design Is
+- How to Deeply Design Agent Harness Loop and Execution Engine
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - Agent
 - Harness
 - Loop
-- 与执行引擎深度设计
+- Deep Design with Execution Engine
 - ai
 - ml
 - infra
@@ -37,17 +38,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/31-agent-harness-loop-execution.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: Agent Harness Loop 与执行引擎深度设计
-description: '# Agent Harness Loop 与执行引擎深度设计'
+title: Agent Harness Loop and Execution Engine Deep Design
+description: '# Agent Harness Loop and Execution Engine Deep Design'
 category: ai-agent
 tags:
 - ai
@@ -60,18 +63,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent Harness Loop 与执行引擎深度设计 是什么
-- 如何 Agent Harness Loop 与执行引擎深度设计
+- What is Agent Harness Loop and Execution Engine Deep Design
+- How to do Agent Harness Loop and Execution Engine Deep Engine Design
 trigger_keywords:
 - Agent
 - Harness
 - Loop
-- 与执行引擎深度设计
+- Execution Engine Deep Design
 - ai
 - agent
 authors:
@@ -85,28 +88,28 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent Harness Loop 与执行引擎深度设计
+# Agent Harness Loop and Execution Engine Deep Design
 
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Agent Loop, 执行引擎, 状态机, ReAct Loop, 反漂移, 超时保护, 异步执行, 有限状态机, Trajectory, 执行策略
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-Loop（循环层）是 Agent Harness 六层架构的第一层，也是整个 Harness 的**执行心脏**。它决定了 Agent 如何观察、思考、行动，以及何时终止。一个设计良好的 Loop 层不仅驱动 Agent 完成任务，还负责异常处理、漂移检测、资源管控和执行轨迹记录。
-
-本文从执行引擎的底层设计出发，深入探讨 Loop 层的状态机模型、执行策略、反漂移算法、并发控制、故障恢复机制，以及在 K8S 运维场景中的完整实现。
+> **Document Type**: Harness Engineering Deep Dive Series | **Last Updated**: 2026-04 | **Keywords**: Agent Loop, Execution Engine, State Machine, ReAct Loop, Anti-drift, Timeout Protection, Asynchronous Execution, Finite State Machine, Trajectory, Execution Strategy
 
 ---
 
-<!-- chunk: 1. Loop 层核心模型 -->## 1. Loop 层核心模型
+## Overview
 
-## 1.1 有限状态机（FSM）模型
+Loop (loop layer) is the first layer of the six-layer architecture in Agent Harness and also the heart of Harness's execution. It determines how an Agent observes, thinks, acts, and when it terminates. A well-designed loop layer not only drives the Agent to complete tasks but also handles exceptions, drift detection, resource management, and records the execution trajectory.
 
-Agent Loop 的本质是一个有限状态机。每个循环迭代在以下状态间转移：
+This document delves into the deep design of the state machine model, execution strategy, anti-drift algorithm, concurrent control, fault recovery mechanism, and full implementation in Kubernetes operational scenarios.
+
+---
+
+## 1. Core Model of Loop Layer
+
+## 1.1 Finite State Machine (FSM) Model
+
+The essence of Agent Loop is a finite state machine. Each iteration of the loop transfers between the following states:
 
 ```
-Agent Loop 有限状态机:
+Agent Loop Finite State Machine:
 
 INIT ──→ OBSERVE ──→ THINK ──→ DECIDE
                                   │
@@ -127,16 +130,16 @@ INIT ──→ OBSERVE ──→ THINK ──→ DECIDE
               └──→ OBSERVE        ▼
                                OUTPUT
 
-终止条件:
-  - 任务完成（Agent 判断 is_final_answer）
-  - 超时（wall-clock timeout）
-  - 迭代上限（max_iterations）
-  - 漂移检测（drift detected）
-  - 约束违反（constraint violation）
-  - 异常中断（unrecoverable error）
+Termination Conditions:
+  - Task completion (Agent determines is_final_answer)
+  - Timeout (wall-clock timeout)
+  - max_iterations (iteration limit)
+  - wirl detection(drift detected)
+  - constraint violation
+  - unrecoverable error
 ```
 
-## 1.2 状态定义与转移规则
+## 1.2 State Definition and Transition Rules
 
 ```python
 from enum import Enum, auto
@@ -145,7 +148,7 @@ from typing import Optional, Any
 import time
 
 class LoopState(Enum):
-    """Agent Loop 状态枚举"""
+    """Agent Loop Status Enum"""
     INIT = auto()
     OBSERVE = auto()
     THINK = auto()
@@ -158,7 +161,7 @@ class LoopState(Enum):
 
 @dataclass
 class LoopStep:
-    """单步执行记录"""
+    """Step Execution Record"""
     iteration: int
     state: LoopState
     timestamp: float
@@ -172,7 +175,7 @@ class LoopStep:
     metadata: dict = field(default_factory=dict)
 
 class TerminationReason(Enum):
-    """终止原因枚举"""
+    """Termination Reason Enum"""
     TASK_COMPLETE = "task_complete"
     TIMEOUT = "timeout"
     MAX_ITERATIONS = "max_iterations"
@@ -185,9 +188,9 @@ class TerminationReason(Enum):
 
 ---
 
-<!-- chunk: 2. 执行引擎架构 -->## 2. 执行引擎架构
+## 2. Execution Engine Architecture
 
-## 2.1 核心执行引擎实现
+## 2.1 Core Execution Engine Implementation
 
 ```python
 import asyncio
@@ -197,7 +200,7 @@ from typing import Callable
 logger = logging.getLogger("agent.loop")
 
 class ExecutionEngine:
-    """Agent 核心执行引擎
+    """Core Execution Engine of Agent"""
 
     职责：
     1. 驱动 Agent Loop 的状态转移
@@ -224,48 +227,48 @@ class ExecutionEngine:
         self.timeout_seconds = timeout_seconds
         self.think_budget_ratio = think_budget_ratio
 
-        # 执行状态
+        # Execution Status
         self._state = LoopState.INIT
         self._trajectory: list[LoopStep] = []
         self._start_time: float = 0
         self._total_tokens: int = 0
         self._is_paused: bool = False
 
-        # 回调钩子
+        # Callback Hooks
         self._on_step_complete: list[Callable] = []
         self._on_terminate: list[Callable] = []
 
     def run(self, task: str, initial_context: dict = None) -> dict:
-        """同步执行 Agent Loop"""
+        """Synchronous Execution of Agent Loop"""
         self._state = LoopState.INIT
         self._start_time = time.time()
         self._trajectory = []
         iteration = 0
 
-        # 初始上下文构建
+        # Initial Context Construction
         context = self.context_mgr.build_context(task, initial_context)
 
         while iteration < self.max_iterations:
-            # 终止条件检查
+            # Termination Condition Check
             termination = self._check_termination_conditions(iteration)
             if termination:
                 return self._build_result(termination, iteration)
 
-            # 暂停检查（支持人工干预）
+            # Pause Check (Supports manual intervention)
             if self._is_paused:
                 self._wait_for_resume()
 
             step_start = time.time()
 
-            # OBSERVE: 收集当前状态
+            # OBSERVE: Collect current state
             self._state = LoopState.OBSERVE
             observation = self._observe(task, context, iteration)
 
-            # THINK: LLM 推理
+            # THINK: LLM Inference
             self._state = LoopState.THINK
             thought = self._think(observation, iteration)
 
-            # DECIDE: 判断是否需要行动
+            # DECIDE: Determine if action is needed
             self._state = LoopState.DECIDE
             if thought.is_final_answer:
                 self._state = LoopState.FINALIZE
@@ -275,15 +278,15 @@ class ExecutionEngine:
                     answer=thought.answer,
                 )
 
-            # ACT: 执行工具调用
+            # ACT: Invoke tool call
             self._state = LoopState.ACT
             action_result = self._act(thought.action, iteration)
 
-            # OBSERVE_RESULT: 观察工具结果
+            # OBSERVE_RESULT: Observe tool result
             self._state = LoopState.OBSERVE_RESULT
             context = self._update_context(context, thought, action_result)
 
-            # EVALUATE: 评估是否继续
+            # EVALUATE: Evaluate whether to continue
             self._state = LoopState.EVALUATE
             step = LoopStep(
                 iteration=iteration,
@@ -297,7 +300,7 @@ class ExecutionEngine:
             )
             self._trajectory.append(step)
 
-            # 触发步骤完成回调
+            # Trigger Step Completion Callback
             for callback in self._on_step_complete:
                 callback(step)
 
@@ -306,20 +309,20 @@ class ExecutionEngine:
         return self._build_result(TerminationReason.MAX_ITERATIONS, iteration)
 
     def _check_termination_conditions(self, iteration: int) -> Optional[TerminationReason]:
-        """检查所有终止条件"""
-        # 超时检查
+        """Check all termination conditions"""
+        # Timeout Check
         elapsed = time.time() - self._start_time
         if elapsed > self.timeout_seconds:
             logger.warning(f"Timeout after {elapsed:.1f}s (limit: {self.timeout_seconds}s)")
             return TerminationReason.TIMEOUT
 
-        # 成本预算检查
+        # Cost Budget Check
         allowed, reason = self.constraints.check_budget(self._total_tokens)
         if not allowed:
             logger.warning(f"Budget exceeded: {reason}")
             return TerminationReason.COST_BUDGET_EXCEEDED
 
-        # 漂移检测
+        # drift detection
         if self._detect_drift():
             logger.warning("Drift detected in agent loop")
             return TerminationReason.DRIFT_DETECTED
@@ -332,7 +335,7 @@ class ExecutionEngine:
         iterations: int,
         answer: str = None,
     ) -> dict:
-        """构建执行结果"""
+        """build execution result"""
         elapsed = time.time() - self._start_time
         result = {
             "status": reason.value,
@@ -344,20 +347,20 @@ class ExecutionEngine:
             "termination_reason": reason.value,
         }
 
-        # 触发终止回调
+        # trigger termination callback
         for callback in self._on_terminate:
             callback(result)
 
         return result
 ```
 
-## 2.2 异步执行引擎
+## 2.2 Asynchronous Execution Engine
 
-生产环境中，Agent 通常需要并发处理多个任务或并行调用多个工具：
+Within production environments, Agents typically need to handle multiple tasks concurrently or parallel calls to multiple tools:
 
 ```python
 class AsyncExecutionEngine:
-    """异步执行引擎：支持并发工具调用和非阻塞执行"""
+    """asynchronous execution engine: supports concurrent tool calls and non-blocking execution"""
 
     def __init__(self, llm, tools, max_concurrent_tools: int = 3, **kwargs):
         self.llm = llm
@@ -366,19 +369,19 @@ class AsyncExecutionEngine:
         self._semaphore = asyncio.Semaphore(max_concurrent_tools)
 
     async def run(self, task: str) -> dict:
-        """异步执行 Agent Loop"""
+        """asynchronous agent loop"""
         trajectory = []
         iteration = 0
 
         while iteration < self.max_iterations:
-            # 异步 LLM 推理
+            # asynchronous LLM inference
             thought = await self._async_think(task, trajectory)
 
             if thought.is_final_answer:
                 return {"status": "success", "answer": thought.answer,
                         "trajectory": trajectory}
 
-            # 并行工具调用（如果 Agent 请求多个工具）
+            # parallel tool calls (if agent requests multiple tools)
             if thought.parallel_actions:
                 results = await self._execute_parallel(thought.parallel_actions)
             else:
@@ -395,7 +398,7 @@ class AsyncExecutionEngine:
         return {"status": "max_iterations", "trajectory": trajectory}
 
     async def _execute_parallel(self, actions: list) -> list:
-        """并行执行多个工具调用"""
+        """parallel execution of multiple tool calls"""
         async def _execute_with_semaphore(action):
             async with self._semaphore:
                 return await self._execute_single(action)
@@ -404,7 +407,7 @@ class AsyncExecutionEngine:
         return await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _execute_single(self, action: dict) -> dict:
-        """执行单个工具调用（带超时保护）"""
+        """execute single tool call (with timeout protection)"""
         tool_name = action.get("tool")
         tool_args = action.get("args", {})
 
@@ -422,49 +425,49 @@ class AsyncExecutionEngine:
 
 ---
 
-<!-- chunk: 3. 反漂移检测算法 -->## 3. 反漂移检测算法
+## 3. Drift Detection Algorithm
 
-## 3.1 漂移类型分类
+## 3.1 Classification of Drift Types
 
-Agent 在执行过程中可能陷入多种漂移模式：
+During execution, Agents may fall into various drift modes:
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-Agent 漂移类型分类:
+# 🟢 Low-risk: read-only/information collection, typically with no side effects
+Agent Drift Type Classification:
 
-1. 动作重复漂移（Action Repetition Drift）
-   Agent 反复执行完全相同的动作
-   示例: 连续 5 次执行 kubectl get pods
-   检测: 连续 N 次动作相同
+1. Action Repetition Drift
+   Agent repeatedly executes identical actions
+   Example: Execute kubectl get pods five times consecutively
+   Detection: same action for N consecutive times
 
-2. 内容循环漂移（Content Loop Drift）
-   Agent 反复编辑同一文件/资源
-   示例: 修改 YAML → 报错 → 回退 → 修改 → 报错 → 回退
-   检测: 动作目标的循环模式
+2. Content Loop Drift
+   Agent repeatedly edits the same file/resource
+   Example: modify YAML → error → rollback → modify → error → rollback
+   Detection: Loop pattern of target action
 
-3. 语义停滞漂移（Semantic Stagnation Drift）
-   Agent 的推理没有实质性进展
-   示例: 每轮思考的内容高度相似但不前进
-   检测: 思考内容的语义相似度 > 阈值
+3. Semantic Stagnation Drift
+   Agent's reasoning has no substantive progress
+   Example: content for each round of thinking is highly similar but does not progress
+   Detection: Consider semantic similarity of content > Threshold
 
-4. 错误循环漂移（Error Loop Drift）
-   Agent 反复遇到同一错误但无法解决
-   示例: 连续遇到权限错误但不切换策略
-   检测: 连续 N 次相同错误类型
+4. Error Loop Drift
+   Agent repeatedly encounters the same error but cannot resolve it
+   Example: Continuously encountering permission errors without changing policies
+   Detection: Same error type occurs consecutively N times
 
-5. 目标偏离漂移（Goal Deviation Drift）
-   Agent 的行动越来越偏离原始目标
-   示例: 诊断 Pod 问题时开始优化节点网络
-   检测: 动作与目标的语义距离增加
+5. Goal Deviation Drift
+   Agent's actions become increasingly deviated from the original goal
+   Example: Diagnosing Pod issues starts optimizing node network
+   Detection: Semantic distance between actions and goals increases
 ```
-## 3.2 多维度漂移检测器
+## 3.2 Multi-dimensional Drift Detector
 
 ```python
 from collections import Counter
 import hashlib
 
 class DriftDetector:
-    """多维度漂移检测器"""
+    """multi-dimensional drift detector"""
 
     def __init__(
         self,
@@ -479,26 +482,26 @@ class DriftDetector:
         self.max_same_target_edits = max_same_target_edits
 
     def detect(self, trajectory: list) -> Optional[dict]:
-        """多维度漂移检测"""
+        """multi-dimensional drift detection"""
         if len(trajectory) < self.action_window:
             return None
 
-        # 检测 1: 动作重复漂移
+        # detection 1: action repetition drift
         action_drift = self._detect_action_repetition(trajectory)
         if action_drift:
             return action_drift
 
-        # 检测 2: 内容循环漂移
+        # detection 2: content cyclic drift
         content_drift = self._detect_content_loop(trajectory)
         if content_drift:
             return content_drift
 
-        # 检测 3: 错误循环漂移
+        # detection 3: error cyclic drift
         error_drift = self._detect_error_loop(trajectory)
         if error_drift:
             return error_drift
 
-        # 检测 4: 语义停滞漂移
+        # detection 4: semantic stagnation drift
         semantic_drift = self._detect_semantic_stagnation(trajectory)
         if semantic_drift:
             return semantic_drift
@@ -506,7 +509,7 @@ class DriftDetector:
         return None
 
     def _detect_action_repetition(self, trajectory: list) -> Optional[dict]:
-        """检测连续相同动作"""
+        """detect continuous identical actions"""
         recent = trajectory[-self.action_window:]
         action_hashes = [
             hashlib.md5(str(step.get("action", "")).encode()).hexdigest()
@@ -516,14 +519,14 @@ class DriftDetector:
             return {
                 "type": "action_repetition",
                 "severity": "high",
-                "message": f"连续 {self.action_window} 次执行相同动作",
+                "message": f"Continuous {self.action_window} executions of the same action",
                 "repeated_action": recent[-1].get("action"),
-                "recommendation": "切换策略或请求人工介入",
+                "recommendation": "Switch strategy or request manual intervention",
             }
         return None
 
     def _detect_content_loop(self, trajectory: list) -> Optional[dict]:
-        """检测编辑循环（A→B→A→B 模式）"""
+        """detect edit cyclic (A→B→A→B pattern)"""
         if len(trajectory) < 4:
             return None
 
@@ -535,14 +538,14 @@ class DriftDetector:
                 return {
                     "type": "content_loop",
                     "severity": "medium",
-                    "message": f"对同一目标 '{target}' 反复操作 {count} 次",
+                    "message": f"Repeated operations on the same target '{target}' {count} times",
                     "target": target,
-                    "recommendation": "检查操作是否产生预期效果",
+                    "recommendation": "Check if the operation produces expected results",
                 }
         return None
 
     def _detect_error_loop(self, trajectory: list) -> Optional[dict]:
-        """检测连续相同错误"""
+        """detect continuous identical errors"""
         recent = trajectory[-self.error_window:]
         errors = [
             step.get("tool_result", {}).get("error", "")
@@ -555,14 +558,14 @@ class DriftDetector:
                 return {
                     "type": "error_loop",
                     "severity": "high",
-                    "message": f"连续 {len(errors)} 次遇到相同/相似错误",
+                    "message": f"Continuous {len(errors)} occurrences of the same/similar errors",
                     "errors": errors[-2:],
-                    "recommendation": "需要切换诊断策略或升级处理",
+                    "recommendation": "Need to switch diagnostic strategy or upgrade handling",
                 }
         return None
 
     def _detect_semantic_stagnation(self, trajectory: list) -> Optional[dict]:
-        """检测语义停滞（推理内容高度相似但无进展）"""
+        """detect semantic stagnation (highly similar inference content but no progress)"""
         if len(trajectory) < 4:
             return None
 
@@ -574,7 +577,7 @@ class DriftDetector:
         if len(recent_thoughts) < 3:
             return None
 
-        # 使用简单的 Jaccard 相似度（生产环境建议用 embedding 相似度）
+        # Use simple Jaccard similarity (production environment recommends embedding similarity)
         similarities = []
         for i in range(len(recent_thoughts) - 1):
             sim = self._jaccard_similarity(recent_thoughts[i], recent_thoughts[i + 1])
@@ -585,14 +588,14 @@ class DriftDetector:
             return {
                 "type": "semantic_stagnation",
                 "severity": "medium",
-                "message": f"推理内容相似度 {avg_sim:.2f} 超过阈值",
-                "recommendation": "注入新信息或重新构建问题",
+                "message": f"Inference content similarity {avg_sim:.2f} exceeds threshold",
+                "recommendation": "Inject new information or rebuild the problem",
             }
         return None
 
     @staticmethod
     def _jaccard_similarity(text1: str, text2: str) -> float:
-        """Jaccard 文本相似度"""
+        """Jaccard text similarity"""
         set1 = set(text1.split())
         set2 = set(text2.split())
         if not set1 or not set2:
@@ -602,18 +605,18 @@ class DriftDetector:
         return len(intersection) / len(union)
 ```
 
-## 3.3 漂移恢复策略
+## 3.3 Drift Recovery Strategy
 
 ```python
 class DriftRecoveryStrategy:
-    """漂移恢复策略"""
+    """drift recovery strategy"""
 
     def __init__(self, llm, max_recovery_attempts: int = 2):
         self.llm = llm
         self.max_recovery_attempts = max_recovery_attempts
 
     def recover(self, drift_info: dict, trajectory: list, task: str) -> dict:
-        """根据漂移类型选择恢复策略"""
+        """Choose recovery strategy based on drift type"""
         drift_type = drift_info["type"]
 
         strategies = {
@@ -627,7 +630,7 @@ class DriftRecoveryStrategy:
         return strategy(drift_info, trajectory, task)
 
     def _strategy_reframe(self, drift_info, trajectory, task) -> dict:
-        """重构策略：让 Agent 重新理解任务"""
+        """Redesign strategy: have Agents re-understand the task"""
         recovery_prompt = f"""
         你在执行任务时陷入了重复循环。请停下来重新分析：
         
@@ -640,7 +643,7 @@ class DriftRecoveryStrategy:
         return {"strategy": "reframe", "prompt": recovery_prompt}
 
     def _strategy_backtrack(self, drift_info, trajectory, task) -> dict:
-        """回退策略：回到最后一个成功状态"""
+        """Rollback strategy: go back to the last successful state"""
         last_success = None
         for step in reversed(trajectory):
             if step.get("tool_result", {}).get("success"):
@@ -649,11 +652,11 @@ class DriftRecoveryStrategy:
         return {
             "strategy": "backtrack",
             "restore_point": last_success,
-            "prompt": "从上一个成功状态重新开始，尝试不同的路径",
+            "prompt": "Restart from the previous successful state and try different paths",
         }
 
     def _strategy_alternative_tools(self, drift_info, trajectory, task) -> dict:
-        """替代工具策略：排除已失败的工具"""
+        """Replacement tool strategy: exclude failed tools"""
         failed_tools = set()
         for step in trajectory[-4:]:
             if not step.get("tool_result", {}).get("success"):
@@ -661,58 +664,58 @@ class DriftRecoveryStrategy:
         return {
             "strategy": "alternative_tools",
             "excluded_tools": list(failed_tools),
-            "prompt": f"以下工具暂时不可用: {failed_tools}，请使用其他工具完成任务",
+            "prompt": f"Below tools are currently unavailable: {failed_tools}, please complete the task using other tools",
         }
 
     def _strategy_inject_context(self, drift_info, trajectory, task) -> dict:
-        """注入上下文策略：补充新信息打破停滞"""
+        """Context injection strategy: supplement new information to break stagnation"""
         return {
             "strategy": "inject_context",
-            "prompt": "请从不同角度审视任务，考虑之前忽略的信息和方法",
-            "additional_context": "补充环境信息或相关文档",
+            "prompt": "Consider the task from different angles, reconsidering previously overlooked information and methods",
+            "additional_context": "Provide environmental information or related documents",
         }
 ```
 
 ---
 
-<!-- chunk: 4. 执行策略模式 -->## 4. 执行策略模式
+## 4. Execution Strategy Patterns
 
-## 4.1 策略模式分类
+## 4.1 Classification of Strategy Patterns
 
 ```
-Agent 执行策略分类:
+Agent executes strategy classification:
 
-1. 线性执行策略（Sequential）
-   步骤按严格顺序执行
-   适用: SOP 驱动的标准流程
-   示例: Pod 诊断 SOP
+1. Sequential Execution Strategy
+   Steps are executed in strict sequence
+   Applicable: Standard processes driven by SOPs
+   Example: Pod diagnostic SOP
 
-2. 自适应执行策略（Adaptive）
-   根据每步结果动态调整下一步
-   适用: 探索性任务
-   示例: 未知问题根因分析
+2. Adaptive Execution Strategy
+   Adjusts the next step dynamically based on each step's result
+   Applicable: Exploratory tasks
+   Example: Root cause analysis of unknown problems
 
-3. 分支执行策略（Branching）
-   在关键决策点分叉，并行探索多条路径
-   适用: 多种可能原因的诊断
-   示例: 同时检查网络、存储、调度
+3. Branching Execution Strategy
+   Forks at critical decision points and explores multiple paths concurrently
+   applicable: diagnosis for multiple possible reasons
+   Example: check network, storage, scheduling simultaneously
 
-4. 分阶段执行策略（Phased）
-   分为信息收集、分析、行动三个阶段
-   适用: 复杂运维任务
-   示例: 大规模问题处置
+4. Phased Execution Strategy (Phased)
+   Divided into information gathering, analysis, and action phases
+   applicable: complex operational tasks
+   Example: Large-scale problem resolution
 
-5. 递归执行策略（Recursive）
-   将大任务分解为子任务，递归执行
-   适用: 多集群批量操作
-   示例: 跨集群升级
+5. Recursive Execution Strategy (Recursive)
+   Decomposes large tasks into subtasks and executes recursively
+   applicable: multi-cluster batch operation
+   Example: Cross-cluster upgrade
 ```
 
-## 4.2 分阶段执行引擎
+## 4.2 Phased Execution Engine
 
 ```python
 class PhasedExecutionEngine:
-    """分阶段执行引擎：将任务分为收集→分析→行动三阶段"""
+    """Phased execution engine: divide tasks into collection→analysis→action three phases"""
 
     def __init__(self, llm, tools, phase_configs: dict = None):
         self.llm = llm
@@ -726,31 +729,31 @@ class PhasedExecutionEngine:
         }
 
     def run(self, task: str) -> dict:
-        """三阶段执行"""
+        """Three-phase execution"""
         results = {}
 
-        # Phase 1: 信息收集
+        # Phase 1: Information Collection
         gather_result = self._execute_phase(
             "gather", task,
-            system_prompt="你正在信息收集阶段。只收集信息，不做修改。"
+            system_prompt="You are in the information gathering phase. Collect only information without making any modifications."
         )
         results["gather"] = gather_result
 
-        # Phase 2: 分析推理
+        # Phase 2: Analysis and Reasoning
         analysis_context = self._build_analysis_context(gather_result)
         analyze_result = self._execute_phase(
             "analyze", task,
             context=analysis_context,
-            system_prompt="根据收集到的信息进行分析，确定根因和修复方案。"
+            system_prompt="Analyze the information collected to determine the root cause and repair plan."
         )
         results["analyze"] = analyze_result
 
-        # Phase 3: 执行修复（需要审批）
+        # Phase 3: Execution Repair (requires approval)
         if analyze_result.get("action_plan"):
             act_result = self._execute_phase(
                 "act", task,
                 context=analyze_result,
-                system_prompt="按照分析阶段的方案执行修复操作。"
+                system_prompt="Execute the repair operations according to the plan from the analysis phase."
             )
             results["act"] = act_result
 
@@ -758,7 +761,7 @@ class PhasedExecutionEngine:
 
     def _execute_phase(self, phase: str, task: str,
                        context: dict = None, system_prompt: str = None) -> dict:
-        """执行单个阶段"""
+        """Execute single phase"""
         config = self.phase_configs[phase]
         available_tools = [
             t for t in self.tools if t.name in config.get("tools", [])
@@ -775,9 +778,9 @@ class PhasedExecutionEngine:
 
 ---
 
-<!-- chunk: 5. 执行轨迹管理 -->## 5. 执行轨迹管理
+## 5. Trajectory Management
 
-## 5.1 Trajectory 数据模型
+## 5.1 Trajectory Data Model
 
 ```python
 from dataclasses import dataclass, field
@@ -787,7 +790,7 @@ import json
 
 @dataclass
 class TrajectoryEntry:
-    """轨迹条目：记录 Agent 的每一步"""
+    """Trajectory entry: record each step of the Agent"""
     step_id: str
     iteration: int
     timestamp: str
@@ -807,7 +810,7 @@ class TrajectoryEntry:
 
 @dataclass
 class ExecutionTrajectory:
-    """完整执行轨迹"""
+    """Complete execution trajectory"""
     task_id: str
     task: str
     start_time: str
@@ -819,20 +822,20 @@ class ExecutionTrajectory:
     termination_reason: Optional[str] = None
 
     def add_entry(self, entry: TrajectoryEntry):
-        """添加轨迹条目"""
+        """Add trajectory entry"""
         self.entries.append(entry)
         self.total_tokens += entry.tokens_input + entry.tokens_output
 
     def get_key_steps(self) -> list:
-        """获取关键步骤（用于历史压缩）"""
+        """Retrieve key steps (for historical compression)"""
         return [e for e in self.entries if e.is_key_step]
 
     def get_error_steps(self) -> list:
-        """获取错误步骤（用于失败分析）"""
+        """Retrieve error steps (for failure analysis)"""
         return [e for e in self.entries if e.error]
 
     def to_summary(self) -> str:
-        """生成轨迹摘要（用于日志/审计）"""
+        """Generate trajectory summary (for logs/auditing)"""
         lines = [f"Task: {self.task}", f"Status: {self.status}",
                  f"Steps: {len(self.entries)}", f"Tokens: {self.total_tokens}"]
         for entry in self.entries:
@@ -843,7 +846,7 @@ class ExecutionTrajectory:
         return "\n".join(lines)
 
     def export_json(self) -> str:
-        """导出为 JSON（用于存储/分析）"""
+        """Export to JSON (for storage/analytics)"""
         return json.dumps({
             "task_id": self.task_id,
             "task": self.task,
@@ -857,14 +860,14 @@ class ExecutionTrajectory:
         }, indent=2, ensure_ascii=False)
 ```
 
-## 5.2 轨迹分析与优化
+## 5.2 Trajectory Analysis and Optimization
 
 ```python
 class TrajectoryAnalyzer:
-    """轨迹分析器：从历史执行中提取优化洞察"""
+    """Trace Analyzer: Extract optimization insights from historical executions"""
 
     def analyze(self, trajectories: list[ExecutionTrajectory]) -> dict:
-        """分析多条执行轨迹"""
+        """Analyze multiple execution traces"""
         return {
             "efficiency": self._analyze_efficiency(trajectories),
             "failure_patterns": self._analyze_failures(trajectories),
@@ -873,7 +876,7 @@ class TrajectoryAnalyzer:
         }
 
     def _analyze_efficiency(self, trajectories) -> dict:
-        """效率分析"""
+        """Efficiency Analysis"""
         steps_list = [len(t.entries) for t in trajectories]
         token_list = [t.total_tokens for t in trajectories]
         success_count = sum(1 for t in trajectories if t.status == "success")
@@ -886,7 +889,7 @@ class TrajectoryAnalyzer:
         }
 
     def _analyze_failures(self, trajectories) -> list:
-        """失败模式分析"""
+        """Failure Mode Analysis"""
         failure_patterns = {}
         for t in trajectories:
             if t.status != "success":
@@ -898,7 +901,7 @@ class TrajectoryAnalyzer:
         )
 
     def _analyze_tool_usage(self, trajectories) -> dict:
-        """工具使用分析"""
+        """Tool Usage Analysis"""
         tool_stats = {}
         for t in trajectories:
             for entry in t.entries:
@@ -930,10 +933,10 @@ class TrajectoryAnalyzer:
         return tool_stats
 
     def _identify_bottlenecks(self, trajectories) -> list:
-        """瓶颈识别"""
+        """Identify Bottlenecks"""
         bottlenecks = []
 
-        # 识别慢工具
+        # Identify Slow Tools
         for t in trajectories:
             for entry in t.entries:
                 if entry.latency_ms > 5000:  # > 5s
@@ -944,7 +947,7 @@ class TrajectoryAnalyzer:
                         "task_id": t.task_id,
                     })
 
-        # 识别高 token 消耗步骤
+        # Identify High Token Consumption Steps
         for t in trajectories:
             for entry in t.entries:
                 total = entry.tokens_input + entry.tokens_output
@@ -961,13 +964,13 @@ class TrajectoryAnalyzer:
 
 ---
 
-<!-- chunk: 6. K8S 运维场景 Loop 实战 -->## 6. K8S 运维场景 Loop 实战
+## 6. Loop in K8S Operations Scenarios
 
-## 6.1 Pod Pending 诊断 Loop
+## 6.1 Diagnosis Loop for Pod Pending
 
 ```python
 class PodPendingDiagnosisLoop:
-    """Pod Pending 场景的标准诊断 Loop"""
+    """Standard Diagnostic Loop for Pod Pending Scenario"""
 
     DIAGNOSIS_SOP = [
         {"step": "describe_pod", "tool": "kubectl_describe",
@@ -989,21 +992,21 @@ class PodPendingDiagnosisLoop:
     ]
 
     def run(self, pod_name: str, namespace: str) -> dict:
-        """执行 Pod Pending 诊断"""
+        """Execute Pod Pending Diagnosis"""
         context = {"pod_name": pod_name, "namespace": namespace}
         findings = []
 
         for sop_step in self.DIAGNOSIS_SOP:
-            # 条件检查（某些步骤仅在特定条件下执行）
+            # Condition Check (some steps only execute under certain conditions)
             if sop_step.get("condition"):
                 if not self._check_condition(sop_step["condition"], findings):
                     continue
 
-            # 执行工具调用
+            # Execute Tool Call
             args = sop_step["args_template"].format(**context)
             result = self.tools.execute(sop_step["tool"], args)
 
-            # 提取关键信息
+            # Extract Key Information
             extracted = self._extract_signals(result, sop_step["extract"])
             findings.append({
                 "step": sop_step["step"],
@@ -1011,7 +1014,7 @@ class PodPendingDiagnosisLoop:
                 "signals": extracted,
             })
 
-            # 快速路径：如果已经找到明确根因，提前终止
+            # Quick Path: Terminate early if an explicit root cause is found
             root_cause = self._check_root_cause(findings)
             if root_cause:
                 return {
@@ -1021,15 +1024,15 @@ class PodPendingDiagnosisLoop:
                     "steps_taken": len(findings),
                 }
 
-        # 所有 SOP 步骤执行完毕，综合分析
+        # All SOP steps completed, comprehensive analysis
         return self._synthesize_diagnosis(findings)
 ```
 
-## 6.2 问题处置执行引擎
+## 6.2 Problem Handling Execution Engine
 
 ```python
 class IncidentExecutionEngine:
-    """问题处置专用执行引擎
+    """Problem Disposal Dedicated Execution Engine"""
 
     特点：
     1. 三阶段执行（诊断→决策→修复）
@@ -1050,23 +1053,23 @@ class IncidentExecutionEngine:
         }
 
     async def handle_incident(self, incident: dict) -> dict:
-        """处置问题"""
+        """Handle Problem"""
         trajectory = ExecutionTrajectory(
             task_id=incident["id"],
             task=incident["description"],
             start_time=datetime.utcnow().isoformat(),
         )
 
-        # Phase 1: 诊断
+        # Phase 1: Diagnose
         diagnosis = await self._phase_diagnose(incident, trajectory)
         if diagnosis["confidence"] < 0.7:
-            return {"status": "escalate", "reason": "诊断置信度不足",
+            return {"status": "escalate", "reason": "Insufficient diagnostic confidence"}
                     "diagnosis": diagnosis, "trajectory": trajectory}
 
-        # Phase 2: 决策
+        # Phase 2: Make Decision
         action_plan = await self._phase_decide(diagnosis, trajectory)
 
-        # Phase 3: 修复（需要审批）
+        # Phase 3: Fix (requires approval)
         approved = await self.approval.request(
             action_plan,
             context={"incident": incident, "diagnosis": diagnosis},
@@ -1084,72 +1087,72 @@ class IncidentExecutionEngine:
 
 ---
 
-<!-- chunk: 7. 最佳实践 -->## 7. 最佳实践
+## 7. Best Practices
 
-## 7.1 Loop 层设计核心原则
+## 7.1 Loop Layer Design Core Principles
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Recommendations |
 |------|------|---------|
-| **有限执行** | 所有循环必须有明确终止条件 | 设置 max_iterations + timeout 双重保护 |
-| **可观测** | 每一步都必须被记录 | 使用 TrajectoryEntry 记录完整上下文 |
-| **可恢复** | 异常中断后能从检查点恢复 | 定期保存 checkpoint |
-| **反漂移** | 主动检测并打断死循环 | 部署多维度漂移检测器 |
-| **分阶段** | 复杂任务分阶段执行 | 信息收集→分析→行动三阶段 |
-| **快速路径** | 已知场景提前终止 | SOP 匹配时跳过探索阶段 |
+| **Finite Execution** | All loops must have clear termination conditions | Set double protection with max_iterations + timeout |
+| **Observability** | Every step must be recorded | Use TrajectoryEntry to record complete context |
+| **Recovery** | Able to recover from checkpoints after abnormal interruptions | Regularly save checkpoint |
+| **Anti-drift** | Actively detect and interrupt dead loops | Deploy multi-dimensional drift detectors |
+| **Phased** | Complex tasks executed in stages | Information gathering → Analysis → Action three-stage process |
+| **Rapid Path** | Known scenarios terminated early | Match SOP to skip exploration stage |
 
-## 7.2 反模式
+## 7.2 Anti-patterns
 
-| 反模式 | 问题 | 正确做法 |
+| Anti-pattern | Problem | Correct approach |
 |--------|------|----------|
-| **无限循环** | 没有终止条件，资源耗尽 | 超时 + 迭代上限 + 成本预算 |
-| **无轨迹记录** | 出问题无法审计回溯 | 每步记录完整的 TrajectoryEntry |
-| **忽略漂移** | Agent 陷入死循环消耗资源 | 部署漂移检测 + 恢复策略 |
-| **同步阻塞** | 串行工具调用效率低 | 识别可并行工具，异步执行 |
-| **硬编码流程** | 无法适应不同场景 | 使用策略模式，运行时选择执行策略 |
+| **Infinite Loop** | No termination condition, resources exhausted | Timeout + Iteration limit + Budget constraint |
+| **No Trajectory Recording** | Issues cannot be audited for traceability | Record complete TrajectoryEntry at each step |
+| **Ignoring Drift** | Agent falls into a dead loop consuming resources | Deploy drift detection + recovery strategy |
+| **Synchronous Blocking** | Serial tool calls low efficiency | Identify parallel tools, execute asynchronously |
+| **Hardcoded Workflow** | Cannot adapt to different scenarios | Use strategy pattern, runtime selection of execution strategy |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Associated Documentation
 
-| 文档 | 关联内容 |
+| Documentation | Related content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | Harness 六层架构总览，Loop 层基本定义 |
-| [32 - Harness 工具工程](./32-agent-harness-tool-engineering.md) | Loop 层驱动的工具调用设计 |
-| [33 - 上下文与记忆工程](./33-agent-harness-context-memory.md) | Loop 中的上下文管理和持久化 |
-| [34 - 验证与质量门禁](./34-agent-harness-verification-quality.md) | Loop 结束后的验证层 |
-| [01 - AI Agent 基础](./01-ai-agent-fundamentals.md) | Agent Loop、ReAct 推理模式的理论基础 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Overview of Harness six-layer architecture, basic definition of Loop layer |
+| [32 - Harness Tool Engineering](./32-agent-harness-tool-engineering.md) | Design of tool calls driven by Loop layer |
+| [33 - Context and Memory Engineering](./33-agent-harness-context-memory.md) | Management and persistence of context in Loop |
+| [34 - Verification and Quality Gates](./34-agent-harness-verification-quality.md) | Validation layer after Loop ends |
+| [01 - AI Agent Fundamentals](./01-ai-agent-fundamentals.md) | Theoretical foundation of Agent Loop, ReAct inference mode |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Anthropic | 《Building Effective Agents》Loop 设计模式 | 2025-12 |
-| LangChain | Agent Loop 反漂移检测实验 | 2026-02 |
-| Sean Goedecke (GitHub) | Copilot Agent Mode 执行引擎设计 | 2025 |
-| Microsoft Research | Agent 执行轨迹分析与优化 | 2026-01 |
+| Anthropic | "Building Effective Agents" Loop design patterns | 2025-12 |
+| LangChain | Agent Loop drift detection experiment | 2026-02 |
+| Sean Goedecke (GitHub) | Copilot Agent Mode execution engine design | 2025 |
+| Microsoft Research | Analysis and optimization of agent execution trajectories | 2026-01 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness Loop 层设计。*
+*This document is original content from the kudig-database project series 02-ai-agents, delving into the design of the Loop layer in the Harness architecture.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Specialization]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Models Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage and Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability Framework]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

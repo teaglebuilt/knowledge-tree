@@ -35,54 +35,7 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
-original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/33-agent-harness-context-memory.md
----
-
-> **Production Environment Security Tips**
->
-> This document contains executable operational commands. Execute only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection, no side effects).
-
-
-
-
-title: Agent Harness Context and Memory Engineering
-description: '**Document Type**: Deep Engineering Topics in Harness | **Last Updated**: 2026-04 | **Keywords**: Context Engineering, Memory Systems, RAG, Context Window, Information Compression, Persistence, Vector Retrieval, Short-Term Memory, Long-Term Memory, Scenario Memory'
-  Memory Systems, RAG, Context Window, Information Compression, Persistence, Vector Retrieval, Short-Term Memory, Long-Term Memory, Situational Memory'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI Engineers
-- Architects
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- What is Agent Harness Context and Memory Engineering
-- How does Agent Harness Context and Memory Engineering work
-trigger_keywords:
-- Agent
-- Harness
-- Context and Memory Engineering
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # Agent Harness Context and Memory Engineering
@@ -106,44 +59,44 @@ This article systematically expounds on strategies for building contexts, priori
 ## 1.1 Context as Decision Criteria
 
 ```
-上下文对 Agent 输出的影响（实证数据）:
+How context affects the output of the Agent (empirical data):
 
-同一模型 + 同一任务 + 不同上下文:
+For the same model + the same task + different contexts:
 
-  上下文 A（精准相关信息）    → 诊断准确率 95%
-  上下文 B（信息过载）        → 诊断准确率 60%
-  上下文 C（缺少关键信息）    → 诊断准确率 35%
-  上下文 D（包含错误信息）    → 诊断准确率 15%
+  Context A (precise relevant information) → Diagnostic accuracy 95%
+  Context B (information overload) → Diagnostic accuracy 60%
+  Context C (lack of key information) → Diagnostic accuracy 35%
+  Context D (contains erroneous information) → Diagnostic accuracy 15%
 
-核心结论:
-  1. 上下文的质量比模型的能力更重要
-  2. 信息过载（noise）和信息缺失（gap）同样致命
-  3. 错误信息比没有信息更危险
-  4. 上下文构建是工程问题，不是提示词问题
+Key conclusion:
+  1. The quality of context is more important than the model's capability
+  2. Information overload (noise) and information gap (missing information) are equally deadly
+  3. Erroneous information is more dangerous than no information
+  4. Context construction is an engineering problem, not a prompt problem
 ```
 
 ## 1.2 Principle of Signal-to-Noise Ratio
 
 ```
-上下文信噪比（SNR）优化:
+Context signal-to-noise ratio (SNR) optimization:
 
-高信号信息（必须包含）:
-  ✓ 当前任务直接相关的文档/代码
-  ✓ 环境状态（集群信息、配置、版本）
-  ✓ 错误日志和关键事件
-  ✓ 历史类似问题的解决方案
-  ✓ 约束规则和安全边界
+High signal information (must include):
+  ✓ Relevant documents/code for the current task
+  ✓ Environment status (cluster information, configuration, version)
+  ✓ Error logs and critical events
+  ✓ Solutions to historical similar problems
+  ✓ Constraints and security boundaries
 
-低信号信息（应过滤）:
-  ✗ 无关的系统日志噪声
-  ✗ 重复的成功操作记录
-  ✗ 过时的历史信息
-  ✗ 与任务无关的知识文档
-  ✗ 冗余的元数据
+Low signal information (should filter):
+  ✗ Irrelevant system log noise
+  ✗ Repeated successful operation records
+  ✗ Outdated historical information
+  ✗ Irrelevant knowledge documents
+  ✗ Redundant metadata
 
-信噪比量化公式:
-  SNR = 高信号信息 Token 数 / 总上下文 Token 数
-  目标: SNR > 0.7（至少 70% 的上下文是高信号信息）
+Signal-to-noise ratio quantification formula:
+  SNR = Number of High Signal Information Tokens / Total Context Tokens
+  Goal: SNR > 0.7 (at least 70% of context is high signal information)
 ```
 
 ---
@@ -153,30 +106,30 @@ This article systematically expounds on strategies for building contexts, priori
 ## 2.1 Four-Level Context Model
 
 ```
-上下文四层模型:
+Context four-layer model:
 
-Layer 1: System Context（系统层）
-  │  角色定义（SOUL.md）、约束规则、输出格式
-  │  优先级: 最高 | 变更频率: 极低
+Layer 1: System Context (System Layer)
+  │  Role Definition (SOUL.md), Constraints, Output Format
+  │  Priority: Highest | Change Frequency: Lowest
   │
-Layer 2: Environment Context（环境层）
-  │  集群状态、命名空间列表、节点信息、当前配置
-  │  优先级: 高 | 变更频率: 中（每次任务扫描）
+Layer 2: Environment Context (Environment Layer)
+  │  Cluster Status, List of Namespaces, Node Information, Current Configuration
+  │  Priority: High | Change Frequency: Medium (once per task scan)
   │
-Layer 3: Knowledge Context（知识层）
-  │  RAG 检索的相关文档、历史相似工单、SOP 流程
-  │  优先级: 中 | 变更频率: 每次查询动态构建
+Layer 3: Knowledge Context (Knowledge Layer)
+  │  Relevant Documents from RAG Retrieval, Historical Similar Work Orders, SOP Processes
+  │  Priority: Medium | Change Frequency: Dynamically Built on Each Query
   │
-Layer 4: History Context（历史层）
-  │  当前会话对话历史、执行轨迹、工具输出
-  │  优先级: 动态 | 变更频率: 每步更新
+Layer 4: History Context (History Layer)
+  │  Session Dialogue History, Execution Trajectory, Tool Outputs
+  │  Priority: Dynamic | Change Frequency: Updated After Each Step
   │
-Token 预算分配（以 128K 窗口为例）:
+Token budget allocation (using a 128K window example):
   System:      ~5K tokens  (4%)
   Environment: ~10K tokens (8%)
   Knowledge:   ~30K tokens (23%)
   History:     ~40K tokens (31%)
-  Reserved:    ~43K tokens (34%, 留给模型输出和推理)
+  Reserved:    ~43K tokens (34%,  reserved for model output and inference)
 ```
 
 ## 2.2 Complete Implementation of Context Manager
@@ -265,29 +218,29 @@ class ContextManager:
 
     def _format_system(self, system_prompt: str) -> str:
         """Format system context"""
-        return f"## 系统指令\n\n{system_prompt}"
+        return f"## System Commands\n\n{system_prompt}"
 
     def _format_environment(self, environment: dict) -> str:
         """Format the environment context"""
-        parts = ["## 当前环境"]
+        parts = ["## Current Environment"]
         if "cluster" in environment:
-            parts.append(f"集群: {environment['cluster']}")
+            parts.append(f"Cluster: {environment['cluster']}")
         if "kubernetes_version" in environment:
-            parts.append(f"K8S 版本: {environment['kubernetes_version']}")
+            parts.append(f"k8s Version: {environment['kubernetes_version']}")
         if "nodes" in environment:
-            parts.append(f"节点数: {len(environment['nodes'])}")
+            parts.append(f"Node Count: {len(environment['nodes'])}")
             for node in environment["nodes"][:5]:  # 最多展示 5 个
                 parts.append(f"  - {node['name']}: {node.get('status', 'Unknown')}")
         if "namespaces" in environment:
-            parts.append(f"活跃命名空间: {', '.join(environment['namespaces'][:10])}")
+            parts.append(f"Active Namespaces: {', '.join(environment['namespaces'][:10])}")
         return "\n".join(parts)
 
     def _retrieve_knowledge(self, task: str, budget: int) -> str:
         """RAG Knowledge Retrieval"""
         documents = self.rag.retrieve(task, top_k=10)
 
-        parts = ["## 相关知识"]
-        current_tokens = self.count_tokens("## 相关知识\n")
+        parts = ["## Related Knowledge"]
+        current_tokens = self.count_tokens("## Related Knowledge\n")
 
         for doc in documents:
             doc_text = f"\n### {doc['title']}\n{doc['content']}\n"
@@ -306,8 +259,8 @@ class ContextManager:
 
     def _compress_history(self, history: list, budget: int) -> str:
         """Smart History Compression"""
-        parts = ["## 执行历史"]
-        current_tokens = self.count_tokens("## 执行历史\n")
+        parts = ["## Execution History"]
+        current_tokens = self.count_tokens("## Execution History\n")
 
         # Strategy 1: Always retain critical steps
         key_steps = [h for h in history if h.get("is_key_step")]
@@ -334,7 +287,7 @@ class ContextManager:
         # If budget allows, add summaries of other steps
         remaining_steps = [h for h in history if id(h) not in must_keep]
         if remaining_steps and current_tokens < budget - 200:
-            summary = f"\n[已省略 {len(remaining_steps)} 个中间步骤]"
+            summary = f"\n[Skipped {len(remaining_steps)} intermediate steps]"
             parts.append(summary)
 
         return "\n".join(parts)
@@ -343,14 +296,14 @@ class ContextManager:
         """Format single-step records"""
         parts = [f"\n### Step {step.get('iteration', '?')}"]
         if step.get("thought"):
-            parts.append(f"思考: {step['thought'][:200]}")
+            parts.append(f"Thought: {step['thought'][:200]}")
         if step.get("action"):
-            parts.append(f"动作: {step['action']}")
+            parts.append(f"Action: {step['action']}")
         if step.get("tool_result"):
             result = str(step["tool_result"])[:300]
-            parts.append(f"结果: {result}")
+            parts.append(f"Result: {result}")
         if step.get("error"):
-            parts.append(f"错误: {step['error']}")
+            parts.append(f"Error: {step['error']}")
         return "\n".join(parts)
 
     def _truncate_to_tokens(self, text: str, max_tokens: int) -> str:
@@ -375,29 +328,29 @@ class ContextManager:
 ## 3.1 Knowledge Base Indexing Architecture
 
 ```
-K8S 运维知识库索引架构:
+Kubernetes Operations Knowledge Base Index Architecture:
 
-数据源:
-  ├── kudig-database 文档（950+ Markdown 文件）
-  ├── Kubernetes 官方文档
-  ├── 历史工单记录
-  ├── SOP 操作手册
-  └── 告警规则与处理指南
+Data source:
+  ├── kudig-database documentation (950+ Markdown files)
+  ├── Official Kubernetes Documentation
+  ├── Historical work order records
+  ├── SOP Operation Manual
+  └── Alert rules and handling guidelines
 
-索引流水线:
-  文档 → 分块（Chunking）→ 嵌入（Embedding）→ 向量存储（Vector Store）
+Index pipeline:
+  document → chunking → embedding → vector storage
 
-分块策略:
-  ├── 文档级分块: 按 ## 标题分割，保持逻辑完整性
-  ├── 段落级分块: 500-1000 tokens/chunk，重叠 100 tokens
-  ├── 代码块分块: 完整代码块作为独立 chunk
-  └── 表格分块: 表格 + 上下文说明作为独立 chunk
+Chunk strategy:
+  ├── Document-level chunking: split by ## headers, maintaining logical integrity
+  ├── Paragraph-level chunking: 500-1000 tokens/chunk, overlapping 100 tokens
+  ├── Code block splitting: Complete code blocks as independent chunk
+  └── Table block: table + context explanation as independent chunk
 
-检索策略:
-  ├── 语义检索: Embedding 相似度 Top-K
-  ├── 关键词检索: BM25 全文搜索
-  ├── 混合检索: 语义 + 关键词加权融合
-  └── 重排序: Cross-encoder 精排
+Search strategy:
+  ├── Semantic search: Embedding similarity Top-K
+  ├── Keyword search: BM25 full-text search
+  ├── Hybrid search: semantic + keyword weighted fusion
+  └── Reorder: Cross-encoder fine-tuning
 ```
 
 ## 3.2 RAG Retrieval Engine Implementation
@@ -539,30 +492,30 @@ class ContextAwareRetriever:
 ## 4.1 Three-Layer Memory Model
 
 ```
-Agent 记忆三层模型:
+Agent memory three-layer model:
 
-1. 短期记忆（Short-term Memory / Working Memory）
-   │  当前会话的对话历史和执行轨迹
-   │  生命周期: 单次会话
-   │  存储: 内存
-   │  用途: 保持对话连贯性
+1. Short-term Memory (Working Memory)
+   │  Current session's dialogue history and execution trajectory
+   │  Lifecycle: Per session
+   │  Storage: Memory
+   │  Purpose: Maintain conversation coherence
    │
-2. 情景记忆（Episodic Memory）
-   │  历史任务的完整执行记录
-   │  生命周期: 持久存储，可检索
-   │  存储: 向量数据库 + 关系数据库
-   │  用途: 从历史经验中学习
+2. Episodic Memory
+   │  Complete records of historical tasks
+   │  Lifecycle: Persistent storage, retrievable
+   │  Storage: Vector database + relational database
+   │  Purpose: Learn from past experiences
    │
-3. 语义记忆（Semantic Memory）
-   │  提炼的知识、规则、模式
-   │  生命周期: 永久存储，定期更新
-   │  存储: 知识图谱 + 向量数据库
-   │  用途: 提供领域知识
+3. Semantic Memory
+   │  Abstracted knowledge, rules, patterns
+   │  Lifecycle: Permanent storage, periodically updated
+   │  Storage: Knowledge graph + vector database
+   │  Purpose: Provide domain knowledge
 
-记忆流转:
-  短期记忆 ──(任务完成后提取)──→ 情景记忆
-  情景记忆 ──(模式提炼)──→ 语义记忆
-  语义记忆 ──(检索注入)──→ 短期记忆
+Memory flow:
+  Short-term Memory ──(Extract after task completion)──→ Episodic Memory
+  Episodic Memory ──(Pattern abstraction)──→ Semantic Memory
+  semantic memory ──(retrieval injection)──→ short-term memory
 ```
 
 ## 4.2 Complete Implementation of the Memory System
@@ -648,7 +601,7 @@ class MemorySystem:
         }
 
         # Store in Vector Database (supports semantic search)
-        embedding_text = f"任务: {task}\n结果: {result.get('answer', '')[:200]}"
+        embedding_text = f"Task: {task}\nResult: {result.get('answer', '')[:200]}"
         self.vector_store.upsert(
             id=task_id,
             text=embedding_text,
@@ -945,18 +898,18 @@ class K8sEnvironmentScanner:
     def format_for_context(self, env: dict) -> str:
         """Format environment information into context text"""
         parts = [
-            "## 集群环境信息",
-            f"K8S 版本: {env.get('kubernetes_version', 'Unknown')}",
-            f"节点数量: {len(env.get('nodes', []))}",
+            "## Cluster Environment Information",
+            f"k8s Version: {env.get('kubernetes_version', 'Unknown')}",
+            f"Node Count: {len(env.get('nodes', []))}",
         ]
 
         # Node Status Summary
         nodes = env.get("nodes", [])
         ready_count = sum(1 for n in nodes if n.get("status") == "Ready")
-        parts.append(f"节点状态: {ready_count}/{len(nodes)} Ready")
+        parts.append(f"Node Status: {ready_count}/{len(nodes)} Ready")
 
         if env.get("recent_warnings"):
-            parts.append("\n### 近期告警事件")
+            parts.append("\n### Recent Alarm Events")
             for w in env["recent_warnings"][:10]:
                 parts.append(f"  - {w}")
 
@@ -976,7 +929,7 @@ class DiagnosisContextTemplate:
 ## Work Principles
 1. 每个诊断结论必须有具体的 Event 或日志证据支撑
 2. 优先使用只读命令收集信息
-3. 不确定的结论标注"需人工确认"
+3. Unclear conclusions marked as "Need Manual Confirmation"
 4. 输出的 YAML/命令必须语法正确
 
 ## Output Format
@@ -997,17 +950,17 @@ class DiagnosisContextTemplate:
         """Build the complete context for a diagnostic task"""
         parts = [
             self.SYSTEM_PROMPT_TEMPLATE,
-            f"\n## 当前诊断任务\n{task}",
+            f"\n## Current Diagnosis Task\n{task}",
             self._format_env(env_scan),
         ]
 
         if knowledge:
-            parts.append("\n## 相关知识\n")
+            parts.append("\n## Relevant Knowledge")
             for doc in knowledge[:5]:
                 parts.append(f"### {doc['title']}\n{doc['content'][:500]}\n")
 
         if history:
-            parts.append("\n## 已执行步骤\n")
+            parts.append("\n## Steps Executed")
             for step in history[-5:]:
                 parts.append(f"Step {step.get('iteration')}: "
                            f"{step.get('thought', '')[:150]}")

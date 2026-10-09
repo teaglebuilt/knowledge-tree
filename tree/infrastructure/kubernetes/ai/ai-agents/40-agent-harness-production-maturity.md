@@ -43,58 +43,8 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
 original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/40-agent-harness-production-maturity.md
----
-
-> **Production Environment Security Tips**
->
-> This document contains executable operational commands. Execute them only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (will modify cluster state but usually rollbackable), 🟢 Low risk/readonly (information gathering, no side effects).
-
-
-
-
-title: Agent Harness Production Operations and Maturity Model
-description: '# Agent Harness Production Operations and Maturity Model'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- [[Prometheus|prometheus]]
-- grafana
-- [[Helm|helm]]
-- redis
-- postgresql
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI engineers
-- Architect
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- Agent Harness Production Operations and Maturity Model is what
-- how Agent Harness Production Operations and Maturity Model
-trigger_keywords:
-- Agent
-- Harness
-- Production Operations and Maturity Model
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # Agent Harness Production Operations and Maturity Model

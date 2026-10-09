@@ -112,34 +112,34 @@ This article systematically discusses multi-Agent orchestration patterns, Orches
 ## 1.1 Four Core Orchestration Patterns
 
 ```
-多 Agent 编排模式:
+Multi-Agent Orchestration Mode:
 
-1. 顺序流水线（Sequential Pipeline）
+1. Sequential Pipeline (Sequential Pipeline)
    Agent A → Agent B → Agent C
-   每个 Agent 的输出是下一个的输入
-   示例: 诊断 → 修复 → 验证
+   Each Agent's output is the next's input
+   Example: Diagnosis → Repair → Verification
 
-2. 并行扇出（Parallel Fan-out）
+2. Parallel Fan-out (Parallel Fan-out)
    Agent A ─┐
-   Agent B ─┼→ 聚合器 → 输出
+   Agent B ─┼→ Aggregator → Output
    Agent C ─┘
-   多个 Agent 同时处理不同子任务
-   示例: 同时检查 Pod/Node/Network
+   Multiple Agents handle different sub-tasks concurrently
+   Example: Simultaneously check Pod/Node/Network
 
-3. 层级委派（Hierarchical Delegation）
+3. Hierarchical Delegation (Hierarchical Delegation)
    Orchestrator Agent
-      ├── 子 Agent A（诊断）
-      ├── 子 Agent B（监控分析）
-      └── 子 Agent C（文档生成）
-   主 Agent 分解任务并委派
-   示例: SRE 指挥官 Agent 调度诊断团队
+      ├── Sub Agent A (diagnosis)
+      ├── Sub Agent B (Monitoring Analysis)
+      └── Sub Agent C (document generation)
+   Main Agent decomposes tasks and delegates
+   Example: SRE Commander Agent dispatches the diagnosis team
 
-4. 辩论共识（Debate & Consensus）
+4. Debate & Consensus (Debate & Consensus)
    Agent A ←→ Agent B
       ↓         ↓
-      共识判断器
-   多个 Agent 对同一问题给出独立判断，通过辩论达成共识
-   示例: 两个诊断 Agent 交叉验证根因
+      Consensus Judgment device
+   Multiple Agents independently judge the same issue through debate to reach consensus
+   Example: Two diagnostic Agents cross-validate the root cause
 ```
 
 ## 1.2 Pattern Selection Matrix
@@ -261,12 +261,12 @@ class Orchestrator:
         # 1. Coordinator Agent Decompose Task
         coordinator = self.agents.get("coordinator")
         decomposition = await self._run_agent(
-            "coordinator", f"分解以下任务为子任务: {task}", {},
+            "coordinator", f"decompose the task into sub-tasks: {task}", {},  
         )
 
         subtasks = decomposition.get("subtasks", [])
         if not subtasks:
-            return {"status": "decomposition_failed", "error": "无法分解任务"}
+            return {"status": "decomposition_failed", "error": "cannot decompose the task"}  
 
         # 2. Assign Subtasks to Professional Agents
         sub_results = {}
@@ -281,7 +281,7 @@ class Orchestrator:
         # 3. Coordinator Synthesize Results
         synthesis = await self._run_agent(
             "coordinator",
-            f"综合以下子任务结果:\n{sub_results}",
+            f"synthesize the results of the following sub-tasks:\n{sub_results}",  
             {"sub_results": sub_results},
         )
 
@@ -465,18 +465,18 @@ class SharedContext:
 ## 4.1 Agent Isolation Architecture
 
 ```
-多 Agent Harness 隔离:
+Multi-Agent Harness Isolation:
 
 ┌──────────────────────────────────────────────────────┐
 │                  Orchestrator Harness                  │
-│  全局约束 │ 任务分配 │ 结果聚合 │ 冲突解决            │
+│  Global Constraints  │ Task Allocation  │ Result Aggregation  │ Conflict Resolution  │
 ├──────────────────────────────────────────────────────┤
 │                                                        │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ 诊断 Agent    │  │ 修复 Agent    │  │ 验证 Agent   │ │
+│  │ Diagnostic Agent  │  │ Repair Agent  │  │ Validation Agent  │ │
 │  │              │  │              │  │              │ │
 │  │ Constraints: │  │ Constraints: │  │ Constraints: │ │
-│  │  只读        │  │  写+审批     │  │  只读+对比   │ │
+│  │ Read-Only         │  │ Write+Approval  │  │ Read-Only+Comparison  │ │
 │  │              │  │              │  │              │ │
 │  │ Tools:       │  │ Tools:       │  │ Tools:       │ │
 │  │  get/describe│  │  apply/patch │  │  get/describe│ │
@@ -484,14 +484,14 @@ class SharedContext:
 │  │  prom/loki   │  │              │  │  prom query  │ │
 │  │              │  │              │  │              │ │
 │  │ Verify:      │  │ Verify:      │  │ Verify:      │ │
-│  │  事实一致性  │  │  安全检查    │  │  恢复确认    │ │
+│  │ Fact Consistency  │  │ Security Check  │  │ Recovery Confirmation  │ │
 │  └──────────────┘  └──────────────┘  └──────────────┘ │
 │                                                        │
-│  隔离规则:                                              │
-│  1. 每个 Agent 有独立的 Harness 实例                    │
-│  2. 诊断 Agent 不信任修复 Agent 的自述                  │
-│  3. 验证 Agent 独立运行，不依赖修复 Agent 的输出        │
-│  4. 共享上下文通过 Orchestrator 中转                    │
+│  Isolation Rules:                                                    │
+│  1. Each Agent has an independent Harness instance                    │
+│  2. The Diagnostic Agent does not trust the self-report of the Repair Agent  │
+│  3. The Validation Agent runs independently and does not rely on the output of the Repair Agent  │
+│  4. Shared context is passed through the Orchestrator  │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -633,7 +633,7 @@ class ConflictResolver:
         if winner["confidence"] < 0.7 and len(set(d["diagnosis"] for d in diagnoses)) > 1:
             return {
                 "resolution": "escalate_to_human",
-                "reason": "诊断分歧且置信度不足",
+                "reason": "diagnostic disagreement and insufficient confidence",  
                 "candidates": diagnoses,
             }
 
@@ -703,7 +703,7 @@ class IncidentResponsePipeline:
 
         # Stage 1: Parallel Diagnosis (Collect Information from Multiple Angles)
         parallel_diagnosis = await self.orchestrator.execute_parallel(
-            task=f"诊断以下问题: {incident['description']}",
+            task=f"diagnose the following issue: {incident['description']}",  
             agent_names=["pod_diagnostician", "node_diagnostician", "network_diagnostician"],
         )
 
@@ -712,13 +712,13 @@ class IncidentResponsePipeline:
         if diagnosis.get("confidence", 0) < 0.6:
             return {
                 "status": "escalate",
-                "reason": "多 Agent 诊断置信度不足",
+                "reason": "insufficient diagnostic confidence across agents",  
                 "diagnosis_results": parallel_diagnosis,
             }
 
         # Stage 3: Generate Repair Solution
         remediation = await self.orchestrator.execute_pipeline(
-            task=f"根据诊断结果制定修复方案: {diagnosis['root_cause']}",
+            task=f"formulate a repair plan based on the diagnosis: {diagnosis['root_cause']}",  
             pipeline=[
                 {"agent": "remediator", "gate": True},
             ],
@@ -726,7 +726,7 @@ class IncidentResponsePipeline:
 
         # Stage 4: Independently Validate Repair Effectiveness
         verification = await self.orchestrator.execute_pipeline(
-            task=f"验证问题是否已恢复: {incident['description']}",
+            task=f"verify if the issue has been resolved: {incident['description']}",
             pipeline=[
                 {"agent": "verifier", "gate": False},
             ],
