@@ -1,6 +1,7 @@
----title: 音视频与短视频平台 Kubernetes 生产架构设计
-description: 'title: 音视频与短视频平台架构设计'
-summary: 'title: 音视频与短视频平台架构设计'
+---
+title: Audio Video and Short Video Platform Kubernetes Production Architecture Design
+description: 'title: Audio Video and Short Video Platform Architecture Design'
+summary: 'title: Audio Video and Short Video Platform Architecture Design'
 category: general
 tags:
 - architecture
@@ -16,16 +17,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 音视频与短视频平台 Kubernetes 生产架构设计 是什么
-- 如何 音视频与短视频平台 Kubernetes 生产架构设计
-- Kubernetes 20 application patterns 最佳实践
+- Audio Video and Short Video Platform Production Architecture Design is what
+- How is Audio Video and Short Video Platform Kubernetes Production Architecture Design
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 音视频与短视频平台
+- Audio Video and Short Video Platform
 - Kubernetes
-- 生产架构设计
+- Production Architecture Design
 - application
 - patterns
 prerequisites:
@@ -36,17 +37,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/application/architecture/video-shortform-architecture.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 音视频与短视频平台架构设计
-description: '# 音视频与短视频平台 [[Kubernetes|Kubernetes]] 生产架构设计'
+title: Audio-Video and Short Video Platform Architecture Design
+description: '# Audio-Video and Short Video Platform [[Kubernetes|Kubernetes]] Production Architecture Design'
 category: application-architecture
 tags:
 - k8s
@@ -61,27 +64,27 @@ last_updated: 2026-05-18
 difficulty: advanced
 reading_level: advanced
 audience:
-- 音视频架构师
-- CDN专家
-- 推荐系统工程师
+- Audio/Video Architect
+- CDN Expert
+- Recommendation System Engineer
 estimated_read_time: 5min
 intent_queries:
-- 短视频平台 Kubernetes 高可用架构
-- 视频推荐系统召回排序
-- 直播推拉流 CDN 分发架构
-- 视频转码处理流水线
-- 阿里云视频点播 VOD
+- High Availability Architecture for Short Video Platforms on Kubernetes
+- Recall and Sorting for Video Recommendation System
+- Live Streaming Push and CDN Distribution Architecture
+- Video Transcoding Pipeline
+- Alibaba Cloud Video On Demand (VOD)
 trigger_keywords:
-- 短视频平台
-- 视频推荐
-- 直播推流
-- CDN分发
-- 视频转码
-- 内容审核
-- 实时互动
-- 连麦架构
+- Short Video Platform
+- Video Recommendation
+- Live Streaming Push
+- CDN Distribution
+- Video Transcoding
+- Content Moderation
+- Real-time Interaction
+- Co-Mic Architecture
 - WebRTC
-- DRM版权保护
+- DRM Copyright Protection
 related_domains:
 - domain-03-networking-traffic
 - domain-10-troubleshooting-diagnostics
@@ -96,57 +99,57 @@ k8s_versions:
 - '1.32'
 ---
 
-# 音视频与短视频平台 Kubernetes 生产架构设计
+# Audio-Video and Short Video Platform Kubernetes Production Architecture Design
 
-> **适用场景**: 短视频平台 / 长视频点播 / 直播互动 / 音视频通话 / 云剪辑 / 数字人  
-> **云厂商**: 阿里云 ACK + 视频云产品体系  
-> **适用版本**: Kubernetes v1.29 - v1.33  
-> **最后更新**: 2026-04-24  
-> **目标读者**: 音视频架构师、CDN 专家、阿里云解决方案架构师
-
----
-
-<!-- chunk: 📋 目录 -->## 📋 目录
-
-- [一、整体架构全景](#一整体架构全景)
-- [二、短视频生产与分发架构](#二短视频生产与分发架构)
-- [三、直播推拉流架构](#三直播推拉流架构)
-- [四、音视频处理流水线架构](#四音视频处理流水线架构)
-- [五、推荐与个性化分发架构](#五推荐与个性化分发架构)
-- [六、实时互动与连麦架构](#六实时互动与连麦架构)
-- [七、版权保护与内容审核架构](#七版权保护与内容审核架构)
-- [八、ACK 阿里云部署架构](#八ack-阿里云部署架构)
+> **Applicable Scenarios**: Video-sharing platform / Long video on-demand / Live interaction / Voice-video calls / Cloud editing / Digital humans  
+> **Cloud Providers**: Alibaba Cloud ACK + Video cloud product system  
+> **Applicable Versions**: Kubernetes v1.29 - v1.33  
+> **Last Updated**: 2026-04-24  
+> **Target Readers**: Video architecture engineers, CDN experts, Alibaba Cloud solution architects
 
 ---
 
-<!-- chunk: 一、整体架构全景 -->## 一、整体架构全景
+## 📋 Table of Contents
+
+- [One, Overall Architecture Panorama](#1-overall-architecture-overview)
+- [Two, Video Production and Distribution Architecture](#2-short-video-production-and-distribution-architecture)
+- [Three, Live Streaming Push and Pull Stream Architecture](#3-live-push-and-pull-stream-architecture)
+- [Four, Audio and Video Processing Pipeline Architecture](#4-audio-video-processing-pipeline-architecture)
+- [Five, Recommendation and Personalized Distribution Architecture](#5-recommendation-and-personalized-distribution-architecture)
+- [Six, Real-time Interaction and Co-hosting Architecture](#video-processing-k8s-pipeline)
+- [Seven, Copyright Protection and Content Review Architecture](#7-copyright-protection-and-content-review-architecture)
+- [Eight, ACK Alibaba Cloud Deployment Architecture](#8-ack-alibaba-cloud-deployment-architecture)
+
+---
+
+## 1. Overall Architecture Overview
 
 ```mermaid
 flowchart TB
-    subgraph Creators["创作者"]
-        UPLOADER["视频上传<br">手机/PC"]
-        LIVE_STREAMER["主播<br">OBS/手机"]
-        EDITOR["云剪辑<br">在线编辑"]
+    subgraph Creators["Creators"]
+        UPLOADER["Video Upload<br">Mobile/PC"]
+        LIVE_STREAMER["Streamer<br">OBS/Mobile"]
+        EDITOR["Cloud Editing<br">Online Editing"]
     end
 
-    subgraph MediaCloud["媒体云服务 (阿里云)"]
-        VOD_PROC["点播处理<br">转码/水印/加密"]
-        LIVE_PROC["直播处理<br">RTS/转码/录制"]
-        AI_MED["媒体 AI<br">审核/标签/摘要"]
-        CDN_MED["CDN 分发<br">全球加速"]
+    subgraph MediaCloud["Media Cloud Services (Alibaba Cloud)"]
+        VOD_PROC["On-Demand Processing<br">Transcoding/Watermarking/Encryption"]
+        LIVE_PROC["Live Processing<br">RTS/Transcoding/Recording"]
+        AI_MED["Media AI<br">Review/Label/Summary"]
+        CDN_MED["CDN Distribution<br">Global Acceleration]
     end
 
-    subgraph Platform["平台服务 (ACK)"]
-        FEED_VIDEO["Feed 推荐<br">个性化"]
-        COMMENT["评论系统<br">弹幕/互动"]
-        SOCIAL_VIDEO["社交<br">关注/私信"]
-        MONETIZE_VIDEO["变现<br">广告/电商/打赏"]
+    subgraph Platform["Platform Services (ACK)"]
+        FEED_VIDEO["Feed Recommendation<br">Personalized"]
+        COMMENT["Comment System<br">Barrage/Interactivity"]
+        SOCIAL_VIDEO["Social<br">Follow/Private Message"]
+        MONETIZE_VIDEO["Monetization<br">Advertising/E-commerce/Payments"]
     end
 
-    subgraph Consumers["消费者"]
-        MOBILE_VIEWER["移动端<br">App/小程序"]
-        WEB_VIEWER["Web 端<br">PC/平板"]
-        TV_VIEWER["TV 端<br">OTT/投屏"]
+    subgraph Consumers["Consumers"]
+        MOBILE_VIEWER["Mobile<br">App/Mini Program"]
+        WEB_VIEWER["Web<br">PC/Tablet"]
+        TV_VIEWER["TV<br">OTT/Screen Mirroring"]
     end
 
     Creators --> MediaCloud --> Platform --> Consumers
@@ -155,44 +158,44 @@ flowchart TB
     style Platform fill:#fff8e1
 ```
 
-## 阿里云产品映射
+## Alibaba Cloud Product Mapping
 
-| 架构层 | 阿里云方案 | 说明 |
+| Architecture Layer | Alibaba Cloud Solution | Description |
 |:---|:---|:---|
-| 容器平台 | **ACK Pro** | 业务服务托管 |
-| 视频点播 | **视频点播 VOD** | 上传/存储/转码/分发 |
-| 直播 | **视频直播 Live** | 推流/拉流/RTS/录制 |
-| 实时音视频 | **音视频通信 RTC** | 连麦/会议/互动 |
-| CDN | **CDN** + **DCDN** | 静态+动态加速 |
-| 媒体处理 | **智能媒体服务 IMS** | AI 审核/标签/摘要 |
-| 对象存储 | **OSS** | 媒资存储 |
-| 消息队列 | **RocketMQ** | 异步处理 |
-| 大数据 | **MaxCompute** + **PAI** | 推荐/分析 |
+| Container Platform | **ACK Pro** | Service hosting |
+| Video On-Demand | **Video On-Demand VOD** | Upload / Storage / Transcoding / Distribution |
+| Live | **Video Live Stream Live** | Push / Pull / RTS / Recording |
+| Real-time Audio-Video | **Real-time Audio-Video Communication RTC** | Co-hosting / Meetings / Interaction |
+| CDN | **CDN** + **DDN** | Static + Dynamic acceleration |
+| Media Processing | **Smart Media Service IMS** | AI audit / tags / summary |
+| Object Storage | **OSS** | Asset storage |
+| Message Queue | **RocketMQ** | Asynchronous processing |
+| Big Data | **MaxCompute** + **PAI** | Recommendation / Analysis |
 
 ---
 
-<!-- chunk: 二、短视频生产与分发架构 -->## 二、短视频生产与分发架构
+## 2. Short Video Production and Distribution Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Production["内容生产"]
-        CAPTURE["拍摄<br">滤镜/美颜"]
-        EDIT["剪辑<br">卡点/字幕/特效"]
-        MUSIC["配乐<br">版权音乐库"]
-        UPLOAD_VIDEO["上传<br">断点续传"]
+    subgraph Production["Content Creation"]
+        CAPTURE["Capture<br">Filters/Appearance]
+        EDIT["Edit [Clip<br>Card Points/Subtitles/SFX]"]
+        MUSIC["Music Copyright Music Library"]
+        UPLOAD_VIDEO["Upload Resumable"]
     end
 
-    subgraph Processing["云端处理"]
-        INSPECT["内容审核<br">机审+人审"]
-        TRANSCODE_VIDEO["转码<br">多清晰度"]
-        EXTRACT["特征提取<br">标签/封面/指纹"]
-        ENCRYPT_VIDEO["加密<br">DRM/私有"]
+    subgraph Processing["Cloud Processing"]
+        INSPECT["Content Inspection<BR>Automated+Manual"]
+        TRANSCODE_VIDEO["Transcode Video[Convert to Multiple Clarity]"]
+        EXTRACT["Feature Extraction<br">Tags/Covers/Fingerprints"]
+        ENCRYPT_VIDEO["Encrypt Video"]
     end
 
-    subgraph Distribution["分发"]
-        REC_VIDEO["推荐引擎<br">冷启动/兴趣"]
-        CDN_PUSH["CDN 预热<br">热点推送"]
-        P2P["P2P 加速<br">节省带宽"]
+    subgraph Distribution["Distribution"]
+        REC_VIDEO["Recommend Engine<br">Interest Start-up"]
+        CDN_PUSH["CDN Preheat <br> Hot Topic Push"]
+        P2P["P2P Acceleration<br>Saving Bandwidth"]
     end
 
     Production --> Processing --> Distribution
@@ -204,33 +207,33 @@ flowchart TB
 
 ---
 
-<!-- chunk: 三、直播推拉流架构 -->## 三、直播推拉流架构
+## 3. Live Push and Pull Stream Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Publisher["推流端"]
-        OBS["OBS / 专业设备"]
-        MOBILE_LIVE["手机直播"]
-        WEB_LIVE["Web 推流<br">WHIP"]
+    subgraph Publisher["Publisher"]
+        OBS["OBS / Professional Equipment"]
+        MOBILE_LIVE["Mobile Live"]
+        WEB_LIVE["Web Stream <br>Whip"]
     end
 
-    subgraph Ingestion["接入层"]
-        RTMP_INGEST["RTMP 接入"]
-        SRT_INGEST["SRT 接入<br">低延迟"]
-        WEBRTC_INGEST["WebRTC 接入<br">超低延迟"]
+    subgraph Ingestion["Ingestion Layer"]
+        RTMP_INGEST["RTMP Ingest"]
+        SRT_INGEST["SRT Ingest <br>Low Latency"]
+        WEBRTC_INGEST["WebRTC Ingest <br>Ultra Low Latency"]
     end
 
-    subgraph ProcessingLive["处理层"]
-        TRANSCODE_LIVE["实时转码<br">多码率"]
-        RECORD_LIVE["录制<br">时移/回放"]
-        AI_LIVE["AI 处理<br">美颜/虚拟背景"]
+    subgraph ProcessingLive["Processing Layer"]
+        TRANSCODE_LIVE["Real-time Transcoding<br">Multi-bitrate"]
+        RECORD_LIVE["Recording<br">Time-shift/Playback"]
+        AI_LIVE["AI Processing<br">Beauty/Virtual Background"]
     end
 
-    subgraph DistributionLive["分发层"]
-        HLS_LIVE["HLS<br">iOS/通用"]
-        FLV_LIVE["HTTP-FLV<br">低延迟"]
-        RTS_LIVE["RTS<br">阿里云超低延迟"]
-        WEBRTC_LIVE["WebRTC<br"><1s 延迟"]
+    subgraph DistributionLive["Distribution Layer"]
+        HLS_LIVE["HLS<br">iOS/General"]
+        FLV_LIVE["HTTP-FLV<br">Low latency"]
+        RTS_LIVE["RTS<br">Aliyun Ultra-low latency"]
+        WEBRTC_LIVE["WebRTC<br"><1s Latency"]
     end
 
     Publisher --> Ingestion --> ProcessingLive --> DistributionLive
@@ -242,29 +245,29 @@ flowchart TB
 
 ---
 
-<!-- chunk: 四、音视频处理流水线架构 -->## 四、音视频处理流水线架构
+## 4. Audio-Video Processing Pipeline Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Input["输入"]
-        RAW_VIDEO["原始视频"]
-        RAW_AUDIO["原始音频"]
-        SUBTITLE["字幕文件"]
+    subgraph Input["Input"]
+        RAW_VIDEO["Raw Video"]
+        RAW_AUDIO["Raw Audio"]
+        SUBTITLE["Subtitle File"]
     end
 
-    subgraph Pipeline["处理流水线 (Tekton)"]
-        DEMUX["解封装<br">MP4/MKV/FLV"]
-        VIDEO_ENCODE["视频编码<br">H.264/H.265/AV1"]
-        AUDIO_ENCODE["音频编码<br">AAC/OPUS"]
-        PACKAGE["封装<br">DASH/HLS/MP4"]
-        DRM["DRM 加密<br">Widevine/FairPlay"]
+    subgraph Pipeline["Processing Pipeline (Tekton)"]
+        DEMUX["Demultiplexing<br">MP4/MKV/FLV"]
+        VIDEO_ENCODE["Video Encoding<br">H.264/H.265/AV1"]
+        AUDIO_ENCODE["Audio Encoding<br">AAC/OPUS"]
+        PACKAGE["Package<br">DASH/HLS/MP4"]
+        DRM["DRM Encryption<br">Widevine/FairPlay]
     end
 
-    subgraph Output["输出"]
-        MP4_OUT["MP4<br">下载"]
+    subgraph Output["Output"]
+        MP4_OUT["MP4<br>Download"]
         HLS_OUT["HLS<br">iOS"]
         DASH_OUT["DASH<br">Android/Web"]
-        AUDIO_ONLY["纯音频<br">电台/播客"]
+        AUDIO_ONLY["Pure Audio<br>Radio/Podcast"]
     end
 
     Input --> Pipeline --> Output
@@ -273,7 +276,7 @@ flowchart TB
     style Output fill:#e8f5e9
 ```
 
-## 视频处理 K8s Pipeline
+## Video Processing K8s Pipeline
 
 ```yaml
 apiVersion: tekton.dev/v1beta1
@@ -365,28 +368,28 @@ spec:
 
 ---
 
-<!-- chunk: 五、推荐与个性化分发架构 -->## 五、推荐与个性化分发架构
+## 5. Recommendation and Personalized Distribution Architecture
 
 ```mermaid
 flowchart TB
-    subgraph RecallLayer["召回层"]
-        CF["协同过滤<br">用户相似"]
-        CONTENT_BASED["内容相似<br">标签/Embedding"]
-        HOT["热门/趋势<br">全局/分区"]
-        FOLLOW_REC["关注流<br">时间序"]
+    subgraph RecallLayer["Recall Layer"]
+        CF["Collaborative Filtering<br>User Similarity"]
+        CONTENT_BASED["Content Similarity<br>Tags/Embedding"]
+        HOT["Hot/Trend<br>Global/Partition"]
+        FOLLOW_REC["Follow Stream<br>Time Order"]
     end
 
-    subgraph RankLayer["排序层"]
-        FEATURE["特征拼接<br">用户/内容/上下文"]
-        DEEP_MODEL["深度模型<br">DIN/DIEN"]
-        MULTI_TASK["多目标<br">播放/点赞/关注"]
+    subgraph RankLayer["Ranking Layer"]
+        FEATURE["Feature Concatenation<br>User/Content/Context"]
+        DEEP_MODEL["Deep Model<br>DIN/DIEN"]
+        MULTI_TASK["Multi-Task<br>Purchase/Like/Follow"]
     end
 
-    subgraph ReRank["重排序"]
-        DIVERSITY["多样性<br">打散/探索"]
-        FRESHNESS["新鲜度<br">新内容扶持"]
-        QUALITY["质量过滤<br">低俗/重复"]
-        AD_INSERT["广告插入<br">频率控制"]
+    subgraph ReRank["Re-Ranking"]
+        DIVERSITY["Diversity<br>Shuffling/Exploration"]
+        FRESHNESS["Freshness<br>New Content Boost"]
+        QUALITY["Quality Filter<br>Offensive/Repeated"]
+        AD_INSERT["Ad Insertion<br>Frequency Control"]
     end
 
     RecallLayer --> RankLayer --> ReRank
@@ -398,28 +401,28 @@ flowchart TB
 
 ---
 
-<!-- chunk: 六、实时互动与连麦架构 -->## 六、实时互动与连麦架构
+## 6. Real-time Interaction and Co-hosting Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Interaction["互动形式"]
-        DANMU_VIDEO["弹幕<br">实时文字"]
-        GIFT["礼物<br">动画特效"]
-        LIKE_ANI["点赞<br">动画"]
-        CO_HOST["连麦<br">观众上麦"]
-        PK["PK 对战<br">跨房间"]
+    subgraph Interaction["Interaction Forms"]
+        DANMU_VIDEO["Emotion<br>Real-time Text"]
+        GIFT["Gifts<br>Animations"]
+        LIKE_ANI["Like<br>Animations"]
+        CO_HOST["Live Room<br">Audience Mic Up"]
+        PK["Battle<br">Cross Room"]
     end
 
-    subgraph Signaling["信令"]
-        WS_SIGNAL["WebSocket<br">状态同步"]
-        ROOM_MGMT["房间管理<br">进出/麦位"]
-        PERMISSION["权限<br">禁言/踢人"]
+    subgraph Signaling["Signaling"]
+        WS_SIGNAL["WebSocket Status Synchronization"]
+        ROOM_MGMT["Room Management\nto and from/Dining Table"]
+        PERMISSION["Permission\ Silence/Kick"]
     end
 
-    subgraph MediaMedia["媒体"]
-        MIXER["混音混画<br">合流"]
-        EFFECT["特效<br">美颜/变声"]
-        RECORD_INT["录制<br">精彩片段"]
+    subgraph MediaMedia["Media"]
+        MIXER["Mixing/Merging<br">Merge]
+        EFFECT["Effects<br">Beauty/Voice Change]
+        RECORD_INT["Recording<br">Highlights]
     end
 
     Interaction --> Signaling --> MediaMedia
@@ -430,27 +433,27 @@ flowchart TB
 
 ---
 
-<!-- chunk: 七、版权保护与内容审核架构 -->## 七、版权保护与内容审核架构
+## 7. Copyright Protection and Content Review Architecture
 
 ```mermaid
 flowchart TB
-    subgraph UploadCheck["上传检测"]
-        FINGERPRINT["指纹提取<br">视频/音频"]
-        COMPARE_DB["指纹比对<br">版权库"]
-        DUPLICATE["重复检测<br">站内查重"]
+    subgraph UploadCheck["Upload Check"]
+        FINGERPRINT["Fingerprint Extraction<br">Video/Audio]
+        COMPARE_DB["Fingerprint Comparison<br">Copyright Database]
+        DUPLICATE["Duplicate Detection<br">Intra-site Duplication]
     end
 
-    subgraph ContentCheck["内容审核"]
-        VIDEO_CHECK["视频审核<br">帧抽测+OCR"]
-        AUDIO_CHECK["音频审核<br">ASR+语义"]
-        COMMENT_CHECK["评论审核<br">NLP"]
+    subgraph ContentCheck["Content Review"]
+        VIDEO_CHECK["Video Review<br">Frame Capture+OCR]
+        AUDIO_CHECK["Audio Review<br">ASR+Semantic]
+        COMMENT_CHECK["Comment Review<br">NLP]
     end
 
-    subgraph ActionCheck["处置"]
-        BLOCK_VIDEO["拦截<br">禁止发布"]
-        LIMIT["限制<br">仅自己可见"]
-        PASS_VIDEO["通过<br">正常发布"]
-        APPEAL["申诉<br">人工复核"]
+    subgraph ActionCheck["Action"]
+        BLOCK_VIDEO["Block<br">Ban Posting]
+        LIMIT["Limit\ nVisible Only to Self"]
+        PASS_VIDEO["Through Normal Release"]
+        APPEAL["Appeal Human Review"]
     end
 
     UploadCheck --> ContentCheck --> ActionCheck
@@ -462,7 +465,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 八、ACK 阿里云部署架构 -->## 八、ACK 阿里云部署架构
+## 8. ACK Alibaba Cloud Deployment Architecture
 
 ```yaml
 apiVersion: apps/v1
@@ -512,7 +515,7 @@ spec:
               cpu: "16"
               memory: "32Gi"
 ---
-# HPA 基于 QPS 扩缩容
+# HPA Based on QPS Scale Up and Down
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -543,29 +546,29 @@ spec:
 
 ---
 
-<!-- chunk: 参考链接 -->## 参考链接
+## References
 
-- [阿里云视频点播](https://www.aliyun.com/product/vod)
-- [阿里云视频直播](https://www.aliyun.com/product/live)
-- [阿里云 RTC](https://www.aliyun.com/product/rtc)
-- [FFmpeg 文档](https://ffmpeg.org/documentation.html)
+- [Alibaba Cloud Video On-Demand](https://www.aliyun.com/product/vod)
+- [Alibaba Cloud Video Live Stream](https://www.aliyun.com/product/live)
+- [Alibaba Cloud RTC](https://www.aliyun.com/product/rtc)
+- [FFmpeg Documentation](https://ffmpeg.org/documentation.html)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - topic-application-architecture KUDIG Database — Global MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

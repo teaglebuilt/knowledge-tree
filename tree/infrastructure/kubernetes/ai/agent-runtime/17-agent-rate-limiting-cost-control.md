@@ -497,13 +497,13 @@ class ModelRouter:
         """Rule-based + statistical complexity classification"""
         # Rule matching
         simple_patterns = [
-            "你好", "谢谢", "是的", "好的",
+            "Hello", "Thank you", "Yes", "Okay",
             "what is", "how to", "define"
         ]
         complex_patterns = [
-            "分析", "比较", "推理", "设计",
+            "Analyze", "Compare", "Reason", "Design",
             "analyze", "compare", "reason", "design",
-            "多步骤", "优化", "debug"
+            "Multi-step", "Optimize", "debug"
         ]
 
         query_lower = query.lower()

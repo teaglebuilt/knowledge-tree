@@ -9,6 +9,10 @@
   Never write `subgraph Data Collection[...]` (space breaks Mermaid).
 - Translate display labels: text inside `[...]`, `(...)`, `{...}`, quoted
   titles, and edge label text `|like this|`.
+- Keep HTML line breaks as `<br/>` inside quoted labels. Never write `<br">`
+  (that closes the quote early and breaks the diagram).
+- Keep edge labels wrapped in pipes: `A <-->|Label Text| B` — never
+  `A <-->LabelText B`.
 {% endblock %}
 {% block examples %}
   in   5\tsubgraph collect["采集层"]

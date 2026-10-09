@@ -59,24 +59,24 @@ Coze (Button) is an AI Agent development platform launched by ByteDance, positio
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Coze 平台架构                          │
+│                    Coze platform architecture                          │
 │                                                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐│
-│  │   Bot    │  │  Plugin  │  │ Workflow │  │ 知识库   ││
-│  │  (Agent) │  │  (插件)  │  │ (工作流) │  │ (RAG)   ││
+│  │   Bot    │  │  Plugin  │  │ Workflow │  │ Knowledge base   ││
+│  │  (Agent) │  │  (Plugin)  │  │ (Workflow) │  │ (RAG)   ││
 │  │          │  │          │  │          │  │         ││
-│  │ 人设     │  │ API调用  │  │ 逻辑编排 │  │ 文档    ││
-│  │ 能力     │  │ 代码执行 │  │ 条件分支 │  │ 表格    ││
-│  │ 提示词   │  │ 数据查询 │  │ 循环     │  │ 网页    ││
+│  │  Persona     │  │ API call  │  │ Logic orchestration │  │ Documentation    ││
+│  │  Capability     │  │ Code execution │  │ Condition branch │  │ Table    ││
+│  │  Prompt      │  │ Data query │  │ Loop     │  │ Webpage    ││
 │  └──────────┘  └──────────┘  └──────────┘  └─────────┘│
 │                                                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐│
-│  │  Memory  │  │ Database │  │ Variable │  │ 多Agent ││
-│  │  (记忆)  │  │ (数据库) │  │ (变量)   │  │ (编排)  ││
+│  │  Memory  │  │ Database │  │ Variable │  │ Multi-Agent ││
+│  │  (Memory)  │  │ (Database) │  │ (Variable)   │  │ (Orchestration)  ││
 │  └──────────┘  └──────────┘  └──────────┘  └─────────┘│
 │                                                          │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  发布渠道: 飞书/微信/Discord/Telegram/Web/API     │   │
+│  │  Release channels: Feishu/Wechat/Discord/Telegram/Web/API     │   │
 │  └──────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -88,8 +88,8 @@ Bot is a component of Coze, core configuration items:
 ```yaml
 Bot配置:
   基础信息:
-    name: "客服助手"
-    description: "处理客户咨询"
+    name: "Customer Service Assistant"
+    description: "Handle customer inquiries"
     avatar: "avatar.png"
 
   模型选择:
@@ -123,30 +123,30 @@ Bot配置:
 ### 1.3 Model Configuration
 
 ```
-模型选择策略:
+Model selection strategy:
 
-国际版可用模型:
+Model selection for international version:
   - GPT-4o / GPT-4o-mini
   - Claude 3.5 Sonnet / Claude 3 Haiku
   - Gemini 1.5 Pro / Gemini 1.5 Flash
-  - 豆包(Doubao)系列
-  - DeepSeek系列
+  - Doubao series
+  - DeepSeek series
 
-国内版可用模型:
-  - 豆包(Doubao)系列（默认）
-  - 通义千问系列
-  - Kimi系列
-  - DeepSeek系列
-  - GLM系列
-  - 百度文心系列
+Model selection for domestic version:
+  - Doubao series (default)
+  - Qianwen series
+  - Kimi series
+  - DeepSeek series
+  - GLM series
+  - Baidu Wenxin series
 
-高级设置:
-  temperature: 0.7          # 创造性
-  max_tokens: 4096          # 最大输出
-  top_p: 0.9               # 采样参数
-  frequency_penalty: 0.0   # 频率惩罚
-  presence_penalty: 0.0    # 存在惩罚
-  stop_sequences: []       # 停止序列
+Advanced settings:
+  temperature: 0.7          # creativity
+  max_tokens: 4096          # maximum output
+  top_p: 0.9               # sampling parameter
+  frequency_penalty: 0.0   # frequency penalty
+  presence_penalty: 0.0    # presence penalty
+  stop_sequences: []       # stop sequences
 ```
 
 ## 2. Multi-Agent Orchestration Patterns
@@ -157,26 +157,26 @@ Coze supports calling other Bots within a Workflow for multi-Agent collaboration
 
 ```
 ┌──────────────────────────────────────────┐
-│         主Bot (客服总代理)                 │
+│         Main Bot (Customer Service Proxy)                 │
 │                                          │
 │  ┌──────────────────────────────────┐   │
 │  │          Workflow                 │   │
 │  │                                   │   │
 │  │  ┌─────────┐    ┌─────────────┐ │   │
-│  │  │ 意图识别 │───→│ 条件路由     │ │   │
+│  │  │ intent recognition │───→│ condition routing     │ │   │
 │  │  └─────────┘    └──────┬──────┘ │   │
 │  │                        │         │   │
 │  │         ┌──────────────┼──────┐ │   │
 │  │         ▼              ▼      ▼ │   │
 │  │  ┌──────────┐ ┌───────┐ ┌────┐│   │
-│  │  │ 订单Bot  │ │ 技术Bot│ │FAQ ││   │
-│  │  │(子Agent) │ │(子Agent)│ │Bot ││   │
+│  │  │ Order Bot  │ │ Tech Bot│ │ FAQ ││   │
+│  │  │(Sub-Agent) │ │(Sub-Agent)│ │ Bot ││   │
 │  │  └──────────┘ └───────┘ └────┘│   │
 │  │         │              │      │ │   │
 │  │         └──────────────┼──────┘ │   │
 │  │                        ▼         │   │
 │  │                 ┌──────────┐     │   │
-│  │                 │ 结果汇总  │     │   │
+│  │                 │ Result Summarization  │     │   │
 │  │                 └──────────┘     │   │
 │  └──────────────────────────────────┘   │
 └──────────────────────────────────────────┘
@@ -219,9 +219,9 @@ Coze plugins are divided into two types:
 
 **Cloud Plugins**:
 ```
-用户请求 → Coze Agent → Plugin API调用 → 外部服务
+User request → Coze Agent → Plugin API call → External service
                                     ↓
-                              结果返回Agent
+                              return resultAgent
 ```
 
 **Local Plugins**:
@@ -304,8 +304,8 @@ def handler(event, context):
 
     elif operation == 'sentiment':
         # Simple Sentiment Analysis
-        positive_words = {'好', '棒', '喜欢', '满意', '优秀'}
-        negative_words = {'差', '糟', '不满', '失望', '问题'}
+        positive_words = {'good', 'great', 'like', 'satisfy', 'excellent'}
+        negative_words = {'bad', 'poor', 'dislike', 'disappoint', 'issue'}
         pos = sum(1 for w in text if w in positive_words)
         neg = sum(1 for w in text if w in negative_words)
         sentiment = 'positive' if pos > neg else 'negative' if neg > pos else 'neutral'
@@ -373,45 +373,45 @@ paths:
 ### 4.1 Workflow Node Types
 
 ```
-节点类型:
+Node type:
 
-1. 开始节点
-   - 输入参数定义
-   - 触发条件
+1. Start node
+   - Input parameter definition
+   - Trigger conditions
 
-2. LLM节点
-   - 选择模型
-   - 自定义提示词
-   - 输出格式化
+2. LLM node
+   - choose model
+   - custom prompt
+   - output formatting
 
-3. 代码节点
+3. code node
    - Node.js / Python
-   - 数据转换/计算
-   - 外部API调用
+   - data conversion/calculations
+   - external API calls
 
-4. 条件节点
-   - if/else分支
-   - 多条件表达式
+4. condition node
+   - if/else branches
+   - multiple conditional expressions
 
-5. 知识库节点
-   - 检索指定知识库
-   - 返回相关文档
+5. knowledge base node
+   - search specific knowledge base
+   - return relevant documents
 
-6. 插件节点
-   - 调用已配置的插件
-   - 传入参数
+6. plugin node
+   - call configured plugin
+   - pass parameters
 
-7. 变量节点
-   - 读写变量
-   - 数据库操作
+7. variable node
+   - read/write variables
+   - database operations
 
-8. Bot节点
-   - 调用其他Bot（子Agent）
-   - 传入上下文
+8. Bot node
+   - call other Bots (sub-Agent)
+   - pass context
 
-9. 结束节点
-   - 输出结果定义
-   - 输出格式
+End node
+   - Output result definition
+   - output format
 ```
 
 ### 4.2 Workflow Example
@@ -419,7 +419,7 @@ paths:
 ```yaml
 # Intelligent Customer Service Workflow
 workflow:
-  name: "智能客服处理流程"
+  name: "Smart Customer Service Processing Flow"
   nodes:
     - id: start
       type: start
@@ -592,7 +592,7 @@ client = CozeClient(
     api_token="your-api-token"
 )
 
-result = client.chat("查询订单状态")
+result = client.chat("Check order status")
 print(result)
 ```
 
@@ -602,7 +602,7 @@ print(result)
 
 ```
 ┌──────────────────────────────────────────────────┐
-│            Coze Enterprise 私有化部署               │
+│            Coze Enterprise private deployment               │
 │                                                    │
 │  ┌──────────────────────────────────────────────┐│
 │  │               Coze Platform                   ││
@@ -613,16 +613,16 @@ print(result)
 │  └──────────────────────────────────────────────┘│
 │                                                    │
 │  ┌──────────────────────────────────────────────┐│
-│  │             模型接入层                         ││
+│  │             Model Access Layer                         ││
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ││
-│  │  │ 豆包API  │ │ 私有模型  │ │ 第三方模型   │ ││
-│  │  │          │ │(vLLM等)  │ │ (OpenAI等)   │ ││
+│  │  │ Cobe API  │ │ Private Models  │ │ Third-party Models   │ ││
+│  │  │          │ │(vLLM etc.)  │ │ (OpenAI etc.)   │ ││
 │  │  └──────────┘ └──────────┘ └──────────────┘ ││
 │  └──────────────────────────────────────────────┘│
 │                                                    │
 │  ┌──────────────────────────────────────────────┐│
-│  │             基础设施层                         ││
-│  │  K8s集群 / 对象存储 / 向量数据库 / 消息队列   ││
+│  │             Infrastructure Layer                         ││
+│  │  K8s cluster / object storage / vector database / message queue   ││
 │  └──────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────┘
 ```
@@ -677,20 +677,20 @@ print(result)
 | **Customization Ability** | Platform-restricted | High (Source code modification possible) |
 
 ```
-选型建议:
+Selection recommendation:
 
-选择Coze:
-  - 需要快速上线，不想自建基础设施
-  - 主要面向聊天/客服场景
-  - 需要飞书/微信等渠道直接发布
-  - 团队技术能力有限
+Recommend Coze:
+  - Needs quick go live,not want to build infrastructure oneself
+  - Mainly aimed at chat/customer service scenarios
+  - Need to publish directly via Feishu/Wechat channels
+  - Team technical capabilities are limited
 
-选择Dify:
-  - 需要完全控制数据和部署
-  - 有复杂的LLM应用需求
-  - 需要深度定制和二次开发
-  - 已有K8s运维能力
-  - 对开源有要求
+Recommend Dify:
+  - Requires full control over data and deployment
+  - Have complex LLM application requirements
+  - Requires deep customization and secondary development
+  - Has K8s operational capability
+  - Require open source
 ```
 
 ## Related Topics

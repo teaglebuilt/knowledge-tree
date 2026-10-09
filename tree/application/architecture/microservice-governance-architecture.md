@@ -51,71 +51,6 @@ original_language: Chinese
 source_path: tree/application/architecture/microservice-governance-architecture.md
 ---
 
-> **Production Environment Security Reminders**
->
-> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
-
-
-
-
-title: Microservice Governance and Service Mesh Architecture Design
-description: '# Microservice Governance and [[Service|Service]]Mesh)[Service Mesh]] [[Kubernetes|Kubernetes]] Production Architecture Design'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- jaeger
-- istio
-- envoy
-- cilium
-- redis
-- mysql
-- statefulset
-last_updated: '2026-05-18'
-difficulty: expert
-reading_level: expert
-audience:
-- Microservices Architect
-- Cloud Native Engineer
-- DevOps Engineer
-- Alibaba Cloud Solution Architect
-estimated_read_time: 5min
-intent_queries:
-- Service Mesh Service Mesh Architecture Design
-- Istio Alibaba Cloud ASM Deployment Configuration
-- Full-Link Rollout Solution
-- Circuit Breaker Throttling Sentinel for Microservices
-- Zero Trust Security Architecture mTLS
-trigger_keywords:
-- Service Mesh
-- Istio
-- ASM
-- Microservice Governance
-- Full-Link Rollout
-- Sentinel
-- MSE
-- Nacos
-- Envoy
-- mTLS
-related_domains:
-- domain-03-networking-traffic
-- domain-01-cluster-fundamentals
-- domain-7-observability
-- domain-26-service-mesh
-related_topics:
-- domain-20-application-patterns/topic-application-architecture/17-saas-multitenant-architecture
-- domain-20-application-patterns/topic-application-architecture/11-smart-retail-architecture
-- domain-02-workloads-applications/topic-functions/03-observability-monitoring
-- domain-02-workloads-applications/topic-functions/06-service-mesh
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
 # Microservice Governance and Service Mesh Production Architecture Design
 
 > **Applicable Scenarios**: Enterprise microservice transformation / Service Mesh governance / Full-Link rollout / Multi-active architecture / Zero-trust network
@@ -146,32 +81,32 @@ flowchart TB
     subgraph Clients["Clients"]
         WEB_APP["Web App"]
         MOBILE_APP["Mobile App"]
-        OPEN_API["Open API<br>Third Party Access"]
+        OPEN_API["Open API<br/>Third Party Access"]
     end
 
     subgraph IngressLayer["Ingress Layer"]
-        MSE_GATEWAY["MSE Cloud Native Gateway<br>Ingress/AUTH/Rate Limiting"]
-        ASM_INGRESS["ASM Ingress Gateway<br">Istio Gateway"]
+        MSE_GATEWAY["MSE Cloud Native Gateway<br/>Ingress/AUTH/Rate Limiting"]
+        ASM_INGRESS["ASM Ingress Gateway<br/>Istio Gateway"]
     end
 
     subgraph Mesh["Service Mesh (ASM)"]
-        ENVOY_PROXY["Envoy Sidecar<br>Flow Proxy"]
-        PILOT["Istiod<br>Control Plane"]
-        CILIUM_MESH["Cilium Mesh<br>Ebpf Data Plane"]
+        ENVOY_PROXY["Envoy Sidecar<br/>Flow Proxy"]
+        PILOT["Istiod<br/>Control Plane"]
+        CILIUM_MESH["Cilium Mesh<br/>eBPF Data Plane"]
     end
 
     subgraph Services["Microservices"]
-        SVC_A["Order Service<br>v1.0 / v1.1"]
-        SVC_B["Payment Service<br">v2.0"]
-        SVC_C["Inventory Service<br">v1.5"]
-        SVC_D["User Service<br">v3.0"]
+        SVC_A["Order Service<br/>v1.0 / v1.1"]
+        SVC_B["Payment Service<br/>v2.0"]
+        SVC_C["Inventory Service<br/>v1.5"]
+        SVC_D["User Service<br/>v3.0"]
     end
 
     subgraph Governance["Governance Center"]
-        NACOS["Nacos<br>Registry/Configuration"]
-        SENTINEL["Sentinel<br>Breaker/Rate Limiting"]
-        SEATA["Seata<br>Distributed Transaction"]
-        SKYWALKING["SkyWalking<br>Trace Link"]
+        NACOS["Nacos<br/>Registry/Configuration"]
+        SENTINEL["Sentinel<br/>Breaker/Rate Limiting"]
+        SEATA["Seata<br/>Distributed Transaction"]
+        SKYWALKING["SkyWalking<br/>Trace Link"]
     end
 
     Clients --> IngressLayer --> Mesh --> Services
@@ -205,20 +140,20 @@ flowchart TB
 flowchart TB
     subgraph Sidecar["Sidecar Mode (Istio/ASM)"]
         APP1["App Container"]
-        PROXY1["Envoy Sidecar<br>Injection"]
+        PROXY1["Envoy Sidecar<br/>Injection"]
         APP1 <-->|localhost| PROXY1
     end
 
     subgraph Ambient["Ambient Mode (Istio v1.18+)"]
         APP2["App Container"]
-        ZTUNNEL["ztunnel<br">Node-level L4"]
-        WAYPOINT["Waypoint Proxy<br">On-demand L7"]
+        ZTUNNEL["ztunnel<br/>Node-level L4"]
+        WAYPOINT["Waypoint Proxy<br/>On-demand L7"]
         APP2 --> ZTUNNEL --> WAYPOINT
     end
 
     subgraph EBPF["eBPF Mode (Cilium)"]
         APP3["App Container"]
-        CILIUM_EBPF["Cilium eBPF<br">Kernel-level"]
+        CILIUM_EBPF["Cilium eBPF<br/>Kernel-level"]
         APP3 --> CILIUM_EBPF
     end
 
@@ -316,21 +251,21 @@ spec:
 flowchart TB
     subgraph TrafficEntry["Traffic Entry"]
         GW["MSE Gateway"]
-        TAG["Tag Coloring<br">Header/Cookie]
+        TAG["Tag Coloring<br/>Header/Cookie"]
     end
 
     subgraph GrayChain["Gray Chain"]
-        SVC1["Order Service v2<br">Gray Instance"]
-        SVC2["Payment Service v2<br">Gray Instance"]
-        SVC3["Inventory Service v1<br">Stable Version"]
-        SVC4["User Service v2<br">Gray Instance]
+        SVC1["Order Service v2<br/>Gray Instance"]
+        SVC2["Payment Service v2<br/>Gray Instance"]
+        SVC3["Inventory Service v1<br/>Stable Version"]
+        SVC4["User Service v2<br/>Gray Instance"]
     end
 
     subgraph StableChain["Stable Chain"]
-        SVC1_S["Order Service v1<br">Stable Instance"]
-        SVC2_S["Payment Service v1<br">Stable Instance]
-        SVC3_S["Inventory Service v1<br">Stable Instance]
-        SVC4_S["User Service v1<br">Stable Instance]
+        SVC1_S["Order Service v1<br/>Stable Instance"]
+        SVC2_S["Payment Service v1<br/>Stable Instance"]
+        SVC3_S["Inventory Service v1<br/>Stable Instance"]
+        SVC4_S["User Service v1<br/>Stable Instance"]
     end
 
     TrafficEntry -->|x-gray=true| GrayChain
@@ -347,17 +282,17 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph SentinelRules["Sentinel Rules"]
-        FLOW["Flow Control Rules<br">QPS/Concurrency]
-        DEGRADE["Degradation Rules<br">RT/Abnormal Ratio"]
-        SYSTEM["System Protection<br">CPU/Load"]
-        AUTHORITY["Authorization Rules<br>Blacklist/Whitelist"]
+        FLOW["Flow Control Rules<br/>QPS/Concurrency"]
+        DEGRADE["Degradation Rules<br/>RT/Abnormal Ratio"]
+        SYSTEM["System Protection<br/>CPU/Load"]
+        AUTHORITY["Authorization Rules<br/>Blacklist/Whitelist"]
     end
 
     subgraph Scenarios["Scenarios"]
-        SPIKE["Spike Peak<br">Rate Limiting Queueing"]
-        SLOW["Slow Call Isolation<br">Automatic Degradation"]
-        HOT_SPOT["Hot Parameters\nProduct/IP Rate Limiting"]
-        ISOLATION["Isolation chamber<BR>Cabin Wall Mode"]
+        SPIKE["Spike Peak<br/>Rate Limiting Queueing"]
+        SLOW["Slow Call Isolation<br/>Automatic Degradation"]
+        HOT_SPOT["Hot Parameters<br/>Product/IP Rate Limiting"]
+        ISOLATION["Isolation Chamber<br/>Bulkhead Mode"]
     end
 
     SentinelRules --> Scenarios
@@ -438,15 +373,15 @@ spec:
 ```mermaid
 flowchart TB
     subgraph Identity["Identity Layer"]
-        MTLS["mTLS<br>Service-to-Service Authentication"]
-        JWT_AUTH["JWT Token <br>User Identity"]
-        SPIFFE["SPIFFE/SPIRE\ Workload Identity"]
+        MTLS["mTLS<br/>Service-to-Service Authentication"]
+        JWT_AUTH["JWT Token <br/>User Identity"]
+        SPIFFE["SPIFFE/SPIRE<br/>Workload Identity"]
     end
 
     subgraph Policy["Policy Layer"]
-        AUTHZ["L4 Authorization<br>IP/Port"]
-        AUTHZ_L7["L7 Authorization<br>Path/Method"]
-        RABC_MESH["RBAC<br>Namespace/Service"]
+        AUTHZ["L4 Authorization<br/>IP/Port"]
+        AUTHZ_L7["L7 Authorization<br/>Path/Method"]
+        RABC_MESH["RBAC<br/>Namespace/Service"]
     end
 
     subgraph Encryption["Encryption"]
@@ -480,12 +415,12 @@ flowchart TB
     end
 
     subgraph GlobalService["Global Service"]
-        ROUTER["Unitized Routing<br">User ID Sharding"]
-        SEQ["Global Sequence<br">Sequencer"]
+        ROUTER["Unitized Routing<br/>User ID Sharding"]
+        SEQ["Global Sequence<br/>Sequencer"]
         CONFIG_GLOBAL["Global Configuration"]
     end
 
-    ZoneA <-->DataSynchronization ZoneB
+    ZoneA <-->|Data Synchronization| ZoneB
     GlobalService --> ZoneA & ZoneB
 
     style ZoneA fill:#e3f2fd
@@ -500,21 +435,21 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph NacosCluster["Nacos Cluster"]
-        N1["Nacos-1<br">Leader"]
-        N2["Nacos-2<br">Follower"]
-        N3["Nacos-3<br">Follower"]
+        N1["Nacos-1<br/>Leader"]
+        N2["Nacos-2<br/>Follower"]
+        N3["Nacos-3<br/>Follower"]
     end
 
     subgraph Registry["Registry"]
-        SERVICE_REG["Service Registration<br">Health Check"]
-        DISCOVERY["Service Discovery<br">Subscription Push"]
-        HEARTBEAT["Heartbeat Renewal<br">5s Interval"]
+        SERVICE_REG["Service Registration<br/>Health Check"]
+        DISCOVERY["Service Discovery<br/>Subscription Push"]
+        HEARTBEAT["Heartbeat Renewal<br/>5s Interval"]
     end
 
     subgraph Config["Config Center"]
-        CONFIG_PUSH["Config Push<br">Real-time Effectiveness"]
-        CONFIG_HISTORY["Historical Versions<br">Rollback"]
-        CONFIG_GRAY["Gray Release<br">Dimensional Push"]
+        CONFIG_PUSH["Config Push<br/>Real-time Effectiveness"]
+        CONFIG_HISTORY["Historical Versions<br/>Rollback"]
+        CONFIG_GRAY["Gray Release<br/>Dimensional Push"]
     end
 
     NacosCluster --> Registry & Config
@@ -624,26 +559,26 @@ spec:
 ```mermaid
 flowchart TB
     subgraph ASMControl["ASM Control Plane (Managed)"]
-        ISTIOD["Istiod<br>Configuration Distribution"]
-        PILOT_ASM["Pilot\ Service Discovery"]
-        CERT_MGMT_ASM["certificate management<br">Citadel"]
+        ISTIOD["Istiod<br/>Configuration Distribution"]
+        PILOT_ASM["Pilot<br/>Service Discovery"]
+        CERT_MGMT_ASM["Certificate Management<br/>Citadel"]
     end
 
     subgraph ClusterHZ["ACK Hangzhou Cluster"]
         INGRESS_HZ["Ingress Gateway"]
-        SVC_HZ["Service Business"]
+        SVC_HZ["Business Services"]
         ENVOY_HZ["Envoy Sidecar"]
     end
 
     subgraph ClusterSH["ACK Shanghai Cluster"]
         INGRESS_SH["Ingress Gateway"]
-        SVC_SH["Service"]
+        SVC_SH["Business Services"]
         ENVOY_SH["Envoy Sidecar"]
     end
 
     ASMControl --> ClusterHZ
     ASMControl --> ClusterSH
-    ClusterHZ <-->ServiceInterconnectivity ClusterSH
+    ClusterHZ <-->|Service Interconnectivity| ClusterSH
 
     style ASMControl fill:#e3f2fd
     style ClusterHZ fill:#c8e6c9

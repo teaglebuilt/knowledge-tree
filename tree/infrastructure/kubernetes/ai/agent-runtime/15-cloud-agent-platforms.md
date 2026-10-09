@@ -1,7 +1,7 @@
 ---
-title: 云Agent平台即服务
-description: '主流云厂商Agent平台对比：AWS Bedrock Agents、Azure AI Agent Service、Google Vertex AI Agent Builder、阿里云百炼'
-summary: '主流云厂商Agent平台对比：AWS Bedrock Agents、Azure AI Agent Service、Google Vertex AI Agent Builder、阿里云百炼'
+title: Cloud Agent Platform as a Service
+description: 'Comparison of mainstream cloud vendor Agent platforms: AWS Bedrock Agents, Azure AI Agent Service, Google Vertex AI Agent Builder, Alibaba Cloud BaiLian'
+summary: 'Comparison of mainstream cloud vendor Agent platforms: AWS Bedrock Agents, Azure AI Agent Service, Google Vertex AI Agent Builder, Alibaba Cloud BaiLian'
 category: ai-ml-infra
 tags:
 - ai
@@ -18,22 +18,22 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineers
+- Platform Engineers
+- Architects
 estimated_read_time: 20min
 intent_queries:
-- 云Agent平台即服务 是什么
-- 如何选择云Agent平台
-- AWS Bedrock Agents 怎么用
-- Azure AI Agent Service 架构
-- Google Vertex AI Agent Builder 对比
+- What is Cloud Agent Platform as a Service
+- How to choose a Cloud Agent Platform
+- How to use AWS Bedrock Agents
+- Architecture of Azure AI Agent Service
+- Comparison between Google Vertex AI Agent Builder and Alibaba Cloud BaiLian
 trigger_keywords:
 - cloud agent
 - bedrock agents
 - vertex ai agent
 - azure ai agent
-- 百炼
+- How to use BaiLian
 - agent paas
 prerequisites:
 - llm-basics
@@ -47,26 +47,28 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/15-cloud-agent-platforms.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands are annotated: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
-# 云Agent平台即服务
+# Cloud Agent Platform as a Service
 
-## 概述
+## Overview
 
-云Agent平台（Agent PaaS）将Agent构建所需的基础设施——LLM调用、知识库检索、工具编排、会话管理——封装为托管服务。相比自建Agent框架，云平台提供开箱即用的编排能力、与云生态的深度集成、以及按用量计费的弹性模型。
+Cloud Agent Platform (Agent PaaS) encapsulates the infrastructure required to build Agents—LLM calls, knowledge base retrieval, tool orchestration, session management—into managed services. Compared to building an Agent framework from scratch, the platform provides out-of-the-box orchestration capabilities, deep integration with the cloud ecosystem, and an elastic billing model based on usage.
 
-本文覆盖四大主流平台：AWS Bedrock Agents、Azure AI Agent Service、Google Vertex AI Agent Builder、阿里云百炼Agent，并提供对比选型框架。
+This document covers four major platforms: AWS Bedrock Agents, Azure AI Agent Service, Google Vertex AI Agent Builder, and Alibaba Cloud Baolian Agent, and provides a selection framework.
 
 ## 1. AWS Bedrock Agents
 
-### 1.1 核心架构
+### 1.1 Core Architecture
 
-Bedrock Agents 采用三组件模型：
+Bedrock Agents use a three-component model:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -81,30 +83,30 @@ Bedrock Agents 采用三组件模型：
 │  └──────────┘  └──────────────┘  └───────────┘ │
 │                                                  │
 │  ┌──────────────────────────────────────────┐   │
-│  │         Agent Alias (版本管理)            │   │
+│  │         Agent Alias (version management)            │   │
 │  └──────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
 ```
 
-**Foundation Model**：Agent绑定的基础模型，支持Claude、Titan、Llama等Bedrock托管模型。模型选择在Agent创建时指定，可通过Alias切换。
+**Foundation Model**: The base model bound to the Agent, supporting models like Claude, Titan, and Llama hosted by Bedrock. Model selection is specified during Agent creation, and can be switched using an Alias.
 
-**Knowledge Base**：RAG检索层，支持以下数据源：
-- Amazon S3（文档/PDF/HTML/Markdown）
-- Amazon OpenSearch Serverless（向量检索）
-- Aurora PostgreSQL（pgvector）
-- Kendra（企业搜索）
+**Knowledge Base**: Retrieval layer RAG, supports the following data sources:
+- Amazon S3 (documents/PDFs/HTML/Markdown)
+- Amazon OpenSearch Serverless (vector retrieval)
+- Aurora PostgreSQL (pgvector)
+- Kendra (enterprise search)
 
-Knowledge Base自动处理文档分块、Embedding生成（使用Amazon Titan Embedding或Cohere Embed）、向量索引构建。检索时自动执行Hybrid Search（向量+关键词）。
+The Knowledge Base automatically handles document chunking, embedding generation (using Amazon Titan Embedding or Cohere Embeddings), and vector indexing. During retrieval, it automatically executes Hybrid Search (vector+keyword).
 
-**Action Group**：Agent的能力边界，定义可调用的工具：
-- **Lambda Action**：调用AWS Lambda函数执行操作（数据库写入、API调用、文件操作等）
-- **Schema定义**：使用OpenAPI 3.0 Schema描述Action的输入/输出
-- **Return Control**：将Action结果返回给Agent进行推理
+**Action Group**: The boundary of the Agent's capabilities, defining callable tools:
+- **Lambda Action**: Calls AWS Lambda functions to execute operations (database writes, API calls, file operations, etc.)
+- **Schema Definition**: Describes the inputs/outputs of the Action using OpenAPI 3.0 Schema
+- **Return Control**: Returns the Action results back to the Agent for inference
 
-### 1.2 Agent Alias与版本管理
+### 1.2 Agent Alias and Version Management
 
 ```
-Agent（DEV）
+Agent (DEV)
   ├── Alias: LIVE → Version 3
   ├── Alias: STAGING → Version 4 (draft)
   └── Version 1 (archived)
@@ -112,23 +114,23 @@ Agent（DEV）
   └── Version 3 (published)
 ```
 
-每个Agent可创建多个Alias，每个Alias指向一个具体版本。版本包括：
-- 指令（Instructions）
-- Action Group定义
-- Knowledge Base配置
-- 基础模型设置
+Each Agent can create multiple Aliases, each pointing to a specific version. Versions include:
+- Instructions
+- Action Group definitions
+- Knowledge Base configurations
+- Basic Model Settings
 
-支持Blue/Green部署：创建新版本后，切换Alias指向即可完成流量切换。
+Support Blue/Green deployment: After creating a new version, switching the Alias to point at it completes the traffic switch.
 
-### 1.3 会话管理与Memory
+### 1.3 Session Management and Memory
 
-Bedrock Agents维护会话状态（Session State），支持：
-- **Session ID**：每个会话唯一标识
-- **Session Attributes**：跨轮次传递的键值对（最大3KB）
-- **Prompt Session Attributes**：仅在当前推理步骤可见的临时数据
-- **Memory**（2025年新增）：跨会话的长期记忆，可配置记忆窗口
+Bedrock Agents maintain session state (Session State), supporting:
+- **Session ID**: A unique identifier for each session
+- **Session Attributes**: Key-value pairs passed across rounds (up to 3KB)
+- **Prompt Session Attributes**: Temporary data visible only in the current inference step
+- **Memory** (added in 2025): Long-term memory across sessions, configurable memory window
 
-### 1.4 企业级特性
+### 1.4 Enterprise Features
 
 ```yaml
 安全:
@@ -149,28 +151,28 @@ Bedrock Agents维护会话状态（Session State），支持：
   - ISO 27001
 ```
 
-### 1.5 定价模型
+### 1.5 Pricing Model
 
 ```
-Bedrock Agents 定价（2026 Q2）:
-  - Agent编排费: $0.003/次 调用
-  - LLM调用: 按模型Token价格（另计）
-  - Knowledge Base检索: $0.0005/次
-  - Lambda执行: 按Lambda定价（另计）
-  - 存储: S3/OpenSearch按各自定价
+Bedrock Agents Pricing (Q2 2026):
+  - Agent Orchestration Fee: $0.003/call
+  - LLM Call: based on model Token price (separate charge)
+  - Knowledge Base Search: $0.0005/call
+  - Lambda Execution: based on Lambda pricing (separate charge)
+  - Storage: S3/OpenSearch at respective pricing
 
-示例: 10,000次/天 Agent调用
-  Agent编排: 10000 × $0.003 = $30/天
-  LLM (Claude Sonnet): ~$50/天（假设5K token/次）
-  KB检索: 10000 × $0.0005 = $5/天
-  总计: ~$85/天 ≈ $2,550/月
+Example: 10,000 calls/day for Agent
+  Agent Orchestration: 10000 × $0.003 = $30/day
+  LLM (Claude Sonnet): ~$50/day (assuming 5K tokens/call)
+  KB Search: 10000 × $0.0005 = $5/day
+  Total: ~$85/day ≈ $2,550/month
 ```
 
 ## 2. Azure AI Agent Service
 
-### 2.1 架构与Azure AI Foundry集成
+### 2.1 Integration with Azure AI Foundry and Architecture
 
-Azure AI Agent Service深度集成Azure AI Foundry（原Azure AI Studio），提供统一的Agent构建体验：
+Azure AI Agent Service integrates deeply with Azure AI Foundry (formerly Azure AI Studio), providing a unified Agent building experience:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -187,31 +189,31 @@ Azure AI Agent Service深度集成Azure AI Foundry（原Azure AI Studio），提
 │  └──────────────────────────────────────────┘   │
 │                                                  │
 │  ┌──────────────────────────────────────────┐   │
-│  │  Connected Agents (Multi-Agent编排)       │   │
+│  │  Connected Agents (Multi-Agent orchestration)       │   │
 │  └──────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
 ```
 
-**核心组件**：
-- **Agent**：配置模型、指令、工具的运行实体
-- **Thread**：对话线程，维护消息历史和上下文
-- **Run**：一次推理执行，包含工具调用循环
-- **Run Step**：推理过程中的原子步骤
+**Core Components**:
+- **Agent**: The runtime entity configured with models, commands, and tools
+- **Thread**: Dialog thread maintaining message history and context
+- **Run**: A single inference execution, including a loop of tool calls
+- **Run Step**: Atomic steps in the inference process
 
-### 2.2 工具类型
+### 2.2 Tool Types
 
 ```python
-# Azure AI Agent Service 工具类型
+# Azure AI Agent Service Tool Type
 
-# 1. Code Interpreter - 内置代码执行
+# 1. Code Interpreter - Built-in Code Execution
 agent = client.agents.create_agent(
     model="gpt-4o",
     name="data-analyst",
-    instructions="你是数据分析助手",
+    instructions: "You are an analytics assistant",
     tools=[{"type": "code_interpreter"}]
 )
 
-# 2. File Search - RAG检索
+# 2. File Search - RAG Retrieval
 agent = client.agents.create_agent(
     tools=[{"type": "file_search"}],
     tool_resources={
@@ -221,13 +223,13 @@ agent = client.agents.create_agent(
     }
 )
 
-# 3. Function Calling - 自定义函数
+# 3. Function Calling - Custom Function
 agent = client.agents.create_agent(
     tools=[{
         "type": "function",
         "function": {
             "name": "get_weather",
-            "description": "获取天气",
+            "description": "Get weather",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -238,28 +240,28 @@ agent = client.agents.create_agent(
     }]
 )
 
-# 4. Azure AI Search - 企业搜索
-# 5. Azure Functions - 无服务器执行
-# 6. Bing Search - 联网搜索
+# 4. Azure AI Search - Enterprise Search
+# 5. Azure Functions - Serverless Execution
+# 6. Bing Search - Internet Search
 ```
 
-### 2.3 Connected Agents（多Agent编排）
+### 2.3 Connected Agents (Multi-Agent Orchestration)
 
-Azure支持Agent间的层级调用：
+Azure supports hierarchical calls between Agents:
 
 ```python
-# 创建子Agent
+# Create Sub-Agent
 billing_agent = client.agents.create_agent(
     model="gpt-4o-mini",
     name="billing-agent",
-    instructions="处理账单查询"
+    instructions: "Handle bill inquiry",
 )
 
-# 主Agent通过Connected Agent调用子Agent
+# The Main Agent calls the Sub-Agent via Connected Agent
 main_agent = client.agents.create_agent(
     model="gpt-4o",
     name="customer-service",
-    instructions="你是客服总代理",
+    instructions: "You are the customer service agent",
     tools=[{
         "type": "connected_agent",
         "connected_agent": {
@@ -270,25 +272,25 @@ main_agent = client.agents.create_agent(
 )
 ```
 
-### 2.4 企业特性
+### 2.4 Enterprise Features
 
 ```
-与Azure生态集成:
-  - Entra ID (AAD) 认证
-  - Azure RBAC 角色控制
-  - Managed Identity 免密访问Azure资源
-  - Private Endpoint 私有部署
-  - Azure Monitor 全链路监控
-  - Microsoft Purview 数据治理
+Integration with Azure ecosystem:
+  - Entra ID (AAD) authentication
+  - Azure RBAC role-based access control
+  - Managed Identity zero-signing access to Azure resources
+  - Private Endpoint private deployment
+  - Azure Monitor full-chain monitoring
+  - Microsoft Purview Data Governance
 ```
 
 ## 3. Google Vertex AI Agent Builder
 
-### 3.1 双模式Agent
+### 3.1 Dual Mode Agent
 
-Vertex AI Agent Builder提供两种Agent构建模式：
+Vertex AI Agent Builder provides two Agent building modes:
 
-**Conversation Agent（对话Agent）**：
+**Conversation Agent (Dialog Agent)**:
 ```
 ┌──────────────────────────────────────┐
 │       Conversation Agent             │
@@ -301,27 +303,27 @@ Vertex AI Agent Builder提供两种Agent构建模式：
 │  └──────────┘  └────────────────┘   │
 │                                      │
 │  ┌──────────────────────────────┐   │
-│  │  Playbooks (行为编排)         │   │
+│  │  Playbooks (behavior orchestration)         │   │
 │  └──────────────────────────────┘   │
 └──────────────────────────────────────┘
 ```
 
-**Search Agent（搜索Agent）**：
-- 基于Vertex AI Search构建
-- 面向企业知识库的检索增强生成
-- 支持结构化/非结构化数据源
-- 自动抽取、分块、索引
+**Search Agent (Search Agent)**:
+- Built based on Vertex AI Search
+- Enhanced enterprise knowledge base retrieval for generative tasks
+- Supports structured/unstructured data sources
+- automatically extract, chunk, and index
 
-### 3.2 Extensions与Function Calling
+### 3.2 Extensions and Function Calling
 
 ```python
-# Vertex AI Extension 示例
+# Vertex AI Extension Example
 from vertexai.preview import extensions
 
-# 创建天气查询Extension
+# Create Weather Query Extension
 extension = extensions.Extension.create(
     display_name="weather-extension",
-    description="查询天气信息",
+    description: "Query weather information",
     manifest={
         "name": "weather",
         "description": "Weather API",
@@ -334,7 +336,7 @@ extension = extensions.Extension.create(
     }
 )
 
-# 部署到Agent
+# Deploy to Agent
 agent = agent_builder.create_agent(
     model="gemini-1.5-pro",
     tools=[
@@ -343,16 +345,16 @@ agent = agent_builder.create_agent(
 )
 ```
 
-### 3.3 Playbooks（行为编排）
+### 3.3 Playbooks (Behavior Orchestration)
 
-Playbook是Vertex AI Agent Builder的高级编排原语，定义Agent在特定场景下的行为：
+Playbook is an advanced orchestration primitive of Vertex AI Agent Builder, defining the behavior of the Agent in a specific scenario:
 
 ```yaml
-# Playbook 定义示例
+# Playbook Definition Example
 playbook:
   name: "customer-escalation"
   trigger:
-    condition: "用户表达不满或请求人工客服"
+    condition: "User expresses dissatisfaction or requests human customer service"
   steps:
     - id: detect_sentiment
       action: sentiment_analysis
@@ -367,49 +369,49 @@ playbook:
       condition: "urgency != high"
 ```
 
-### 3.4 Grounding（知识接地）
+### 3.4 Grounding (Knowledge Grounding)
 
 ```
-Grounding选项:
+Grounding options:
   1. Data Store Grounding
-     - Vertex AI Search数据存储
-     - 支持网站、PDF、BigQuery等数据源
-     - 自动引用原文出处
+     - Vertex AI Search data storage
+     - supports website, PDF, BigQuery, etc. data sources
+     - automatically cites original sources
 
   2. Web Grounding
-     - 实时互联网搜索
-     - 基于Google Search
-     - 返回带引用的答案
+     - real-time internet search
+     - based on Google Search
+     - returns answers with citations
 
   3. Custom Grounding
-     - 自定义检索接口
-     - 对接企业内部系统
+     - custom search interface
+     - integrates with enterprise systems
 ```
 
-## 4. 阿里云百炼Agent
+## 4. Alibaba Cloud Beacon Agent
 
-### 4.1 平台架构
+### 4.1 Platform Architecture
 
-百炼（Bailian）是阿里云的Agent构建平台，基于通义千问系列模型：
+Bailian is an Agent building platform of Alibaba Cloud, based on the Tongyi Qianwen series of models:
 
 ```
 ┌──────────────────────────────────────────────────┐
-│                  阿里云百炼                        │
+│                  Ant Cloud Hundred                    │
 │                                                    │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │
-│  │  模型服务    │  │  Agent编排   │  │  知识库   │ │
-│  │  通义千问    │  │  工作流引擎  │  │  向量检索 │ │
-│  │  Qwen-Max   │  │  多Agent     │  │  文档解析 │ │
-│  │  Qwen-Plus  │  │  对话管理    │  │  RAG     │ │
+│  │  Model Service    │  │  Agent Orchestration   │  │  Knowledge Base   │ │
+│  │  Tongyi Thousand Questions    │  │  Workflow Engine  │  │  Vector Retrieval │ │
+│  │  Qwen-Max   │  │  Multi-Agent     │  │  Document Parsing │ │
+│  │  Qwen-Plus  │  │  Dialogue Management    │  │  RAG     │ │
 │  └─────────────┘  └─────────────┘  └──────────┘ │
 │                                                    │
 │  ┌──────────────────────────────────────────────┐│
-│  │  应用接入: 钉钉/微信/飞书/Web/API             ││
+│  │  Application Integration: DingTalk/WeChat/Flysky/Web/API             ││
 │  └──────────────────────────────────────────────┘│
 └──────────────────────────────────────────────────┘
 ```
 
-### 4.2 核心能力
+### 4.2 Core Capabilities
 
 ```yaml
 模型层:
@@ -437,157 +439,157 @@ Agent编排:
   - Web Widget
 ```
 
-### 4.3 企业版特性
+### 4.3 Enterprise Features
 
 ```
-私有化部署:
-  - 支持部署到客户VPC
-  - 数据不出域
-  - 模型私有化部署（GPU集群）
+Private deployment:
+  - supports deployment to customer VPC
+  - data stays within domain
+  - Private model deployment (GPU cluster)
 
-安全合规:
-  - RAM访问控制
-  - 数据加密（传输+存储）
-  - 操作审计（ActionTrail）
-  - 内容安全审核（绿网）
+security compliance:
+  - RAM access control
+  - Data encryption (transmission+storage)
+  - Operation audit (ActionTrail)
+  - Content security review (Green Network)
 ```
 
-## 5. 对比选型
+## 5. Comparison Selection
 
-### 5.1 功能对比
+### 5.1 Feature Comparison
 
-| 维度 | AWS Bedrock Agents | Azure AI Agent Service | Vertex AI Agent Builder | 阿里云百炼 |
+| Dimension | AWS Bedrock Agents | Azure AI Agent Service | Vertex AI Agent Builder | Alibaba Cloud Bailian |
 |------|-------------------|----------------------|------------------------|-----------|
-| **模型选择** | Claude/Titan/Llama/Mistral | GPT-4o/Phi-3/Llama | Gemini/Anthropic/OpenAI | 通义千问系列+第三方 |
-| **RAG方案** | Knowledge Base(OpenSearch/S3) | File Search + AI Search | Data Store + Web Grounding | DashVector知识库 |
-| **工具调用** | Lambda + OpenAPI Schema | Function + Code Interpreter | Extension + Function | 工作流节点 + API |
-| **多Agent** | 基础（需自建编排） | Connected Agents | Agent-to-Agent | 子Agent模式 |
-| **会话管理** | Session State + Memory | Thread + Run | Session + Context | 对话变量 |
-| **可视化编辑** | 控制台基础配置 | AI Foundry Studio | Agent Builder Console | 可视化工作流 |
-| **中文支持** | 良好（需选中文模型） | 良好 | 一般 | 原生优化 |
-| **私有化部署** | 不支持 | 不支持（仅Private Link） | 不支持 | 支持 |
+| **model selection** | Claude/Titan/Llama/Mistral | GPT-4o/Phi-3/Llama | Gemini/Anthropic/OpenAI | Tongyi Qianwen series + third-party |
+| **RAG solution** | Knowledge Base(OpenSearch/S3) | File Search + AI Search | Data Store + Web Grounding | DashVector knowledge base |
+| **tool invocation** | Lambda + OpenAPI Schema | Function + Code Interpreter | Extension + Function | Workflow node + API |
+| **multi-Agent** | Basic (requires self-built orchestration) | Connected Agents | Agent-to-Agent | Sub-Agent mode |
+| **session management** | Session State + Memory | Thread + Run | Session + Context | Dialog variables |
+| **visual editing** | Console basic configuration | AI Foundry Studio | Agent Builder Console | Visual workflow |
+| **Chinese support** | Good (needs to select Chinese model) | Good | Poor | Native optimization |
+| **private deployment** | Not supported | Not supported (only Private Link) | Not supported | Supported |
 
-### 5.2 定价对比
+### 5.2 Pricing Comparison
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-价格区间（基于2026 Q2公开信息）:
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+price range (based on public information from Q2 2026):
 
 AWS Bedrock Agents:
-  编排费: $0.003/次
+  orchestration fee: $0.003/call
   LLM: Claude Sonnet $3/$15 per 1M token (input/output)
-  隐性成本: Lambda/S3/OpenSearch另计
+  implicit cost: Lambda/S3/OpenSearch separately
 
 Azure AI Agent Service:
-  编排费: 包含在API调用中
+  orchestration fee: included in API calls
   LLM: GPT-4o $2.50/$10 per 1M token
-  隐性成本: AI Search/Azure Functions另计
+  implicit cost: AI Search/Azure Functions separately
 
 Vertex AI Agent Builder:
-  编排费: $0.002/次 (Conversation Agent)
+  orchestration fee: $0.002/call (Conversation Agent)
   LLM: Gemini 1.5 Pro $1.25/$5 per 1M token
-  隐性成本: AI Search/Cloud Functions另计
+  implicit cost: AI Search/Cloud Functions separately
 
-阿里云百炼:
-  编排费: 0.003元/次
-  LLM: Qwen-Max 0.12元/千token
-  隐性成本: DashVector/OSS另计
+Zhongliangyun:
+  orchestration fee: 0.003 yuan/call
+  LLM: Qwen-Max 0.12 yuan/k token
+  implicit cost: DashVector/OSS separately
 
-小规模 (10K次/天): 各平台月费 $500-$3,000
-中规模 (100K次/天): 各平台月费 $5,000-$30,000
-大规模 (1M次/天): 需协商企业折扣
+Small scale (10K calls/day): each platform monthly fee $500-$3,000
+Medium scale (100K calls/day): each platform monthly fee $5,000-$30,000
+Large scale (1M calls/day): negotiation for enterprise discount
 ```
-### 5.3 厂商锁定风险评估
+### 5.3 Vendor Lock-in Risk Assessment
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-锁定维度分析:
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+Lock down dimension analysis:
 
 ┌─────────────┬──────────┬──────────┬──────────┬──────────┐
-│ 维度         │ AWS      │ Azure    │ GCP      │ 阿里云   │
+│ Dimension  │ AWS  │ Azure  │ GCP  │ Alibaba Cloud  │
 ├─────────────┼──────────┼──────────┼──────────┼──────────┤
-│ 模型迁移     │ 低       │ 中       │ 低       │ 高       │
-│ API兼容性    │ 自有API  │ OpenAI   │ 自有API  │ 自有API  │
-│ 知识库迁移   │ 中       │ 中       │ 中       │ 高       │
-│ 工具迁移     │ 高(Lambda)│ 中      │ 中       │ 高       │
-│ 会话格式     │ 自有     │ 自有     │ 自有     │ 自有     │
-│ 综合锁定风险 │ 高       │ 中       │ 中       │ 高       │
+│ Model migration │ Low  │ Medium  │ Low  │ High  │
+│ API compatibility │ Own API │ OpenAI  │ Own API │ Own API │
+│ Knowledge base migration │ Medium │ Medium  │ Medium │ High  │
+│ Tool migration │ High(Lambda) │ Medium │ Medium │ High  │
+│ Session format │ Own  │ Own  │ Own  │ Own  │
+│ Comprehensive lock risk │ High  │ Medium  │ Medium │ High  │
 └─────────────┴──────────┴──────────┴──────────┴──────────┘
 
-降低锁定策略:
-  1. 使用OpenAI兼容接口层（LiteLLM/OneAPI）
-  2. 工具定义标准化（OpenAPI 3.0）
-  3. 知识库数据独立存储
-  4. Agent逻辑与平台API解耦
+Reduce lock strategy:
+  1. Use OpenAI compatible interface layer (LiteLLM/OneAPI)
+  2. Standardize tool definitions (OpenAPI 3.0)
+  3. Independently store knowledge base data
+  4. Decouple agent logic from platform APIs
 ```
-### 5.4 选型决策框架
+### 5.4 Selection Decision Framework
 
 ```
-选型决策树:
+Selection decision tree:
 
-Q1: 已有哪个云平台的深度投入？
-    → AWS深度用户 → 优先Bedrock Agents
-    → Azure深度用户 → 优先Azure AI Agent Service
-    → GCP深度用户 → 优先Vertex AI Agent Builder
-    → 阿里云深度用户 → 优先百炼
+Q1: Has any cloud platform been deeply invested in?
+    → AWS deep users → Prioritize Bedrock Agents
+    → Azure deep users → Prioritize Azure AI Agent Service
+    → GCP deep users → Prioritize Vertex AI Agent Builder
+    → Alibaba Cloud deep users → Prioritize Qianlian
 
-Q2: 是否需要私有化部署？
-    → 是 → 百炼企业版（唯一支持）
-    → 否 → 继续评估
+Q2: Is private deployment required?
+    → Yes → Hundred Forge Enterprise Edition (only supported)
+    → No → Continue evaluation
 
-Q3: 中文场景占比？
-    > 80% → 百炼 > Bedrock > Azure > Vertex
-    < 20% → Azure ≈ Bedrock > Vertex > 百炼
+Q3: Chinese scenario proportion?
+    > 80% → Forge > Bedrock > Azure > Vertex
+    < 20% → Azure ≈ Bedrock > Vertex > Baolin
 
-Q4: 多Agent编排复杂度？
-    高 → Azure（Connected Agents最成熟）
-    中 → 百炼（可视化工作流）
-    低 → 各平台均可
+Q4: Multi-Agent orchestration complexity?
+    High → Azure(Connected Agents most mature)
+    Middle → Zhonglian (visual workflow)
+    Low → All platforms can
 
-Q5: 预算敏感度？
-    高 → Vertex（性价比最佳）/ 百炼（国内价格优势）
-    中 → Azure（OpenAI模型质量）
-    低 → Bedrock（企业级稳定性）
+Q5: Budget sensitivity?
+    High → Vertex (best value)/ Bayon (domestic price advantage)
+    Medium → Azure(quality of OpenAI models)
+    Low → Bedrock(enterprise stability)
 ```
 
-## 6. 混合架构实践
+## 6. Mixed Architecture Practice
 
-生产环境中，单一云平台往往无法满足所有需求。混合架构模式：
+Production environments often cannot meet all needs with a single cloud platform. Hybrid architecture mode:
 
 ```yaml
-混合模式一: 多云Agent网关
-  描述: 统一Agent网关，后端路由到不同云平台
-  适用: 需要利用各平台优势模型
-  架构:
+Hybrid Mode 1: Multi-cloud Agent Gateway
+  Description: Unified Agent gateway, backend routes to different cloud platforms
+  Applicable: Need to leverage advantages of each platform
+  Architecture:
     API Gateway → Agent Router
       → Bedrock (Claude for reasoning)
       → Vertex (Gemini for multimodal)
-      → 百炼 (Qwen for Chinese)
+      → Hundred-Forging (Qwen for Chinese)
 
-混合模式二: 云平台+自建框架
-  描述: 云平台处理基础设施，自建框架管理编排
-  适用: 需要复杂自定义编排逻辑
-  架构:
-    自建Agent Framework (LangGraph/CrewAI)
-      → Bedrock API (模型调用)
-      → OpenSearch (知识库)
-      → Lambda (工具执行)
+Hybrid Mode 2: Cloud Platform + Self-built Framework
+  Description: Cloud platform handles infrastructure, self-built framework manages orchestration
+  aplicable: appears only necessary now only not simple specialized scheduling syntax
+  Architecture:
+    Built-in Agent Framework (LangGraph/CrewAI)
+      → Bedrock API (model invocation)
+      → OpenSearch (knowledge base)
+      → Lambda (tool execution)
 
-混合模式三: 渐进式迁移
-  描述: 从一个平台迁移到另一个平台
-  阶段:
-    1. 双写: 新旧平台并行运行
-    2. 影子流量: 新平台接收副本流量
-    3. 金丝雀: 逐步切换流量
-    4. 完全切换: 旧平台下线
+Hybrid Mode 3: Gradual Migration
+  Description: Migrating from one platform to another
+  Phases:
+    1. Dual Write: Running on both old and new platforms concurrently
+    2. Shadow Traffic: Receiving replica traffic by the new platform
+    3. Canary: Gradually switching traffic
+    4. Full Switch: Dismantling the old platform
 ```
 
-## 7. 与K8s集成
+## 7. Integration with K8s
 
-在K8s环境中使用云Agent平台的典型模式：
+In typical modes of using cloud Agent platforms in K8s environments:
 
 ```yaml
-# K8s中运行Agent应用，调用云平台API
+# Run Agent Application in K8s and call cloud platform API
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -619,7 +621,7 @@ spec:
             cpu: "2"
             memory: "2Gi"
 ---
-# 多平台路由配置
+# Multi-platform Route Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -641,18 +643,18 @@ data:
         model: qwen-max
 ```
 
-## 相关主题
+## Related Topics
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/16-coze-agent-platform|Coze Agent平台]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent限流与成本控制]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/16-coze-agent-platform|Coze Agent platform]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent limitation and cost control]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime architecture overview]]
 
-## 参考资料
+## References
 
 - AWS Bedrock Agents Documentation
 - Azure AI Agent Service Documentation
 - Vertex AI Agent Builder Documentation
-- 阿里云百炼产品文档
+- Aliyun Bailian product documentation
 
 
 <!-- risk-assessed -->

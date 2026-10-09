@@ -145,7 +145,7 @@ spec:
     allowed_domains:
       - "*.internal.com"
     blocked_patterns:
-      - "密码|password|secret"
+      - "password|password|secret"
 
   # Deployment strategy
   deployment:

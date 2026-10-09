@@ -83,33 +83,33 @@ Unmanned retail achieves 24-hour self-service shopping through IoT + AI:
 
 ```mermaid
 graph TB
-    subgraph 设备层
-        D1[智能货柜]
-        D2[无人便利店]
-        D3[自动售货机]
-        D4[智能取货柜]
+    subgraph DeviceLayer
+        D1[Smart Cabinet]
+        D2[unmanned Convenience Store]
+        D3[Automatic vending machine]
+        D4[Smart Grabber]
     end
 
-    subgraph 感知层
-        S1[摄像头]
-        S2[重力传感器]
+    subgraph SenseLayer
+        S1[Camera]
+        S2[Gravity Sensor]
         S3[RFID]
-        S4[门磁开关]
+        S4[Magnetic Switch]
     end
 
-    subgraph 平台层
-        P1[设备管理]
-        P2[商品识别]
-        P3[订单结算]
-        P4[库存管理]
-        P5[补货调度]
+    subgraph PlatformLayer
+        P1[Device Management]
+        P2[Item Recognition]
+        P3[Purchase Settlement]
+        P4[Inventory Management]
+        P5[Replenishment Scheduling]
     end
 
-    subgraph 运营层
-        O1[商户后台]
-        O2[供应链]
-        O3[财务结算]
-        O4[数据分析]
+    subgraph OperationalLayer
+        O1[Merchant Backend]
+        O2[Supply Chain]
+        O3[Finance Settlement]
+        O4[Data Analysis]
     end
 
     D1 & D2 & D3 & D4 --> S1 & S2 & S3 & S4
@@ -121,25 +121,25 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant USER as 消费者
-    participant DEVICE as 智能货柜
-    participant VISION as 视觉识别
-    participant WEIGHT as 重力感应
-    participant ORDER as 订单系统
+    participant USER as Consumer
+    participant DEVICE as Smart Cabinet
+    participant VISION as Vision Recognition
+    participant WEIGHT as Gravity Sensing
+    participant ORDER as OrderSystem
 
-    USER->>DEVICE: 扫码/刷脸开门
-    DEVICE->>DEVICE: 身份验证
-    DEVICE-->>USER: 开门
-    USER->>DEVICE: 拿取商品
-    DEVICE->>VISION: 视觉识别商品
-    DEVICE->>WEIGHT: 重力变化检测
-    VISION-->>DEVICE: 识别结果
-    WEIGHT-->>DEVICE: 重量变化
-    DEVICE->>DEVICE: 多传感器融合确认
-    USER->>DEVICE: 关门
-    DEVICE->>ORDER: 生成订单
-    ORDER->>ORDER: 自动扣款
-    ORDER-->>USER: 支付成功通知
+    USER->>DEVICE: Scan/Face Scan Door
+    DEVICE->>DEVICE: Identity Verification
+    DEVICE-->>USER: Door Open
+    USER->>DEVICE: Take Item
+    DEVICE->>VISION: Visual Recognition Item
+    DEVICE->>WEIGHT: Gravity Change Detection
+    VISION-->>DEVICE: Recognition Result
+    WEIGHT-->>DEVICE: Weight Change
+    DEVICE->>DEVICE: Multi-sensor Fusion Confirmation
+    USER->>DEVICE: Close Door
+    DEVICE->>ORDER: Generate Order
+    ORDER->>ORDER: Automatic Deduction
+    ORDER-->>USER: Payment Successful Notification
 ```
 
 ---
@@ -229,13 +229,13 @@ spec:
 
 ```mermaid
 flowchart LR
-    A[库存监测] --> B{低于阈值?}
-    B -->|是| C[补货预警]
-    C --> D[路径优化]
-    D --> E[补货任务下发]
-    E --> F[补货员执行]
-    F --> G[库存更新]
-    B -->|否| H[正常]
+    InventoryMonitoring --> BelowThreshold
+    B -->Yes C[Replenishment Warning]
+    C --> PathOptimization
+    D --> ReplenishmentTaskDispatching
+    E --> ReplenishmentExecutionByStaff
+    F --> UpdateInventory
+    B -->No H[Normal]
 ```
 
 ---
