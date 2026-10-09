@@ -1,6 +1,7 @@
----title: 记忆系统 (02-ai-agents)
-description: 'description: KuDig Doctor Agent 的长期记忆系统，存储跨会话的经验、模式和确定性规则'
-summary: 'description: KuDig Doctor Agent 的长期记忆系统，存储跨会话的经验、模式和确定性规则'
+---
+title: Memory System (02-ai-agents)
+description: 'description: KuDig Doctor Agent ’s Long-Term Memory System, storing cross-session experiences, patterns, and deterministic rules'
+summary: 'description: KuDig Doctor Agent ’s Long-Term Memory System, storing cross-session experiences, patterns, and deterministic rules'
 category: general
 tags:
 - ai
@@ -19,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- all engineers
 estimated_read_time: 15min
 intent_queries:
-- 记忆系统 是什么
-- 如何 记忆系统
-- Kubernetes 14 ai ml infra 最佳实践
+- what is the Memory System
+- how does the Memory System work
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
-- 记忆系统
+- Memory System
 - ai
 - ml
 - infra
@@ -41,17 +42,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/MEMORY.md
 ---
 
-> **生产环境安全提示**
+> **production environment security tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute at your own risk: confirm that the target cluster and Namespace are correct; ensure you have sufficient RBAC permissions; verify these commands in a non-production environment first. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 记忆系统
-description: KuDig Doctor Agent 的长期记忆系统，存储跨会话的经验、模式和确定性规则
+title: Memory System
+description: KuDig Doctor Agent ’s Long-Term Memory System, storing cross-session experiences, patterns, and deterministic rules
 category: ai-agent
 tags:
 - ai
@@ -68,15 +71,15 @@ last_updated: 2026-04
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 记忆系统 是什么
-- 如何 记忆系统
+- what is the Memory System
+- how does the Memory System work
 trigger_keywords:
-- 记忆系统
+- Memory System
 - ai
 - agent
 authors:
@@ -89,13 +92,13 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
-# 记忆系统
+# Memory System
 
-## 1. 确定性规则（手动维护）
+## 1. Deterministic Rules (Manual Maintenance)
 
-### 1.1 集群环境基线
+### 1.1 Baseline Cluster Environment
 
-> 以下为模板，实际使用时根据真实环境填写。
+> Here is a template; please fill in the actual environment when using it.
 
 ```yaml
 cluster_profiles:
@@ -135,7 +138,7 @@ cluster_profiles:
       etcd_quota: 8GB
 ```
 
-### 1.2 已知问题与规避方案
+### 1.2 Known Issues and Mitigation Strategies
 
 ```yaml
 known_issues:
@@ -170,7 +173,7 @@ known_issues:
     discovered: 2025-11-10
 ```
 
-### 1.3 团队约定
+### 1.3 Team Agreements
 
 ```yaml
 team_conventions:
@@ -199,9 +202,9 @@ team_conventions:
     - "凌晨 02:00-06:00 为变更静默窗口"
 ```
 
-## 2. 经验模式（Agent 自动提炼）
+## 2. Experience-Based Patterns (Agent Automatically Extracted)
 
-### 2.1 高频故障模式
+### 2.1 Frequent Fault Patterns
 
 ```yaml
 frequent_patterns:
@@ -243,7 +246,7 @@ frequent_patterns:
     last_seen: 2026-04-01
 ```
 
-### 2.2 有效诊断路径
+### 2.2 Effective Diagnosis Paths
 
 ```yaml
 effective_paths:
@@ -272,7 +275,7 @@ effective_paths:
     success_rate: 85%
 ```
 
-### 2.3 失败案例与教训
+### 2.3 Failure Cases and Lessons Learned
 
 ```yaml
 lessons_learned:
@@ -291,7 +294,7 @@ lessons_learned:
     prevention: "SKILL.md DNS SOP 中将 CoreDNS 状态检查提到第一步"
 ```
 
-## 3. 用户偏好记忆
+## 3. User Preference Memory
 
 ```yaml
 user_preferences:
@@ -310,7 +313,7 @@ user_preferences:
     - "关注 Terway 网络和 ESSD 存储相关问题"
 ```
 
-## 4. 记忆管理元数据
+## 4. Memory Metadata Management
 
 ```yaml
 memory_metadata:
@@ -332,12 +335,12 @@ memory_metadata:
 
 ---
 
-*本文件是 Agent 的长期记忆存储。经验模式由 Agent 自动提炼，确定性规则由人工维护。定期审查以保持记忆质量。*
+*This document stores long-term memory for the Agent. Experience-based patterns are automatically extracted by the Agent, while deterministic rules are manually maintained. Regular reviews are conducted to maintain the quality of the memory.*
 
 ## Related
 
-- [[domain-17-system-foundation/topic-cheat-sheet/go.md|[[Go 生产环境速查卡|go]]]]
-- [[domain-17-system-foundation/topic-cheat-sheet/k8s.md|[[Kubernetes 生产环境速查卡|k8s]]]]
+- [[domain-17-system-foundation/topic-cheat-sheet/go.md|[[Go Production Environment Quick Reference Card|go]]]]
+- [[domain-17-system-foundation/topic-cheat-sheet/k8s.md|[[Kubernetes Production Environment Quick Reference Card|k8s]]]]
 - [[entities/coredns.md|coredns]]
 
 ## See Also

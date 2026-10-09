@@ -1,7 +1,7 @@
 ---
-title: Agent 成本优化与缓存
-description: 'LLM请求缓存、Token用量优化、模型路由与成本监控的完整实现方案'
-summary: 'LLM请求缓存、Token用量优化、模型路由与成本监控的完整实现方案'
+title: Agent Cost Optimization and Caching
+description: 'LLM Request Caching, Token Usage Optimization, Model Routing and Cost Monitoring for a Complete Implementation'
+summary: 'LLM Request Caching, Token Usage Optimization, Model Routing and Cost Monitoring for a Complete Implementation'
 category: platform-engineering
 tags:
 - ai-agent
@@ -15,19 +15,19 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- 所有工程师
-- 架构师
+- All Engineers
+- Architects
 - SRE
 estimated_read_time: 15min
 intent_queries:
-- Agent 成本优化 是什么
-- 如何 降低 LLM 调用成本
+- What is Agent Cost Optimization
+- How to Reduce the Cost of LLM Calls
 trigger_keywords:
-- Agent 成本
-- LLM 缓存
-- Token 优化
-- 模型路由
-- 成本监控
+- Agent Cost
+- LLM Caching
+- Token Optimization
+- Model Routing
+- Cost Monitoring
 prerequisites:
 - kubectl-basics
 - microservice-basics
@@ -40,20 +40,22 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/52-agent-cost-optimization-caching.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute at your own risk: confirm that the target cluster and Namespace are correct; have sufficient RBAC permissions; and have validated these commands in a non-production environment. Risk level annotations: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
-# Agent 成本优化与缓存
+# Agent Cost Optimization and Caching
 
-## 1. 概述
+## 1. Overview
 
-LLM 调用成本是 AI Agent 运营的主要支出。本文档覆盖四种核心成本优化策略：请求缓存、Token 用量优化、智能模型路由和成本监控告警，帮助将 LLM 调用成本降低 50-80%。
+LLM call costs are the primary expense in AI Agent operations. This document covers four core optimization strategies: request caching, token usage optimization, intelligent model routing, and cost monitoring alerts, helping reduce LLM call costs by 50-80%.
 
-## 2. 成本优化全景
+## 2. Optimization Landscape
 
 ```
 LLM 成本优化策略:
@@ -81,37 +83,37 @@ LLM 成本优化策略:
 综合策略: 缓存 + Token + 路由 → 50-80% 成本降低
 ```
 
-## 3. LLM 请求缓存
+## 3. LLM Request Caching
 
-### 3.1 精确缓存 (Exact Cache)
+### 3.1 Precise Caching (Exact Cache)
 
 ```python
-# 基于 Redis 的精确缓存
+# Based on Redis Precise Caching
 import hashlib
 import json
 import redis
 from typing import Optional, Dict
 
 class LLMExactCache:
-    """精确匹配缓存：相同输入直接返回缓存结果"""
+    """Precise Matching Caching: Return cached results for identical inputs"""
 
     def __init__(self, redis_url: str, ttl: int = 3600):
         self.redis = redis.from_url(redis_url)
         self.ttl = ttl
 
     def _build_cache_key(self, model: str, messages: list, **kwargs) -> str:
-        """构建缓存键"""
+        """Build cache key"""
         cache_input = {
             "model": model,
             "messages": messages,
             **{k: v for k, v in kwargs.items() if k in ["temperature", "max_tokens"]}
         }
-        # 移除不稳定的参数
+        # Remove unstable parameters
         cache_str = json.dumps(cache_input, sort_keys=True)
         return f"llm:exact:{hashlib.sha256(cache_str.encode()).hexdigest()}"
 
     def get(self, model: str, messages: list, **kwargs) -> Optional[Dict]:
-        """查询缓存"""
+        """Query cache"""
         key = self._build_cache_key(model, messages, **kwargs)
         cached = self.redis.get(key)
         if cached:
@@ -119,12 +121,12 @@ class LLMExactCache:
         return None
 
     def set(self, model: str, messages: list, response: Dict, **kwargs):
-        """写入缓存"""
+        """Write to cache"""
         key = self._build_cache_key(model, messages, **kwargs)
         self.redis.setex(key, self.ttl, json.dumps(response))
 
     def get_or_call(self, model: str, messages: list, llm_call_fn, **kwargs) -> Dict:
-        """缓存优先：命中缓存直接返回，否则调用 LLM"""
+        """Cache Priority: Return from cache if hit, otherwise call LLM"""
         cached = self.get(model, messages, **kwargs)
         if cached:
             cached["cache_hit"] = True
@@ -135,7 +137,7 @@ class LLMExactCache:
         response["cache_hit"] = False
         return response
 
-# 使用示例
+# Usage Example
 cache = LLMExactCache("redis://localhost:6379")
 response = cache.get_or_call(
     model="gpt-4",
@@ -144,17 +146,17 @@ response = cache.get_or_call(
 )
 ```
 
-### 3.2 语义缓存 (Semantic Cache)
+### 3.2 Semantic Cache (Semantic Cache)
 
 ```python
-# 基于向量相似度的语义缓存
+# Based on Vector Similarity Semantic Caching
 import numpy as np
 from typing import Optional, Tuple
 import faiss
 from sentence_transformers import SentenceTransformer
 
 class SemanticCache:
-    """语义缓存：相似问题复用回答"""
+    """Semantic Caching: Reuse answers for similar questions"""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2", threshold: float = 0.92):
         self.encoder = SentenceTransformer(model_name)
@@ -164,25 +166,25 @@ class SemanticCache:
         self.questions = []
 
     def _encode(self, text: str) -> np.ndarray:
-        """编码文本为向量"""
+        """Encode text into vectors"""
         return self.encoder.encode([text])[0]
 
     def add(self, question: str, response: dict):
-        """添加缓存条目"""
+        """Add cache entry"""
         embedding = self._encode(question)
 
         if self.index is None:
             dimension = embedding.shape[0]
             self.index = faiss.IndexFlatIP(dimension)  # 内积相似度
 
-        # 归一化向量
+        # Normalize vectors
         faiss.normalize_L2(embedding.reshape(1, -1))
         self.index.add(embedding.reshape(1, -1))
         self.questions.append(question)
         self.responses.append(response)
 
     def search(self, question: str) -> Tuple[Optional[dict], float]:
-        """搜索相似问题"""
+        """Search similar questions"""
         if self.index is None or self.index.ntotal == 0:
             return None, 0.0
 
@@ -196,7 +198,7 @@ class SemanticCache:
             return self.responses[indices[0][0]], float(similarity)
         return None, float(similarity)
 
-# 使用示例
+# Usage Example
 semantic_cache = SemanticCache(threshold=0.90)
 response, similarity = semantic_cache.search("K8s是什么？")
 if response:
@@ -206,27 +208,27 @@ else:
     semantic_cache.add("K8s是什么？", response)
 ```
 
-### 3.3 混合缓存策略
+### 3.3 Hybrid Caching Strategy
 
 ```python
-# 混合缓存：精确 + 语义
+# Hybrid Caching: Precise + Semantic
 class HybridLLMCache:
-    """混合缓存策略"""
+    """Hybrid Caching Strategy"""
 
     def __init__(self, redis_url: str):
         self.exact_cache = LLMExactCache(redis_url)
         self.semantic_cache = SemanticCache(threshold=0.92)
 
     def get_or_call(self, model: str, messages: list, llm_call_fn, **kwargs) -> Dict:
-        """三级缓存策略"""
-        # Level 1: 精确缓存
+        """Three-level caching strategy"""
+        # Level 1: Precise Caching
         cached = self.exact_cache.get(model, messages, **kwargs)
         if cached:
             cached["cache_type"] = "exact"
             cached["cache_hit"] = True
             return cached
 
-        # Level 2: 语义缓存
+        # Level 2: Semantic Caching
         user_message = self._extract_user_message(messages)
         semantic_result, similarity = self.semantic_cache.search(user_message)
         if semantic_result:
@@ -235,11 +237,11 @@ class HybridLLMCache:
             semantic_result["similarity"] = similarity
             return semantic_result
 
-        # Level 3: 调用 LLM
+        # Level 3: Invoke LLM
         response = llm_call_fn(model, messages, **kwargs)
         response["cache_hit"] = False
 
-        # 写入缓存
+        # Write to Cache
         self.exact_cache.set(model, messages, response, **kwargs)
         self.semantic_cache.add(user_message, response)
 
@@ -252,32 +254,32 @@ class HybridLLMCache:
         return ""
 ```
 
-## 4. Token 用量优化
+## 4. Token Usage Optimization
 
-### 4.1 Prompt 压缩
+### 4.1 Compress Prompt
 
 ```python
-# Prompt 压缩策略
+# Compress Prompt Strategy
 class PromptCompressor:
-    """压缩 Prompt 减少 Token 用量"""
+    """Compress Prompt to Reduce Token Usage"""
 
     def __init__(self, max_tokens: int = 4000):
         self.max_tokens = max_tokens
 
     def compress(self, messages: list) -> list:
-        """压缩消息列表"""
+        """Compress Message List"""
         compressed = []
 
-        # 1. 保留系统消息
+        # 1. Retain System Messages
         system_msgs = [m for m in messages if m["role"] == "system"]
         compressed.extend(system_msgs)
 
-        # 2. 压缩历史消息
+        # 2. Compress Historical Messages
         history_msgs = [m for m in messages if m["role"] in ["user", "assistant"]]
         if len(history_msgs) > 10:
-            # 保留最近 5 轮对话
+            # Retain Recent 5 Rounds of Conversation
             recent = history_msgs[-10:]
-            # 早期对话只保留摘要
+            # Preserve summaries for early conversations
             early = history_msgs[:-10]
             summary = self._summarize_history(early)
             compressed.append({"role": "system", "content": f"历史对话摘要: {summary}"})
@@ -288,46 +290,46 @@ class PromptCompressor:
         return compressed
 
     def _summarize_history(self, messages: list) -> str:
-        """总结历史对话"""
+        """Summarize Historical Conversations"""
         topics = []
         for msg in messages:
             if msg["role"] == "user":
-                # 提取关键信息
+                # Extract Key Information
                 content = msg["content"][:100]
                 topics.append(content)
         return "; ".join(topics[:5])
 
     def estimate_tokens(self, messages: list) -> int:
-        """估算 Token 数量"""
+        """Estimate Token Count"""
         total_chars = sum(len(m["content"]) for m in messages)
-        # 中文约 1.5 字/token，英文约 4 字符/token
+        # Chinese is approximately 1.5 characters/token, English is approximately 4 characters/token
         return int(total_chars / 2.5)
 ```
 
-### 4.2 上下文裁剪
+### 4.2 Context Pruning
 
 ```python
-# 智能上下文裁剪
+# Intelligent Context Pruning
 class ContextTrimmer:
-    """智能裁剪上下文，保留最相关信息"""
+    """Intelligently prune context to retain most relevant information"""
 
     def __init__(self, max_context_tokens: int = 3000):
         self.max_tokens = max_context_tokens
 
     def trim(self, messages: list, current_query: str) -> list:
-        """裁剪上下文到指定大小"""
+        """Trim context to the specified size"""
         if self._estimate_tokens(messages) <= self.max_tokens:
             return messages
 
-        # 策略：保留系统消息 + 最近对话 + 相关历史
+        # Strategy: retain system messages + recent dialog + relevant history
         system_msgs = [m for m in messages if m["role"] == "system"]
         other_msgs = [m for m in messages if m["role"] != "system"]
 
-        # 计算可用 Token
+        # Calculate available tokens
         system_tokens = self._estimate_tokens(system_msgs)
         available_tokens = self.max_tokens - system_tokens
 
-        # 最近对话优先
+        # Prioritize recent dialog
         recent_msgs = []
         recent_tokens = 0
         for msg in reversed(other_msgs):
@@ -337,7 +339,7 @@ class ContextTrimmer:
             recent_msgs.insert(0, msg)
             recent_tokens += msg_tokens
 
-        # 剩余空间给相关历史
+        # Allocate remaining space to relevant history
         remaining_tokens = available_tokens - recent_tokens
         relevant_msgs = self._find_relevant(
             other_msgs[:-len(recent_msgs)],
@@ -348,8 +350,8 @@ class ContextTrimmer:
         return system_msgs + relevant_msgs + recent_msgs
 
     def _find_relevant(self, messages: list, query: str, max_tokens: int) -> list:
-        """找到与当前查询相关的历史消息"""
-        # 简化实现：关键词匹配
+        """Find historical messages relevant to the current query"""
+        # Simplified implementation: keyword matching
         query_words = set(query.lower().split())
         scored_msgs = []
 
@@ -358,7 +360,7 @@ class ContextTrimmer:
             overlap = len(query_words & content_words)
             scored_msgs.append((overlap, msg))
 
-        # 按相关度排序
+        # Sort by relevance
         scored_msgs.sort(key=lambda x: x[0], reverse=True)
 
         relevant = []
@@ -378,10 +380,10 @@ class ContextTrimmer:
         return sum(len(m["content"]) // 2.5 for m in messages)
 ```
 
-### 4.3 Token 使用监控
+### 4.3 Token Usage Monitoring
 
 ```python
-# Token 使用量追踪
+# Token Usage Tracking
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict
@@ -396,7 +398,7 @@ class TokenUsage:
     cost: float
 
 class TokenTracker:
-    """Token 使用量追踪器"""
+    """Token Usage Tracker"""
 
     MODEL_PRICING = {
         "gpt-4": {"input": 0.03, "output": 0.06},           # per 1K tokens
@@ -410,27 +412,27 @@ class TokenTracker:
         self.redis = redis.from_url(redis_url)
 
     def track(self, usage: TokenUsage):
-        """记录 Token 使用"""
-        # 按小时聚合
+        """Record Token Usage"""
+        # Aggregate by hour
         hour_key = usage.timestamp.strftime("%Y%m%d%H")
         self.redis.hincrby(f"tokens:{hour_key}", "input", usage.input_tokens)
         self.redis.hincrby(f"tokens:{hour_key}", "output", usage.output_tokens)
         self.redis.hincrbyfloat(f"tokens:{hour_key}", "cost", usage.cost)
 
-        # 按模型聚合
+        # Aggregate by model
         model_key = f"tokens:model:{usage.model}:{hour_key}"
         self.redis.hincrby(model_key, "input", usage.input_tokens)
         self.redis.hincrby(model_key, "output", usage.output_tokens)
 
     def calculate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
-        """计算成本"""
+        """Calculate cost"""
         pricing = self.MODEL_PRICING.get(model, {"input": 0.01, "output": 0.03})
         input_cost = (input_tokens / 1000) * pricing["input"]
         output_cost = (output_tokens / 1000) * pricing["output"]
         return input_cost + output_cost
 
     def get_daily_summary(self, date: str) -> Dict:
-        """获取每日汇总"""
+        """Get daily summary"""
         total_input = 0
         total_output = 0
         total_cost = 0.0
@@ -451,12 +453,12 @@ class TokenTracker:
         }
 ```
 
-## 5. 模型路由
+## 5. Model Routing
 
-### 5.1 智能路由策略
+### 5.1 Intelligent Routing Strategy
 
 ```python
-# 智能模型路由
+# Intelligent Model Routing
 from typing import Dict, List
 from enum import Enum
 
@@ -466,7 +468,7 @@ class QueryComplexity(Enum):
     COMPLEX = "complex"      # 复杂推理
 
 class ModelRouter:
-    """根据查询复杂度路由到不同模型"""
+    """Route queries to different models based on complexity"""
 
     MODEL_MAP = {
         QueryComplexity.SIMPLE: "gpt-3.5-turbo",
@@ -478,17 +480,17 @@ class ModelRouter:
         self.complexity_classifier = ComplexityClassifier()
 
     def route(self, query: str, context: List[Dict] = None) -> str:
-        """路由查询到合适的模型"""
+        """route to the appropriate model"""
         complexity = self.complexity_classifier.classify(query, context)
         model = self.MODEL_MAP[complexity]
         return model
 
     def route_with_cost_estimate(self, query: str, context: List[Dict] = None) -> Dict:
-        """路由并返回成本估算"""
+        """route and return cost estimate"""
         complexity = self.complexity_classifier.classify(query, context)
         model = self.MODEL_MAP[complexity]
 
-        # 估算 Token
+        # Estimate Tokens
         estimated_tokens = len(query) // 2.5
         if context:
             estimated_tokens += sum(len(m["content"]) // 2.5 for m in context)
@@ -506,7 +508,7 @@ class ModelRouter:
 
 
 class ComplexityClassifier:
-    """查询复杂度分类器"""
+    """query complexity classifier"""
 
     COMPLEX_INDICATORS = [
         "分析", "比较", "评估", "设计", "优化", "解释原因",
@@ -519,20 +521,20 @@ class ComplexityClassifier:
     ]
 
     def classify(self, query: str, context: List[Dict] = None) -> QueryComplexity:
-        """分类查询复杂度"""
+        """classify query complexity"""
         query_lower = query.lower()
 
-        # 检查复杂指标
+        # Check complexity metrics
         complex_score = sum(1 for ind in self.COMPLEX_INDICATORS if ind in query_lower)
         simple_score = sum(1 for ind in self.SIMPLE_INDICATORS if ind in query_lower)
 
-        # 查询长度也是指标
+        # Query length is also a metric
         if len(query) > 500:
             complex_score += 2
         elif len(query) < 50:
             simple_score += 1
 
-        # 上下文长度
+        # Context length
         if context and len(context) > 10:
             complex_score += 1
 
@@ -543,10 +545,10 @@ class ComplexityClassifier:
         return QueryComplexity.MODERATE
 ```
 
-### 5.2 基于 K8s 的模型路由服务
+### 5.2 Kubernetes-based Model Routing Service
 
 ```yaml
-# 模型路由服务
+# Model Routing Service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -588,9 +590,9 @@ spec:
               memory: 2Gi
 ```
 
-## 6. 成本监控与告警
+## 6. Cost Monitoring and Alerts
 
-### 6.1 成本监控 Dashboard
+### 6.1 Cost Monitoring Dashboard
 
 ```yaml
 # Grafana Dashboard
@@ -645,10 +647,10 @@ data:
     }
 ```
 
-### 6.2 成本告警规则
+### 6.2 Cost Alert Rules
 
 ```yaml
-# 成本告警规则
+# Cost Alert Rules
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -698,28 +700,28 @@ spec:
             description: "考虑优化路由策略，将更多简单请求路由到小模型"
 ```
 
-## 7. 成本优化报告
+## 7. Cost Optimization Report
 
 ```python
-# 成本优化报告生成
+# Cost Optimization Report Generation
 class CostOptimizationReport:
-    """生成成本优化报告"""
+    """generate cost optimization report"""
 
     def __init__(self, tracker: TokenTracker, cache: HybridLLMCache):
         self.tracker = tracker
         self.cache = cache
 
     def generate(self, start_date: str, end_date: str) -> Dict:
-        """生成指定时间段的成本报告"""
+        """generate cost report for a specified time period"""
         summary = self.tracker.get_daily_summary(start_date)
         cache_stats = self._get_cache_stats()
 
-        # 计算优化效果
+        # Calculate optimization effect
         total_requests = cache_stats["total_requests"]
         cache_hits = cache_stats["cache_hits"]
         cache_savings = cache_stats["estimated_savings"]
 
-        # 计算模型路由节省
+        # Calculate model routing savings
         routing_savings = self._calculate_routing_savings(start_date)
 
         return {
@@ -759,7 +761,7 @@ class CostOptimizationReport:
         }
 
     def _generate_recommendations(self, summary: Dict, cache_stats: Dict) -> list:
-        """生成优化建议"""
+        """Generate optimization suggestions"""
         recommendations = []
 
         hit_rate = cache_stats["cache_hits"] / max(cache_stats["total_requests"], 1)
@@ -772,7 +774,7 @@ class CostOptimizationReport:
         return recommendations
 ```
 
-## 8. 最佳实践
+## 8. Best Practices
 
 ```
 LLM 成本优化检查清单:
@@ -802,15 +804,15 @@ Token 优化:
 
 ## Related
 
-- [[domain-14-ai-ml-infra/02-ai-agents/51-agent-guardrails-content-safety|Agent 安全护栏]]
+- [[domain-14-ai-ml-infra/02-ai-agents/51-agent-guardrails-content-safety|Agent Safety Barriers]]
 - domain-14-ai-ml-infra/
 - domain-06-observability/
 
 ## See Also
 
-- OpenAI 定价文档
-- LLM 缓存最佳实践
-- 成本优化策略
+- OpenAI Pricing Document
+- LLM Cache Best Practices
+- Cost Optimization Strategies
 
 
 <!-- risk-assessed -->

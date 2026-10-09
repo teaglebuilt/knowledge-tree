@@ -1,6 +1,6 @@
 ---
-title: 14 - 多集群管理与联邦 (Multi-Cluster Management & Federation)
-description: '# 14 - 多集群管理与联邦 (Multi-Cluster Management & Federation)'
+title: 14 - Multi-Cluster Management & Federation
+description: '# 14 - Multi-Cluster Management & Federation'
 summary: 'cluster.x-k8s.io/cluster-name: production-cluster'
 category: extensions
 tags:
@@ -21,15 +21,15 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 开发工程师
-- 架构师
+- Developer
+- Architect
 estimated_read_time: 5min
 intent_queries:
-- 多集群管理与联邦 (Multi-Cluster Management & Federation) 是什么
-- 如何 多集群管理与联邦 (Multi-Cluster Management & Federation)
-- Kubernetes 10 extensions 最佳实践
+- What is Multi-Cluster Management & Federation
+- How to do Multi-Cluster Management & Federation
+- Kubernetes 10 best practices
 trigger_keywords:
-- 多集群管理与联邦
+- Multi-Cluster Management & Federation
 - Multi-Cluster
 - Management
 - Federation
@@ -55,33 +55,35 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-07-platform-engineering/
-  label: '相关知识域: domain-07-platform-engineering'
+  label: 'Related Knowledge Domain: domain-07-platform-engineering'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/networking/14-multi-cluster-management.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Please confirm before execution: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (will modify cluster state but usually rollbackable), 🟢 Low risk/readonly (information collection, no side effects).
 
 
 
 
-# 14 - 多集群管理与联邦 (Multi-Cluster Management & Federation)
+# 14 - Multi-Cluster Management & Federation
 
-> **适用版本**: v1.25 - v1.32 | **最后更新**: 2026-02 | **参考**: [[entities/kubernetes.md|kubernetes]].io/docs/concepts/architecture/multicluster](https://kubernetes.io/docs/concepts/architecture/multicluster/)
+> **Applicable Version**: v1.25 - v1.32 | **Last Updated**: 2026-02 | **Reference**: [[entities/kubernetes.md|kubernetes]].io/docs/concepts/architecture/multicluster](https://kubernetes.io/docs/concepts/architecture/multicluster/)
 
-<!-- chunk: 多集群架构模式 -->
-## 多集群架构模式
 
-### 集群管理模式对比
+## Multi-Cluster Architecture Patterns
 
-| 模式 | 适用场景 | 管理复杂度 | 数据同步 | 网络要求 |
+### Comparison of Cluster Management Models
+
+| Model | Applicable Scenarios | Management Complexity | Data Synchronization | Network Requirements |
 |------|----------|------------|----------|----------|
-| **独立集群** | 开发测试环境 | 低 | 无 | 独立网络 |
-| **集群联邦** | 多地域部署 | 中 | 有限同步 | 跨区域网络 |
-| **集群注册中心** | 统一管理 | 高 | 集中视图 | 网络可达 |
-| **虚拟集群** | 租户隔离 | 中 | 完全隔离 | 共享底层 |
+| **Independent Clusters** | Development/Test Environments | Low | None | Independent Network |
+| **Cluster Federation** | Multi-regional Deployment | Moderate | Limited Synchronization | Cross-regional Network |
+| **Cluster Registry** | Unified Management | High | Centralized View | Network Reachable |
+| **Virtual Clusters** | Tenant Isolation | Moderate | Complete Isolation | Shared Underlay |
 
-### 生产环境多集群拓扑
+### Production Environment Multi-cluster Topology
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -108,13 +110,13 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-<!-- chunk: Cluster API 生产实践 -->
-## Cluster API 生产实践
 
-### 基础设施即代码配置
+## Cluster API Production Practices
+
+### Infrastructure as Code Configuration
 
 ```yaml
-# Cluster API 集群定义
+# Cluster API Cluster Definition
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
@@ -136,7 +138,7 @@ spec:
     name: production-control-plane
 
 ---
-# AWS 基础设施配置
+# AWS Infrastructure Configuration
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AWSCluster
 metadata:
@@ -155,7 +157,7 @@ spec:
     - 10.0.0.0/8
 
 ---
-# 控制平面配置
+# Control Plane Configuration
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlane
 metadata:
@@ -195,10 +197,10 @@ spec:
           cloud-provider: aws
 ```
 
-### 节点组管理
+### Node Group Management
 
 ```yaml
-# Worker 节点池配置
+# Worker Node Pool Configuration
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
@@ -226,7 +228,7 @@ spec:
         name: production-worker-machines
 
 ---
-# Worker 节点机器模板
+# Worker Node Machine Template
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AWSMachineTemplate
 metadata:
@@ -248,7 +250,7 @@ spec:
         maxPrice: "0.10"  # Spot实例价格上限
 
 ---
-# 节点启动配置
+# Node Boot Configuration
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
@@ -275,13 +277,13 @@ spec:
       - systemctl start kubelet
 ```
 
-<!-- chunk: 多集群注册与管理 -->
-## 多集群注册与管理
 
-### Rancher 多集群管理
+## Multi-cluster Registration and Management
+
+### Rancher Multi-cluster Management
 
 ```yaml
-# Rancher Server 高可用部署
+# High Availability Deployment of Rancher Server
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -328,7 +330,7 @@ spec:
         emptyDir: {}
 
 ---
-# 集群导入配置
+# Cluster Import Configuration
 apiVersion: management.cattle.io/v3
 kind: Cluster
 metadata:
@@ -351,10 +353,10 @@ spec:
   fleetWorkspaceName: prod-workspace
 ```
 
-### Cluster Registry 配置
+### Cluster Registry Configuration
 
 ```yaml
-# 集群注册中心
+# Cluster Registry
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -393,7 +395,7 @@ spec:
           name: cluster-registry-config
 
 ---
-# 集群元数据配置
+# Cluster Metadata Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -431,13 +433,13 @@ data:
         nodes: 12
 ```
 
-<!-- chunk: 跨集群应用部署 -->
-## 跨集群应用部署
 
-### ArgoCD 多集群部署
+## Cross-cluster Application Deployment
+
+### ArgoCD Multi-cluster Deployment
 
 ```yaml
-# 多集群应用配置
+# Multi-cluster Application Configuration
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -462,7 +464,7 @@ spec:
     jsonPointers:
     - /spec/replicas
   
-  # 多集群目标配置
+  # Multi-cluster Target Configuration
   destinations:
   - name: production-cluster
     namespace: production
@@ -475,7 +477,7 @@ spec:
     server: https://k8s-dr.example.com:6443
 
 ---
-# 集群凭证管理
+# Cluster Credential Management
 apiVersion: v1
 kind: Secret
 metadata:
@@ -497,10 +499,10 @@ stringData:
     }
 ```
 
-### Fleet 多集群管理
+### Fleet Multi-cluster Management
 
 ```yaml
-# Fleet Bundle 配置
+# Fleet Bundle Configuration
 apiVersion: fleet.cattle.io/v1alpha1
 kind: Bundle
 metadata:
@@ -576,13 +578,13 @@ spec:
                       cpu: "1"
 ```
 
-<!-- chunk: 集群间通信与服务发现 -->
-## 集群间通信与服务发现
 
-### 多集群服务网格
+## Inter-cluster Communication and Service Discovery
+
+### Multi-cluster Service Mesh
 
 ```yaml
-# Istio 多集群配置
+# Istio Multi-cluster Configuration
 apiVersion: install.istio.io/v1alpha1
 kind: IstioOperator
 metadata:
@@ -613,7 +615,7 @@ spec:
             name: https
 
 ---
-# 服务导出配置
+# Service Export Configuration
 apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
 metadata:
@@ -634,10 +636,10 @@ spec:
       http: 80
 ```
 
-### 跨集群DNS配置
+### Cross-cluster DNS Configuration
 
 ```yaml
-# CoreDNS 跨集群配置
+# CoreDNS Cross-cluster Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -666,7 +668,7 @@ data:
         loadbalance
     }
     
-    # 跨集群DNS转发
+    # Cross-cluster DNS Forwarding
     remote-cluster.example.com:53 {
         forward . 10.100.10.10 10.100.20.10 {
             health_check 5s
@@ -675,13 +677,13 @@ data:
     }
 ```
 
-<!-- chunk: 监控与告警统一 -->
-## 监控与告警统一
 
-### 多集群Prometheus配置
+## Unified Monitoring and Alerts
+
+### Multi-cluster Prometheus Configuration
 
 ```yaml
-# Prometheus 联邦配置
+# Prometheus Federated Configuration
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
@@ -710,7 +712,7 @@ spec:
     key: prometheus-additional.yaml
 
 ---
-# 额外抓取配置
+# Additional Fetch Configuration
 apiVersion: v1
 kind: Secret
 metadata:
@@ -734,13 +736,13 @@ stringData:
           cluster: remote-clusters
 ```
 
-<!-- chunk: 安全与访问控制 -->
-## 安全与访问控制
 
-### 多集群RBAC管理
+## Security and Access Control
+
+### Multi-cluster RBAC Management
 
 ```yaml
-# 集群间RBAC同步
+# Cluster-to-Cluster RBAC Synchronization
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -757,7 +759,7 @@ rules:
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
 ---
-# 跨集群角色绑定
+# Cross-cluster Role Binding
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -775,13 +777,13 @@ subjects:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-<!-- chunk: 问题排除与调试 -->
-## 问题排除与调试
 
-### 多集群诊断工具
+## Problem Diagnosis and Debugging
+
+### Multi-cluster Diagnostic Tool
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🟡 Medium Risk: Modifies cluster/resource status; please confirm target, impact scope, and authorization before execution
 #!/bin/bash
 # multicluster-diagnostics.sh
 
@@ -793,14 +795,14 @@ diagnose_cluster_connectivity() {
         echo "检查集群: $cluster"
         kubectl config use-context $cluster
         
-        # 检查API Server可达性
+        # Check API Server availability
         if kubectl cluster-info >/dev/null 2>&1; then
             echo "✅ $cluster API Server 可达"
         else
             echo "❌ $cluster API Server 不可达"
         fi
         
-        # 检查节点状态
+        # Check node status
         ready_nodes=$(kubectl get nodes --no-headers | grep -c " Ready ")
         total_nodes=$(kubectl get nodes --no-headers | wc -l)
         echo "📊 $cluster 节点状态: $ready_nodes/$total_nodes 就绪"
@@ -809,7 +811,7 @@ diagnose_cluster_connectivity() {
 
 diagnose_cross_cluster_services() {
     echo "=== 跨集群服务诊断 ==="
-    # 检查服务发现
+    # Check service discovery
     for cluster in "${CLUSTERS[@]}"; do
         echo "检查 $cluster 中的服务..."
         kubectl config use-context $cluster
@@ -819,7 +821,7 @@ diagnose_cross_cluster_services() {
 
 diagnose_network_connectivity() {
     echo "=== 网络连通性诊断 ==="
-    # 检查Pod间通信
+    # Check inter-Pod communication
     for cluster in "${CLUSTERS[@]}"; do
         echo "检查 $cluster 网络连通性..."
         kubectl config use-context $cluster
@@ -830,22 +832,22 @@ diagnose_network_connectivity() {
     done
 }
 
-# 执行诊断
+# Execute Diagnosis
 diagnose_cluster_connectivity
 diagnose_cross_cluster_services
 diagnose_network_connectivity
 
 echo "=== 诊断完成 ==="
 ```
-<!-- chunk: 生产环境最佳实践 -->
-## 生产环境最佳实践
 
-### 集群命名规范
+## Best Practices for Production Environment
+
+### Cluster Naming Conventions
 
 ```yaml
-# 集群命名约定
+# Cluster Naming Conventions
 clusters:
-  # 环境-用途-区域-序号
+  # Environment-purpose-region-number
   production-customer-us-west-01:  # 生产客户集群-美国西部-01
     purpose: customer-facing
     sla: 99.99%
@@ -859,10 +861,10 @@ clusters:
     sla: 99%
 ```
 
-### 版本管理策略
+### Version Management Strategy
 
 ```yaml
-# 集群版本升级计划
+# Cluster Upgrade Plan
 version_management:
   upgrade_schedule:
     - time: "2024-02-15T02:00:00Z"
@@ -881,25 +883,25 @@ version_management:
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table footer marker**: Kusheet Project, Author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Documentation
 
 - domain-15-specialized-tech KUDIG Database — Global MOC
-- [[domain-15-specialized-tech/README.md|Domain-10: Kubernetes 扩展生态]]
-- index.md|Domain-10 扩展与自定义 — 开源项目索引]]
-- CRD 自定义资源定义开发指南
-- 02 - Operator开发模式与控制器实现
-- 03 - 准入控制器(Webhook)配置与实现
-- Kubernetes API 聚合扩展机制详解
-- 包管理与应用分发工具
-- 47 - Helm Chart开发与管理
-- 129 - Helm 高级运维：复杂部署、CI/CD 集成与安全最佳实践
-- CI/CD 管道
-- 48 - GitOps工作流
+- [[domain-15-specialized-tech/README.md|Domain-10: Kubernetes Extended Ecosystem]]
+- index.md|Domain-10 Extended and Customized — Index of Open Source Projects]
+- CRD Custom Resource Definition Development Guide
+- 02 - Operator Development Mode and Controller Implementation
+- 03 - Admission Controller (Webhook) Configuration and Implementation
+- Kubernetes API Aggregation Extension Mechanism Explained
+- Package Management and Application Distribution Tools
+- 47 - Helm Chart Development and Management
+- 129 - Helm Advanced Operations: Complex Deployment, CI/CD Integration, and Security Best Practices
+- CI/CD Pipeline
+- 48 - GitOps Workflow
 
 ## See Also
 

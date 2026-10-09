@@ -1,6 +1,7 @@
----title: Openclaw Workspace
-description: Openclaw Workspace 目录索引
-summary: Openclaw Workspace 目录索引
+---
+title: Openclaw Workspace
+description: Openclaw Workspace Directory Index
+summary: Openclaw Workspace Directory Index
 category: index
 tags:
 - index
@@ -11,14 +12,16 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/index.md
 ---
 
 
 # Openclaw Workspace
 
-> 本页为 `domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace` 目录的自动索引。
+> This page is an automatic index for the directory `domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace`.
 
-## 文档
+## Documentation
 
 - [[domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace/AGENTS.md|Agents]]
 - [[domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace/IDENTITY.md|Identity]]

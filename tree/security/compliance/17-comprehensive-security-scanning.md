@@ -58,7 +58,7 @@ cross_refs:
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/tls-pki.md
   label: 'Quick Reference: tls-pki'
-source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/06-compliance/17-comprehensive-security-scanning.md
+source_path: tree/security/compliance/17-comprehensive-security-scanning.md
 original_language: Chinese
 ---
 
@@ -73,7 +73,7 @@ original_language: Chinese
 
 > **Applicable Versions**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Intermediate to Advanced | **Reference**: [[entities/trivy.md|Trivy]]](https://aquasecurity.github.io/trivy/) | [Grype](https://github.com/anchore/grype) | [[entities/falco.md|Falco]]](https://falco.org/)
 
-<!-- chunk: 一、安全扫描体系架构 -->
+
 ## 1. Security Scanning Architecture Overview
 
 ### 1.1 DevSecOps Security Scanning Architecture Diagram
@@ -171,7 +171,7 @@ original_language: Chinese
 
 ---
 
-<!-- chunk: 二、Trivy全能扫描 -->
+
 ## 2. Trivy Comprehensive Scanning
 
 ### 2.1 Trivy Operator Deployment
@@ -751,7 +751,7 @@ spec:
 
 ---
 
-<!-- chunk: 三、Grype与SBOM -->
+
 ## 3. Grype and SBOM
 
 ### 3.1 Syft SBOM Generation
@@ -936,7 +936,7 @@ EOF
 ```
 ---
 
-<!-- chunk: 四、Falco运行时安全 -->
+
 ## 4. Falco Runtime Security
 
 ### 4.1 Falco Deployment Configuration
@@ -1464,7 +1464,7 @@ spec:
 
 ---
 
-<!-- chunk: 五、Kubescape合规扫描 -->
+
 ## 5. Kubescape Compliance Scanning
 
 ### 5.1 Kubescape Deployment and Scanning
@@ -1612,7 +1612,7 @@ kubescape-scan:
 
 ---
 
-<!-- chunk: 六、准入控制集成 -->
+
 ## 6. Admission Control Integration
 
 ### 6.1 Admission Policies Based on Scan Results
@@ -1720,7 +1720,7 @@ spec:
 
 ---
 
-<!-- chunk: 七、监控与告警 -->
+
 ## 7. Monitoring and Alerting
 
 ### 7.1 Security Scanning Monitoring
@@ -1796,7 +1796,7 @@ spec:
 
 ---
 
-<!-- chunk: 八、快速参考 -->
+
 ## 8. Quick Reference
 
 ### 8.1 Scanning Command Cheat Sheet
@@ -1840,7 +1840,7 @@ falco -r custom_rules.yaml                        # Use Custom Rules
 
 ---
 
-<!-- chunk: 九、最佳实践总结 -->
+
 ## 9. Best Practices Summary
 
 ### Security Scanning Checklist
@@ -1864,7 +1864,7 @@ falco -r custom_rules.yaml                        # Use Custom Rules
 
 ---
 
-<!-- chunk: Obsidian Related Documentation -->
+
 ## Obsidian Related Documentation
 
 - domain-05-security-compliance MOC

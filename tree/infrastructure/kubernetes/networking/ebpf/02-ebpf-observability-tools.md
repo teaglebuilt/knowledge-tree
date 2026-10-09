@@ -1,7 +1,7 @@
 ---
-title: eBPF 可观测工具实战
-description: 'bcc/bpftrace 工具集、Pixie 无侵入可观测、Parca 持续性能剖析与 Tetragon 安全观测'
-summary: 'bcc/bpftrace 工具集、Pixie 无侵入可观测、Parca 持续性能剖析与 Tetragon 安全观测'
+title: eBPF Observability Tools Practical
+description: 'bcc/bpftrace toolset, Pixie non-intrusive observability, Parca continuous performance profiling, and Tetragon security observation'
+summary: 'bcc/bpftrace toolset, Pixie non-intrusive observability, Parca continuous performance profiling, and Tetragon security observation'
 category: specialized-tech
 tags:
 - ebpf
@@ -17,13 +17,13 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 运维工程师
-- 平台工程师
+- Operations Engineer
+- Platform Engineer
 estimated_read_time: 15min
 intent_queries:
-- eBPF 可观测工具是什么
-- 如何使用 bpftrace 进行系统分析
-- Pixie 是什么
+- What are eBPF observability tools
+- How to use bpftrace for system analysis
+- What is Pixie
 trigger_keywords:
 - ebpf
 - bcc
@@ -43,18 +43,20 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/networking/ebpf/02-ebpf-observability-tools.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the command has been validated in a non-production environment. Command risk levels: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
-# eBPF 可观测工具实战
+# eBPF Observability Tools Practical
 
-## 1. bcc 工具集
+## 1. bcc Toolset
 
-### 1.1 安装
+### 1.1 Installation
 
 ```bash
 # Ubuntu/Debian
@@ -63,86 +65,86 @@ sudo apt-get install bpfcc-tools linux-headers-$(uname -r)
 # RHEL/CentOS
 sudo yum install bcc-tools bcc-doc
 
-# 二进制路径
+# Binary Path
 /usr/share/bcc/tools/
 ```
 
-### 1.2 进程与系统调用分析
+### 1.2 Process and System Call Analysis
 
 ```bash
-# 跟踪所有 execve 调用
+# Track all execve calls
 sudo /usr/share/bcc/tools/execsnoop
 
-# 跟踪特定进程的系统调用（替代 strace）
+# Track specific process system calls (alternative to strace)
 sudo /usr/share/bcc/tools/opensnoop -p 1234
 
-# 跟踪文件打开
+# Track file opens
 sudo /usr/share/bcc/tools/opensnoop -n nginx
 
-# 跟踪所有系统调用延迟
+# Track all system call delays
 sudo /usr/share/bcc/tools/syscount -d 5
 
-# 统计系统调用（替代 strace -c）
+# Stat system calls (alternative to strace -c)
 sudo /usr/share/bcc/tools/syscount -p 1234
 ```
 
-### 1.3 CPU 分析
+### 1.3 CPU Analysis
 
 ```bash
-# CPU 使用火焰图数据采集
+# CPU Usage Flame Graph Data Collection
 sudo /usr/share/bcc/tools/profile -F 99 -f 10 > profile.stacks
 
-# 调度延迟分析
+# Scheduling Latency Analysis
 sudo /usr/share/bcc/tools/runqlat
 
-# 每 CPU 调度延迟直方图
+# Histogram of Scheduling Latency Per CPU
 sudo /usr/share/bcc/tools/runqlat -C
 
-# CPU 迁移跟踪
+# Tracking CPU Migration
 sudo /usr/share/bcc/tools/migrate
 ```
 
-### 1.4 I/O 分析
+### 1.4 I/O Analysis
 
 ```bash
-# 块 I/O 延迟分析
+# Block I/O Latency Analysis
 sudo /usr/share/bcc/tools/biolatency
 
-# 块 I/O 大小分布
+# Distribution of Block I/O Sizes
 sudo /usr/share/bcc/tools/biosize
 
-# 文件系统 I/O 延迟
+# File System I/O Latency
 sudo /usr/share/bcc/tools/fslatency
 
-# 统计每个进程的 I/O
+# Statistics of I/O for Each Process
 sudo /usr/share/bcc/tools/biotop
 
-# 跟踪 VFS 操作
+# Tracking VFS Operations
 sudo /usr/share/bcc/tools/vfsstat
 ```
 
-### 1.5 网络分析
+### 1.5 Network Analysis
 
 ```bash
-# TCP 连接跟踪
+# Tracking TCP Connections
 sudo /usr/share/bcc/tools/tcplife
 
-# TCP 重传跟踪
+# Tracking TCP Retransmissions
 sudo /usr/share/bcc/tools/tcpretrans
 
-# TCP 接收窗口收缩
+# TCP Receive Window Shrinking
 sudo /usr/share/bcc/tools/tcprcvbuf
 
-# DNS 查询跟踪
+# Tracking DNS Queries
 sudo /usr/share/bcc/tools/dnssnoop
 
-# 套接字生命周期
+# Socket Lifecycle
 sudo /usr/share/bcc/tools/socklife
 ```
 
-## 2. bpftrace 工具
+## 2. bpftrace Tool
 
-### 2.1 安装与基础
+### 2.1 Installation and Basics
 
 ```bash
 # Ubuntu/Debian
@@ -151,31 +153,31 @@ sudo apt-get install bpftrace
 # RHEL/CentOS
 sudo yum install bpftrace
 
-# 版本检查
+# Version Check
 bpftrace --version
 ```
 
-### 2.2 单行脚本
+### 2.2 Single Line Script
 
 ```bash
-# 跟踪系统调用入口（类似 strace）
+# Track System Call Entrypoints (Similar to strace)
 bpftrace -e 'tracepoint:syscalls:sys_enter_* { @[probe] = count(); }'
 
-# 统计每秒系统调用次数
+# Count system calls per second
 bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @calls = count(); } interval:s:1 { print(@calls); clear(@calls); }'
 
-# 跟踪 open 系统调用
+# Track open system call
 bpftrace -e 'tracepoint:syscalls:sys_enter_openat { printf("%s %s\n", comm, str(args->filename)); }'
 
-# 延迟直方图
+# Histogram of delays
 bpftrace -e 'kprobe:do_sys_open { @start[tid] = nsecs; } kretprobe:do_sys_open /@start[tid]/ { @ns = hist(nsecs - @start[tid]); delete(@start[tid]); }'
 ```
 
-### 2.3 实用脚本
+### 2.3 Useful Scripts
 
 ```bash
 #!/usr/bin/env bpftrace
-// tcpconnect.bt - 跟踪 TCP 连接
+// tcpconnect.bt - Track TCP Connections
 kprobe:tcp_connect
 {
     $sk = (struct sock *)arg0;
@@ -188,7 +190,7 @@ kprobe:tcp_connect
 
 ```bash
 #!/usr/bin/env bpftrace
-// runqlat.bt - 调度延迟分布
+// runqlat.bt - Schedule Delay Distribution
 tracepoint:sched:sched_wakeup
 {
     @qtime[args->pid] = nsecs;
@@ -205,10 +207,10 @@ tracepoint:sched:sched_switch
 }
 ```
 
-### 2.4 Kubernetes 容器级分析
+### 2.4 Container-Level Analysis for Kubernetes
 
 ```bash
-# 跟踪特定容器的系统调用
+# Track system calls for specific containers
 bpftrace -e '
 tracepoint:syscalls:sys_enter_write
 /cgroup == 0x100001/    // 容器 cgroup ID
@@ -217,7 +219,7 @@ tracepoint:syscalls:sys_enter_write
 }
 '
 
-# 按容器统计 CPU 使用
+# Statistic CPU usage by container
 bpftrace -e '
 profile:hz:99
 {
@@ -226,9 +228,9 @@ profile:hz:99
 '
 ```
 
-## 3. Pixie 无侵入可观测
+## 3. Pixie Invasive Observability
 
-### 3.1 架构
+### 3.1 Architecture
 
 ```
 Pixie Edge Module (PEM) → Vizier (数据层) → Cloud / 自托管
@@ -236,11 +238,11 @@ Pixie Edge Module (PEM) → Vizier (数据层) → Cloud / 自托管
     └── 自动采集：HTTP/gRPC/MySQL/Postgres/Kafka/DNS/进程
 ```
 
-### 3.2 安装
+### 3.2 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 使用 Helm 安装
+# 🟡 Medium Risk: Modifies cluster/resource states, confirm target, impact scope, and authorization before execution
+# Use Helm to install
 helm repo add pixie https://pixie-operator-charts.storage.googleapis.com
 helm repo update
 
@@ -250,13 +252,13 @@ helm install pixie pixie/pixie-operator-chart \
   --set clusterName=my-cluster \
   --set deployKey=<your-deploy-key>
 
-# 或使用 px CLI
+# Or use px CLI
 px deploy
 ```
-### 3.3 PxL 查询语言
+### 3.3 pxL Query Language
 
 ```python
-# 查询 HTTP 请求延迟
+# Query HTTP request latency
 import px
 
 df = px.DataFrame(table='http_events', start_time='-5m')
@@ -267,7 +269,7 @@ px.display(df, 'http_requests')
 ```
 
 ```python
-# 按服务统计错误率
+# Statistic error rate by service
 import px
 
 df = px.DataFrame(table='http_events', start_time='-15m')
@@ -280,7 +282,7 @@ px.display(df[df.error_rate > 1], 'error_services')
 ```
 
 ```python
-# 按 Pod 统计 CPU 使用
+# Count CPU Usage by Pod
 import px
 
 df = px.DataFrame(table='cpu_cycles', start_time='-5m')
@@ -288,21 +290,21 @@ df = df.groupby(['upid']).agg(cycles=('cpu_cycles', 'sum'))
 px.display(df, 'pod_cpu')
 ```
 
-### 3.4 自动采集协议
+### 3.4 Automatic Collection Protocol
 
-| 协议 | 采集内容 | 端口检测 |
+| Protocol | Collection Content | Port Detection |
 |------|----------|----------|
-| HTTP/1.1 | 请求/响应、延迟、状态码 | 80, 8080, 443 |
-| HTTP/2 | gRPC 方法、延迟、状态码 | 动态检测 |
-| MySQL | 查询、延迟、错误 | 3306 |
-| PostgreSQL | 查询、延迟、错误 | 5432 |
-| Kafka | 消息、延迟、Topic | 9092 |
-| DNS | 查询、响应、延迟 | 53 |
-| Redis | 命令、延迟 | 6379 |
+| HTTP/1.1 | Request/Response, Delay, Status Code | 80, 8080, 443 |
+| HTTP/2 | gRPC Methods, Delay, Status Code | Dynamic Detection |
+| MySQL | Query, Delay, Error | 3306 |
+| PostgreSQL | Query, Delay, Error | 5432 |
+| Kafka | Message, Delay, Topic | 9092 |
+| DNS | Query, Response, Delay | 53 |
+| Redis | Command, Delay | 6379 |
 
-## 4. Parca 持续性能剖析
+## 4. Parca Continuous Performance Profiling
 
-### 4.1 架构
+### 4.1 Architecture
 
 ```
 Parca Agent → eBPF 采集（CPU profiling） → Parca Server → Web UI
@@ -310,11 +312,11 @@ Parca Agent → eBPF 采集（CPU profiling） → Parca Server → Web UI
     └── 支持：Go, Rust, C/C++, Python, Java, Node.js
 ```
 
-### 4.2 安装
+### 4.2 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Helm 安装
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# Helm Installation
 helm repo add parca https://parca-dev.github.io/helm-charts
 helm repo update
 
@@ -328,28 +330,28 @@ helm install parca-agent parca/parca-agent \
   --namespace parca \
   --create-namespace
 ```
-### 4.3 使用场景
+### 4.3 Use Cases
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 访问 Web UI
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# Access Web UI
 kubectl port-forward svc/parca 7070:7070 -n parca
 
-# API 查询
+# API Query
 curl "http://localhost:7070/query?query=cpu%3Asamples%3Acount%3Acpu%3Ananoseconds%3Arate%3A5m&time=$(date +%s)"
 ```
-持续 Profiling 优势：
+Advantages of Continuous Profiling:
 
-| 传统 Profiling | Parca 持续 Profiling |
+| Traditional Profiling | Parca Continuous Profiling |
 |----------------|---------------------|
-| 手动触发 | 自动持续采集 |
-| 单一时间点 | 全时间线覆盖 |
-| 需要应用配合 | 无侵入（eBPF） |
-| 生产环境风险 | 生产安全 |
+| Manual Trigger | Automatic Continuous Collection |
+| Single Point in Time | Full Coverage of Timeline |
+| Requires Application Cooperation | Non-Intrusive (eBPF) |
+| Production Environment Risks | Production Safety |
 
-## 5. Tetragon 安全观测
+## 5. Tetragon Observations
 
-### 5.1 架构
+### 5.1 Architecture
 
 ```
 Tetragon Agent → eBPF 内核传感器 → TracingPolicy → 事件/动作
@@ -357,11 +359,11 @@ Tetragon Agent → eBPF 内核传感器 → TracingPolicy → 事件/动作
     └── 支持：进程、文件、网络、安全事件
 ```
 
-### 5.2 安装
+### 5.2 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Helm 安装
+# 🟡 Medium Risk: Modifies cluster/resource states, confirm target, impact scope, and authorization before execution
+# Helm Installation
 helm repo add cilium https://helm.cilium.io/
 helm repo update
 
@@ -370,13 +372,13 @@ helm install tetragon cilium/tetragon \
   --set tetragonOperator.image.repository=cilium/tetragon-operator \
   --set tetragon.image.repository=cilium/tetragon
 
-# 查看事件
+# View Events
 kubectl logs -n kube-system ds/tetragon -f
 ```
-### 5.3 TracingPolicy 示例
+### 5.3 TracingPolicy Example
 
 ```yaml
-# 跟踪敏感文件访问
+# Track Access to Sensitive Files
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -401,7 +403,7 @@ spec:
 ```
 
 ```yaml
-# 跟踪进程执行
+# Track Process Execution
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -422,7 +424,7 @@ spec:
 ```
 
 ```yaml
-# 跟踪网络连接
+# Track Network Connections
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -439,10 +441,10 @@ spec:
             - action: FollowFD
 ```
 
-### 5.4 安全响应动作
+### 5.4 Security Response Actions
 
 ```yaml
-# 自动生成安全事件告警
+# Generate Automated Security Event Alerts
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -462,28 +464,28 @@ spec:
               argError: -1       # 返回 EPERM
 ```
 
-## 6. 工具对比与选型
+## 6. Tool Comparison and Selection
 
-| 工具 | 主要用途 | 侵入性 | 性能影响 | 适用场景 |
+| Tool | Main Purpose | Intrusiveness | Performance Impact | Applicable Scenarios |
 |------|----------|--------|----------|----------|
-| **bcc** | 系统调用分析 | 低 | <1% | 开发调试、深度分析 |
-| **bpftrace** | 快速原型 | 低 | <1% | 临时排查、快速验证 |
-| **Pixie** | 应用可观测 | 无 | 2-5% | K8s 全栈可观测 |
-| **Parca** | 性能剖析 | 无 | <0.5% | 持续 CPU 分析 |
-| **Tetragon** | 安全观测 | 低 | 1-3% | 运行时安全 |
+| **bcc** | System Call Analysis | Low | <1% | Development Debugging, Deep Analysis |
+| **bpftrace** | Quick Prototype | Low | <1% | Temporary troubleshooting, quick validation |
+| **Pixie** | Application Observability | None | 2-5% | K8s Full-stack observability |
+| **Parca** | Performance Profiling | None | <0.5% | Continuous CPU analysis |
+| **Tetragon** | Security Observability | Low | 1-3% | Runtime security |
 
 ---
 
 ## Related
 
-- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF 开发基础]]
-- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF 网络应用]]
-- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF 安全运行时]]
+- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF Development Foundation]]
+- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF Networking Applications]]
+- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF Security Runtime]]
 
 ## See Also
 
-- [bcc 工具集](https://github.com/iovisor/bcc)
-- [bpftrace 文档](https://github.com/bpftrace/bpftrace)
+- [bcc Toolset](https://github.com/iovisor/bcc)
+- [bpftrace Documentation](https://github.com/bpftrace/bpftrace)
 - [Pixie](https://px.dev/)
 - [Parca](https://www.parca.dev/)
 - [Tetragon](https://tetragon.io/)

@@ -1,8 +1,9 @@
----original_language: Chinese
+---
+original_language: Chinese
 authors:
 - name: Dillan Teagle
   role: contributor
-source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/06-loggly-cloud-log-management.md
+source_path: tree/sre/03-logging/06-loggly-cloud-log-management.md
 title: Loggly Cloud Log Management Platform - Enterprise Practices
 description: Comprehensive guide to Loggly cloud log management platform architecture, deployment, and operations for enterprise environments
 summary: Enterprise-grade cloud-native log management with Loggly platform covering architecture, ingestion, analytics, and compliance
@@ -1003,7 +1004,7 @@ tag:application* contains:"personal_data"
 
 ## Related Documentation
 
-- Domain 06: Logging Management & Analytics (Domain 06: 日志管理与分析)
+- Domain 06: Logging Management & Analytics (Domain 06: Logging Management and Analytics)
 - Domain 06 - Logging Management & Analytics - Open Source Projects Index
 - ELK Stack Enterprise-Level Log Management System Deep Practice
 - Fluentd Enterprise-Level Log Collection and Processing Deep Practice

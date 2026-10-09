@@ -1,6 +1,7 @@
----title: Ai Agents
-description: Ai Agents 目录索引
-summary: Ai Agents 目录索引
+---
+title: Ai Agents
+description: Ai Agents Directory Index
+summary: Ai Agents Directory Index
 category: index
 tags:
 - index
@@ -11,18 +12,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/index.md
 ---
 
 
 # Ai Agents
 
-> 本页为 `domain-14-ai-ml-infra/02-ai-agents` 目录的自动索引。
+> This page is an automatic index for the subdirectory `domain-14-ai-ml-infra/02-ai-agents`.
 
-## 子目录
+## Subdirectory
 
 - domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace/
 
-## 文档
+## Document
 
 - [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Ai Agent Fundamentals]]
 - [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Llm Foundation Models]]

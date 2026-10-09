@@ -1,7 +1,7 @@
 ---
-title: eBPF 开发基础
-description: 'eBPF 程序类型、libbpf/CO-RE 开发模式、Map 类型与工具链详解'
-summary: 'eBPF 程序类型、libbpf/CO-RE 开发模式、Map 类型与工具链详解'
+title: eBPF Development Basics
+description: 'Types of eBPF programs, libbpf/CO-RE development mode, detailed explanation of Map types and toolchains'
+summary: 'Types of eBPF programs, libbpf/CO-RE development mode, detailed explanation of Map types and toolchains'
 category: specialized-tech
 tags:
 - ebpf
@@ -16,13 +16,13 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 运维工程师
-- 平台工程师
+- Operations Engineer
+- Platform Engineer
 estimated_read_time: 15min
 intent_queries:
-- eBPF 是什么
-- 如何开发 eBPF 程序
-- libbpf 和 CO-RE 是什么
+- What is eBPF
+- How to develop eBPF programs
+- What is libbpf and CO-RE
 trigger_keywords:
 - ebpf
 - libbpf
@@ -42,18 +42,20 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/networking/ebpf/01-ebpf-programming-fundamentals.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (will modify the cluster state but usually rollbackable), 🟢 Low risk/readonly (information collection, no side effects).
 
 
-# eBPF 开发基础
+# eBPF Development Basics
 
-## 1. eBPF 概述
+## 1. Overview of eBPF
 
-eBPF（extended Berkeley Packet Filter）是 Linux 内核中的可编程虚拟机，允许在不修改内核代码的前提下，安全地在内核空间运行自定义程序。
+eBPF (extended Berkeley Packet Filter) is a programmable virtual machine within the Linux kernel, allowing custom programs to run safely in the kernel space without modifying the kernel code.
 
 ```
 用户态程序 → 加载 eBPF 字节码 → 内核验证器(Verifier) → JIT 编译 → 内核中执行
@@ -61,21 +63,21 @@ eBPF（extended Berkeley Packet Filter）是 Linux 内核中的可编程虚拟�
      └── 读取 Map 数据 ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 ```
 
-核心优势：
+Key advantages:
 
-| 特性 | 说明 |
+| Feature | Description |
 |------|------|
-| **安全** | 内核验证器确保程序不会崩溃内核 |
-| **高性能** | JIT 编译为原生指令，接近内核模块性能 |
-| **可编程** | 用户态程序可通过 Map 与内核通信 |
-| **无需重启** | 动态加载/卸载，无需重启内核 |
+| **Security** | Kernel validator ensures the program does not crash the kernel |
+| Security | Kernel verifier ensures the program will not crash the kernel |
+| Performance | JIT compiled to native instructions, near the performance of kernel modules |
+| Programmability | User-space programs can communicate with the kernel via Maps |
 
-## 2. eBPF 程序类型
+## 2. Types of eBPF Programs
 
-### 2.1 网络类
+### 2.1 Network Classes
 
 ```c
-// XDP (eXpress Data Path) - 最早的网络入口点
+// XDP (eXpress Data Path) - earliest network entry point
 SEC("xdp")
 int xdp_drop_icmp(struct xdp_md *ctx) {
     void *data = (void *)(long)ctx->data;
@@ -92,7 +94,7 @@ int xdp_drop_icmp(struct xdp_md *ctx) {
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
 
-    // 丢弃 ICMP 包
+    // Drop ICMP packets
     if (iph->protocol == IPPROTO_ICMP)
         return XDP_DROP;
 
@@ -101,7 +103,7 @@ int xdp_drop_icmp(struct xdp_md *ctx) {
 ```
 
 ```c
-// TC (Traffic Control) - 流量控制层
+// TC (Traffic Control) - Traffic Control layer
 SEC("tc")
 int tc_filter_egress(struct __sk_buff *skb) {
     void *data = (void *)(long)skb->data;
@@ -111,13 +113,13 @@ int tc_filter_egress(struct __sk_buff *skb) {
     if ((void *)(eth + 1) > data_end)
         return TC_ACT_OK;
 
-    // 标记特定流量
+    // Mark specific traffic
     if (eth->h_proto == bpf_htons(ETH_P_IP)) {
         struct iphdr *iph = (void *)(eth + 1);
         if ((void *)(iph + 1) > data_end)
             return TC_ACT_OK;
 
-        // 设置 DSCP 标记
+        // Set DSCP mark
         iph->tos = (iph->tos & 0x03) | (0x2E << 2);
     }
 
@@ -125,16 +127,16 @@ int tc_filter_egress(struct __sk_buff *skb) {
 }
 ```
 
-### 2.2 跟踪类
+### 2.2 Tracking Classes
 
 ```c
-// kprobe - 动态跟踪内核函数
+// kprobe - Dynamic kernel function tracing
 SEC("kprobe/do_sys_openat2")
 int trace_open(struct pt_regs *ctx) {
     u64 pid = bpf_get_current_pid_tgid() >> 32;
     u64 ts = bpf_ktime_get_ns();
 
-    // 记录每次 open 系统调用
+    // Record each open system call
     struct event evt = {
         .pid = pid,
         .ts = ts,
@@ -147,7 +149,7 @@ int trace_open(struct pt_regs *ctx) {
 ```
 
 ```c
-// tracepoint - 静态内核跟踪点
+// tracepoint - Static kernel tracing points
 SEC("tracepoint/syscalls/sys_enter_write")
 int trace_write(struct trace_event_raw_sys_enter *ctx) {
     u64 pid = bpf_get_current_pid_tgid() >> 32;
@@ -166,7 +168,7 @@ int trace_write(struct trace_event_raw_sys_enter *ctx) {
 ```
 
 ```c
-// uprobe - 用户态函数跟踪
+// uprobe - User-space function tracing
 SEC("uprobe/libc.so.6:malloc")
 int trace_malloc(struct pt_regs *ctx) {
     u64 pid = bpf_get_current_pid_tgid() >> 32;
@@ -177,25 +179,25 @@ int trace_malloc(struct pt_regs *ctx) {
 }
 ```
 
-### 2.3 程序类型速查
+### 2.3 Type Quick Reference
 
-| 类型 | Hook 点 | 典型用途 |
+| Type | Hook Point | Typical Use Case |
 |------|---------|----------|
-| `XDP` | 网卡驱动层 | DDoS 防护、负载均衡 |
-| `TC` | 流量控制层 | 流量整形、标记 |
-| `kprobe` | 内核函数入口 | 动态跟踪 |
-| `kretprobe` | 内核函数返回 | 返回值跟踪 |
-| `tracepoint` | 静态跟踪点 | 系统事件监控 |
-| `uprobe` | 用户态函数 | 应用级跟踪 |
-| `LSM` | Linux Security Module | 安全策略 |
-| `cgroup` | cgroup 网络 | 容器网络策略 |
+| `XDP` | Network driver layer | DDoS protection, load balancing |
+| `TC` | Traffic Control layer | Traffic shaping, marking |
+| `kprobe` | Kernel function entry | Dynamic tracing |
+| `kretprobe` | Kernel function return | Return value tracking |
+| `tracepoint` | Static tracing points | System event monitoring |
+| `uprobe` | User-space function | Application-level tracing |
+| `LSM` | Linux Security Module | Security policy |
+| `cgroup` | cgroup network | Container Network Policy |
 
-## 3. eBPF Map 类型
+## 3. eBPF Map Types
 
 ### 3.1 Hash Map
 
 ```c
-// 定义
+// Definition
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 10240);
@@ -204,7 +206,7 @@ struct {
     __uint(pinning, LIBBPF_PIN_BY_NAME);
 } events SEC(".maps");
 
-// 使用
+// Usage
 SEC("kprobe/tcp_connect")
 int trace_tcp_connect(struct pt_regs *ctx) {
     u32 pid = bpf_get_current_pid_tgid() >> 32;
@@ -228,7 +230,7 @@ struct {
     __type(value, u64);
 } counters SEC(".maps");
 
-// 计数器递增
+// Counter Increment
 static __always_inline void increment_counter(u32 idx) {
     u64 *val = bpf_map_lookup_elem(&counters, &idx);
     if (val)
@@ -239,7 +241,7 @@ static __always_inline void increment_counter(u32 idx) {
 ### 3.3 Ring Buffer
 
 ```c
-// 替代 perf event 的高效输出机制
+// Efficient Output Mechanism for Performance Events
 struct {
     __uint(type, BPF_MAP_TYPE_RINGBUF);
     __uint(max_entries, 256 * 1024);  // 256KB
@@ -261,25 +263,25 @@ int trace_tcp_send(struct pt_regs *ctx) {
 }
 ```
 
-### 3.4 Map 类型速查
+### 3.4 Map Types Quick Reference
 
-| 类型 | 特点 | 适用场景 |
+| Type | Features | Use Cases |
 |------|------|----------|
-| `HASH` | 键值对，O(1) 查找 | 状态跟踪、缓存 |
-| `ARRAY` | 固定大小，索引访问 | 计数器、统计 |
-| `RINGBUF` | 环形缓冲区，高效输出 | 事件流 |
-| `PERF_EVENT` | 每 CPU 环形缓冲区 | 事件输出（旧） |
-| `LRU_HASH` | LRU 淘汰 | 大规模缓存 |
-| `LPM_TRIE` | 最长前缀匹配 | IP 路由查找 |
-| `PERCPU_HASH` | 每 CPU 哈希表 | 无锁统计 |
-| `STACK` | 栈结构 | 函数调用栈 |
+| `HASH` | Key-value pairs, O(1) lookup | State tracking, caching |
+| `ARRAY` | Fixed size, indexed access | Counters, statistics |
+| `RINGBUF` | Circular buffer, efficient output | Event streams |
+| `PERF_EVENT` | Per-CPU circular buffer | Event output (old) |
+| `LRU_HASH` | LRU eviction | Large-scale caching |
+| `LPM_TRIE` | Longest Prefix Match | IP routing lookups |
+| `PERCPU_HASH` | Per-CPU hash table | Non-blocking statistics |
+| `STACK` | Stack structure | Call stack |
 
-## 4. libbpf 与 CO-RE
+## 4. libbpf and CO-RE
 
-### 4.1 libbpf 开发模式
+### 4.1 libbpf Development Mode
 
 ```c
-// minimal.bpf.c - 内核态程序
+// minimal.bpf.c - Kernel Mode Program
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -306,7 +308,7 @@ int handle_execve(struct trace_event_raw_sys_enter *ctx)
     e->tgid = (u32)pid_tgid;
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
 
-    // CO-RE: 读取内核结构体字段
+    // CO-RE: Reading kernel structure field
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     e->ppid = BPF_CORE_READ(task, real_parent, tgid);
 
@@ -315,15 +317,15 @@ int handle_execve(struct trace_event_raw_sys_enter *ctx)
 }
 ```
 
-### 4.2 用户态加载程序
+### 4.2 User Mode Loader Program
 
 ```c
-// minimal.c - 用户态程序
+// minimal.c - User Mode Program
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
 #include <bpf/libbpf.h>
-#include "minimal.skel.h"    // 由 bpftool 生成
+#include "minimal.skel.h"    // generated by bpftool
 
 static volatile bool exiting = false;
 
@@ -344,20 +346,20 @@ int main() {
     signal(SIGINT, sig_handler);
     signal(SIGTERM, sig_handler);
 
-    // 打开并加载 BPF 程序
+    // Open and load BPF program
     skel = minimal_bpf__open_and_load();
     if (!skel) {
         fprintf(stderr, "Failed to open BPF skeleton\n");
         return 1;
     }
 
-    // 附加到 hook 点
+    // Attach to hook point
     if (minimal_bpf__attach(skel)) {
         fprintf(stderr, "Failed to attach BPF skeleton\n");
         goto cleanup;
     }
 
-    // 设置 ring buffer 回调
+    // Set ring buffer callback
     rb = ring_buffer__new(bpf_map__fd(skel->maps.rb),
                           handle_event, NULL, NULL);
     if (!rb) {
@@ -377,24 +379,24 @@ cleanup:
 }
 ```
 
-### 4.3 CO-RE（Compile Once - Run Everywhere）
+### 4.3 CO-RE (Compile Once - Run Everywhere)
 
 ```c
-// CO-RE: 访问内核结构体，无需内核头文件
+// CO-RE: Access kernel structures without kernel headers
 struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
-// BPF_CORE_READ 自动处理字节偏移
+// BPF_CORE_READ handles byte offsets automatically
 int pid = BPF_CORE_READ(task, pid);
 int tgid = BPF_CORE_READ(task, tgid);
 const char *comm = BPF_CORE_READ(task, comm);
 
-// BPF_CORE_READ_INTO 读取到目标变量
+// BPF_CORE_READ_INTO reads into target variable
 struct task_struct *parent;
 BPF_CORE_READ_INTO(&parent, task, real_parent);
 int ppid = BPF_CORE_READ(parent, tgid);
 ```
 
-CO-RE 工作原理：
+CO-RE works as follows:
 
 ```
 编译时：记录字段重定位信息（BTF）
@@ -402,44 +404,44 @@ CO-RE 工作原理：
 运行时：直接访问内核结构体字段
 ```
 
-## 5. 开发工具链
+## 5. Development Toolchain
 
 ### 5.1 bpftool
 
 ```bash
-# 列出已加载的 BPF 程序
+# List loaded BPF programs
 bpftool prog list
 
-# 查看程序详情
+# View program details
 bpftool prog show id 42
 
-# 反汇编 BPF 程序
+# Disassemble BPF program
 bpftool prog dump xlated id 42
 
-# 列出所有 Map
+# List all Maps
 bpftool map list
 
-# 查看 Map 内容
+# View Map contents
 bpftool map dump id 123
 
-# 导出 BTF 信息
+# Export BTF information
 bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 ```
 
-### 5.2 BTF 生成
+### 5.2 BTF Generation
 
 ```bash
-# 从当前内核生成 vmlinux.h
+# Generate vmlinux.h from current kernel
 bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 
-# 检查内核是否支持 BTF
+# Check if the kernel supports BTF
 ls -la /sys/kernel/btf/vmlinux
 
-# 从特定内核头文件生成
+# Generate from specific kernel header files
 bpftool btf dump file /boot/vmlinux-$(uname -r) format c > vmlinux.h
 ```
 
-### 5.3 Makefile 模板
+### 5.3 Makefile Template
 
 ```makefile
 # Makefile for eBPF programs
@@ -454,19 +456,19 @@ BPF_CFLAGS := -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH) \
 
 all: minimal.skel.h minimal
 
-# 生成 vmlinux.h
+# Generate vmlinux.h
 $(OUTPUT)/vmlinux.h:
 	$(BPFTOOL) btf dump file /sys/kernel/btf/vmlinux format c > $@
 
-# 编译 BPF 程序
+# Compile BPF programs
 $(OUTPUT)/minimal.bpf.o: minimal.bpf.c $(OUTPUT)/vmlinux.h
 	$(CLANG) $(BPF_CFLAGS) -c $< -o $@
 
-# 生成 skeleton
+# Generate skeleton
 $(OUTPUT)/minimal.skel.h: $(OUTPUT)/minimal.bpf.o
 	$(BPFTOOL) gen skeleton $< > $@
 
-# 编译用户态程序
+# Compile user-space program
 minimal: minimal.c $(OUTPUT)/minimal.skel.h
 	$(CC) -Wall -I$(OUTPUT) -o $@ $< -lbpf -lelf -lz
 
@@ -477,11 +479,11 @@ clean:
 ### 5.4 libbpf-bootstrap
 
 ```bash
-# 使用 libbpf-bootstrap 快速开始
+# Quick start using libbpf-bootstrap
 git clone https://github.com/libbpf/libbpf-bootstrap.git
 cd libbpf-bootstrap/examples/c
 
-# 创建新项目
+# Create a new project
 make minimal    # 编译示例
 sudo ./minimal  # 运行
 ```
@@ -490,15 +492,15 @@ sudo ./minimal  # 运行
 
 ## Related
 
-- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF 可观测工具]]
-- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF 网络应用]]
-- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF 安全运行时]]
+- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF Observability Tools]]
+- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF Networking Applications]]
+- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF Security Runtime]]
 
 ## See Also
 
-- [eBPF 官方网站](https://ebpf.io/)
-- [libbpf 文档](https://libbpf.readthedocs.io/)
-- [eBPF Map 参考](https://ebpf.io/ebpf-map/)
+- [eBPF Official Website](https://ebpf.io/)
+- [libbpf Documentation](https://libbpf.readthedocs.io/)
+- [eBPF Map Reference](https://ebpf.io/ebpf-map/)
 
 
 <!-- risk-assessed -->

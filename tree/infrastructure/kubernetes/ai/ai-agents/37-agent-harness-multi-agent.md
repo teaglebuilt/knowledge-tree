@@ -1,7 +1,8 @@
----title: Agent Harness 多 Agent 编排 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**:
+---
+title: Agent Harness Multi-Agent Orchestration (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Deep Engineering Topic of Harness | **Last Updated**: 2026-04 | **Keywords**:
   Multi-Agent,'
-summary: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Multi-Agent,'
+summary: 'description: ''**Document Type**: Deep Engineering Topic of Harness | **Last Updated**: 2026-04 | **Keywords**: Multi-Agent,
 category: general
 tags:
 - ai
@@ -17,17 +18,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- all engineers
 estimated_read_time: 25min
 intent_queries:
-- Agent Harness 多 Agent 编排 是什么
-- 如何 Agent Harness 多 Agent 编排
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent Harness Multi-Agent Orchestration
+- How to do Agent Harness Multi-Agent Orchestration
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - Agent
 - Harness
 - Agent
-- 编排
+- Orchestration
 - ai
 - ml
 - infra
@@ -40,18 +41,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/37-agent-harness-multi-agent.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> The commands in this document are executable directly. Please confirm before execution: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection, no side effects).
 
 
 
 
-title: Agent Harness 多 Agent 编排
-description: '**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Multi-Agent,
-  编排, Orchestrator, 分层 Harness, Agent 通信, 任务分解, 冲突解决, 隔离原则, DAG, 工作流'
+title: Agent Harness Multi-Agent Orchestration
+description: '**Document Type**: Deep Engineering Topic of Harness | **Last Updated**: 2026-04 | **Keywords**: Multi-Agent, Orchestration, Orchestrator, Layered Harness, Agent Communication, Task Decomposition, Conflict Resolution, Isolation Principle, DAG, Workflow'
+  Orchestration, Orchestrator, Layered Harness, Agent Communication, Task Decomposition, Conflict Resolution, Principle of Isolation, DAG, Workflow'
 category: ai-agent
 tags:
 - ai
@@ -65,18 +68,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent Harness 多 Agent 编排 是什么
-- 如何 Agent Harness 多 Agent 编排
+- What is Agent Harness Multi-Agent Orchestration
+- How to do Agent Harness Multi-Agent Orchestration
 trigger_keywords:
 - Agent
 - Harness
 - Agent
-- 编排
+- Orchestration
 - ai
 - agent
 authors:
@@ -90,23 +93,23 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent Harness 多 Agent 编排
+# Agent Harness Multi-Agent Orchestration
 
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Multi-Agent, 编排, Orchestrator, 分层 Harness, Agent 通信, 任务分解, 冲突解决, 隔离原则, DAG, 工作流
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-单个 Agent 的 Harness 就绪后，下一步挑战是**多 Agent 的 Harness 编排**。生产级系统往往需要多个专业化 Agent 协作——诊断 Agent 找根因、修复 Agent 执行操作、验证 Agent 确认恢复。每个 Agent 都有独立的 Harness（不同的权限、工具、约束），编排层需要协调它们的协作、通信和冲突解决。
-
-本文系统阐述多 Agent 编排模式、Orchestrator 设计、Agent 通信协议、任务分解与分配、Harness 隔离原则、冲突解决机制，以及 K8S 运维场景中的多 Agent 协作实践。
+> **Document Type**: Deep Engineering Topic of Harness | **Last Updated**: 2026-04 | **Keywords**: Multi-Agent, Orchestration, Orchestrator, Layered Harness, Agent Communication, Task Decomposition, Conflict Resolution, Isolation Principle, DAG, Workflow
 
 ---
 
-<!-- chunk: 1. 多 Agent 编排模式 -->## 1. 多 Agent 编排模式
+## Overview
 
-## 1.1 四种核心编排模式
+After a single Agent's Harness is ready, the next challenge is **orchestration of multiple Agents' Harnesses**. Production-grade systems often require multiple specialized Agents to collaborate—diagnostic Agents to find root causes, repair Agents to execute operations, and validation Agents to confirm recovery. Each Agent has its own Harness (with different permissions, tools, and constraints), and the orchestration layer needs to coordinate their collaboration, communication, and conflict resolution.
+
+This article systematically discusses multi-Agent orchestration patterns, Orchestrator design, Agent communication protocols, task decomposition and allocation, Harness isolation principles, conflict resolution mechanisms, and practical collaboration practices for multiple Agents in Kubernetes (K8S) operational scenarios.
+
+---
+
+## 1. Multi-Agent Orchestration Patterns
+
+## 1.1 Four Core Orchestration Patterns
 
 ```
 多 Agent 编排模式:
@@ -139,20 +142,20 @@ k8s_versions:
    示例: 两个诊断 Agent 交叉验证根因
 ```
 
-## 1.2 模式选择矩阵
+## 1.2 Pattern Selection Matrix
 
-| 模式 | 适用场景 | 延迟 | 成本 | 可靠性 | 复杂度 |
+| Pattern | Applicable Scenarios | Latency | Cost | Reliability | Complexity |
 |------|---------|------|------|--------|--------|
-| **顺序流水线** | 有明确阶段划分的任务 | 高 | 低 | 中 | 低 |
-| **并行扇出** | 可并行分解的独立子任务 | 低 | 中 | 高 | 中 |
-| **层级委派** | 复杂多步任务 | 中 | 高 | 高 | 高 |
-| **辩论共识** | 高风险决策需要交叉验证 | 高 | 高 | 最高 | 高 |
+| **Sequential Pipeline** | Tasks with clear stages | High | Low | Medium | Low |
+| **Parallel Fanout** | Independent sub-tasks that can be parallelized | Low | Medium | High | Medium |
+| **Hierarchical Delegation** | Complex multi-step tasks | Medium | High | High | High |
+| **Consensus Debate** | High-risk decisions requiring cross-validation | High | High | Highest | High |
 
 ---
 
-<!-- chunk: 2. Orchestrator 设计 -->## 2. Orchestrator 设计
+## 2. Orchestrator Design
 
-## 2.1 编排器架构
+## 2.1 Orchestrator Architecture
 
 ```python
 from dataclasses import dataclass, field
@@ -169,7 +172,7 @@ class AgentRole(Enum):
 
 @dataclass
 class AgentSpec:
-    """Agent 规格定义"""
+    """Agent Specification Definition"""
     role: AgentRole
     harness_config: dict
     tools: list[str]
@@ -178,7 +181,7 @@ class AgentSpec:
     priority: int = 0
 
 class Orchestrator:
-    """多 Agent 编排器"""
+    """Multi-Agent Orchestrator"""
 
     def __init__(self, agent_specs: dict[str, AgentSpec]):
         self.specs = agent_specs
@@ -187,7 +190,7 @@ class Orchestrator:
         self._results: dict[str, Any] = {}
 
     def register_agent(self, name: str, agent, harness):
-        """注册 Agent 及其 Harness"""
+        """Registering Agents and Their Harnesses"""
         self.agents[name] = {
             "agent": agent,
             "harness": harness,
@@ -195,7 +198,7 @@ class Orchestrator:
         }
 
     async def execute_pipeline(self, task: str, pipeline: list[dict]) -> dict:
-        """执行顺序流水线"""
+        """Executing Sequential Pipelines"""
         context = {"original_task": task}
 
         for stage in pipeline:
@@ -212,7 +215,7 @@ class Orchestrator:
             context[f"{agent_name}_result"] = result
             self._results[agent_name] = result
 
-            # 阶段间门控：如果当前阶段失败，是否继续
+            # Stage-to-stage gating: Continue if current stage fails
             if not result.get("success") and stage.get("gate", True):
                 return {
                     "status": "pipeline_halted",
@@ -228,7 +231,7 @@ class Orchestrator:
 
     async def execute_parallel(self, task: str,
                                 agent_names: list[str]) -> dict:
-        """执行并行扇出"""
+        """Executing Parallel Fanouts"""
         tasks = []
         for name in agent_names:
             tasks.append(self._run_agent(name, task, {}))
@@ -244,7 +247,7 @@ class Orchestrator:
             else:
                 parallel_results[name] = result
 
-        # 聚合结果
+        # Aggregating Results
         aggregated = self._aggregate_results(parallel_results)
 
         return {
@@ -254,8 +257,8 @@ class Orchestrator:
         }
 
     async def execute_hierarchical(self, task: str) -> dict:
-        """执行层级委派"""
-        # 1. Coordinator Agent 分解任务
+        """Execute Hierarchical Delegation"""
+        # 1. Coordinator Agent Decompose Task
         coordinator = self.agents.get("coordinator")
         decomposition = await self._run_agent(
             "coordinator", f"分解以下任务为子任务: {task}", {},
@@ -265,7 +268,7 @@ class Orchestrator:
         if not subtasks:
             return {"status": "decomposition_failed", "error": "无法分解任务"}
 
-        # 2. 分配子任务给专业 Agent
+        # 2. Assign Subtasks to Professional Agents
         sub_results = {}
         for subtask in subtasks:
             agent_name = subtask.get("assign_to")
@@ -275,7 +278,7 @@ class Orchestrator:
                 )
                 sub_results[agent_name] = result
 
-        # 3. Coordinator 综合结果
+        # 3. Coordinator Synthesize Results
         synthesis = await self._run_agent(
             "coordinator",
             f"综合以下子任务结果:\n{sub_results}",
@@ -291,7 +294,7 @@ class Orchestrator:
 
     async def _run_agent(self, name: str, task: str,
                           context: dict) -> dict:
-        """运行单个 Agent"""
+        """Run a Single Agent"""
         agent_info = self.agents[name]
         harness = agent_info["harness"]
 
@@ -299,7 +302,7 @@ class Orchestrator:
         return result
 
     def _aggregate_results(self, results: dict) -> dict:
-        """聚合并行结果"""
+        """Aggregate Parallel Results"""
         successful = {k: v for k, v in results.items() if v.get("success")}
         failed = {k: v for k, v in results.items() if not v.get("success")}
 
@@ -311,21 +314,21 @@ class Orchestrator:
         }
 
     def _find_consensus(self, results: dict) -> Optional[str]:
-        """在多个成功结果中寻找共识"""
+        """Find Consensus Among Multiple Successful Results"""
         if len(results) <= 1:
             return list(results.values())[0].get("answer") if results else None
 
-        # 简单策略：如果多数 Agent 的答案相似，采用多数答案
+        # Simple Strategy: If the answers from most Agents are similar, adopt the majority answer
         answers = [v.get("answer", "") for v in results.values()]
-        # 生产环境应使用语义相似度比较
+        # Production environments should use semantic similarity comparison
         return answers[0]
 ```
 
 ---
 
-<!-- chunk: 3. Agent 间通信 -->## 3. Agent 间通信
+## 3. Agent Communication
 
-## 3.1 消息协议
+## 3.1 Message Protocol
 
 ```python
 from dataclasses import dataclass, field
@@ -345,7 +348,7 @@ class MessageType(Enum):
 
 @dataclass
 class AgentMessage:
-    """Agent 间通信消息"""
+    """Messages between Agents"""
     id: str
     type: MessageType
     sender: str
@@ -357,7 +360,7 @@ class AgentMessage:
     ttl_seconds: int = 300  # 消息过期时间
 
 class MessageBus:
-    """Agent 消息总线"""
+    """Agent Message Bus"""
 
     def __init__(self):
         self._queues: dict[str, list[AgentMessage]] = {}
@@ -365,27 +368,27 @@ class MessageBus:
         self._history: list[AgentMessage] = []
 
     def send(self, message: AgentMessage):
-        """发送消息"""
+        """Send Messages"""
         receiver = message.receiver
         if receiver not in self._queues:
             self._queues[receiver] = []
         self._queues[receiver].append(message)
         self._history.append(message)
 
-        # 触发处理器
+        # Trigger Handler
         for handler in self._handlers.get(receiver, []):
             handler(message)
 
     def receive(self, agent_name: str,
                 message_type: MessageType = None) -> list[AgentMessage]:
-        """接收消息"""
+        """Receive Messages"""
         queue = self._queues.get(agent_name, [])
         if message_type:
             messages = [m for m in queue if m.type == message_type]
         else:
             messages = queue.copy()
 
-        # 清除已读消息
+        # Clear Read Messages
         for m in messages:
             if m in queue:
                 queue.remove(m)
@@ -393,14 +396,14 @@ class MessageBus:
         return messages
 
     def subscribe(self, agent_name: str, handler):
-        """订阅消息"""
+        """Subscribe to Messages"""
         if agent_name not in self._handlers:
             self._handlers[agent_name] = []
         self._handlers[agent_name].append(handler)
 
     def broadcast(self, sender: str, content: dict,
                   message_type: MessageType = MessageType.STATUS_UPDATE):
-        """广播消息给所有 Agent"""
+        """Broadcast Messages to All Agents"""
         for agent_name in self._queues:
             if agent_name != sender:
                 self.send(AgentMessage(
@@ -412,11 +415,11 @@ class MessageBus:
                 ))
 ```
 
-## 3.2 共享上下文管理
+## 3.2 Shared Context Management
 
 ```python
 class SharedContext:
-    """多 Agent 共享上下文"""
+    """Multi-Agent Shared Context"""
 
     def __init__(self):
         self._shared_state: dict = {}
@@ -425,9 +428,9 @@ class SharedContext:
 
     def write(self, agent_name: str, key: str, value: Any,
               overwrite: bool = False):
-        """写入共享上下文"""
+        """Write Shared Context"""
         if key in self._shared_state and not overwrite:
-            # 追加而非覆盖
+            # Append instead of overwrite
             if isinstance(self._shared_state[key], list):
                 self._shared_state[key].append(value)
             else:
@@ -435,7 +438,7 @@ class SharedContext:
         else:
             self._shared_state[key] = value
 
-        # 记录贡献
+        # Record contributions
         if agent_name not in self._agent_contributions:
             self._agent_contributions[agent_name] = []
         self._agent_contributions[agent_name].append({
@@ -443,23 +446,23 @@ class SharedContext:
         })
 
     def read(self, key: str, default: Any = None) -> Any:
-        """读取共享上下文"""
+        """Read Shared Context"""
         return self._shared_state.get(key, default)
 
     def read_all(self) -> dict:
-        """读取全部共享上下文"""
+        """Read All Shared Context"""
         return self._shared_state.copy()
 
     def get_agent_contributions(self, agent_name: str) -> list:
-        """获取某个 Agent 的贡献记录"""
+        """Get Contribution Records for a Specific Agent"""
         return self._agent_contributions.get(agent_name, [])
 ```
 
 ---
 
-<!-- chunk: 4. Harness 隔离原则 -->## 4. Harness 隔离原则
+## 4. Harness Isolation Principle
 
-## 4.1 Agent 隔离架构
+## 4.1 Agent Isolation Architecture
 
 ```
 多 Agent Harness 隔离:
@@ -492,11 +495,11 @@ class SharedContext:
 └──────────────────────────────────────────────────────┘
 ```
 
-## 4.2 隔离配置实现
+## 4.2 Implementing Isolation
 
 ```python
 class IsolatedHarnessFactory:
-    """隔离 Harness 工厂：为不同角色创建独立的 Harness"""
+    """Isolated Harness Factory: Create Independent Harnesses for Different Roles"""
 
     ROLE_CONFIGS = {
         AgentRole.DIAGNOSTICIAN: {
@@ -567,10 +570,10 @@ class IsolatedHarnessFactory:
     }
 
     def create_harness(self, role: AgentRole, llm, tools_registry) -> dict:
-        """为指定角色创建隔离的 Harness"""
+        """Create Isolated Harness for a Specific Role"""
         config = self.ROLE_CONFIGS.get(role, {})
 
-        # 过滤工具集
+        # Filter toolkit
         allowed_tools = config.get("tools", [])
         filtered_tools = tools_registry.get_tools_for_task(
             categories=None,
@@ -587,17 +590,17 @@ class IsolatedHarnessFactory:
 
 ---
 
-<!-- chunk: 5. 冲突解决 -->## 5. 冲突解决
+## 5. Conflict Resolution
 
-## 5.1 冲突类型与解决策略
+## 5.1 Types of Conflicts and Resolution Strategies
 
 ```python
 class ConflictResolver:
-    """多 Agent 冲突解决器"""
+    """Multi-Agent Conflict Resolver"""
 
     def resolve(self, agent_results: dict[str, dict],
                 conflict_type: str) -> dict:
-        """解决 Agent 间的冲突"""
+        """Resolve Conflicts Between Agents"""
         strategies = {
             "diagnosis_disagreement": self._resolve_diagnosis,
             "action_conflict": self._resolve_action,
@@ -608,7 +611,7 @@ class ConflictResolver:
         return strategy(agent_results)
 
     def _resolve_diagnosis(self, results: dict) -> dict:
-        """诊断分歧解决：置信度加权投票"""
+        """Diagnose Dispute Resolution: Weighted Voting"""
         diagnoses = []
         for agent, result in results.items():
             diagnoses.append({
@@ -618,7 +621,7 @@ class ConflictResolver:
                 "evidence_count": len(result.get("evidence", [])),
             })
 
-        # 按置信度 × 证据数量排序
+        # Sort by confidence × evidence count
         diagnoses.sort(
             key=lambda d: d["confidence"] * (1 + d["evidence_count"] * 0.1),
             reverse=True,
@@ -626,7 +629,7 @@ class ConflictResolver:
 
         winner = diagnoses[0]
 
-        # 如果最高置信度 < 0.7 且有分歧，升级到人工
+        # If highest confidence < 0.7 and there's a dispute, escalate to manual
         if winner["confidence"] < 0.7 and len(set(d["diagnosis"] for d in diagnoses)) > 1:
             return {
                 "resolution": "escalate_to_human",
@@ -643,7 +646,7 @@ class ConflictResolver:
         }
 
     def _resolve_action(self, results: dict) -> dict:
-        """行动冲突解决：安全优先"""
+        """Action Conflict Resolution: Security First"""
         actions = []
         for agent, result in results.items():
             actions.append({
@@ -652,7 +655,7 @@ class ConflictResolver:
                 "risk_level": result.get("risk_level", "unknown"),
             })
 
-        # 选择风险最低的行动方案
+        # Choose the Action Plan with Lowest Risk
         risk_order = {"low": 0, "medium": 1, "high": 2, "critical": 3, "unknown": 4}
         actions.sort(key=lambda a: risk_order.get(a["risk_level"], 4))
 
@@ -663,13 +666,13 @@ class ConflictResolver:
         }
 
     def _resolve_priority(self, results: dict) -> dict:
-        """优先级冲突：按角色权重"""
+        """Priority Conflict: By Role Weight"""
         role_weights = {
             AgentRole.DIAGNOSTICIAN: 3,
             AgentRole.VERIFIER: 2,
             AgentRole.REMEDIATOR: 1,
         }
-        # 按角色权重选择
+        # Choose Action Plan by Role Weight
         sorted_results = sorted(
             results.items(),
             key=lambda x: role_weights.get(x[1].get("role"), 0),
@@ -684,27 +687,27 @@ class ConflictResolver:
 
 ---
 
-<!-- chunk: 6. K8S 问题处置多 Agent 编排 -->## 6. K8S 问题处置多 Agent 编排
+## 6. K8S Problem Handling Multi-Agent Orchestration
 
-## 6.1 问题处置流水线
+## 6.1 Problem Handling Pipeline
 
 ```python
 class IncidentResponsePipeline:
-    """K8S 问题处置多 Agent 流水线"""
+    """K8S Problem Handling Multi-Agent Pipeline"""
 
     def __init__(self, orchestrator: Orchestrator):
         self.orchestrator = orchestrator
 
     async def handle_incident(self, incident: dict) -> dict:
-        """处置问题"""
+        """Handle the Problem"""
 
-        # Stage 1: 并行诊断（多角度收集信息）
+        # Stage 1: Parallel Diagnosis (Collect Information from Multiple Angles)
         parallel_diagnosis = await self.orchestrator.execute_parallel(
             task=f"诊断以下问题: {incident['description']}",
             agent_names=["pod_diagnostician", "node_diagnostician", "network_diagnostician"],
         )
 
-        # Stage 2: 综合诊断结果
+        # Stage 2: Synthesize Diagnostic Results
         diagnosis = self._synthesize_diagnosis(parallel_diagnosis)
         if diagnosis.get("confidence", 0) < 0.6:
             return {
@@ -713,7 +716,7 @@ class IncidentResponsePipeline:
                 "diagnosis_results": parallel_diagnosis,
             }
 
-        # Stage 3: 生成修复方案
+        # Stage 3: Generate Repair Solution
         remediation = await self.orchestrator.execute_pipeline(
             task=f"根据诊断结果制定修复方案: {diagnosis['root_cause']}",
             pipeline=[
@@ -721,7 +724,7 @@ class IncidentResponsePipeline:
             ],
         )
 
-        # Stage 4: 独立验证修复效果
+        # Stage 4: Independently Validate Repair Effectiveness
         verification = await self.orchestrator.execute_pipeline(
             task=f"验证问题是否已恢复: {incident['description']}",
             pipeline=[
@@ -737,11 +740,11 @@ class IncidentResponsePipeline:
         }
 
     def _synthesize_diagnosis(self, parallel_results: dict) -> dict:
-        """综合多 Agent 的诊断结果"""
+        """Synthesize Diagnostics from Multiple Agents"""
         resolver = ConflictResolver()
         individual = parallel_results.get("individual_results", {})
 
-        # 如果所有 Agent 都指向同一根因
+        # If All Agents Point to the Same Root Cause
         root_causes = [
             r.get("answer", {}).get("root_cause", "")
             for r in individual.values()
@@ -755,22 +758,22 @@ class IncidentResponsePipeline:
                 "consensus": "unanimous",
             }
 
-        # 否则通过冲突解决
+        # Otherwise Resolve Conflicts
         return resolver.resolve(individual, "diagnosis_disagreement")
 ```
 
 ---
 
-<!-- chunk: 7. 分层 Harness 架构 -->## 7. 分层 Harness 架构
+## 7. Layered Harness Architecture
 
-## 7.1 基础层 + 场景层 + 用户层
+## 7.1 Foundation Layer + Scenario Layer + User Layer
 
 ```python
 class LayeredHarnessArchitecture:
-    """三层 Harness 架构"""
+    """Three-Layer Harness Architecture"""
 
     def __init__(self):
-        # Layer 1: 基础层（所有 Agent 共享）
+        # Layer 1: Foundation Layer (Shared by All Agents)
         self.base_config = {
             "max_iterations": 20,
             "timeout_seconds": 300,
@@ -780,7 +783,7 @@ class LayeredHarnessArchitecture:
             "audit_logging": True,
         }
 
-        # Layer 2: 场景层（按场景差异化）
+        # Layer 2: Scenario Layer (Differentiated by Scenarios)
         self.scenario_configs = {
             "k8s_diagnosis": {
                 "read_only": True,
@@ -804,19 +807,19 @@ class LayeredHarnessArchitecture:
             },
         }
 
-        # Layer 3: 用户层（用户自定义覆盖）
+        # Layer 3: User Layer (User Customizable Override)
         self.user_config = None
 
     def build_harness(self, scenario: str, user_overrides: dict = None) -> dict:
-        """构建最终 Harness 配置"""
-        # 基础层
+        """Build the final Harness configuration"""
+        # Foundation Layer
         config = self.base_config.copy()
 
-        # 场景层覆盖
+        # Scenario Layer Override
         scenario_config = self.scenario_configs.get(scenario, {})
         config.update(scenario_config)
 
-        # 用户层覆盖
+        # User Layer Override
         if user_overrides:
             config.update(user_overrides)
 
@@ -825,70 +828,70 @@ class LayeredHarnessArchitecture:
 
 ---
 
-<!-- chunk: 8. 最佳实践 -->## 8. 最佳实践
+## 8. Best Practices
 
-## 8.1 多 Agent 编排核心原则
+## 8.1 Core Principles for Multi-Agent Orchestration
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Recommendation |
 |------|------|---------|
-| **Harness 隔离** | 每个 Agent 独立 Harness | 诊断只读、修复需审批、验证独立 |
-| **最小信任** | Agent 间不信任彼此的输出 | 验证 Agent 独立检查修复结果 |
-| **共识决策** | 高风险操作需要多 Agent 共识 | 使用辩论共识模式 |
-| **安全优先** | 冲突时选择风险最低的方案 | ConflictResolver 安全优先策略 |
-| **分层配置** | 基础+场景+用户三层 Harness | 使用 LayeredHarnessArchitecture |
-| **异步通信** | Agent 间通过消息总线通信 | 使用 MessageBus 解耦 |
+| **Harness Isolation** | Each Agent has its own Harness | Read-only diagnostics, approval required for fixes, independent validation |
+| **Minimal Trust** | Agents do not trust each other's outputs | Validate that each Agent independently checks and verifies the repair results |
+| **Consensus Decision Making** | High-risk operations require consensus from multiple Agents | Use a debate consensus mode |
+| **Security First** | In case of conflict, choose the lowest-risk solution | ConflictResolver with a security-first strategy |
+| **Layered Configuration** | Three layers of Harness: Foundation + Scenario + User | Use LayeredHarnessArchitecture |
+| **Asynchronous Communication** | Agents communicate through a message bus | Use MessageBus to decouple them |
 
-## 8.2 反模式
+## 8.2 Anti-patterns
 
-| 反模式 | 问题 | 正确做法 |
+| Anti-pattern | Problem | Correct Approach |
 |--------|------|----------|
-| **共享 Harness** | 所有 Agent 用同一套约束 | 每个角色独立约束 |
-| **直接通信** | Agent 直接调用彼此 | 通过 Orchestrator 中转 |
-| **盲信结果** | 修复 Agent 说"已修复"就信 | 独立验证 Agent 确认 |
-| **串行万物** | 所有 Agent 串行执行 | 可并行的诊断并行执行 |
-| **无冲突处理** | 忽略 Agent 间的分歧 | 部署冲突解决机制 |
+| **Shared Harness** | All Agents use the same constraints | Each role should have its own set of constraints |
+| **Direct Communication** | Agents directly call each other | Use Orchestrator to act as a mediator |
+| **Blindly Trusting Results** | Believe an Agent when it says "fixed" | Independently validate the results reported by the Agent |
+| **Serial Everything** | All Agents execute sequentially | Parallelize diagnostic tasks that can be executed concurrently |
+| **Conflict Resolution** | Ignore Disputes Between Agents | Deploy Conflict Resolution Mechanisms |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Associated Documents
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | 多 Agent 编排基础概念 |
-| [35 - 安全与约束](./35-agent-harness-security-constraints.md) | Agent 隔离的约束实现 |
-| [06 - 多 Agent 编排](./06-multi-agent-orchestration.md) | 多 Agent 编排基础理论 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Foundation Concepts for Multi-Agent Orchestration |
+| [35 - Security and Constraints](./35-agent-harness-security-constraints.md) | Implementation of Isolation Constraints for Agents |
+| [06 - Multi-Agent Orchestration](./06-multi-agent-orchestration.md) | Theoretical Foundations for Multi-Agent Orchestration |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Anthropic | Multi-Agent 系统设计最佳实践 | 2026-02 |
-| Microsoft | AutoGen Multi-Agent 框架 | 2025-2026 |
-| LangChain | LangGraph 多 Agent 编排 | 2025-2026 |
-| CrewAI | Agent 角色与协作模式 | 2025-2026 |
+| Anthropic | Best Practices for Multi-Agent System Design | 2026-02 |
+| Microsoft | AutoGen Multi-Agent Framework | 2025-2026 |
+| LangChain | LangGraph Multi-Agent Orchestration | 2025-2026 |
+| CrewAI | Roles and Collaboration Patterns for Agents | 2025-2026 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness 多 Agent 编排。*
+*This document is original content from the kudig-database project series 02-ai-agents, delving into Multi-Agent Orchestration of Agent Harness.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documents
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation with RAG]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

@@ -53,12 +53,14 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/webassembly/spinkube-framework.md
 ---
 
 # [[SpinKube|SpinKube]] Framework Practice
 # SpinKube Framework Practice
 
-<!-- chunk: Table of Contents -->## Table of Contents
+## Table of Contents
 
 1. [SpinKube Overview](#1-spinkube-overview)
 2. [[entities/spin.md|Spin]] Application Model](#2-spin-Application Model)
@@ -75,7 +77,7 @@ authors:
 
 ---
 
-<!-- chunk: 1. SpinKube Overview-->## 1. SpinKube Overview
+## 1. SpinKube Overview
 
 ## 1.1 What is SpinKube
 
@@ -134,7 +136,7 @@ graph TD
 
 ---
 
-<!-- chunk: 2. Spin Application Model -->## 2. Spin Application Model
+## 2. Spin Application Model
 
 ## 2.1 Spin Framework Overview
 
@@ -548,7 +550,7 @@ fn chrono_like_timestamp() -> String {
 
 ---
 
-<!-- chunk: 3. SpinKube Architecture -->## 3. SpinKube Architecture
+## 3. SpinKube Architecture
 
 ## 3.1 Overall Architecture
 
@@ -724,7 +726,7 @@ func (r *SpinAppReconciler) reconcileDeployment(
 
 ---
 
-<!-- chunk: 4. SpinApp CRD -->## 4. SpinApp CRD
+## 4. SpinApp CRD
 
 ## 4.1 SpinApp Resource Definition
 
@@ -914,7 +916,7 @@ spec:
 
 ---
 
-<!-- chunk: 5. Installation and Configuration-->## 5. Installation and Configuration
+## 5. Installation and Configuration
 
 ## 5.1 Installing SpinKube using Helm
 
@@ -999,7 +1001,7 @@ spec:
       - operator: Exists
 EOF
 ```
-## 5.2 配置 RuntimeClass / Configure RuntimeClass
+## 5.2 Configure RuntimeClass
 
 > ⚠️ **🟡 Medium-Risk Change** — This involves changing the status of cluster resources. It is recommended to first confirm using `--dry-run` or `diff`.
 > - `kubectl apply/create/replace`: Creates/modifies cluster resources
@@ -1070,7 +1072,7 @@ kubectl -n keda get pods | grep http
 ```
 ---
 
-<!-- chunk: 6. HTTP Triggers --> ## 6. HTTP Triggers
+ ## 6. HTTP Triggers
 
 ## 6.1 HTTP Routing Configuration
 
@@ -1305,9 +1307,9 @@ fn handle_request(req: Request) -> Result<impl IntoResponse> {
 
 ---
 
-<!-- chunk: 7. KEDA Integration and Scale-to-Zero -->## 7. KEDA Integration and Scale-to-Zero
+## 7. KEDA Integration and Scale-to-Zero
 
-## 7.1 Scale-to-Zero 原理 / Scale-to-Zero Principle
+## 7.1 Scale-to-Zero Principle
 
 ```mermaid
 sequenceDiagram
@@ -1337,7 +1339,7 @@ sequenceDiagram
     Note over Spin: Status: 0 copies (saving resources)
 ```
 
-## 7.2 KEDA ScaledObject 配置 / ScaledObject Configuration
+## 7.2 ScaledObject Configuration
 
 ```yaml
 # HTTP-triggered scale-to-zero
@@ -1490,7 +1492,7 @@ spec:
 
 ---
 
-<!-- chunk: 8. Storage System Integration-->## 8. Storage System Integration
+## 8. Storage System Integration
 
 ## 8.1 Spin Storage Architecture
 
@@ -1567,7 +1569,7 @@ spec:
 
 ---
 
-<!-- chunk: 9. Redis and KV Store -->## 9. Redis and KV Store
+## 9. Redis and KV Store
 
 ## 9.1 KV Store Operations
 
@@ -1792,7 +1794,7 @@ spec:
 
 ---
 
-<!-- chunk: 10. SQLite Integration-->## 10. SQLite Integration
+## 10. SQLite Integration
 
 ## 10.1 SQLite Database Operations
 
@@ -1997,7 +1999,7 @@ stringData:
 
 ---
 
-<!-- chunk: 11. Advanced Configuration and Security-->## 11. Advanced Configuration and Security
+## 11. Advanced Configuration and Security
 
 ## 11.1 TLS Configuration
 
@@ -2174,7 +2176,7 @@ spec:
 
 ---
 
-<!-- chunk: 12. Monitoring and Observability-->## 12. Monitoring and Observability
+## 12. Monitoring and Observability
 
 ## 12.1 Prometheus Metrics
 
@@ -2253,7 +2255,7 @@ spec:
         Description: "P99 Delay {{ $value }}s exceeds the 1-second threshold"
 ```
 
-## 12.2 Grafana Dashboard 配置 / Grafana Dashboard
+## 12.2 Grafana Dashboard
 
 ```json
 {
@@ -2350,7 +2352,7 @@ data:
 
 ---
 
-<!-- chunk: References -->## References
+## References
 
 ## Official Documentation
 - [SpinKube Official Documentation](https://www.spinkube.dev/docs/)
@@ -2372,10 +2374,10 @@ Version: 1.0.0
 
 ---
 
-<!-- chunk: Obsidian related documentation-->## Obsidian related documentation
+## Obsidian related documentation
 
 - domain-38-webassembly-cloud-native MOC
-- [[domain-15-specialized-tech/README.md|Domain 15: WebAssembly 云原生 (WebAssembly Cloud Native)]]
+- [[domain-15-specialized-tech/README.md|Domain 15: WebAssembly  Cloud Native]]
 - Domain-38 WebAssembly Cloud Native — Open Source Project Index
 WebAssembly Cloud Native Foundation
 - containerd Wasm runtime

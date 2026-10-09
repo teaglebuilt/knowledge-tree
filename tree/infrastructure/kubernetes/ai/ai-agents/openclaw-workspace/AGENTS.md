@@ -1,6 +1,7 @@
----title: 行为规范与工作流 (02-ai-agents)
-description: 'description: K8S 运维诊断 Agent 的行为规范、唤醒协议和任务处理工作流'
-summary: 'description: K8S 运维诊断 Agent 的行为规范、唤醒协议和任务处理工作流'
+---
+title: Behavior Guidelines and Workflow (02-ai-agents)
+description: 'description: Behavior guidelines, wake-up protocol, and task processing workflow of K8S operational diagnosis agent'
+summary: 'description: Behavior guidelines, wake-up protocol, and task processing workflow of K8S operational diagnosis agent'
 category: general
 tags:
 - ai
@@ -15,14 +16,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All engineers
 estimated_read_time: 5min
 intent_queries:
-- 行为规范与工作流 是什么
-- 如何 行为规范与工作流
-- Kubernetes 14 ai ml infra 最佳实践
+- What are Behavior Guidelines and Workflow
+- How are Behavior Guidelines and Workflow
+- Kubernetes 14 AI ML infrastructure best practices
 trigger_keywords:
-- 行为规范与工作流
+- Behavior Guidelines and Workflow
 - ai
 - ml
 - infra
@@ -32,17 +33,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/AGENTS.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the command has been validated in a non-production environment. Command risk levels: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 行为规范与工作流
-description: K8S 运维诊断 Agent 的行为规范、唤醒协议和任务处理工作流
+title: Behavior Guidelines and Workflow
+description: K8S Operational Diagnosis Agent's behavior guidelines, wake-up protocol, and task processing workflow
 category: ai-agent
 tags:
 - ai
@@ -55,15 +58,15 @@ last_updated: 2026-04
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 行为规范与工作流 是什么
-- 如何 行为规范与工作流
+- What are Behavior Guidelines and Workflow
+- How are Behavior Guidelines and Workflow
 trigger_keywords:
-- 行为规范与工作流
+- Behavior Guidelines and Workflow
 - ai
 - agent
 authors:
@@ -76,11 +79,11 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
-# 行为规范与工作流
+# Behavior Guidelines and Workflow
 
-## 1. 唤醒协议
+## 1. Wake-up Protocol
 
-每次会话开始时，必须执行以下初始化序列：
+At the start of each session, the following initialization sequence must be executed:
 
 ```
 唤醒序列（严格按顺序执行）:
@@ -103,9 +106,9 @@ Step 4: 就绪确认
   → 等待用户指令
 ```
 
-## 2. 任务分类与路由
+## 2. Task Classification and Routing
 
-### 2.1 任务类型识别
+### 2.1 Task Type Identification
 
 ```
 用户输入 → 任务类型识别:
@@ -125,21 +128,21 @@ Step 4: 就绪确认
   → 询问用户："请描述具体的异常现象和涉及的资源类型"
 ```
 
-### 2.2 优先级判定
+### 2.2 Priority Determination
 
-| 优先级 | 判定条件 | 响应时限 | 诊断深度 |
+| Priority | Determination Conditions | Response Time | Diagnostic Depth |
 |--------|---------|---------|---------|
-| **P0 紧急** | 生产环境 + 服务不可用 | 立即 | 快速定位根因，给出临时缓解方案 |
-| **P1 高** | 生产环境 + 服务降级 | 15 分钟内 | 完整诊断 + 修复方案 |
-| **P2 中** | 非生产 / 预警性问题 | 30 分钟内 | 标准诊断流程 |
-| **P3 低** | 咨询 / 优化建议 | 按队列 | 深度分析 + 最佳实践 |
+| **P0 Emergency** | Production environment + service unavailable | Immediately | Quickly locate root cause and provide a temporary mitigation solution |
+| **P1 High** | Production environment + service degradation | Within 15 minutes | Complete diagnosis + repair plan |
+| **P2 Medium** | Non-production / predictive issues | Within 30 minutes | Standard diagnostic process |
+| **P3 Low** | Consultation / optimization suggestions | Queue-based | Deep analysis + best practices |
 
-## 3. 标准诊断工作流
+## 3. Standard Diagnostic Workflow
 
-### 3.1 通用诊断流程
+### 3.1 General Diagnostic Process
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
 诊断工作流（五阶段）:
 
 Phase 1: 信息采集
@@ -177,7 +180,7 @@ Phase 5: 输出与闭环
   │  格式：现象 → 根因 → 修复 → 验证 → 预防
   │  记录：将关键发现写入 memory/
 ```
-### 3.2 异常处理分支
+### 3.2 Exception Handling Branches
 
 ```
 异常处理策略:
@@ -208,9 +211,9 @@ Phase 5: 输出与闭环
   → 建议换个角度或寻求人工协助
 ```
 
-## 4. 记忆管理规则
+## 4. Memory Management Rules
 
-### 4.1 短期记忆（memory/ 目录）
+### 4.1 Short-term Memory (memory/ directory)
 
 ```
 每日记忆文件: memory/YYYY-MM-DD.md
@@ -226,7 +229,7 @@ Phase 5: 输出与闭环
   - 超过 30 天的自动归档，保留摘要
 ```
 
-### 4.2 长期记忆（MEMORY.md）
+### 4.2 Long-term Memory (MEMORY.md)
 
 ```
 定期提炼规则（每周一次）:
@@ -245,12 +248,12 @@ Phase 5: 输出与闭环
   - 置信度：高/中/低
 ```
 
-## 5. 多 Agent 协作规则
+## 5. Multi-Agent Collaboration Rules
 
-### 5.1 与修复 Agent 的协作
+### 5.1 Collaboration with Repair Agent
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
 诊断 Agent（本 Agent） → 修复 Agent 的交接协议:
 
 交接条件:
@@ -271,7 +274,7 @@ Phase 5: 输出与闭环
 
 本 Agent 角色: 只读诊断，不执行写操作
 ```
-### 5.2 与验证 Agent 的协作
+### 5.2 Collaboration with Validation Agent
 
 ```
 修复 Agent → 验证 Agent → 本 Agent 闭环:
@@ -287,11 +290,11 @@ Phase 5: 输出与闭环
   - 新异常 → 启动新的诊断流程
 ```
 
-## 6. 质量标准
+## 6. Quality Standards
 
-### 6.1 诊断质量检查清单
+### 6.1 Diagnostic Quality Checklist
 
-每次输出前，自检以下项目：
+Before each output, self-check the following items:
 
 ```
 □ 结论是否有数据支撑？（不是猜测）
@@ -302,27 +305,27 @@ Phase 5: 输出与闭环
 □ 风险等级是否已评估？
 ```
 
-### 6.2 效率指标
+### 6.2 Efficiency Metrics
 
-| 指标 | 目标值 | 说明 |
+| Metric | Target Value | Description |
 |------|--------|------|
-| 平均诊断步骤 | ≤ 5 步 | 信息采集 + 分析的工具调用次数 |
-| 首次诊断准确率 | ≥ 85% | 第一次给出的根因是正确的 |
-| Token 使用效率 | ≤ 30K/次 | 单次诊断的总 Token 消耗 |
-| 幻觉率 | < 3% | 输出中无数据支撑的断言比例 |
+| Average Diagnosis Steps | ≤ 5 steps | Number of tool calls for information collection and analysis |
+| First Diagnosis Accuracy Rate | ≥ 85% | The proportion of correct root causes on the first attempt |
+| Token Usage Efficiency | ≤ 30K/instance | Total token consumption per diagnosis instance |
+| Artifact Rate | < 3% | Proportion of assertions without data support in the output |
 
 ---
 
-*本文件定义 Agent 的行为规范和工作流。修改本文件会影响 Agent 的任务处理方式和决策逻辑。*
+*This document defines the behavior norms and workflow of the Agent. Modifying this document will affect how the Agent processes tasks and makes decisions.*
 
 ## Related
 
-- [[domain-17-system-foundation/topic-cheat-sheet/go.md|[[Go 生产环境速查卡|go]]]]
+- [[domain-17-system-foundation/topic-cheat-sheet/go.md|[[Go Production Environment Quick Reference Card|go]]]]
 - [[domain-17-system-foundation/topic-cheat-sheet/k8s.md|k8s]]
 
 ## See Also
 
-- 工具授权注册表
+- Tool Authorization Registration Table
 - USER
 - IDENTITY
 - MEMORY

@@ -64,7 +64,7 @@ cross_refs:
   path: ../domain-17-system-foundation/topic-cheat-sheet/promql.md
   label: 'Quick Reference: promql'
 original_language: Chinese
-source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability/03-logging/12-logging-auditing.md
+source_path: tree/sre/03-logging/12-logging-auditing.md
 ---
 
 > **Production Environment Security Reminder**
@@ -78,7 +78,7 @@ source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability
 
 > **Applicable Versions**: v1.25 - v1.32 | **Last Updated**: 2026-01 | **Reference**: [kubernetes.io/docs/concepts/cluster-administration/logging](https://kubernetes.io/docs/concepts/cluster-administration/logging/)
 
-<!-- chunk: Logging Architecture Patterns -->
+
 ## Logging Architecture Patterns
 
 | Pattern | Description | Advantages | Disadvantages | Use Cases |
@@ -87,7 +87,7 @@ source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability
 | **Sidecar Container** | Sidecar in Pod collects logs | Flexible, can handle file logs | Resource overhead | File logs, log preprocessing |
 | **Direct Push** | Application sends directly to backend | Most flexible | Application coupling | Special format logs |
 
-<!-- chunk: Logging Component Comparison -->
+
 ## Logging Component Comparison
 
 | Component | Type | Features | Version Requirements | ACK Alternative |
@@ -100,7 +100,7 @@ source_path: /Users/teaglebuilt/workspace/kudig-database/domain-06-observability
 | **Elasticsearch** | Storage/Query | Full-text indexing, powerful features | v8.x | SLS |
 | **SLS** | Storage/Query | Alibaba Cloud native, no ops | - | Native |
 
-<!-- chunk: Container Log Configuration -->
+
 ## Container Log Configuration
 
 | Log Type | Path | Collection Method | Configuration Method |
@@ -138,7 +138,7 @@ spec:
       name: fluent-bit-config
 ```
 
-<!-- chunk: Kubernetes Audit Logs -->
+
 ## Kubernetes Audit Logs
 
 | Audit Level | Recorded Content | Storage Impact | Use Cases |
@@ -148,7 +148,7 @@ spec:
 | **Request** | Metadata + request body | Medium | Sensitive resources |
 | **RequestResponse** | Metadata + request + response | High | Critical audit |
 
-<!-- chunk: Audit Policy Configuration -->
+
 ## Audit Policy Configuration
 
 ```yaml
@@ -189,7 +189,7 @@ rules:
     - "RequestReceived"
 ```
 
-<!-- chunk: Audit Backend Configuration -->
+
 ## Audit Backend Configuration
 
 | Backend Type | Configuration Parameter | Description | Version Support |
@@ -207,7 +207,7 @@ rules:
 --audit-policy-file=/etc/kubernetes/audit-policy.yaml
 ```
 
-<!-- chunk: Event API -->
+
 ## Event API
 
 | Resource | Purpose | Retention Time | Version Support |
@@ -225,7 +225,7 @@ kubectl get events --field-selector=type=Warning
 # Event retention configuration (API Server)
 --event-ttl=1h
 ```
-<!-- chunk: Structured Logging (v1.19+) -->
+
 ## Structured Logging (v1.19+)
 
 | Feature | Description | Version Support |
@@ -248,7 +248,7 @@ kubectl get events --field-selector=type=Warning
 -v=8  # Verbose debug
 ```
 
-<!-- chunk: Log Aggregation Best Practices -->
+
 ## Log Aggregation Best Practices
 
 | Practice | Description | Tool |
@@ -260,7 +260,7 @@ kubectl get events --field-selector=type=Warning
 | **Sampling** | Sample high-traffic logs | Fluent Bit |
 | **Retention Policy** | Set retention as needed | Storage system |
 
-<!-- chunk: ACK Log Integration -->
+
 ## ACK Log Integration
 
 | Feature | Product | Configuration Method |
@@ -301,7 +301,7 @@ spec:
             KeepSource: false
 ```
 
-<!-- chunk: Log Alert Rules -->
+
 ## Log Alert Rules
 
 | Alert Type | Log Pattern | Alert Condition |
@@ -312,14 +312,14 @@ spec:
 | **OOM** | OOMKilled | Any occurrence |
 | **Security Event** | Audit log specific operations | Any occurrence |
 
-<!-- chunk: Compliance Audit Requirements -->
+
 ## Compliance Audit Requirements
 
 | Compliance Standard | Log Requirements | Retention Period |
 |---------|---------|-------|
 | **PCI-DSS** | Access logs, security events | 1 year |
 | **SOC2** | System logs, audit logs | 1 year |
-| **等保2.0** | Comprehensive logging | 6 months |
+| **MLPS 2.0** | Comprehensive logging | 6 months |
 | **GDPR** | Data access logs | As required |
 
 # 17 - Logging and Audit Tables
@@ -328,7 +328,7 @@ spec:
 
 (Supplementing original content)
 
-<!-- chunk: Production-Grade Logging Architecture -->
+
 ## Production-Grade Logging Architecture
 
 ### Logging Hierarchy Architecture
@@ -361,7 +361,7 @@ Analysis Layer
     └─ Report analysis
 ```
 
-<!-- chunk: Structured Logging Best Practices -->
+
 ## Structured Logging Best Practices
 
 ### Recommended Log Format
@@ -411,7 +411,7 @@ data:
     </configuration>
 ```
 
-<!-- chunk: Advanced Log Collection Configuration -->
+
 ## Advanced Log Collection Configuration
 
 ### Fluent Bit Production Configuration
@@ -476,7 +476,7 @@ data:
         Logstore app-logs
 ```
 
-<!-- chunk: Complete Audit Log Configuration -->
+
 ## Complete Audit Log Configuration
 
 ### Production-Grade Audit Policy
@@ -557,7 +557,7 @@ spec:
     - --audit-webhook-batch-max-wait=5s
 ```
 
-<!-- chunk: Log Alert Rules -->
+
 ## Log Alert Rules
 
 ### Prometheus Log Alerts
@@ -606,7 +606,7 @@ groups:
 
 ---
 
-<!-- chunk: Obsidian Related Documentation -->
+
 ## Obsidian Related Documentation
 
 - domain-06-observability MOC

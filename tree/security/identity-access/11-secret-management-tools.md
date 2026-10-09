@@ -57,7 +57,8 @@ cross_refs:
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/tls-pki.md
   label: 'Cheat sheet: tls-pki'
-source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-compliance/01-identity-access/11-secret-management-tools.md
+source_path: tree/security/identity-access/11-secret-management-tools.md
+original_language: Chinese
 ---
 
 > **Production Environment Security Warning**
@@ -71,7 +72,7 @@ source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-comp
 
 > **Applicable Versions**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: External Secretsts|Secrets]]](https://external-secrets.io/) | HashiCorp Vault](https://developer.hashicorp.com/vault) | [Sealed Secrets](https://sealed-secrets.netlify.app/)
 
-<!-- chunk: 一、密钥管理架构全景 -->
+
 ## 1. Secret Management Architecture Overview
 
 ### 1.1 Enterprise-Grade Secret Management Architecture
@@ -160,7 +161,7 @@ source_path: /Users/teaglebuilt/workspace/kudig-database/domain-05-security-comp
 
 ---
 
-<!-- chunk: 二、External Secrets Operator -->
+
 ## 2. External Secrets Operator
 
 ### 2.1 ESO Architecture and Deployment
@@ -591,7 +592,7 @@ data:
 
 ---
 
-<!-- chunk: 三、HashiCorp Vault -->
+
 ## 3. HashiCorp Vault
 
 ### 3.1 Vault High-Availability Deployment
@@ -1015,7 +1016,7 @@ spec:
 
 ---
 
-<!-- chunk: 四、Sealed Secrets -->
+
 ## 4. Sealed Secrets
 
 ### 4.1 Sealed Secrets Deployment and Usage
@@ -1247,7 +1248,7 @@ rm /tmp/secret.yaml /tmp/sealed-secret.yaml
 ```
 ---
 
-<!-- chunk: 五、SOPS加密 -->
+
 ## 5. SOPS Encryption
 
 ### 5.1 SOPS Configuration and Usage
@@ -1371,7 +1372,7 @@ stringData:
 
 ---
 
-<!-- chunk: 六、etcd加密配置 -->
+
 ## 6. etcd Encryption Configuration
 
 ### 6.1 EncryptionConfiguration
@@ -1452,7 +1453,7 @@ spec:
 
 ---
 
-<!-- chunk: 七、安全最佳实践 -->
+
 ## 7. Security Best Practices
 
 ### 7.1 Secret Management Security Checklist
@@ -1537,7 +1538,7 @@ rules:
 
 ---
 
-<!-- chunk: 八、监控与告警 -->
+
 ## 8. Monitoring and Alerting
 
 ### 8.1 Secret Management Monitoring
@@ -1599,7 +1600,7 @@ spec:
 
 ---
 
-<!-- chunk: 九、快速参考 -->
+
 ## 9. Quick Reference
 
 ### 9.1 Solution Selection Decision Tree
@@ -1652,7 +1653,7 @@ kubectl get secrets -A -o json | jq '.items[] | select(.type=="Opaque") | .metad
 ```
 ---
 
-<!-- chunk: 十、最佳实践总结 -->
+
 ## 10. Best Practices Summary
 
 ### Secret Management Checklist
@@ -1676,7 +1677,7 @@ kubectl get secrets -A -o json | jq '.items[] | select(.type=="Opaque") | .metad
 
 ---
 
-<!-- chunk: Obsidian Related Documents -->
+
 ## Obsidian Related Documents
 
 - domain-05-security-compliance MOC

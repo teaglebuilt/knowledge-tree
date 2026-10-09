@@ -1,6 +1,7 @@
----title: K8S 运维诊断技能库 (02-ai-agents)
-description: 'title: K8S 运维诊断技能库'
-summary: 'title: K8S 运维诊断技能库'
+---
+title: K8S Maintenance Diagnostic Skill Library (02-ai-agents)
+description: 'title: K8S Maintenance Diagnostic Skill Library'
+summary: 'title: K8S Maintenance Diagnostic Skill Library'
 category: general
 tags:
 - ai
@@ -19,15 +20,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- K8S 运维诊断技能库 是什么
-- 如何 K8S 运维诊断技能库
-- Kubernetes 14 ai ml infra 最佳实践
+- K8S Maintenance Diagnostic Skill Library is what
+- How is K8S Maintenance Diagnostic Skill Library
+- Kubernetes 14 AI ML Infra Best Practices
 trigger_keywords:
 - K8S
-- 运维诊断技能库
+- Maintenance Diagnostic Skill Library
 - ai
 - ml
 - infra
@@ -39,17 +40,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/SKILL.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable maintenance commands. Execute them only after confirming: the target cluster and Namespace are correct; you have sufficient RBAC permissions; and they have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection, no side effects).
 
 
 
 
-title: K8S 运维诊断技能库
-description: [[Kubernetes|Kubernetes]] 运维诊断全栈技能库，涵盖 Pod/Node/Network/Storage/Performance 五大故障域的结构化
+title: K8S Maintenance Diagnostic Skill Library
+description: [[Kubernetes|Kubernetes]] Maintenance Diagnostic Full Stack Skill Library covering the structured faults of Pod/Node/Network/Storage/Performance five fault domains.
   SOP
 category: ai-agent
 tags:
@@ -67,16 +70,16 @@ last_updated: 2026-04
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- K8S 运维诊断技能库 是什么
-- 如何 K8S 运维诊断技能库
+- K8S Maintenance Diagnostic Skill Library is what
+- How is K8S Maintenance Diagnostic Skill Library
 trigger_keywords:
 - K8S
-- 运维诊断技能库
+- Maintenance Diagnostic Skill Library
 - ai
 - agent
 authors:
@@ -89,9 +92,9 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
-# K8S 运维诊断技能库
+# K8S Maintenance Diagnostic Skill Library
 
-## 1. 技能覆盖范围
+## 1. Skill Coverage Scope
 
 ```
 技能域全景:
@@ -129,73 +132,73 @@ k8s_versions:
     └── 网络延迟
 ```
 
-## 2. Pod 故障诊断 SOP
+## 2. Pod Fault Diagnosis SOP
 
 ### 2.1 Pod Pending
 
-**触发条件**: Pod 状态为 Pending 超过 30 秒
+**Trigger Conditions**: Pod status is Pending for more than 30 seconds
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认状态
+# 🟢 Low Risk: Read-only/Information Gathering, Usually No Side Effects
+# Step 1: Confirm Status
 kubectl get pod <pod> -n <ns> -o wide
 
-# Step 2: 查看事件（关键！事件中有调度失败原因）
+# Step 2: Check Events (Critical! Events contain scheduling failure reasons)
 kubectl describe pod <pod> -n <ns> | tail -20
 kubectl get events -n <ns> --field-selector involvedObject.name=<pod> --sort-by=.lastTimestamp
 
-# Step 3: 根据事件分支诊断
+# Step 3: Diagnose based on events
 ```
-| 事件关键词 | 根因 | 修复方向 |
+| Event Keyword | Root Cause | Repair Direction |
 |-----------|------|---------|
-| `Insufficient cpu/memory` | 节点资源不足 | 扩容节点 / 调整 requests |
-| `node(s) didn't match selector` | NodeSelector 不匹配 | 检查标签 / 修改选择器 |
-| `node(s) had taint` | Taint/Toleration 不匹配 | 添加 Toleration / 移除 Taint |
-| `persistentvolumeclaim not found` | PVC 未绑定 | 检查 PVC 状态和 StorageClass |
-| `Unschedulable` | 节点不可调度 | 检查节点 SchedulingDisabled |
-| `pod has unbound immediate PVC` | PVC 立即绑定未就绪 | 等待 PVC Ready 或检查 PV |
+| `Insufficient cpu/memory` | Insufficient node resources | Scale up nodes / Adjust requests |
+| `node(s) didn't match selector` | NodeSelector does not match | Check labels / Modify selector |
+| `node(s) had taint` | Taint/Toleration does not match | Add Toleration / Remove Taint |
+| `persistentvolumeclaim not found` | PVC not bound | Check PVC status and StorageClass |
+| `Unschedulable` | Node unschedulable | Check SchedulingDisabled on node |
+| `pod has unbound immediate PVC` | Immediate PVC binding not ready | Wait for PVC Ready or check PV |
 
 ### 2.2 CrashLoopBackOff
 
-**触发条件**: Pod 状态为 CrashLoopBackOff
+**Trigger Conditions**: Pod status is CrashLoopBackOff
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 查看上一次日志（关键！）
+# 🟢 Low Risk: Read-only/Information Gathering, Usually No Side Effects
+# Step 1: Check last log (Critical! )
 kubectl logs <pod> -n <ns> --previous --tail=100
 
-# Step 2: 检查容器退出码
+# Step 2: Check container exit code
 kubectl get pod <pod> -n <ns> -o jsonpath='{.status.containerStatuses[*].lastState.terminated.exitCode}'
 
-# Step 3: 检查探针配置
+# Step 3: Check probe configuration
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].livenessProbe}'
 ```
-| 退出码 | 含义 | 常见原因 |
+| Exit Code | Meaning | Common Causes |
 |--------|------|---------|
-| 0 | 正常退出 | 应用主动退出，检查 restartPolicy |
-| 1 | 应用错误 | 代码异常、配置错误、依赖不可达 |
-| 137 | SIGKILL (OOM) | 内存超限，被 cgroup OOM Killer 终止 |
-| 139 | SIGSEGV | 段错误，应用 bug |
-| 143 | SIGTERM | 被 K8S 终止（如 preStop hook 超时） |
+| 0 | Normal exit | Application actively exits, check restartPolicy |
+| 1 | Application error | Code anomaly, configuration error, unreachable dependencies |
+| 137 | SIGKILL (OOM) | Memory limit exceeded, terminated by cgroup OOM Killer |
+| 139 | SIGSEGV | Segmentation fault, application bug |
+| 143 | SIGTERM | Terminated by K8S (e.g., preStop hook timeout) |
 
 ### 2.3 OOMKilled
 
-**触发条件**: Pod 因 OOM 被终止
+**Trigger Conditions**: Pod terminated due to OOM
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认 OOM
+# 🟢 Low Risk: Read-only/Information gathering, usually with no side effects
+# Step 1: Confirm OOM
 kubectl describe pod <pod> -n <ns> | grep -A 5 "Last State:"
 kubectl get events -n <ns> --field-selector reason=OOMKilling
 
-# Step 2: 对比 limits vs 实际使用
+# Step 2: Compare limits vs actual usage
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].resources}'
 kubectl top pod <pod> -n <ns> --containers
 
-# Step 3: 分析内存趋势（Prometheus）
+# Step 3: Analyze memory trend (Prometheus)
 # sum(container_memory_working_set_bytes{namespace="<ns>",pod="<pod>"}) by (container)
 ```
-**修复决策树**:
+**Decision Tree for Fixes**:
 ```
 实际使用 > limits?
   ├── 是 → limits 设置过低
@@ -210,47 +213,47 @@ kubectl top pod <pod> -n <ns> --containers
 ### 2.4 ImagePullBackOff
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 检查镜像名称和 tag
+# 🟢 Low Risk: Read-only/Information gathering, usually with no side effects
+# Step 1: Check image name and tag
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].image}'
 
-# Step 2: 检查 imagePullSecrets
+# Step 2: Check imagePullSecrets
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.imagePullSecrets}'
 kubectl get secret <secret> -n <ns> -o jsonpath='{.type}'
 
-# Step 3: 检查事件中的详细错误
+# Step 3: Check detailed errors in events
 kubectl describe pod <pod> -n <ns> | grep -A 5 "Failed"
 ```
-| 错误信息 | 根因 | 修复 |
+| Error Message | Root Cause | Fix |
 |---------|------|------|
-| `repository does not exist` | 镜像名称错误 | 核实镜像地址 |
-| `unauthorized` | 认证失败 | 检查 imagePullSecret 是否正确 |
-| `manifest unknown` | Tag 不存在 | 核实 Tag 是否已推送 |
-| `timeout` | 网络不通 | 检查节点到 Registry 的网络连通性 |
+| `repository does not exist` | Incorrect image name | Verify image address |
+| `unauthorized` | Authentication failure | Check if imagePullSecret is correct |
+| `manifest unknown` | Tag does not exist | Verify if the tag has been pushed |
+| `timeout` | Network issues | Check network connectivity between node and Registry |
 
-## 3. Node 故障诊断 SOP
+## 3. Node Fault Diagnosis SOP
 
 ### 3.1 Node NotReady
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认状态和 Conditions
+# 🟢 Low Risk: Read-only/Information gathering, usually with no side effects
+# Step 1: confirm status and Conditions
 kubectl get nodes -o wide
 kubectl get node <node> -o jsonpath='{.status.conditions}' | python3 -m json.tool
 
-# Step 2: 检查 kubelet
+# Step 2: check kubelet
 kubectl get --raw /api/v1/nodes/<node>/proxy/healthz 2>/dev/null || echo "kubelet 不可达"
 
-# Step 3: 检查节点事件
+# Step 3: check node events
 kubectl get events --field-selector involvedObject.name=<node> --sort-by=.lastTimestamp
 
-# Step 4: 资源压力检查
+# Step 4: resource pressure check
 kubectl top node <node>
 kubectl describe node <node> | grep -A 5 "Allocated resources:"
 ```
-**NotReady 根因决策树**:
+**NotReady Root Cause Decision Tree**:
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: read-only/information gathering, usually no side effects
 Node NotReady
 ├── kubelet 不响应
 │   ├── kubelet 进程挂了 → 重启 kubelet
@@ -267,122 +270,122 @@ Node NotReady
     ├── CNI 插件异常 → 检查 CNI Pod 状态
     └── 网络配置错误 → 检查路由和 iptables
 ```
-## 4. Network 故障诊断 SOP
+## 4. Network Fault Diagnosis SOP
 
-### 4.1 Service 不通
+### 4.1 Service Unavailable
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Step 1: 确认 Service 和 Endpoints
+# 🟡 Medium Risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# Step 1: confirm Service and Endpoints
 kubectl get svc <svc> -n <ns>
 kubectl get endpoints <svc> -n <ns>
 
-# Step 2: Endpoints 为空？
+# Step 2: are Endpoints empty?
 kubectl get pods -n <ns> -l <selector> --show-labels
 
-# Step 3: DNS 测试
+# Step 3: DNS test
 kubectl run dns-test --image=busybox:1.36 --rm -it --restart=Never -- nslookup <svc>.<ns>.svc.cluster.local
 
-# Step 4: 连通性测试
+# Step 4: connectivity test
 kubectl run net-test --image=busybox:1.36 --rm -it --restart=Never -- wget -qO- --timeout=5 http://<svc>.<ns>:<port>
 
-# Step 5: 检查 NetworkPolicy
+# Step 5: check NetworkPolicy
 kubectl get networkpolicy -n <ns>
 ```
-### 4.2 DNS 解析失败
+### 4.2 DNS fails to resolve
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Step 1: CoreDNS 状态
+# 🟡 Medium Risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# Step 1: CoreDNS status
 kubectl get pods -n kube-system -l k8s-app=kube-dns
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 
-# Step 2: CoreDNS 配置
+# Step 2: CoreDNS configuration
 kubectl get configmap coredns -n kube-system -o yaml
 
-# Step 3: DNS 测试
+# Step 3: DNS test
 kubectl run dns-debug --image=busybox:1.36 --rm -it --restart=Never -- nslookup kubernetes.default
 ```
-## 5. Storage 故障诊断 SOP
+## 5. Storage Fault Diagnosis SOP
 
 ### 5.1 PVC Pending
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 查看 PVC 状态
+# 🟢 Low Risk: Read-Only/Information Collection, Usually No Side Effects
+# Step 1: Check PVC Status
 kubectl get pvc -n <ns>
 kubectl describe pvc <pvc> -n <ns>
 
-# Step 2: 检查 StorageClass
+# Step 2: Check StorageClass
 kubectl get sc
 kubectl describe sc <sc-name>
 
-# Step 3: 检查 PV
+# Step 3: Check PV
 kubectl get pv | grep <pvc>
 
-# Step 4: CSI 驱动状态
+# Step 4: Check CSI Driver Status
 kubectl get pods -n kube-system -l app=csi-*
 ```
-## 6. Performance 诊断 SOP
+## 6. Performance Diagnosis SOP
 
-### 6.1 API Server 延迟高
+### 6.1 High API Server Latency
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认延迟
+# 🟢 Low Risk: Read-Only/Information Collection, Usually No Side Effects
+# Step 1: Confirm Latency
 # histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket[5m])) by (le, verb))
 
-# Step 2: 检查请求量
+# Step 2: Check Request Volume
 # sum(rate(apiserver_request_total[5m])) by (verb, resource)
 
-# Step 3: 检查 etcd 延迟
+# Step 3: Check etcd Latency
 # histogram_quantile(0.99, sum(rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) by (le))
 
-# Step 4: 检查审计日志量
+# Step 4: Check Audit Log Volume
 kubectl logs -n kube-system -l component=kube-apiserver --tail=20
 ```
-## 7. 输出格式模板
+## 7. Output Format Template
 
-所有诊断结果必须按以下格式输出：
+All diagnostic results must be output in the following format:
 
 ```markdown
-## 诊断结果
+## Diagnostic Results
 
-### 1. 现象
+### 1. Phenomenon
 [一句话描述异常状态]
 
-### 2. 根因
+### 2. Root Cause
 [基于数据的根本原因分析，标注置信度]
 - 置信度: 高/中/低
 - 数据来源: [具体的命令或查询]
 
-### 3. 修复方案
+### 3. Repair Plan
 [可直接执行的命令和步骤]
 - 风险等级: 低/中/高
 - 影响范围: [受影响的资源]
 - 回滚方案: [回滚命令]
 
-### 4. 验证方法
+### 4. Verification Method
 [修复后确认问题已解决的命令]
 
-### 5. 预防建议
+### 5. Prevention Suggestions
 [避免再次发生的措施]
 ```
 
-## 8. 知识库关联
+## 8. Knowledge Base Associations
 
-| 故障域 | kudig-database 参考文档 |
+| Fault Domain | kudig-database reference document |
 |--------|------------------------|
-| Pod 问题 | `domain-10-troubleshooting-diagnostics/05-pod-pending-diagnosis.md` ~ `08-pod-comprehensive-troubleshooting.md` |
-| Node 问题 | `domain-10-troubleshooting-diagnostics/06-node-notready-diagnosis.md`, `09-node-comprehensive-troubleshooting.md` |
-| Network 问题 | `domain-10-troubleshooting-diagnostics/25-network-connectivity-troubleshooting.md`, `26-dns-troubleshooting.md` |
-| Storage 问题 | `domain-10-troubleshooting-diagnostics/14-pvc-storage-troubleshooting.md`, `04-storage-csi-troubleshooting.md` |
-| 性能问题 | `domain-10-troubleshooting-diagnostics/33-performance-bottleneck-troubleshooting.md` |
-| 故障树 | `domain-10-troubleshooting-diagnostics/topic-fta/` 完整故障树分析模型 |
+| Pod Issues | `domain-10-troubleshooting-diagnostics/05-pod-pending-diagnosis.md` ~ `08-pod-comprehensive-troubleshooting.md` |
+| Node Issues | `domain-10-troubleshooting-diagnostics/06-node-notready-diagnosis.md`, `09-node-comprehensive-troubleshooting.md` |
+| Network Issues | `domain-10-troubleshooting-diagnostics/25-network-connectivity-troubleshooting.md`, `26-dns-troubleshooting.md` |
+| Storage Issues | `domain-10-troubleshooting-diagnostics/14-pvc-storage-troubleshooting.md`, `04-storage-csi-troubleshooting.md` |
+| Performance Issues | `domain-10-troubleshooting-diagnostics/33-performance-bottleneck-troubleshooting.md` |
+| Fault Tree | `domain-10-troubleshooting-diagnostics/topic-fta/` complete fault tree analysis model |
 
 ---
 
-*本文件定义 Agent 的领域知识和操作流程。更新 SOP 时请同步更新 kudig-database 对应文档。*
+*This section defines the knowledge and operational procedures for the Agent within its domain. Update the SOP to synchronize updates to the corresponding document in kudig-database when necessary.*
 
 ## Related
 
@@ -393,9 +396,9 @@ kubectl logs -n kube-system -l component=kube-apiserver --tail=20
 - [[entities/coredns.md|coredns]]
 
 - 48-openclaw-skill-mechanism
-- [[domain-19-landscape-references/topic-index/etcd-index.md|etcd 知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/observability-index.md|Observability 可观测性知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/node-index.md|Node 知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/etcd-index.md|etcd Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/observability-index.md|Observability Knowledge Graph Index]]
+- [[domain-19-landscape-references/topic-index/node-index.md|Node Knowledge Graph Index]]
 
 ## See Also
 

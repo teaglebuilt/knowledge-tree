@@ -1,6 +1,7 @@
----title: Agent Harness 生产运维与成熟度模型 (domain-14-ai-ml-infra)
-description: 'title: Agent Harness 生产运维与成熟度模型'
-summary: 'title: Agent Harness 生产运维与成熟度模型'
+---
+title: Agent Harness Production Operations and Maturity Model (domain-14-ai-ml-infra)
+description: 'title: Agent Harness Production Operations and Maturity Model'
+summary: 'title: Agent Harness Production Operations and Maturity Model'
 category: general
 tags:
 - ai
@@ -19,16 +20,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- all engineers
 estimated_read_time: 25min
 intent_queries:
-- Agent Harness 生产运维与成熟度模型 是什么
-- 如何 Agent Harness 生产运维与成熟度模型
-- Kubernetes 14 ai ml infra 最佳实践
+- Agent Harness Production Operations and Maturity Model is what
+- how Agent Harness Production Operations and Maturity Model
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - Agent
 - Harness
-- 生产运维与成熟度模型
+- Production Operations and Maturity Model
 - ai
 - ml
 - infra
@@ -43,17 +44,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/40-agent-harness-production-maturity.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (will modify cluster state but usually rollbackable), 🟢 Low risk/readonly (information gathering, no side effects).
 
 
 
 
-title: Agent Harness 生产运维与成熟度模型
-description: '# Agent Harness 生产运维与成熟度模型'
+title: Agent Harness Production Operations and Maturity Model
+description: '# Agent Harness Production Operations and Maturity Model'
 category: ai-agent
 tags:
 - ai
@@ -70,17 +73,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI engineers
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent Harness 生产运维与成熟度模型 是什么
-- 如何 Agent Harness 生产运维与成熟度模型
+- Agent Harness Production Operations and Maturity Model is what
+- how Agent Harness Production Operations and Maturity Model
 trigger_keywords:
 - Agent
 - Harness
-- 生产运维与成熟度模型
+- Production Operations and Maturity Model
 - ai
 - agent
 authors:
@@ -94,26 +97,26 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent Harness 生产运维与成熟度模型
+# Agent Harness Production Operations and Maturity Model
 
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: [[entities/k8s-production-operations.md|Production Operations]], 成熟度模型, 灰度发布, 容量规划, SLA, 故障恢复, 版本管理, 配置管理, 自进化, 运维自动化
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-将 Agent Harness 从开发环境部署到生产环境，是一个跨越"能用"到"可靠可控"的质变过程。生产级 Harness 需要应对高可用、灰度发布、版本管理、故障恢复、容量规划等传统运维挑战，同时还需要处理 Agent 特有的非确定性行为管控。
-
-本文系统阐述 Harness 的生产化路径、灰度发布策略、版本管理、配置热更新、故障恢复、SLA 设计，以及 Harness 成熟度五级模型的实施指南。
+> **Document Type**: Harness Engineering Deep Dive Series | **Last Updated**: 2026-04 | **Keywords**: [[entities/k8s-production-operations.md|Production Operations]], Maturity Model, Gray Release, Capacity Planning, SLA, Fault Recovery, Version Management, Configuration Management, Self-evolution, Operational Automation
 
 ---
 
-<!-- chunk: 1. 生产部署架构 -->## 1. 生产部署架构
+## Overview
 
-## 1.1 部署拓扑
+Deploying the Agent Harness from the development environment to production is a qualitative transformation process that moves from "usable" to "reliable and controllable." Production-grade Harnesses need to handle traditional operational challenges such as high availability, gray-scale releases, version management, fault recovery, capacity planning, while also managing the non-deterministic behavior of Agents.
+
+This article systematically elaborates on the path to production for Harness, strategies for gray-scale releases, version management, configuration hot updates, fault recovery, SLA design, and the implementation guide for the Harness maturity model with five levels.
+
+---
+
+## 1. Production Deployment Architecture
+
+## 1.1 Deployment Topology
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read-only/information collection, typically with no side effects
 Agent Harness 生产部署拓扑:
 
 ┌─────────────────────────────────────────────────────────┐
@@ -139,7 +142,7 @@ Agent Harness 生产部署拓扑:
 │  OTel Collector │ Prometheus │ Grafana │ Langfuse        │
 └─────────────────────────────────────────────────────────┘
 ```
-## 1.2 K8S 部署清单
+## 1.2 Kubernetes Deployment Manifests
 
 ```yaml
 # harness-deployment.yaml
@@ -270,9 +273,9 @@ data:
 
 ---
 
-<!-- chunk: 2. 灰度发布策略 -->## 2. 灰度发布策略
+## 2. Gray-Scale Release Strategies
 
-## 2.1 四阶段灰度发布
+## 2.1 Four-Stage Gray-Scale Release
 
 ```
 Harness 灰度发布四阶段:
@@ -315,11 +318,11 @@ Stage 4: Full Rollout（全量发布）
   确认: 保留旧版 72h 用于回滚
 ```
 
-## 2.2 灰度控制器
+## 2.2 Gray-Scale Controller
 
 ```python
 class GrayReleaseController:
-    """灰度发布控制器"""
+    """Gray-Scale Release Controller"""
 
     def __init__(self, metrics_collector, alert_manager):
         self.metrics = metrics_collector
@@ -338,10 +341,10 @@ class GrayReleaseController:
     }
 
     def advance_stage(self) -> dict:
-        """推进到下一阶段"""
+        """Advance to the next stage"""
         stage_config = self.STAGES[self.current_stage]
 
-        # 检查安全条件
+        # Check security conditions
         safety_check = self._check_safety_conditions()
         if not safety_check["safe"]:
             return {
@@ -350,7 +353,7 @@ class GrayReleaseController:
                 "current_stage": self.current_stage,
             }
 
-        # 检查质量条件
+        # Check quality conditions
         quality_check = self._check_quality_conditions()
         if not quality_check["passed"]:
             return {
@@ -359,7 +362,7 @@ class GrayReleaseController:
                 "current_stage": self.current_stage,
             }
 
-        # 推进
+        # Advance
         next_stage = stage_config["next"]
         if next_stage:
             self.current_stage = next_stage
@@ -374,7 +377,7 @@ class GrayReleaseController:
             return {"action": "complete", "stage": "full"}
 
     def rollback(self, reason: str) -> dict:
-        """回滚到稳定版"""
+        """Rollback to stable version"""
         self.current_stage = "shadow"
         self.traffic_ratio = 0.0
         self.alerts.send_alert(
@@ -384,7 +387,7 @@ class GrayReleaseController:
         return {"action": "rollback", "reason": reason}
 
     def _check_safety_conditions(self) -> dict:
-        """安全条件检查"""
+        """Check security conditions"""
         violations = self.metrics.get_constraint_violations(
             window="1h"
         )
@@ -400,14 +403,14 @@ class GrayReleaseController:
         return {"safe": True}
 
     def _check_quality_conditions(self) -> dict:
-        """质量条件检查"""
+        """Check quality conditions"""
         new_metrics = self.metrics.get_version_metrics("new")
         old_metrics = self.metrics.get_version_metrics("old")
 
         if not new_metrics or not old_metrics:
             return {"passed": True}
 
-        # 成功率不低于旧版 5%
+        # Success rate not less than 5% of the old version
         if new_metrics.get("success_rate", 0) < old_metrics.get("success_rate", 0) - 0.05:
             return {
                 "passed": False,
@@ -415,7 +418,7 @@ class GrayReleaseController:
                          f"{old_metrics['success_rate']:.2%} - 5%",
             }
 
-        # 验证通过率不低于旧版
+        # Verification pass rate not less than the old version
         if new_metrics.get("verification_rate", 0) < old_metrics.get("verification_rate", 0) - 0.05:
             return {
                 "passed": False,
@@ -427,9 +430,9 @@ class GrayReleaseController:
 
 ---
 
-<!-- chunk: 3. 配置管理与热更新 -->## 3. 配置管理与热更新
+## 3. Configuration Management and Hot Updates
 
-## 3.1 配置热更新机制
+## 3.1 Configuration Hot Update Mechanism
 
 ```python
 import yaml
@@ -438,7 +441,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 class HarnessConfigManager:
-    """Harness 配置管理器：支持热更新"""
+    """Harness Configuration Manager: Supports Hot Updates"""
 
     def __init__(self, config_path: str):
         self.config_path = config_path
@@ -448,7 +451,7 @@ class HarnessConfigManager:
         self._load_config()
 
     def _load_config(self):
-        """加载配置"""
+        """Load Configuration"""
         with open(self.config_path) as f:
             new_config = yaml.safe_load(f)
         new_hash = hashlib.md5(
@@ -460,12 +463,12 @@ class HarnessConfigManager:
             self._config = new_config
             self._config_hash = new_hash
 
-            # 触发回调
+            # Trigger Callback
             for callback in self._callbacks:
                 callback(old_config, new_config)
 
     def get(self, key: str, default=None):
-        """获取配置值（支持点号分隔的路径）"""
+        """Get Configuration Value (Supports Dot-Delimited Paths)"""
         keys = key.split(".")
         value = self._config
         for k in keys:
@@ -476,11 +479,11 @@ class HarnessConfigManager:
         return value
 
     def on_change(self, callback):
-        """注册配置变更回调"""
+        """Register Configuration Change Callback"""
         self._callbacks.append(callback)
 
     def start_watching(self):
-        """启动文件监控（ConfigMap 挂载更新时触发）"""
+        """Start File Monitoring (Triggered on ConfigMap Mount Updates)"""
         handler = ConfigFileHandler(self._load_config)
         observer = Observer()
         observer.schedule(handler, path=self.config_path, recursive=False)
@@ -495,18 +498,18 @@ class ConfigFileHandler(FileSystemEventHandler):
         self.reload_fn()
 ```
 
-## 3.2 Prompt 版本管理
+## 3.2 Prompt Version Management
 
 ```python
 class PromptVersionManager:
-    """Prompt 版本管理器"""
+    """Prompt Version Manager"""
 
     def __init__(self, storage_backend):
         self.storage = storage_backend
 
     def save_version(self, name: str, content: str,
                      metadata: dict = None) -> str:
-        """保存 Prompt 新版本"""
+        """Save New Version of Prompt"""
         version_id = f"{name}_v{int(time.time())}"
         self.storage.save(version_id, {
             "name": name,
@@ -518,13 +521,13 @@ class PromptVersionManager:
         return version_id
 
     def get_version(self, name: str, version: str = "latest") -> dict:
-        """获取 Prompt 版本"""
+        """Get Prompt Version"""
         if version == "latest":
             return self.storage.get_latest(name)
         return self.storage.get(f"{name}_{version}")
 
     def rollback(self, name: str, target_version: str) -> dict:
-        """回滚到指定版本"""
+        """Rollback to a Specific Version"""
         target = self.get_version(name, target_version)
         if not target:
             return {"success": False, "error": "版本不存在"}
@@ -536,7 +539,7 @@ class PromptVersionManager:
         return {"success": True, "restored_version": target_version}
 
     def diff(self, name: str, v1: str, v2: str) -> dict:
-        """对比两个版本"""
+        """Compare Two Versions"""
         version1 = self.get_version(name, v1)
         version2 = self.get_version(name, v2)
         import difflib
@@ -551,9 +554,9 @@ class PromptVersionManager:
 
 ---
 
-<!-- chunk: 4. SLA 设计 -->## 4. SLA 设计
+## 4. Service Level Agreement Design
 
-## 4.1 Agent Harness SLA 体系
+## 4.1 Agent Harness SLA System
 
 ```
 Agent Harness SLA 指标:
@@ -580,11 +583,11 @@ Agent Harness SLA 指标:
   Token 预算执行: 100% 生效
 ```
 
-## 4.2 SLA 监控
+## 4.2 SLA Monitoring
 
 ```python
 class SLAMonitor:
-    """SLA 监控器"""
+    """SLA Monitor"""
 
     def __init__(self, metrics_collector):
         self.metrics = metrics_collector
@@ -598,7 +601,7 @@ class SLAMonitor:
         }
 
     def check_sla(self, period: str = "24h") -> dict:
-        """检查 SLA 合规性"""
+        """Check SLA Compliance"""
         actuals = self.metrics.get_sla_metrics(period)
         results = []
 
@@ -632,13 +635,13 @@ class SLAMonitor:
 
 ---
 
-<!-- chunk: 5. 故障恢复 -->## 5. 故障恢复
+## 5. Fault Recovery
 
-## 5.1 故障恢复策略
+## 5.1 Fault Recovery Strategy
 
 ```python
 class HarnessFailoverManager:
-    """Harness 故障恢复管理器"""
+    """Harness Fault Recovery Manager"""
 
     def __init__(self, primary_harness, fallback_harness,
                  health_checker):
@@ -648,17 +651,17 @@ class HarnessFailoverManager:
         self.active = "primary"
 
     async def execute_with_failover(self, task: str, context: dict) -> dict:
-        """带故障转移的执行"""
+        """Fault Tolerant Execution"""
         if self.active == "primary":
             try:
-                # 健康检查
+                # Health Check
                 if not await self.health.check(self.primary):
                     self._switch_to_fallback("健康检查失败")
                     return await self._execute_fallback(task, context)
 
                 result = await self.primary.async_run(task, context)
 
-                # 结果质量检查
+                # Result Quality Check
                 if result.get("status") == "error":
                     self._switch_to_fallback("执行错误")
                     return await self._execute_fallback(task, context)
@@ -672,29 +675,29 @@ class HarnessFailoverManager:
             return await self._execute_fallback(task, context)
 
     async def _execute_fallback(self, task: str, context: dict) -> dict:
-        """使用降级 Harness 执行"""
+        """Degraded Harness Execution"""
         result = await self.fallback.async_run(task, context)
         result["_failover"] = True
         result["_failover_reason"] = "primary harness unavailable"
         return result
 
     def _switch_to_fallback(self, reason: str):
-        """切换到备用 Harness"""
+        """Switch to Backup Harness"""
         self.active = "fallback"
         logger.warning(f"切换到备用 Harness: {reason}")
 
     def recover_primary(self):
-        """恢复主 Harness"""
+        """Recover Primary Harness"""
         if self.health.check_sync(self.primary):
             self.active = "primary"
             logger.info("主 Harness 恢复")
 ```
 
-## 5.2 LLM 提供商容灾
+## 5.2 LLM Disaster Recovery
 
 ```python
 class LLMProviderFailover:
-    """LLM 提供商容灾"""
+    """LLM Disaster Recovery"""
 
     def __init__(self, providers: list[dict]):
         self.providers = providers  # 按优先级排序
@@ -702,12 +705,12 @@ class LLMProviderFailover:
         self.failure_counts: dict[str, int] = {}
 
     async def invoke(self, prompt: str, **kwargs) -> dict:
-        """带容灾的 LLM 调用"""
+        """Disaster Tolerant LLM Calls"""
         for i, provider in enumerate(self.providers):
             name = provider["name"]
             try:
                 result = await provider["client"].ainvoke(prompt, **kwargs)
-                # 成功则重置失败计数
+                # Reset failure count on success
                 self.failure_counts[name] = 0
                 return {"result": result, "provider": name}
             except Exception as e:
@@ -720,7 +723,7 @@ class LLMProviderFailover:
                     raise Exception(f"所有 LLM 提供商不可用: {[p['name'] for p in self.providers]}")
 
     def get_health_status(self) -> dict:
-        """获取提供商健康状态"""
+        """Get Provider Health Status"""
         return {
             p["name"]: {
                 "recent_failures": self.failure_counts.get(p["name"], 0),
@@ -732,9 +735,9 @@ class LLMProviderFailover:
 
 ---
 
-<!-- chunk: 6. 成熟度模型实施指南 -->## 6. 成熟度模型实施指南
+## 6. Mature Model Implementation Guide
 
-## 6.1 五级成熟度详细定义
+## 6.1 Five Levels of Maturity Detailed Definitions
 
 ```
 Agent Harness 成熟度五级:
@@ -808,11 +811,11 @@ L5 - 自进化 Harness（Self-Evolving）
   适用: 下一代自适应 Agent 平台（前沿研究）
 ```
 
-## 6.2 成熟度评估清单
+## 6.2 Maturity Assessment Checklist
 
 ```python
 class MaturityAssessment:
-    """Harness 成熟度评估"""
+    """Harness Maturity Assessment"""
 
     CHECKLIST = {
         "L1": [
@@ -855,7 +858,7 @@ class MaturityAssessment:
     }
 
     def assess(self, harness_capabilities: dict) -> dict:
-        """评估成熟度等级"""
+        """Assess Maturity Level"""
         achieved_level = "L1"
 
         for level in ["L1", "L2", "L3", "L4", "L5"]:
@@ -882,7 +885,7 @@ class MaturityAssessment:
         return levels[idx + 1] if idx < len(levels) - 1 else "L5 (已达最高)"
 
     def _gap_analysis(self, current: str, capabilities: dict) -> list:
-        """差距分析：列出升级到下一级需要的能力"""
+        """Gap Analysis: List the capabilities needed to upgrade to the next level"""
         next_level = self._next_level(current)
         if next_level.startswith("L5 "):
             return []
@@ -897,71 +900,71 @@ class MaturityAssessment:
 
 ---
 
-<!-- chunk: 7. 最佳实践 -->## 7. 最佳实践
+## 7. Best Practices
 
-## 7.1 生产运维核心原则
+## 7.1 Core Principles of Production Operations
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Suggestions |
 |------|------|---------|
-| **灰度优先** | 新 Harness 必须经过灰度验证 | 四阶段灰度发布 |
-| **可回滚** | 任何变更都能快速回滚 | 保留 N-2 版本 |
-| **配置分离** | Prompt 和代码分开管理 | ConfigMap + 热更新 |
-| **容灾设计** | LLM 提供商不可用时有降级方案 | 多提供商容灾 |
-| **SLA 驱动** | 有明确的质量和性能目标 | SLA 监控 + 告警 |
-| **渐进成熟** | 按成熟度模型逐步提升 | L1→L2→L3 渐进升级 |
+| **Rollout First** | New Harness must undergo rollout validation | Four-stage rollout |
+| **Rollbackable** | Any change can be quickly rolled back | Retain N-2 versions |
+| **Separate Configuration** | Prompts and code are managed separately | ConfigMap + hot update |
+| **Disaster Recovery Design** | Have a downgrade solution when LLM providers are unavailable | Multi-provider disaster recovery |
+| **SLA Driven** | Have clear quality and performance targets | SLA monitoring + alerts |
+| **Gradual Maturity** | Gradually improve based on maturity model | L1→L2→L3 gradual upgrade |
 
-## 7.2 反模式
+## 7.2 Anti-patterns
 
-| 反模式 | 问题 | 正确做法 |
+| Anti-pattern | Problem | Correct Approach |
 |--------|------|----------|
-| **直接全量发布** | 新 Harness 质量未验证 | 四阶段灰度 |
-| **Prompt 硬编码** | 修改需重新部署 | ConfigMap + 热更新 |
-| **单 LLM 提供商** | 提供商问题 = 全面瘫痪 | 多提供商容灾 |
-| **无版本管理** | Prompt 变更无法追溯 | 版本管理 + diff |
-| **跳级成熟度** | 基础不牢，高级功能不可靠 | 按 L1→L5 逐步建设 |
+| **Full Rollout Directly** | Quality of new Harness not verified | Four-stage rollout |
+| **Hardcoded Prompts** | Modifications require redeployment | ConfigMap + hot update |
+| **Single LLM Provider** | Provider issues = complete paralysis | Multi-provider disaster recovery |
+| **No Version Management** | Changes to Prompts cannot be traced | Version management + diff |
+| **Skipping Maturity Levels** | Foundation unstable, advanced features unreliable | Gradually build from L1 to L5 |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documents
 
-| 文档 | 关联内容 |
+| Document | Relevant Content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | 成熟度模型概述 |
-| [34 - 验证与质量门禁](./34-agent-harness-verification-quality.md) | CI/CD 质量门禁和灰度评估 |
-| [36 - 可观测性](./observability.md|36-agent-harness-observability]].md) | 生产监控和告警体系 |
-| [09 - 生产部署指南](./09-production-deployment-guide.md) | K8S 部署基础设施 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Overview of the Maturity Model |
+| [34 - Verification and Quality Gates](./34-agent-harness-verification-quality.md) | CI/CD Quality Gates and Rollout Evaluation |
+| [36 - Observability](./observability.md|36-agent-harness-observability]].md) | Production Monitoring and Alerting System |
+| [09 - Production Deployment Guide](./09-production-deployment-guide.md) | K8S Deployment Infrastructure |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Anthropic | Agent 生产部署最佳实践 | 2026-02 |
-| Martin Fowler / Birgitta Böckeler | Harness Engineering 生产化指南 | 2026-02 |
-| Google SRE | SLA/SLO/SLI 体系 | 持续更新 |
-| LangChain | Agent 灰度发布实践 | 2026-02 |
+| Anthropic | Agent Production Deployment Best Practices | 2026-02 |
+| Martin Fowler / Birgitta Böckeler | Harness Engineering Production Guide | 2026-02 |
+| Google SRE | SLA/SLO/SLI Framework | Ongoing Updates |
+| LangChain | Agent Gradual Release Practice | 2026-02 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness 生产运维与成熟度模型。*
+*This document is original content from the kudig-database project series 02-ai-agents, delving into the production operation and maturity model of Agent Harness.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documents
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Special Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Usage and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Deep Architecture of Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Deep Framework for Agent Evaluation and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

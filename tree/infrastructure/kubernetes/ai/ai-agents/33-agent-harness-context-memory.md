@@ -1,7 +1,8 @@
----title: Agent Harness 上下文与记忆工程 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**:
+---
+title: Agent Harness Context and Memory Engineering
+description: 'description: ''**Document Type**: Deep Engineering Topics in Harness | **Last Updated**: 2026-04 | **Keywords**:
   Context Engineering,'
-summary: 'description: ''**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Context
+summary: 'description: ''**Document Type**: Deep Engineering Topics in Harness | **Last Updated**: 2026-04 | **Keywords**: Context
   Engineering,'
 category: general
 tags:
@@ -16,16 +17,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- all engineers
 estimated_read_time: 35min
 intent_queries:
-- Agent Harness 上下文与记忆工程 是什么
-- 如何 Agent Harness 上下文与记忆工程
-- Kubernetes 14 ai ml infra 最佳实践
+- Agent Harness Context and Memory Engineering is
+- How does Agent Harness Context and Memory Engineering work
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - Agent
 - Harness
-- 上下文与记忆工程
+- Context and Memory Engineering
 - ai
 - ml
 - infra
@@ -35,18 +36,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/33-agent-harness-context-memory.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection, no side effects).
 
 
 
 
-title: Agent Harness 上下文与记忆工程
-description: '**文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Context Engineering,
-  Memory Systems, RAG, 上下文窗口, 信息压缩, 持久化, 向量检索, 短期记忆, 长期记忆, 情景记忆'
+title: Agent Harness Context and Memory Engineering
+description: '**Document Type**: Deep Engineering Topics in Harness | **Last Updated**: 2026-04 | **Keywords**: Context Engineering, Memory Systems, RAG, Context Window, Information Compression, Persistence, Vector Retrieval, Short-Term Memory, Long-Term Memory, Scenario Memory'
+  Memory Systems, RAG, Context Window, Information Compression, Persistence, Vector Retrieval, Short-Term Memory, Long-Term Memory, Situational Memory'
 category: ai-agent
 tags:
 - ai
@@ -58,17 +61,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent Harness 上下文与记忆工程 是什么
-- 如何 Agent Harness 上下文与记忆工程
+- What is Agent Harness Context and Memory Engineering
+- How does Agent Harness Context and Memory Engineering work
 trigger_keywords:
 - Agent
 - Harness
-- 上下文与记忆工程
+- Context and Memory Engineering
 - ai
 - agent
 authors:
@@ -82,25 +85,25 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent Harness 上下文与记忆工程
+# Agent Harness Context and Memory Engineering
 
-> **文档类型**: Harness 工程深入专题 | **最后更新**: 2026-04 | **关键词**: Context Engineering, Memory Systems, RAG, 上下文窗口, 信息压缩, 持久化, 向量检索, 短期记忆, 长期记忆, 情景记忆
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-Context（上下文层）和 Persistence（持久化层）是 Agent Harness 六层架构的第三和第四层。上下文层决定 Agent 的"视野"——看到什么信息直接决定推理质量；持久化层让 Agent 拥有"记忆"——跨会话保持状态和经验。
-
-**"上下文不对，推理全废"**——这是 Agent 工程中最被低估的真理。同一个模型，给它看错误的信息，输出结论可能完全相反。Context Engineering 正在成为 2026 年 Agent 工程的核心战场。
-
-本文系统阐述上下文构建策略、信息优先级排序、窗口管理、RAG 集成、记忆系统架构，以及在 K8S 运维场景中的完整实现。
+> **Document Type**: Deep Engineering Topics in Harness | **Last Updated**: 2026-04 | **Keywords**: Context Engineering, Memory Systems, RAG, Context Window, Information Compression, Persistence, Vector Retrieval, Short-Term Memory, Long-Term Memory, Scenario Memory
 
 ---
 
-<!-- chunk: 1. 上下文工程核心理论 -->## 1. 上下文工程核心理论
+## Overview
 
-## 1.1 上下文即决策依据
+Context (context layer) and Persistence (persistence layer) are the third and fourth layers of the Agent Harness six-layer architecture. The context layer determines the "field of vision" of the Agent - what information is seen directly affects the quality of inference; the persistence layer allows the Agent to have "memory" - maintaining state and experience across sessions.
+
+**"Context wrong, inference fails completely"** - this is the most underestimated truth in Agent engineering. The same model, given incorrect information, may produce completely opposite conclusions. Context Engineering is becoming the core battlefield for Agent engineering in 2026.
+
+This article systematically expounds on strategies for building contexts, prioritizing information, window management, RAG integration, memory system architecture, and the complete implementation in a Kubernetes (K8S) operational scenario.
+
+---
+
+## 1. Core Theories of Context Engineering
+
+## 1.1 Context as Decision Criteria
 
 ```
 上下文对 Agent 输出的影响（实证数据）:
@@ -119,7 +122,7 @@ Context（上下文层）和 Persistence（持久化层）是 Agent Harness 六�
   4. 上下文构建是工程问题，不是提示词问题
 ```
 
-## 1.2 信噪比原则
+## 1.2 Principle of Signal-to-Noise Ratio
 
 ```
 上下文信噪比（SNR）优化:
@@ -145,9 +148,9 @@ Context（上下文层）和 Persistence（持久化层）是 Agent Harness 六�
 
 ---
 
-<!-- chunk: 2. 上下文分层构建架构 -->## 2. 上下文分层构建架构
+## 2. Hierarchical Context Construction Architecture
 
-## 2.1 四层上下文模型
+## 2.1 Four-Level Context Model
 
 ```
 上下文四层模型:
@@ -176,7 +179,7 @@ Token 预算分配（以 128K 窗口为例）:
   Reserved:    ~43K tokens (34%, 留给模型输出和推理)
 ```
 
-## 2.2 上下文管理器完整实现
+## 2.2 Complete Implementation of Context Manager
 
 ```python
 from dataclasses import dataclass, field
@@ -185,7 +188,7 @@ import tiktoken
 
 @dataclass
 class ContextBudget:
-    """上下文 Token 预算"""
+    """Context Token Budget"""
     total: int = 128000
     system: int = 5000
     environment: int = 10000
@@ -194,7 +197,7 @@ class ContextBudget:
     reserved: int = 43000  # 模型输出保留
 
 class ContextManager:
-    """上下文管理器：分层构建、优先级排序、动态压缩"""
+    """Context Manager: Hierarchical Construction, Priority Sorting, Dynamic Compression"""
 
     def __init__(
         self,
@@ -207,7 +210,7 @@ class ContextManager:
         self.encoder = tiktoken.get_encoding(encoder_name)
 
     def count_tokens(self, text: str) -> int:
-        """精确计算 token 数"""
+        """Precisely calculate the number of tokens"""
         return len(self.encoder.encode(text))
 
     def build_context(
@@ -218,11 +221,11 @@ class ContextManager:
         history: list = None,
         additional_context: dict = None,
     ) -> str:
-        """分层构建上下文"""
+        """Hierarchical construction of context"""
         context_parts = []
         remaining_budget = self.budget.total - self.budget.reserved
 
-        # Layer 1: 系统上下文
+        # Layer 1: System Context
         if system_prompt:
             system_text = self._format_system(system_prompt)
             system_tokens = self.count_tokens(system_text)
@@ -230,7 +233,7 @@ class ContextManager:
                 context_parts.append(("system", system_text, system_tokens))
                 remaining_budget -= system_tokens
 
-        # Layer 2: 环境上下文
+        # Layer 2: Environmental Context
         if environment:
             env_text = self._format_environment(environment)
             env_tokens = self.count_tokens(env_text)
@@ -241,7 +244,7 @@ class ContextManager:
             context_parts.append(("environment", env_text, env_tokens))
             remaining_budget -= env_tokens
 
-        # Layer 3: 知识上下文（RAG 检索）
+        # Layer 3: Knowledge Context (RAG Retrieval)
         if self.rag:
             knowledge_budget = min(self.budget.knowledge, remaining_budget)
             knowledge_text = self._retrieve_knowledge(task, knowledge_budget)
@@ -249,7 +252,7 @@ class ContextManager:
             context_parts.append(("knowledge", knowledge_text, knowledge_tokens))
             remaining_budget -= knowledge_tokens
 
-        # Layer 4: 历史上下文
+        # Layer 4: Historical Context
         if history:
             history_budget = min(self.budget.history, remaining_budget)
             history_text = self._compress_history(history, history_budget)
@@ -257,16 +260,16 @@ class ContextManager:
             context_parts.append(("history", history_text, history_tokens))
             remaining_budget -= history_tokens
 
-        # 组装最终上下文
+        # Assemble final context
         return self._assemble(context_parts)
 
     def _format_system(self, system_prompt: str) -> str:
-        """格式化系统上下文"""
-        return f"<!-- chunk: 系统指令\n\n{system_prompt}" -->## 系统指令\n\n{system_prompt}"
+        """Format system context"""
+        return f"## 系统指令\n\n{system_prompt}"
 
     def _format_environment(self, environment: dict) -> str:
-        """格式化环境上下文"""
-        parts = ["<!-- chunk: 当前环境"] -->## 当前环境"]
+        """Format the environment context"""
+        parts = ["## 当前环境"]
         if "cluster" in environment:
             parts.append(f"集群: {environment['cluster']}")
         if "kubernetes_version" in environment:
@@ -280,21 +283,21 @@ class ContextManager:
         return "\n".join(parts)
 
     def _retrieve_knowledge(self, task: str, budget: int) -> str:
-        """RAG 知识检索"""
+        """RAG Knowledge Retrieval"""
         documents = self.rag.retrieve(task, top_k=10)
 
-        parts = ["<!-- chunk: 相关知识"] -->## 相关知识"]
-        current_tokens = self.count_tokens("<!-- chunk: 相关知识\n") -->## 相关知识\n")
+        parts = ["## 相关知识"]
+        current_tokens = self.count_tokens("## 相关知识\n")
 
         for doc in documents:
-            doc_text = f"\n#<!-- chunk: {doc['title']}\n{doc['content']}\n" -->## {doc['title']}\n{doc['content']}\n"
+            doc_text = f"\n### {doc['title']}\n{doc['content']}\n"
             doc_tokens = self.count_tokens(doc_text)
             if current_tokens + doc_tokens > budget:
-                # 尝试截断文档
+                # Try truncating documents
                 available = budget - current_tokens - 50
                 if available > 200:
                     truncated = self._truncate_to_tokens(doc['content'], available)
-                    parts.append(f"\n#<!-- chunk: {doc['title']}\n{truncated}\n...") -->## {doc['title']}\n{truncated}\n...")
+                    parts.append(f"\n### {doc['title']}\n{truncated}\n...")
                 break
             parts.append(doc_text)
             current_tokens += doc_tokens
@@ -302,23 +305,23 @@ class ContextManager:
         return "\n".join(parts)
 
     def _compress_history(self, history: list, budget: int) -> str:
-        """智能历史压缩"""
-        parts = ["<!-- chunk: 执行历史"] -->## 执行历史"]
-        current_tokens = self.count_tokens("<!-- chunk: 执行历史\n") -->## 执行历史\n")
+        """Smart History Compression"""
+        parts = ["## 执行历史"]
+        current_tokens = self.count_tokens("## 执行历史\n")
 
-        # 策略 1: 关键步骤始终保留
+        # Strategy 1: Always retain critical steps
         key_steps = [h for h in history if h.get("is_key_step")]
-        # 策略 2: 错误步骤始终保留
+        # Strategy 2: Always retain error steps
         error_steps = [h for h in history if h.get("error")]
-        # 策略 3: 最近 N 步始终保留
+        # Strategy 3: Retain the most recent N steps
         recent_steps = history[-3:]
 
-        # 合并去重（保持时序）
+        # Merge and deduplicate (maintain sequence)
         must_keep = set()
         for step in key_steps + error_steps + recent_steps:
             must_keep.add(id(step))
 
-        # 优先添加必须保留的步骤
+        # Prioritize adding steps that must be retained
         for step in history:
             if id(step) in must_keep:
                 step_text = self._format_step(step)
@@ -328,7 +331,7 @@ class ContextManager:
                 parts.append(step_text)
                 current_tokens += step_tokens
 
-        # 如果还有预算，添加其他步骤的摘要
+        # If budget allows, add summaries of other steps
         remaining_steps = [h for h in history if id(h) not in must_keep]
         if remaining_steps and current_tokens < budget - 200:
             summary = f"\n[已省略 {len(remaining_steps)} 个中间步骤]"
@@ -337,8 +340,8 @@ class ContextManager:
         return "\n".join(parts)
 
     def _format_step(self, step: dict) -> str:
-        """格式化单步记录"""
-        parts = [f"\n#<!-- chunk: Step {step.get('iteration', '?')}"] -->## Step {step.get('iteration', '?')}"]
+        """Format single-step records"""
+        parts = [f"\n### Step {step.get('iteration', '?')}"]
         if step.get("thought"):
             parts.append(f"思考: {step['thought'][:200]}")
         if step.get("action"):
@@ -351,14 +354,14 @@ class ContextManager:
         return "\n".join(parts)
 
     def _truncate_to_tokens(self, text: str, max_tokens: int) -> str:
-        """将文本截断到指定 token 数"""
+        """Truncate text to a specified number of tokens"""
         tokens = self.encoder.encode(text)
         if len(tokens) <= max_tokens:
             return text
         return self.encoder.decode(tokens[:max_tokens])
 
     def _assemble(self, context_parts: list) -> str:
-        """组装最终上下文"""
+        """Assemble final context"""
         parts = []
         for name, text, tokens in context_parts:
             parts.append(text)
@@ -367,9 +370,9 @@ class ContextManager:
 
 ---
 
-<!-- chunk: 3. RAG 集成深度设计 -->## 3. RAG 集成深度设计
+## 3. RAG Integration Design
 
-## 3.1 知识库索引架构
+## 3.1 Knowledge Base Indexing Architecture
 
 ```
 K8S 运维知识库索引架构:
@@ -385,7 +388,7 @@ K8S 运维知识库索引架构:
   文档 → 分块（Chunking）→ 嵌入（Embedding）→ 向量存储（Vector Store）
 
 分块策略:
-  ├── 文档级分块: 按 <!-- chunk: 标题分割，保持逻辑完整性 -->## 标题分割，保持逻辑完整性
+  ├── 文档级分块: 按 ## 标题分割，保持逻辑完整性
   ├── 段落级分块: 500-1000 tokens/chunk，重叠 100 tokens
   ├── 代码块分块: 完整代码块作为独立 chunk
   └── 表格分块: 表格 + 上下文说明作为独立 chunk
@@ -397,7 +400,7 @@ K8S 运维知识库索引架构:
   └── 重排序: Cross-encoder 精排
 ```
 
-## 3.2 RAG 检索器实现
+## 3.2 RAG Retrieval Engine Implementation
 
 ```python
 from dataclasses import dataclass
@@ -405,7 +408,7 @@ from typing import Optional
 
 @dataclass
 class Document:
-    """文档模型"""
+    """Document Model"""
     id: str
     title: str
     content: str
@@ -415,7 +418,7 @@ class Document:
     score: float = 0.0
 
 class HybridRAGRetriever:
-    """混合 RAG 检索器：语义 + 关键词 + 重排序"""
+    """Hybrid RAG Retrieval Engine: Semantic + Keyword + Reordering"""
 
     def __init__(
         self,
@@ -438,8 +441,8 @@ class HybridRAGRetriever:
         category_filter: str = None,
         min_score: float = 0.3,
     ) -> list[Document]:
-        """混合检索"""
-        # Stage 1: 粗排——语义检索 + 关键词检索
+        """Hybrid Retrieval"""
+        # Stage 1: Preliminary sorting — semantic retrieval + keyword retrieval
         semantic_results = self.vector_store.search(
             query, top_k=top_k * 3, filter={"category": category_filter}
         )
@@ -447,19 +450,19 @@ class HybridRAGRetriever:
             query, top_k=top_k * 3
         )
 
-        # Stage 2: 分数融合（Reciprocal Rank Fusion）
+        # Stage 2: Score Fusion (Reciprocal Rank Fusion)
         fused = self._reciprocal_rank_fusion(
             semantic_results, keyword_results,
             weights=[self.semantic_weight, self.keyword_weight],
         )
 
-        # Stage 3: 精排（Cross-encoder Reranking）
+        # Stage 3: Precise Ranking (Cross-encoder Reranking)
         if self.reranker:
             fused = self.reranker.rerank(query, fused, top_k=top_k)
         else:
             fused = fused[:top_k]
 
-        # Stage 4: 过滤低分结果
+        # Stage 4: Filter Low-scoring Results
         return [doc for doc in fused if doc.score >= min_score]
 
     def _reciprocal_rank_fusion(
@@ -468,7 +471,7 @@ class HybridRAGRetriever:
         weights: list[float] = None,
         k: int = 60,
     ) -> list[Document]:
-        """Reciprocal Rank Fusion (RRF) 分数融合"""
+        """Reciprocal Rank Fusion (RRF) Score Fusion"""
         if weights is None:
             weights = [1.0] * len(result_lists)
 
@@ -481,7 +484,7 @@ class HybridRAGRetriever:
                 doc_scores[doc.id] = doc_scores.get(doc.id, 0) + rrf_score
                 doc_map[doc.id] = doc
 
-        # 按融合分数排序
+        # Sort by Fusion Score
         sorted_ids = sorted(doc_scores.keys(), key=lambda x: doc_scores[x], reverse=True)
         result = []
         for doc_id in sorted_ids:
@@ -493,7 +496,7 @@ class HybridRAGRetriever:
 
 
 class ContextAwareRetriever:
-    """上下文感知检索器：根据任务阶段调整检索策略"""
+    """Context-Aware Retrieval System: Adjust Retrieval Strategies Based on Task Stages"""
 
     def __init__(self, base_retriever: HybridRAGRetriever):
         self.base = base_retriever
@@ -504,26 +507,26 @@ class ContextAwareRetriever:
         phase: str,
         existing_context: str = "",
     ) -> list[Document]:
-        """根据执行阶段调整检索"""
+        """Adjust Retrieval Based on Execution Stages"""
         if phase == "gather":
-            # 信息收集阶段: 广泛检索
+            # Information Gathering Phase: Broad Search
             return self.base.retrieve(query, top_k=8, min_score=0.2)
         elif phase == "analyze":
-            # 分析阶段: 精确检索 + 排除已有信息
+            # Analysis Phase: Precise Search + Exclude Existing Information
             docs = self.base.retrieve(query, top_k=5, min_score=0.5)
             return self._filter_redundant(docs, existing_context)
         elif phase == "act":
-            # 执行阶段: 只检索 SOP 和操作指南
+            # Execution Phase: Only Search for SOPs and Guidelines
             return self.base.retrieve(
                 query, top_k=3, category_filter="sop", min_score=0.4
             )
         return self.base.retrieve(query, top_k=5)
 
     def _filter_redundant(self, docs: list, existing_context: str) -> list:
-        """过滤与已有上下文重复的文档"""
+        """Filter Documents That Are Repeated with Existing Context"""
         filtered = []
         for doc in docs:
-            # 简单去重：检查文档标题是否已在上下文中
+            # Simple De-duplication: Check if Document Titles are Already in Context
             if doc.title not in existing_context:
                 filtered.append(doc)
         return filtered
@@ -531,9 +534,9 @@ class ContextAwareRetriever:
 
 ---
 
-<!-- chunk: 4. 记忆系统架构 -->## 4. 记忆系统架构
+## 4. Memory System Architecture
 
-## 4.1 三层记忆模型
+## 4.1 Three-Layer Memory Model
 
 ```
 Agent 记忆三层模型:
@@ -562,7 +565,7 @@ Agent 记忆三层模型:
   语义记忆 ──(检索注入)──→ 短期记忆
 ```
 
-## 4.2 记忆系统完整实现
+## 4.2 Complete Implementation of the Memory System
 
 ```python
 from dataclasses import dataclass, field
@@ -572,7 +575,7 @@ import json
 
 @dataclass
 class MemoryEntry:
-    """记忆条目"""
+    """Memory Entry"""
     id: str
     content: str
     memory_type: str        # short_term / episodic / semantic
@@ -585,7 +588,7 @@ class MemoryEntry:
     metadata: dict = field(default_factory=dict)
 
 class MemorySystem:
-    """Agent 记忆系统"""
+    """Agent Memory System"""
 
     def __init__(self, vector_store, kv_store, max_short_term: int = 50):
         self.vector_store = vector_store
@@ -593,11 +596,11 @@ class MemorySystem:
         self.max_short_term = max_short_term
         self._short_term: list[MemoryEntry] = []
 
-    # === 短期记忆 ===
+    # === Short-Term Memory ===
 
     def add_to_short_term(self, content: str, importance: float = 0.5,
                           metadata: dict = None):
-        """添加短期记忆"""
+        """Add Short-term Memory"""
         entry = MemoryEntry(
             id=f"st_{len(self._short_term)}",
             content=content,
@@ -608,30 +611,30 @@ class MemorySystem:
         )
         self._short_term.append(entry)
 
-        # 容量管理：超出限制时淘汰低重要性记忆
+        # Capacity Management: Evict Low-importance Memories When Exceeding Limits
         if len(self._short_term) > self.max_short_term:
             self._evict_short_term()
 
     def get_short_term(self, last_n: int = None) -> list[MemoryEntry]:
-        """获取短期记忆"""
+        """Get short-term memory"""
         if last_n:
             return self._short_term[-last_n:]
         return self._short_term
 
     def _evict_short_term(self):
-        """短期记忆淘汰策略：保留高重要性 + 最近的"""
-        # 保留重要性 > 0.7 的 + 最近 10 条
+        """Short-term memory eviction strategy: retain high importance + recent"""
+        # Retain importance > 0.7 + The last 10
         important = [m for m in self._short_term if m.importance > 0.7]
         recent = self._short_term[-10:]
         keep = list({id(m): m for m in important + recent}.values())
         keep.sort(key=lambda m: m.created_at)
         self._short_term = keep[:self.max_short_term]
 
-    # === 情景记忆 ===
+    # === Scenario Memory ===
 
     def save_episode(self, task_id: str, task: str, trajectory: list,
                      result: dict):
-        """保存任务执行的情景记忆"""
+        """Save the scenario memory of task execution"""
         episode = {
             "task_id": task_id,
             "task": task,
@@ -644,7 +647,7 @@ class MemorySystem:
             "timestamp": datetime.utcnow().isoformat(),
         }
 
-        # 存入向量数据库（支持语义检索）
+        # Store in Vector Database (supports semantic search)
         embedding_text = f"任务: {task}\n结果: {result.get('answer', '')[:200]}"
         self.vector_store.upsert(
             id=task_id,
@@ -652,11 +655,11 @@ class MemorySystem:
             metadata=episode,
         )
 
-        # 存入 KV 存储（支持精确查询）
+        # Store in KV Storage (supports exact queries)
         self.kv_store.set(f"episode:{task_id}", json.dumps(episode))
 
     def recall_similar_episodes(self, task: str, top_k: int = 3) -> list:
-        """检索相似的历史任务"""
+        """Search for similar historical tasks"""
         results = self.vector_store.search(task, top_k=top_k)
         episodes = []
         for r in results:
@@ -669,10 +672,10 @@ class MemorySystem:
             })
         return episodes
 
-    # === 语义记忆 ===
+    # === Semantic Memory ===
 
     def store_semantic(self, knowledge: str, tags: list, importance: float = 0.8):
-        """存储语义记忆（提炼的知识）"""
+        """Store semantic memory (abstract knowledge)"""
         entry = MemoryEntry(
             id=f"sem_{datetime.utcnow().timestamp()}",
             content=knowledge,
@@ -690,16 +693,16 @@ class MemorySystem:
 
     def recall_semantic(self, query: str, tags: list = None,
                         top_k: int = 5) -> list:
-        """检索语义记忆"""
+        """Semantic Memory Retrieval"""
         filter_dict = {"type": "semantic"}
         if tags:
             filter_dict["tags"] = {"$in": tags}
         return self.vector_store.search(query, top_k=top_k, filter=filter_dict)
 
-    # === 记忆提炼 ===
+    # === Memory Extraction ===
 
     def consolidate(self, llm, recent_episodes: int = 20):
-        """记忆巩固：从近期情景记忆中提炼语义记忆"""
+        """Memory consolidation: Extracting semantic memory from recent scenario memory"""
         episodes = self._get_recent_episodes(recent_episodes)
         if not episodes:
             return
@@ -722,10 +725,10 @@ class MemorySystem:
             importance=0.9,
         )
 
-    # === 辅助方法 ===
+    # === Helper Methods ===
 
     def _extract_key_findings(self, trajectory: list) -> list:
-        """从轨迹中提取关键发现"""
+        """Extract Key Discoveries from the Trajectory"""
         findings = []
         for step in trajectory:
             if step.get("is_key_step"):
@@ -733,7 +736,7 @@ class MemorySystem:
         return findings
 
     def _extract_errors(self, trajectory: list) -> list:
-        """从轨迹中提取错误"""
+        """Extract errors from the trajectory"""
         return [
             step.get("error", "")[:100]
             for step in trajectory
@@ -741,7 +744,7 @@ class MemorySystem:
         ]
 
     def _extract_tools(self, trajectory: list) -> list:
-        """从轨迹中提取使用的工具列表"""
+        """Extract a list of tools used from the trajectory"""
         tools = set()
         for step in trajectory:
             if step.get("tool_name"):
@@ -749,8 +752,8 @@ class MemorySystem:
         return list(tools)
 
     def _get_recent_episodes(self, n: int) -> list:
-        """获取最近 N 条情景记忆"""
-        # 从 KV 存储中获取（按时间倒序）
+        """Get the most recent N short-term memories"""
+        # Get from KV storage (descending by time)
         keys = self.kv_store.keys("episode:*")
         recent_keys = sorted(keys, reverse=True)[:n]
         return [json.loads(self.kv_store.get(k)) for k in recent_keys]
@@ -758,13 +761,13 @@ class MemorySystem:
 
 ---
 
-<!-- chunk: 5. 上下文窗口管理 -->## 5. 上下文窗口管理
+## 5. Context Window Management
 
-## 5.1 动态窗口策略
+## 5.1 Dynamic Window Strategy
 
 ```python
 class DynamicWindowManager:
-    """动态上下文窗口管理器
+    """Dynamic Context Window Manager
 
     根据任务复杂度和执行阶段动态调整各层的 Token 预算。
     """
@@ -775,7 +778,7 @@ class DynamicWindowManager:
 
     def allocate(self, task_complexity: str, phase: str,
                  history_length: int) -> ContextBudget:
-        """动态分配上下文预算"""
+        """Allocate Context Budget Dynamically"""
         available = self.total - self.reserved_for_output
 
         if task_complexity == "simple":
@@ -788,7 +791,7 @@ class DynamicWindowManager:
                 reserved=self.reserved_for_output,
             )
         elif task_complexity == "complex":
-            # 复杂任务: 更多知识和历史
+            # Complex Tasks: More Knowledge and Historical Data
             return ContextBudget(
                 total=self.total,
                 system=5000,
@@ -798,7 +801,7 @@ class DynamicWindowManager:
                 reserved=self.reserved_for_output,
             )
         else:  # multi-step
-            # 多步任务: 根据阶段调整
+            # Multi-step Tasks: Adjust Based on Stages
             if phase == "gather":
                 knowledge_ratio = 0.4
                 history_ratio = 0.15
@@ -819,11 +822,11 @@ class DynamicWindowManager:
             )
 ```
 
-## 5.2 增量上下文更新
+## 5.2 Incremental Context Update
 
 ```python
 class IncrementalContextUpdater:
-    """增量上下文更新器：避免每步重建完整上下文"""
+    """Incremental Context Updater: Avoid Rebuilding Complete Context Per Step"""
 
     def __init__(self, context_manager: ContextManager):
         self.ctx_mgr = context_manager
@@ -834,7 +837,7 @@ class IncrementalContextUpdater:
 
     def initial_build(self, task: str, system_prompt: str,
                       environment: dict) -> str:
-        """初始构建（第一步）"""
+        """Initial Build (First Step)"""
         self._cached_system = self.ctx_mgr._format_system(system_prompt)
         self._cached_environment = self.ctx_mgr._format_environment(environment)
         if self.ctx_mgr.rag:
@@ -844,10 +847,10 @@ class IncrementalContextUpdater:
         return self._assemble()
 
     def update_after_step(self, step: dict) -> str:
-        """步骤执行后增量更新（只更新历史层）"""
+        """Incremental Update After Each Step (Only Update Historical Layers)"""
         self._history_buffer.append(step)
 
-        # 历史压缩（超过预算时压缩）
+        # Historical Compression (Compress When Budget Exceeded)
         history_text = self.ctx_mgr._compress_history(
             self._history_buffer, self.ctx_mgr.budget.history
         )
@@ -855,7 +858,7 @@ class IncrementalContextUpdater:
         return self._assemble(history_override=history_text)
 
     def refresh_knowledge(self, new_query: str) -> str:
-        """知识层刷新（当任务方向改变时）"""
+        """Knowledge Layer Refresh (When Task Direction Changes)"""
         if self.ctx_mgr.rag:
             self._cached_knowledge = self.ctx_mgr._retrieve_knowledge(
                 new_query, self.ctx_mgr.budget.knowledge
@@ -863,7 +866,7 @@ class IncrementalContextUpdater:
         return self._assemble()
 
     def _assemble(self, history_override: str = None) -> str:
-        """组装上下文"""
+        """Context Assembly"""
         parts = [self._cached_system, self._cached_environment]
         if self._cached_knowledge:
             parts.append(self._cached_knowledge)
@@ -878,41 +881,41 @@ class IncrementalContextUpdater:
 
 ---
 
-<!-- chunk: 6. K8S 运维上下文模板 -->## 6. K8S 运维上下文模板
+## 6. K8S Operational Context Templates
 
-## 6.1 集群环境扫描器
+## 6.1 Cluster Environment Scanner
 
 ```python
 class K8sEnvironmentScanner:
-    """K8S 集群环境扫描器：自动收集环境上下文"""
+    """K8S Cluster Environment Scanner: Automatically Collects Environmental Context"""
 
     def __init__(self, kubectl_tool):
         self.kubectl = kubectl_tool
 
     def scan(self) -> dict:
-        """全面扫描集群环境"""
+        """Comprehensive Scan of Cluster Environment"""
         env = {}
 
-        # 基础信息
+        # Basic Information
         env["cluster_info"] = self._get_cluster_info()
         env["kubernetes_version"] = self._get_version()
 
-        # 节点信息
+        # Node Information
         env["nodes"] = self._get_node_summary()
 
-        # 命名空间
+        # Namespace
         env["namespaces"] = self._get_namespaces()
 
-        # 资源使用概览
+        # Resource Usage Overview
         env["resource_usage"] = self._get_resource_overview()
 
-        # 近期告警事件
+        # Recent Alarm Events
         env["recent_warnings"] = self._get_recent_warnings()
 
         return env
 
     def _get_node_summary(self) -> list:
-        """获取节点摘要"""
+        """Get node summary"""
         result = self.kubectl.execute(resource="nodes", output="wide")
         nodes = []
         for line in result.get("output", "").split("\n")[1:]:
@@ -927,7 +930,7 @@ class K8sEnvironmentScanner:
         return nodes
 
     def _get_recent_warnings(self, limit: int = 20) -> list:
-        """获取近期告警事件"""
+        """Get recent alarm events"""
         result = self.kubectl.execute(
             resource="events",
             namespace="--all-namespaces",
@@ -940,43 +943,43 @@ class K8sEnvironmentScanner:
         return warnings
 
     def format_for_context(self, env: dict) -> str:
-        """将环境信息格式化为上下文文本"""
+        """Format environment information into context text"""
         parts = [
-            "<!-- chunk: 集群环境信息", -->## 集群环境信息",
+            "## 集群环境信息",
             f"K8S 版本: {env.get('kubernetes_version', 'Unknown')}",
             f"节点数量: {len(env.get('nodes', []))}",
         ]
 
-        # 节点状态摘要
+        # Node Status Summary
         nodes = env.get("nodes", [])
         ready_count = sum(1 for n in nodes if n.get("status") == "Ready")
         parts.append(f"节点状态: {ready_count}/{len(nodes)} Ready")
 
         if env.get("recent_warnings"):
-            parts.append("\n#<!-- chunk: 近期告警事件") -->## 近期告警事件")
+            parts.append("\n### 近期告警事件")
             for w in env["recent_warnings"][:10]:
                 parts.append(f"  - {w}")
 
         return "\n".join(parts)
 ```
 
-## 6.2 诊断任务上下文模板
+## 6.2 Diagnostic Task Context Template
 
 ```python
 class DiagnosisContextTemplate:
-    """诊断任务上下文模板"""
+    """Diagnostic Task Context Template"""
 
     SYSTEM_PROMPT_TEMPLATE = """
 你是 K8S 运维诊断专家 Agent。你的任务是根据提供的集群环境信息和工具输出，
 诊断 Kubernetes 集群中的问题。
 
-<!-- chunk: 工作原则 -->## 工作原则
+## Work Principles
 1. 每个诊断结论必须有具体的 Event 或日志证据支撑
 2. 优先使用只读命令收集信息
 3. 不确定的结论标注"需人工确认"
 4. 输出的 YAML/命令必须语法正确
 
-<!-- chunk: 输出格式 -->## 输出格式
+## Output Format
 - 根因分析: [具体原因]
 - 证据: [Event/日志引用]
 - 建议操作: [操作步骤]
@@ -991,20 +994,20 @@ class DiagnosisContextTemplate:
         knowledge: list,
         history: list = None,
     ) -> str:
-        """构建诊断任务的完整上下文"""
+        """Build the complete context for a diagnostic task"""
         parts = [
             self.SYSTEM_PROMPT_TEMPLATE,
-            f"\n<!-- chunk: 当前诊断任务\n{task}", -->## 当前诊断任务\n{task}",
+            f"\n## 当前诊断任务\n{task}",
             self._format_env(env_scan),
         ]
 
         if knowledge:
-            parts.append("\n<!-- chunk: 相关知识\n") -->## 相关知识\n")
+            parts.append("\n## 相关知识\n")
             for doc in knowledge[:5]:
-                parts.append(f"#<!-- chunk: {doc['title']}\n{doc['content'][:500]}\n") -->## {doc['title']}\n{doc['content'][:500]}\n")
+                parts.append(f"### {doc['title']}\n{doc['content'][:500]}\n")
 
         if history:
-            parts.append("\n<!-- chunk: 已执行步骤\n") -->## 已执行步骤\n")
+            parts.append("\n## 已执行步骤\n")
             for step in history[-5:]:
                 parts.append(f"Step {step.get('iteration')}: "
                            f"{step.get('thought', '')[:150]}")
@@ -1012,78 +1015,78 @@ class DiagnosisContextTemplate:
         return "\n".join(parts)
 
     def _format_env(self, env: dict) -> str:
-        """格式化环境信息"""
+        """Format environment information"""
         scanner = K8sEnvironmentScanner(None)
         return scanner.format_for_context(env)
 ```
 
 ---
 
-<!-- chunk: 7. 最佳实践 -->## 7. 最佳实践
+## 7. Best Practices
 
-## 7.1 上下文工程核心原则
+## 7.1 Core Principles of Context Engineering
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Suggestions |
 |------|------|---------|
-| **信噪比优先** | 上下文中高信号信息占比 > 70% | 严格过滤无关信息 |
-| **分层构建** | 系统→环境→知识→历史四层分明 | 每层独立管理，动态调整 |
-| **Token 预算** | 每层分配明确的 Token 预算 | 使用 ContextBudget 管控 |
-| **增量更新** | 避免每步重建完整上下文 | 缓存不变层，只更新变化层 |
-| **智能压缩** | 历史信息保留关键步骤 | 错误步骤 + 关键发现 + 最近 N 步 |
-| **环境预扫描** | 任务开始前收集环境信息 | 使用 EnvironmentScanner |
+| **Signal-to-Noise Ratio Priority** | High signal information ratio in context > 70% | Strictly filter irrelevant information |
+| **Layered Construction** | System → Environment → Knowledge → History clear layers | Each layer independently managed, dynamically adjusted |
+| **Token Budget** | Clearly allocated token budget for each layer | Use ContextBudget to control |
+| **Incremental Updates** | Avoid rebuilding the complete context at each step | Cache unchanged layers, only update changed layers |
+| **Smart Compression** | Retain key steps in historical information | Errors + Key Discoveries + Last N Steps |
+| **Pre-scan Environment** | Collect environmental information before tasks start | Use EnvironmentScanner |
 
-## 7.2 记忆系统核心原则
+## 7.2 Memory System Core Principles
 
-| 原则 | 说明 | 实践建议 |
+| Principle | Explanation | Practice Suggestions |
 |------|------|---------|
-| **三层分离** | 短期/情景/语义记忆独立管理 | 不同存储后端，不同生命周期 |
-| **自动提炼** | 从情景记忆中自动提炼语义记忆 | 定期运行 consolidate |
-| **相关性检索** | 根据当前任务检索相关历史 | 使用向量相似度检索 |
-| **容量管控** | 短期记忆有上限 | 淘汰低重要性记忆 |
-| **隐私保护** | 记忆中不存储敏感信息 | 存储前脱敏处理 |
+| **Three-Tier Separation** | Manage short-term/scene/semantic memory independently | Different storage backends, different lifecycle management |
+| **Automatic Extraction** | Automatically extract semantic memory from scene memory | Regularly run consolidate |
+| **Relevance Retrieval** | Retrieve relevant historical data based on current task | Use vector similarity retrieval |
+| **Capacity Management** | Short-term memory has a limit | Eliminate low-importance memories |
+| **Privacy Protection** | Do not store sensitive information in memory | De-sensitize before storing |
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documents
 
-| 文档 | 关联内容 |
+| Document | Relevant Content |
 |------|--------|
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | 六层架构中的 Context 层和 Persistence 层定义 |
-| [31 - Loop 与执行引擎](./31-agent-harness-loop-execution.md) | 上下文在 Loop 中的使用流程 |
-| [04 - RAG 知识检索](./04-rag-knowledge-retrieval.md) | RAG 基础理论和实现 |
-| [07 - 记忆管理](./07-memory-context-management.md) | Agent 记忆系统基础概念 |
+| [30 - Agent Harness Engineering](./30-agent-harness-engineering.md) | Definition of the Context Layer and Persistence Layer in the Six-Layer Architecture |
+| [31 - Loop and Execution Engine](./31-agent-harness-loop-execution.md) | Flow of Context usage in the Loop |
+| [04 - RAG Knowledge Retrieval](./04-rag-knowledge-retrieval.md) | Foundation theory and implementation of RAG |
+| [07 - Memory Management](./07-memory-context-management.md) | Fundamental concepts of the Agent's memory system |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Anthropic | Context Engineering 最佳实践 | 2026-02 |
-| LangChain | 上下文管理对 Agent 性能的影响实验 | 2026-02 |
+| Anthropic | Best practices for Context Engineering | February 2026 |
+| LangChain | Experimental analysis of the impact of Context Management on Agent Performance | February 2026 |
 | Simon Willison | Context Engineering vs Prompt Engineering | 2026-01 |
-| Microsoft | AutoGen 记忆系统设计 | 2025-2026 |
+| Microsoft | Design of AutoGen Memory System | 2025-2026 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，深入展开 Agent Harness 上下文与记忆工程。*
+*This document is original content from the kudig-database project series 02-ai-agents, delving into the Context and Memory Engineering in the Agent Harness.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documents
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent 基础与核心架构|AI Agent 基础与核心架构]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Special Topic|AI Agent Engineering Special Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent Fundamentals and Core Architecture|AI Agent Fundamentals and Core Architecture]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval Enhanced Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage and Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation System and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

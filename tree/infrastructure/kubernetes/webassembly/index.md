@@ -1,6 +1,7 @@
----title: Webassembly
-description: Webassembly 目录索引
-summary: Webassembly 目录索引
+---
+title: Webassembly
+description: Webassembly Directory Index
+summary: Webassembly Directory Index
 category: index
 tags:
 - index
@@ -11,14 +12,16 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/webassembly/index.md
 ---
 
 
 # Webassembly
 
-> 本页为 `domain-15-specialized-tech/02-webassembly` 目录的自动索引。
+> This page is an automatic index for the `domain-15-specialized-tech/02-webassembly` directory.
 
-## 文档
+## Document
 
 - [[domain-15-specialized-tech/02-webassembly/01-wasm-fundamentals-cloud-native.md|Wasm Fundamentals Cloud Native]]
 - [[domain-15-specialized-tech/02-webassembly/02-containerd-wasm-shim.md|Containerd Wasm Shim]]
