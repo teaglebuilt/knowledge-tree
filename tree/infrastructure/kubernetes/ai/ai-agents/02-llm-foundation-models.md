@@ -40,8 +40,6 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
-original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/02-llm-foundation-models.md
 ---
 

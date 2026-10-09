@@ -1,8 +1,7 @@
 ---
 original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/15-agent-corpus-gap-analysis.md
----
----title: Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data? [02-ai-agents]
+title: Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data? [02-ai-agents]
 description: 'title: Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?'
 summary: 'title: Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?'
 category: general
@@ -52,69 +51,13 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
 ---
 
-> **Production Environment Safety Notice**
->
-> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (modifies cluster state, but generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
-
-
-
-
-title: Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?
-description: '# Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- [[etcd|etcd]]
-- apiserver
-- [[kubelet|kubelet]]
-- scheduler
-- [[Prometheus|prometheus]]
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI Engineers
-- Architects
-- SRE
-estimated_read_time: 15min
-intent_queries:
-- What is Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?
-- How to Agent Corpus Gap Analysis: What Is kudig-database Still Missing as K8s Operations Agent Training Data?
-trigger_keywords:
-- Agent
-- Corpus Gap Analysis: kudig-database
-- as
-- K8s
-- Operations
-- Agent
-- Training Data Missing?
-- ai
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
 # Agent Corpus Gap Analysis: What Does kudig-database Still Lack as K8s Operations Agent Corpus?
-
-> **Document Type**: In-depth Gap Analysis | **Last Updated**: 2026-03 | **Keywords**: Agent corpus, corpus gap, structured knowledge, K8s operations agent, knowledge completion, RAG, SOP, symptom mapping, safety guardrails
 
 ---
 
 ## Overview
-
-kudig-database already covers 39 knowledge domains, 1,477 files, and 43 million characters, making it an extremely comprehensive [[Kubernetes|Kubernetes]] production operations knowledge base. However, there is a **structural gap** between "human-readable knowledge bases" and "Agent-usable corpora."
 
 This document systematically examines existing content from an **Agent perspective**, identifies **10 major categories of gaps**, and for each provides:
 - File-by-file audit of existing assets

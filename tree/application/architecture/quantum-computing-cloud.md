@@ -112,41 +112,41 @@ Quantum computing technology stack has distinct layers: physical layer (quantum 
 
 ```mermaid
 graph TB
-    subgraph 用户层
-        U1[科研人员]
-        U2[企业开发者]
-        U3[教育工作者]
-        U4[算法研究员]
+    subgraph user layer
+        U1[Researcher]
+        U2[Enterprise Developer]
+        U3[Educator]
+        U4[Algorithm Researcher]
     end
 
-    subgraph 服务层
-        S1[量子编程 IDE]
-        S2[量子算法库]
-        S3[量子编译器]
-        S4[任务调度器]
-        S5[量子模拟器]
-        S6[结果可视化]
+    subgraph service layer
+        S1[Quantum Programming IDE]
+        S2[Quantum Algorithm Library]
+        S3[Quantum Compiler]
+        S4[Task Scheduler]
+        S5[Quantum Simulator]
+        S6[Result Visualization]
     end
 
-    subgraph 经典计算层
-        C1[参数优化器]
-        C2[数据预处理]
-        C3[结果后处理]
-        C4[机器学习]
+    subgraph classic-computational-layer
+        C1[Parameter Optimizer]
+        C2[Data Preprocessor]
+        C3[Result Postprocessor]
+        C4[Machine Learning]
     end
 
-    subgraph 量子控制层
-        Q1[脉冲编译器]
-        Q2[校准系统]
-        Q3[读出系统]
-        Q4[错误缓解]
+    subgraph quantum_control_layer
+        Q1[Gate Compilation System]
+        Q2[Calibration System]
+        Q3[Read System]
+        Q4[Error Mitigation]
     end
 
-    subgraph 量子硬件层
-        H1[超导量子芯片]
-        H2[离子阱芯片]
-        H3[光量子芯片]
-        H4[半导体量子点]
+    subgraph Quantum Hardware Layer
+        H1[Superconducting Quantum Chip]
+        H2[Ion Trap Chip]
+        H3[Laser Quantum Chip]
+        H4[Semiconductor Quantum Dot]
     end
 
     U1 & U2 & U3 & U4 --> S1 & S2 & S3 & S5 & S6
@@ -161,39 +161,39 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A[经典预处理] --> B[量子电路生成]
-    B --> C[电路编译优化]
-    C --> D[量子执行]
-    D --> E[测量采样]
-    E --> F[经典后处理]
-    F --> G{收敛?}
-    G -->|否| H[参数更新]
+    A[Classical Preprocessing] --> B[Quantum Circuit Generation]
+    B --> C[Compiler Optimization]
+    C --> D[Quantum Execution]
+    D --> E[Measurement Sampling]
+    E --> F[Classical Postprocessing]
+    F --> G{Converge?}
+    G -->|No| H[Parameter Update]
     H --> B
-    G -->|是| I[结果输出]
+    G -->|Yes| I[Result Output]
 ```
 
 ## 3.3 Task Scheduling Architecture
 
 ```mermaid
 graph TB
-    subgraph 任务提交
+    subgraph Task Submission
         T1[Web IDE]
         T2[SDK/API]
-        T3[批量提交]
+        T3[Batch Submission]
     end
 
-    subgraph 调度器
-        S1[优先级队列]
-        S2[公平分配]
-        S3[预留管理]
-        S4[回填调度]
+    subgraph Scheduler
+        S1[Prioritization Queue]
+        S2[Fair Allocation]
+        S3[Reserved Management]
+        S4[Fill Scheduling]
     end
 
-    subgraph 后端
-        B1[量子模拟器]
-        B2[超导后端]
-        B3[离子阱后端]
-        B4[仿真集群]
+    subgraph backend
+        B1[Quantum Simulator]
+        B2[Superconducting Backend]
+        B3[Ion Trap Backend]
+        B4[Simulation Cluster]
     end
 
     T1 & T2 & T3 --> S1

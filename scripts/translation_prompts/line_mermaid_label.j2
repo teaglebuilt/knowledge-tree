@@ -1,15 +1,22 @@
 {% extends "_base_line.j2" %}
 {% block extra_rules %}
 - This line is Mermaid diagram source.
-- Preserve node IDs, edge operators (`-->`, `---`, `-.->`), and keywords
+- Preserve edge operators (`-->`, `---`, `-.->`) and keywords
   (`flowchart`, `graph`, `subgraph`, `end`, `classDef`, direction `TB`/`LR`).
-- Translate display labels only: text inside `[...]`, `(...)`, `{...}`,
-  quotes after node IDs, and edge label text `|like this|`.
-- `subgraph id["中文"]` → `subgraph id["English"]` (keep `id`).
+- ASCII node IDs stay unchanged (`A`, `collect`, `DataLayer`).
+- If a node/subgraph ID itself is non-English, replace it with ONE CamelCase
+  ASCII identifier (no spaces): `采集层` → `CollectionLayer`.
+  Never write `subgraph Data Collection[...]` (space breaks Mermaid).
+- Translate display labels: text inside `[...]`, `(...)`, `{...}`, quoted
+  titles, and edge label text `|like this|`.
 {% endblock %}
 {% block examples %}
   in   5\tsubgraph collect["采集层"]
   out  5\tsubgraph collect["Collection Layer"]
-  in   6\tA[用户请求] --> B[网关]
-  out  6\tA[User Request] --> B[Gateway]
+  in   6\tsubgraph 采集层["Data Collection"]
+  out  6\tsubgraph CollectionLayer["Data Collection"]
+  in   7\tA[用户请求] --> B[网关]
+  out  7\tA[User Request] --> B[Gateway]
+  in   8\t采集层 --> 存储层
+  out  8\tCollectionLayer --> StorageLayer
 {% endblock %}

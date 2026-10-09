@@ -1,8 +1,7 @@
 ---
 original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/14-agent-kudig-design-strategy.md
----
----title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths (domain-14-ai-ml-infra)
+title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths (domain-14-ai-ml-infra)
 description: 'title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
 summary: 'title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
 category: general
@@ -45,56 +44,8 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
 ---
 
-> **Production Environment Safety Notice**
->
-> This document contains directly executable operational commands. Before executing, confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
-
-
-
-
-title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
-description: '# Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- [[Helm|helm]]
-- [[ArgoCD|argocd]]
-- redis
-- hpa
-- [[Ingress|ingress]]
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI Engineers
-- Architects
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- What is Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
-- How to Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
-trigger_keywords:
-- Agent
-- As a New Way of Technical Enablement: Design Thinking and Implementation Paths
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
 # Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
 
 > **Document Type**: Strategic Design Special Topic | **Last Updated**: 2026-03 | **Keywords**: Agent, Technical Enablement, RAG, K8s Operations, Knowledge-Driven, Automation, Platform Engineering

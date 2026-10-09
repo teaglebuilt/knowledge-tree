@@ -679,6 +679,10 @@ _TREE_PREFIX_RE = re.compile(
     r"^(\s*(?:(?:[│|]\s*)?(?:├──|└──|├─|└─|\|--|`──|\+--)\s*)?)"
 )
 _MERMAID_NODE_RE = re.compile(r"\b([A-Za-z_][\w]*)\s*[\[\(\{]")
+_MERMAID_SUBGRAPH_ID_RE = re.compile(r"\bsubgraph\s+(\S+?)(?:\s*\[|\s*$)")
+_MERMAID_EDGE_RE = re.compile(r"(\S+)\s*(?:-->|---|\-\.->|==>)\s*(\S+)")
+# Spaced ID after subgraph — illegal Mermaid (`subgraph Data Collection[`).
+_MERMAID_SPACED_ID_RE = re.compile(r"\bsubgraph\s+\S+\s+\S+\s*\[")
 
 
 def _scaffold(line: str) -> tuple[tuple, str]:
@@ -714,18 +718,170 @@ def _diagram_sig(line: str) -> tuple:
     return (indent, pref.replace(" ", "·"), boxes)
 
 
-def _mermaid_sig(line: str) -> tuple:
-    """Node IDs + keyword skeleton for a Mermaid line."""
-    ids = tuple(_MERMAID_NODE_RE.findall(line))
+def _strip_quoted_spans(line: str) -> str:
+    """Blank out '...' / \"...\" so label text is not mistaken for syntax."""
+    line = re.sub(r'"[^"]*"', '""', line)
+    line = re.sub(r"'[^']*'", "''", line)
+    return line
+
+
+def _strip_link_destinations(line: str) -> str:
+    """Remove `(#anchor)` / `(url)` tails so residual-script checks ignore them."""
+    return re.sub(r"\]\([^)]*\)", "]", line)
+
+
+def _mermaid_shape(line: str) -> tuple:
+    """Structural shape of a Mermaid line (keywords, edges, brackets)."""
+    # Labels like ["Sidecar Mode (Istio)"] must not affect paren counts or IDs.
+    bare = _strip_quoted_spans(line)
     keywords = tuple(
         m.group(0)
         for m in re.finditer(
             r"\b(?:flowchart|graph|subgraph|end|classDef|click|style|TB|LR|BT|RL)\b",
-            line,
+            bare,
         )
     )
-    edges = len(re.findall(r"-->|---|\-\.->|==>", line))
-    return (ids, keywords, edges)
+    edges = len(re.findall(r"-->|---|\-\.->|==>", bare))
+    brackets = (
+        bare.count("["),
+        bare.count("]"),
+        bare.count("("),
+        bare.count(")"),
+        bare.count("{"),
+        bare.count("}"),
+    )
+    return (keywords, edges, brackets)
+
+
+def _mermaid_latin_ids(line: str) -> set[str]:
+    """ASCII identifiers in ID positions (must survive translation)."""
+    bare = _strip_quoted_spans(line)
+    ids = set(_MERMAID_NODE_RE.findall(bare))
+    for m in _MERMAID_SUBGRAPH_ID_RE.finditer(bare):
+        tok = m.group(1)
+        if re.fullmatch(r"[A-Za-z_][\w]*", tok):
+            ids.add(tok)
+    return ids
+
+
+def _mermaid_skeleton_ok(original: str, translated: str) -> bool:
+    """
+    True when Mermaid structure is preserved.
+
+    ASCII IDs must stay; CJK IDs may become a single CamelCase token. Rejects
+    spaced subgraph IDs the model sometimes emits.
+    """
+    if _MERMAID_SPACED_ID_RE.search(translated):
+        return False
+    if _mermaid_shape(original) != _mermaid_shape(translated):
+        return False
+    orig_latin = _mermaid_latin_ids(original)
+    trans_latin = _mermaid_latin_ids(translated)
+    if not orig_latin.issubset(trans_latin):
+        return False
+    return True
+
+
+def _to_mermaid_ident(phrase: str) -> str:
+    """Turn an English phrase into a single CamelCase Mermaid identifier."""
+    words = re.findall(r"[A-Za-z0-9]+", phrase)
+    if not words:
+        return "Node"
+    return "".join(w[:1].upper() + w[1:].lower() if not w.isupper() else w for w in words)
+
+
+def _mermaid_cjk_ids_in_lines(lines: list[str]) -> list[str]:
+    """Ordered unique CJK tokens used as Mermaid node/subgraph/edge IDs."""
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def consider(tok: str) -> None:
+        tok = tok.strip().rstrip(":")
+        if not tok or tok in seen:
+            return
+        if not _SEGMENT_SCRIPT_RE.search(tok):
+            return
+        # Skip pure punctuation / edge crumbs.
+        if re.fullmatch(r"[\W_]+", tok):
+            return
+        seen.add(tok)
+        found.append(tok)
+
+    for line in lines:
+        # Ignore quoted label text so we only remap ID positions.
+        stripped = re.sub(r'"[^"]*"', '""', line)
+        stripped = re.sub(r"'[^']*'", "''", stripped)
+        for m in _MERMAID_SUBGRAPH_ID_RE.finditer(stripped):
+            consider(m.group(1))
+        for m in _MERMAID_EDGE_RE.finditer(stripped):
+            consider(m.group(1))
+            consider(m.group(2))
+        for m in re.finditer(
+            r"(?:^|[\s;])([^\s\[\(\{\"']+)\s*[\[\(\{]", stripped
+        ):
+            tok = m.group(1)
+            if tok in ("subgraph", "end", "flowchart", "graph", "classDef"):
+                continue
+            consider(tok)
+    return found
+
+
+def remap_mermaid_cjk_ids(
+    text: str,
+    client: VllmClient,
+    prompts: PromptBank,
+) -> tuple[str, int]:
+    """
+    Replace CJK Mermaid identifiers with stable ASCII IDs across each fence.
+
+    Line-by-line translation otherwise invents different English names for the
+    same `采集层` on the subgraph line and the `采集层 --> …` edge line.
+    """
+    doc = paint(text)
+    body_lines = doc.body.split("\n")
+    all_ids: list[str] = []
+    seen: set[str] = set()
+    mermaid_ranges: list[tuple[int, int]] = []
+    for fr in doc.fences:
+        parts = (fr.info or "").split()
+        lang = parts[0].lower() if parts else ""
+        if lang != "mermaid":
+            continue
+        chunk = body_lines[fr.start_line + 1 : fr.end_line]
+        mermaid_ranges.append((fr.start_line + 1, fr.end_line))
+        for tok in _mermaid_cjk_ids_in_lines(chunk):
+            if tok not in seen:
+                seen.add(tok)
+                all_ids.append(tok)
+    if not all_ids:
+        return text, 0
+
+    got = _translate_phrases(client, all_ids, prompts)
+    id_map: dict[str, str] = {}
+    used: set[str] = set()
+    for i, src in enumerate(all_ids):
+        eng = got.get(i + 1, "")
+        ident = _to_mermaid_ident(eng) if eng else f"Node{i + 1}"
+        base = ident
+        n = 2
+        while ident in used:
+            ident = f"{base}{n}"
+            n += 1
+        used.add(ident)
+        id_map[src] = ident
+
+    ordered = sorted(id_map.keys(), key=len, reverse=True)
+    for start, end in mermaid_ranges:
+        for ln in range(start, end):
+            line = body_lines[ln]
+            for src in ordered:
+                line = line.replace(src, id_map[src])
+            body_lines[ln] = line
+
+    body = "\n".join(body_lines)
+    if doc.frontmatter is None:
+        return body, len(id_map)
+    return f"---\n{doc.frontmatter}\n---\n{body}", len(id_map)
 
 
 def _clean_translated(text: str) -> str:
@@ -767,7 +923,10 @@ def _line_problem(
     """Why this translated line is unusable, or None when it is fine."""
     if translated is None:
         return "missing from reply"
-    if _BLOCK_SCRIPT_RE.search(translated):
+    # Link destinations (`](#中文-slug)`) are repaired in postprocess — do not
+    # fail a line that only has source-language text inside `(...)` after `]`.
+    script_probe = _strip_link_destinations(translated)
+    if _BLOCK_SCRIPT_RE.search(script_probe):
         return "still contains source-language text"
     if role == "fence_diagram":
         if _diagram_sig(original) != _diagram_sig(translated):
@@ -775,9 +934,14 @@ def _line_problem(
         if _SEGMENT_SCRIPT_RE.search(original) and not re.search(r"[A-Za-z]", translated):
             return "content dropped"
     elif role == "mermaid_label":
-        if _mermaid_sig(original) != _mermaid_sig(translated):
+        if not _mermaid_skeleton_ok(original, translated):
             return "mermaid node/edge skeleton changed"
-        if _SEGMENT_SCRIPT_RE.search(original) and not re.search(r"[A-Za-z]", translated):
+        # Labels may be the only CJK; require some Latin once the source had CJK
+        # outside quotes/IDs… but quoted English-only labels with CJK IDs are
+        # handled by remap. Here: if probe still empty of letters after strip, fail.
+        if _SEGMENT_SCRIPT_RE.search(_strip_quoted_spans(original)) and not re.search(
+            r"[A-Za-z]", translated
+        ):
             return "content dropped"
     else:
         o_sig, o_rest = _scaffold(original)
@@ -926,7 +1090,7 @@ def _remember_partial(
         if _diagram_sig(original) != _diagram_sig(candidate):
             return
     elif role == "mermaid_label":
-        if _mermaid_sig(original) != _mermaid_sig(candidate):
+        if not _mermaid_skeleton_ok(original, candidate):
             return
     else:
         o_sig, _ = _scaffold(original)
@@ -1043,14 +1207,21 @@ def translate_file(
     fence and table counts cannot drift - the structural checks in the verify
     gate are satisfied by construction rather than by the model's goodwill.
     """
-    lines = text.split("\n")
-    jobs = plan_lines(text, config, roles_filter=roles_filter)
     bank = prompts or PromptBank(
         PROMPTS_DIR,
         config.get("role_templates", DEFAULT_ROLE_TEMPLATES),
         config.get("phrase_template", DEFAULT_PHRASE_TEMPLATE),
     )
     steps = config.get("postprocess_steps", DEFAULT_POSTPROCESS_STEPS)
+
+    # Remap CJK Mermaid IDs before planning so subgraph + edge lines share names.
+    if roles_filter is None or "mermaid_label" in roles_filter:
+        text, n_remap = remap_mermaid_cjk_ids(text, client, bank)
+        if n_remap:
+            print(f"    remapped {n_remap} mermaid CJK id(s) to ASCII", flush=True)
+
+    lines = text.split("\n")
+    jobs = plan_lines(text, config, roles_filter=roles_filter)
     if not jobs:
         return postprocess_translation(text, lang, source_path, steps), {}, Counter()
 

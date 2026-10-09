@@ -119,41 +119,41 @@ Space internet involves national security and requires protection from multiple 
 
 ```mermaid
 graph TB
-    subgraph 空间段
-        SAT1[低轨卫星星座]
-        SAT2[星间激光链路]
-        SAT3[星上计算平台]
-        SAT4[有效载荷]
+    subgraph space_segment
+        SAT1[Low Earth Orbit Satellite Constellation]
+        SAT2[Inter-satellite Laser Link]
+        SAT3[On-board Computing Platform]
+        SAT4[Payload]
     end
 
-    subgraph 地面段
-        G1[信关站网络]
-        G2[测控中心]
-        G3[运管中心]
-        G4[数据处理中心]
-        G5[数据存档中心]
+    subgraph ground_segment
+        G1[Link Establishment Network]
+        G2[Mission Control Center]
+        G3[Operational Management Center]
+        G4[Data Processing Center]
+        G5[Data Archiving Center]
     end
 
-    subgraph 用户段
-        U1[固定终端]
-        U2[移动终端]
-        U3[企业用户]
-        U4[政府用户]
+    subgraph user_segment
+        U1[Fixed Terminal]
+        U2[Mobility Terminal]
+        U3[Enterprise Users]
+        U4[Government Users]
     end
 
-    subgraph 服务层
-        S1[卫星宽带]
-        S2[遥感数据服务]
-        S3[导航增强]
-        S4[卫星物联网]
-        S5[应急通信]
+    subgraph service_layer
+        S1[Satellite Broadband]
+        S2[Radar Data Services]
+        S3[Navigation Enhancement]
+        S4[Satellite Internet of Things]
+        S5[Emergency Communication]
     end
 
-    subgraph 云平台
-        C1[ACK 集群]
-        C2[大数据平台]
-        C3[AI 平台]
-        C4[对象存储]
+    subgraph cloud platform
+        C1[ACK Cluster]
+        C2[data Analytics Platform]
+        C3[AI Platform]
+        C4[objec t Storage]
     end
 
     SAT1 <--> SAT2
@@ -172,29 +172,29 @@ The satellite operation management system adopts a microservices architecture, b
 
 ```mermaid
 graph LR
-    subgraph API 网关
+    subgraph API Gateway
         GW[Kong / APISIX]
     end
 
-    subgraph 核心服务
-        S1[轨道计算服务]
-        S2[测控调度服务]
-        S3[数传管理服务]
-        S4[载荷管理服务]
-        S5[异常检测服务]
+    subgraph core services
+        S1[Orbit Calculation Service]
+        S2[Mission Control Scheduling Service]
+        S3[Data Transmission Management Service]
+        S4[Lading Management Service]
+        S5[Abnormal Detection Service]
     end
 
-    subgraph 数据服务
-        D1[遥测数据库]
-        D2[轨道数据库]
-        D3[影像数据库]
-        D4[事件存储]
+    subgraph data services
+        D1[Telemetry Database]
+        D2[Orbit Database]
+        D3[Imagery Database]
+        D4[event Storage]
     end
 
-    subgraph AI 服务
-        A1[轨道预测模型]
-        A2[异常检测模型]
-        A3[遥感影像分析]
+    subgraph AI Services
+        A1[Orbit Prediction Model]
+        A2[Abnormal Detection Model]
+        A3[Radiance Analysis]
     end
 
     GW --> S1 & S2 & S3 & S4 & S5
@@ -210,16 +210,16 @@ Radiance correction, geometric correction, atmospheric correction, fusion stitch
 
 ```mermaid
 flowchart LR
-    A[卫星数传接收] --> B[原始数据解析]
-    B --> C[辐射校正]
-    C --> D[几何校正]
-    D --> E[大气校正]
-    E --> F[正射纠正]
-    F --> G[影像融合]
-    G --> H[AI 目标识别]
-    H --> I[产品生成]
-    I --> J[分发服务]
-    I --> K[数据存档]
+    A[Satellite Data Reception] --> B[Raw Data Parsing]
+    B --> C[Radiometric Calibration]
+    C --> D[Geometric Calibration]
+    D --> E[Aerosol Correction]
+    E --> F[Orthorectification]
+    F --> G[Fusion]
+    G --> H[AI Target Recognition]
+    H --> I[Product Generation]
+    I --> J[Distribution Service]
+    I --> K[Data Archiving]
 ```
 
 ## 3.4 Edge Computing Architecture for Star-Ground Collaboration
@@ -228,24 +228,24 @@ Deploy lightweight computing nodes on satellites for in-orbit processing and int
 
 ```mermaid
 graph TB
-    subgraph 星上边缘
-        E1[数据采集]
-        E2[在轨预处理]
-        E3[AI 目标检测]
-        E4[数据压缩]
-        E5[星间转发]
+    subgraph Onboard Edge
+        E1[Data Collection]
+        E2[In-orbit Preprocessing]
+        E3[AI Target Detection]
+        E4[Data Compression]
+        E5[Inter-satellite Forwarding]
     end
 
-    subgraph 地面边缘
-        G1[信关站接收]
-        G2[快速处理]
-        G3[实时分发]
+    subgraph Ground Edge
+        G1[Security Station Receives]
+        G2[Quick Processing]
+        G3[Real-time Distribution]
     end
 
-    subgraph 云中心
-        C1[深度处理]
-        C2[模型训练]
-        C3[数据存档]
+    subgraph Cloud Center
+        C1[Deep Processing]
+        C2[Model Training]
+        C3[Data Archiving]
     end
 
     E1 --> E2 --> E3 --> E4
