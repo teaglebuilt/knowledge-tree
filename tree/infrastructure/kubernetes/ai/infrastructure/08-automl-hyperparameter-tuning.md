@@ -1,6 +1,6 @@
 ---
-title: AutoML与超参数调优
-description: '## 一、AutoML架构全景'
+title: AutoML and Hyperparameter Tuning
+description: '## one,AutoML Architecture Overview'
 summary: 'from sklearn.gaussian_process import GaussianProcessRegressor'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AutoML与超参数调优 是什么
-- 如何 AutoML与超参数调优
-- Kubernetes 11 ai infra 最佳实践
+- What is AutoML and Hyperparameter Tuning
+- How to do AutoML and Hyperparameter Tuning
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AutoML与超参数调优
+- AutoML and Hyperparameter Tuning
 - ai
 - infra
 prerequisites:
@@ -47,52 +47,54 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/08-automl-hyperparameter-tuning.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually can be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AutoML与超参数调优
+# AutoML and Hyperparameter Tuning
 
-<!-- chunk: 一、AutoML架构全景 -->
-## 一、AutoML架构全景
+
+## 1. AutoML Architecture Overview
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                        AutoML完整流程                                      │
+│                        AutoML complete process                                      │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│  │ 数据预处理   │───▶│ 特征工程     │───▶│ 模型选择     │                  │
+│  │ Data preprocessing   │───▶│ Feature engineering     │───▶│ Model selection     │                  │
 │  │ AutoFE      │    │ AutoFeature │    │ NAS         │                  │
 │  └─────────────┘    └─────────────┘    └─────────────┘                  │
 │                                                │                          │
 │                                                ▼                          │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│  │ 超参数优化   │◀───│ 模型训练     │◀───│ 架构搜索     │                  │
+│  │ Hyperparameter optimization   │◀───│ Model training     │◀───│ Architecture search     │                  │
 │  │ HPO         │    │ Distributed │    │ DARTS/ENAS  │                  │
 │  └─────────────┘    └─────────────┘    └─────────────┘                  │
 │       │                    │                                              │
 │       │                    ▼                                              │
 │       │            ┌─────────────┐                                        │
-│       └───────────▶│ 模型评估     │                                        │
+│       └───────────▶│ Model evaluation     │                                        │
 │                    │ Validation  │                                        │
 │                    └─────────────┘                                        │
 │                            │                                              │
 │                            ▼                                              │
 │                    ┌─────────────┐                                        │
-│                    │ 模型部署     │                                        │
+│                    │ Model deployment     │                                        │
 │                    │ Production  │                                        │
 │                    └─────────────┘                                        │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -100,21 +102,21 @@ cross_refs:
 
 ---
 
-<!-- chunk: 二、超参数优化算法 -->
-## 二、超参数优化算法
 
-### 2.1 算法对比
+## 2. Hyperparameter Optimization Algorithms
 
-| 算法 | 类型 | 优点 | 缺点 | 适用场景 |
+### 2.1 Algorithm Comparison
+
+| Algorithm | Type | Advantage | Disadvantage | Scenario |
 |-----|------|------|------|---------|
-| **Grid Search** | 网格搜索 | 简单、可重现 | 指数级复杂度 | 小搜索空间、离散参数 |
-| **Random Search** | 随机搜索 | 高效、易并行 | 无利用历史信息 | 中等搜索空间、初步探索 |
-| **Bayesian Optimization** | 贝叶斯优化 | 样本高效、智能 | 计算开销大 | 昂贵训练、连续参数 |
-| **Hyperband/ASHA** | 早停策略 | 极快、资源高效 | 依赖性能曲线 | 大规模并行、快速筛选 |
-| **Population Based Training** | 进化算法 | 动态调整、在线优化 | 需要多副本 | 长时间训练、RL |
-| **BOHB** | 混合算法 | 结合BO+HB优点 | 实现复杂 | 生产环境推荐 |
+| **Grid Search** | Grid Search | Simple, reproducible | Exponential complexity | Small search space, discrete parameters |
+| **Random Search** | Random Search | Efficient, easy to parallelize | No use of historical information | Moderate search space, initial exploration |
+| **Bayesian Optimization** | Bayesian Optimization | Sample-efficient, intelligent | High computational cost | Expensive training, continuous parameters |
+| **Hyperband/ASHA** | Early Stopping Strategy | Very fast, resource efficient | Depends on performance curve | Large-scale parallelism, quick screening |
+| **Population Based Training** | Evolutionary Algorithms | Dynamic adjustment, online optimization | Requires multiple replicas | Long-term training, RL |
+| **BOHB** | Hybrid Algorithm | Combines BO+HB advantages | Complex implementation | Recommended for production environments |
 
-### 2.2 贝叶斯优化原理
+### 2.2 Principles of Bayesian Optimization
 
 ```python
 """
@@ -145,7 +147,7 @@ class BayesianOptimizer:
         self.X_observed = []
         self.y_observed = []
         
-        # 高斯过程
+        # Gaussian Process
         kernel = Matern(nu=2.5)
         self.gp = GaussianProcessRegressor(
             kernel=kernel,
@@ -155,7 +157,7 @@ class BayesianOptimizer:
         )
     
     def acquisition_function(self, X, xi=0.01):
-        """Expected Improvement采集函数"""
+        """Expected Improvement Acquisition Function"""
         mu, sigma = self.gp.predict(X, return_std=True)
         
         if len(self.y_observed) == 0:
@@ -172,15 +174,15 @@ class BayesianOptimizer:
         return ei
     
     def suggest(self):
-        """推荐下一个采样点"""
+        """Recommend next sample point"""
         if len(self.X_observed) == 0:
-            # 随机初始化
+            # Random initialization
             return np.random.uniform(self.bounds[:, 0], self.bounds[:, 1])
         
-        # 拟合高斯过程
+        # Fit Gaussian Process
         self.gp.fit(self.X_observed, self.y_observed)
         
-        # 最大化采集函数
+        # Maximize Acquisition Function
         X_candidates = np.random.uniform(
             self.bounds[:, 0],
             self.bounds[:, 1],
@@ -191,19 +193,19 @@ class BayesianOptimizer:
         return X_candidates[np.argmax(ei)]
     
     def observe(self, X, y):
-        """记录观测结果"""
+        """Record observation results"""
         self.X_observed.append(X)
         self.y_observed.append(y)
 
-# 使用示例
+# Usage Example
 def objective_function(params):
-    """目标函数：训练模型并返回验证精度"""
+    """Objective function: train model and return validation accuracy"""
     lr, batch_size, dropout = params
-    # 训练代码...
+    # Training code...
     accuracy = train_and_evaluate(lr, batch_size, dropout)
     return accuracy
 
-# 定义搜索空间
+# Define Search Space
 bounds = np.array([
     [1e-5, 1e-2],  # learning_rate
     [16, 128],      # batch_size
@@ -213,18 +215,18 @@ bounds = np.array([
 optimizer = BayesianOptimizer(bounds, n_iter=30)
 
 for i in range(30):
-    # 推荐参数
+    # Recommended parameters
     params = optimizer.suggest()
     
-    # 评估
+    # Evaluation
     score = objective_function(params)
     
-    # 记录结果
+    # Record result
     optimizer.observe(params, score)
     
     print(f"Iteration {i+1}: params={params}, score={score}")
 
-# 最佳参数
+# Best Parameters
 best_idx = np.argmax(optimizer.y_observed)
 best_params = optimizer.X_observed[best_idx]
 best_score = optimizer.y_observed[best_idx]
@@ -233,10 +235,10 @@ print(f"Best params: {best_params}, Best score: {best_score}")
 
 ---
 
-<!-- chunk: 三、Optuna深度实践 -->
-## 三、Optuna深度实践
 
-### 3.1 Optuna高级特性
+## 3. Deep Optuna Practice
+
+### 3.1 Advanced Features of Optuna
 
 ```python
 import optuna
@@ -246,11 +248,11 @@ import mlflow
 import torch
 from transformers import Trainer, TrainingArguments
 
-# 1. 定义目标函数
+# 1. Define Objective Function
 def objective(trial):
-    """Optuna目标函数"""
+    """Optuna Objective Function"""
     
-    # 超参数采样
+    # Hyperparameter Sampling
     params = {
         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True),
         "per_device_train_batch_size": trial.suggest_categorical("batch_size", [16, 32, 64]),
@@ -258,17 +260,17 @@ def objective(trial):
         "warmup_ratio": trial.suggest_float("warmup_ratio", 0.0, 0.2),
         "weight_decay": trial.suggest_float("weight_decay", 0.0, 0.1),
         
-        # 模型架构参数
+        # Model architecture parameters
         "num_hidden_layers": trial.suggest_int("num_hidden_layers", 6, 12),
         "hidden_dropout_prob": trial.suggest_float("dropout", 0.1, 0.3),
         "attention_probs_dropout_prob": trial.suggest_float("attention_dropout", 0.1, 0.3)
     }
     
-    # MLflow追踪
+    # Evaluate MLflow Tracking
     with mlflow.start_run(nested=True):
         mlflow.log_params(params)
         
-        # 构建模型
+        # Build model
         model_config = AutoConfig.from_pretrained("bert-base-uncased")
         model_config.num_hidden_layers = params["num_hidden_layers"]
         model_config.hidden_dropout_prob = params["hidden_dropout_prob"]
@@ -276,7 +278,7 @@ def objective(trial):
         
         model = AutoModelForSequenceClassification.from_config(model_config)
         
-        # 训练参数
+        # Training parameters
         training_args = TrainingArguments(
             output_dir="/tmp/optuna_trial",
             learning_rate=params["learning_rate"],
@@ -289,17 +291,17 @@ def objective(trial):
             load_best_model_at_end=False
         )
         
-        # Trainer回调：中间剪枝
+        # Trainer callbacks: mid-level pruning
         class OptunaCallback:
             def __init__(self, trial):
                 self.trial = trial
             
             def on_evaluate(self, args, state, control, metrics, **kwargs):
-                # 报告中间结果
+                # Report intermediate results
                 accuracy = metrics.get("eval_accuracy")
                 self.trial.report(accuracy, state.epoch)
                 
-                # 检查是否应该剪枝
+                # Check if pruning should occur
                 if self.trial.should_prune():
                     raise optuna.TrialPruned()
         
@@ -311,10 +313,10 @@ def objective(trial):
             callbacks=[OptunaCallback(trial)]
         )
         
-        # 训练
+        # Train
         trainer.train()
         
-        # 最终评估
+        # Final evaluation
         eval_results = trainer.evaluate()
         accuracy = eval_results["eval_accuracy"]
         
@@ -322,21 +324,21 @@ def objective(trial):
         
         return accuracy
 
-# 2. 创建Study（支持分布式）
+# 2. Create Study (supports distributed)
 study = optuna.create_study(
     study_name="bert-classification-hpo",
     direction="maximize",
     storage="postgresql://optuna:password@postgres.ai-platform.svc.cluster.local:5432/optuna",
     load_if_exists=True,
     
-    # TPE采样器
+    # TPE sampler
     sampler=TPESampler(
         n_startup_trials=10,  # 前10次随机采样
         n_ei_candidates=24,
         seed=42
     ),
     
-    # Median剪枝器
+    # Median pruner
     pruner=MedianPruner(
         n_startup_trials=5,
         n_warmup_steps=2,
@@ -344,7 +346,7 @@ study = optuna.create_study(
     )
 )
 
-# 3. 运行优化
+# 3. Run optimization
 study.optimize(
     objective,
     n_trials=100,
@@ -353,40 +355,40 @@ study.optimize(
     show_progress_bar=True
 )
 
-# 4. 结果分析
+# 4. Result analysis
 print(f"Best trial: {study.best_trial.number}")
 print(f"Best value: {study.best_value}")
 print(f"Best params: {study.best_params}")
 
-# 统计信息
+# Statistics
 print(f"Finished trials: {len(study.trials)}")
 print(f"Pruned trials: {len(study.get_trials(states=[optuna.trial.TrialState.PRUNED]))}")
 print(f"Complete trials: {len(study.get_trials(states=[optuna.trial.TrialState.COMPLETE]))}")
 
-# 5. 可视化
+# Visualization
 import optuna.visualization as vis
 
-# 优化历史
+# Optimization history
 fig = vis.plot_optimization_history(study)
 fig.write_html("optuna_history.html")
 
-# 参数重要性
+# Parameter importance
 fig = vis.plot_param_importances(study)
 fig.write_html("optuna_importances.html")
 
-# 平行坐标图
+# Parallel coordinate plot
 fig = vis.plot_parallel_coordinate(study)
 fig.write_html("optuna_parallel.html")
 
-# 超参数关系
+# Hyperparameter relationships
 fig = vis.plot_contour(study, params=["learning_rate", "batch_size"])
 fig.write_html("optuna_contour.html")
 ```
 
-### 3.2 Kubernetes分布式Optuna
+### 3.2 Distributed Optuna on Kubernetes
 
 ```yaml
-# PostgreSQL存储
+# PostgreSQL storage
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -500,10 +502,10 @@ spec:
 
 ---
 
-<!-- chunk: 四、Ray Tune大规模并行 -->
-## 四、Ray Tune大规模并行
 
-### 4.1 Ray Tune架构
+## 4. Ray Tune Large-scale Parallelism
+
+### 4.1 Ray Tune Architecture
 
 ```python
 from ray import tune
@@ -514,19 +516,19 @@ import torch
 from functools import partial
 
 def train_model(config, checkpoint_dir=None, data_dir=None):
-    """训练函数"""
+    """Training function"""
     import torch
     import torch.nn as nn
     from torch.utils.data import DataLoader
     from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
     
-    # 构建模型
+    # Build model
     model = AutoModelForSequenceClassification.from_pretrained(
         "bert-base-uncased",
         num_labels=2
     )
     
-    # 训练参数
+    # Training parameters
     training_args = TrainingArguments(
         output_dir="/tmp/ray_tune",
         learning_rate=config["learning_rate"],
@@ -536,7 +538,7 @@ def train_model(config, checkpoint_dir=None, data_dir=None):
         save_strategy="no"
     )
     
-    # 数据加载
+    # Data loading
     train_dataset = load_dataset(data_dir, "train")
     eval_dataset = load_dataset(data_dir, "eval")
     
@@ -548,18 +550,18 @@ def train_model(config, checkpoint_dir=None, data_dir=None):
         eval_dataset=eval_dataset
     )
     
-    # 训练循环（支持checkpointing）
+    # Training loop (supports checkpointing)
     for epoch in range(config["num_epochs"]):
         trainer.train()
         eval_results = trainer.evaluate()
         
-        # 报告指标给Ray Tune
+        # Report metrics to Ray Tune
         tune.report(
             accuracy=eval_results["eval_accuracy"],
             loss=eval_results["eval_loss"]
         )
 
-# 搜索空间
+# Search space
 search_space = {
     "learning_rate": tune.loguniform(1e-5, 1e-3),
     "batch_size": tune.choice([16, 32, 64]),
@@ -567,7 +569,7 @@ search_space = {
     "weight_decay": tune.uniform(0.0, 0.1)
 }
 
-# ASHA调度器（异步连续减半）
+# ASHA scheduler (asynchronous continuous halving)
 scheduler = ASHAScheduler(
     metric="accuracy",
     mode="max",
@@ -576,13 +578,13 @@ scheduler = ASHAScheduler(
     reduction_factor=2  # 每轮淘汰50%
 )
 
-# CLIReporter美化输出
+# CLIReporter beautify output
 reporter = CLIReporter(
     metric_columns=["accuracy", "loss", "training_iteration"],
     max_progress_rows=20
 )
 
-# 运行超参数搜索
+# Run hyperparameter search
 analysis = tune.run(
     partial(train_model, data_dir="/data"),
     resources_per_trial={"cpu": 8, "gpu": 1},
@@ -592,7 +594,7 @@ analysis = tune.run(
     progress_reporter=reporter,
     local_dir="/tmp/ray_results",
     
-    # MLflow集成
+    # MLflow integration
     callbacks=[
         MLflowLoggerCallback(
             tracking_uri="http://mlflow-server:5000",
@@ -601,17 +603,17 @@ analysis = tune.run(
         )
     ],
     
-    # 容错
+    # Fault tolerance
     max_failures=3,
     raise_on_failed_trial=False
 )
 
-# 最佳配置
+# Best configuration
 best_trial = analysis.best_trial
 print(f"Best trial config: {best_trial.config}")
 print(f"Best trial final validation accuracy: {best_trial.last_result['accuracy']}")
 
-# 获取最佳模型checkpoint
+# Get best model checkpoint
 best_checkpoint = analysis.best_checkpoint
 ```
 
@@ -620,26 +622,26 @@ best_checkpoint = analysis.best_checkpoint
 ```python
 from ray.tune.schedulers import PopulationBasedTraining
 
-# PBT调度器
+# PBT scheduler
 pbt_scheduler = PopulationBasedTraining(
     time_attr="training_iteration",
     metric="accuracy",
     mode="max",
     
-    # 扰动超参数
+    # Perturb hyperparameters
     perturbation_interval=2,  # 每2个epoch扰动一次
     hyperparam_mutations={
         "learning_rate": lambda: tune.loguniform(1e-5, 1e-3).sample(),
         "weight_decay": lambda: tune.uniform(0.0, 0.1).sample()
     },
     
-    # 探索策略
+    # Exploration strategy
     resample_probability=0.25,  # 25%概率重新采样
     
-    # 种群大小
+    # Population size
     quantile_fraction=0.25,  # 淘汰底部25%
     
-    # 资源配置
+    # Resource configuration
     log_config=True
 )
 
@@ -661,22 +663,22 @@ analysis = tune.run(
 
 ---
 
-<!-- chunk: 五、Neural Architecture Search (NAS) -->
-## 五、Neural Architecture Search (NAS)
 
-### 5.1 DARTS可微架构搜索
+## 5. Neural Architecture Search (NAS)
+
+### 5.1 Differentiable Architecture Search (DARTS)
 
 ```python
 import torch
 import torch.nn as nn
 
 class DARTSCell(nn.Module):
-    """DARTS搜索单元"""
+    """DARTS search unit"""
     def __init__(self, C_in, C_out, stride=1):
         super().__init__()
         self.stride = stride
         
-        # 候选操作
+        # Candidate operations
         self.ops = nn.ModuleList([
             nn.Identity(),
             nn.MaxPool2d(3, stride=stride, padding=1),
@@ -688,11 +690,11 @@ class DARTSCell(nn.Module):
             nn.Sequential()  # zero operation
         ])
         
-        # 架构参数（可学习）
+        # Architecture parameters (learnable)
         self.alpha = nn.Parameter(torch.randn(len(self.ops)))
     
     def forward(self, x):
-        # 加权求和所有操作
+        # Weighted sum of all operations
         weights = torch.softmax(self.alpha, dim=0)
         return sum(w * op(x) for w, op in zip(weights, self.ops))
 
@@ -701,7 +703,7 @@ class DARTSNetwork(nn.Module):
         super().__init__()
         self.stem = nn.Conv2d(3, C, 3, padding=1)
         
-        # 堆叠DARTS单元
+        # Stack DARTS units
         self.cells = nn.ModuleList([
             DARTSCell(C, C) for _ in range(num_cells)
         ])
@@ -716,20 +718,20 @@ class DARTSNetwork(nn.Module):
         return self.classifier(x)
     
     def arch_parameters(self):
-        """返回架构参数"""
+        """Return architecture parameters"""
         return [cell.alpha for cell in self.cells]
     
     def model_parameters(self):
-        """返回模型权重参数"""
+        """Return model weight parameters"""
         params = []
         for name, param in self.named_parameters():
             if 'alpha' not in name:
                 params.append(param)
         return params
 
-# DARTS训练过程
+# DARTS training process
 def train_darts(model, train_loader, val_loader, epochs=50):
-    # 两个优化器
+    # Two optimizers
     w_optimizer = torch.optim.SGD(
         model.model_parameters(),
         lr=0.025,
@@ -745,7 +747,7 @@ def train_darts(model, train_loader, val_loader, epochs=50):
     )
     
     for epoch in range(epochs):
-        # 1. 更新架构参数α（在验证集上）
+        # 1. Update architecture parameters α (on validation set)
         for batch in val_loader:
             images, labels = batch
             
@@ -755,7 +757,7 @@ def train_darts(model, train_loader, val_loader, epochs=50):
             loss.backward()
             alpha_optimizer.step()
         
-        # 2. 更新模型权重w（在训练集上）
+        # 2. Update model weights w (on training set)
         for batch in train_loader:
             images, labels = batch
             
@@ -767,7 +769,7 @@ def train_darts(model, train_loader, val_loader, epochs=50):
         
         print(f"Epoch {epoch+1}: Architecture weights updated")
     
-    # 导出最终架构
+    # Export final architecture
     for i, cell in enumerate(model.cells):
         best_op_idx = torch.argmax(cell.alpha).item()
         print(f"Cell {i}: Best operation index = {best_op_idx}")
@@ -791,17 +793,17 @@ from ofa.model_zoo import ofa_net
 from ofa.nas.accuracy_predictor import AccuracyPredictor
 from ofa.nas.efficiency_predictor import LatencyPredictor
 
-# 加载预训练OFA网络
+# Load pre-trained OFA network
 ofa_network = ofa_net('ofa_mbv3_d234_e346_k357_w1.2', pretrained=True)
 
-# 搜索最优子网络
+# Search for optimal subnetwork
 accuracy_predictor = AccuracyPredictor(ofa_network)
 latency_predictor = LatencyPredictor(device='note10')  # Samsung Note10
 
-# 约束条件
+# Constraints
 latency_constraint = 20  # 20ms延迟
 
-# 进化搜索
+# Evolutionary search
 best_config = evolutionary_search(
     ofa_network,
     accuracy_predictor,
@@ -815,17 +817,17 @@ print(f"Best config: {best_config}")
 print(f"Estimated accuracy: {accuracy_predictor(best_config)}")
 print(f"Estimated latency: {latency_predictor(best_config)}ms")
 
-# 导出子网络
+# Export subnetwork
 subnet = ofa_network.get_active_subnet(best_config)
 torch.save(subnet.state_dict(), "optimized_subnet.pth")
 ```
 
 ---
 
-<!-- chunk: 六、AutoML平台对比 -->
-## 六、AutoML平台对比
 
-| 平台 | 算法支持 | 分布式 | NAS支持 | 易用性 | 开源 |
+## 6. AutoML Platform Comparison
+
+| Platform | Algorithm Support | Distributed | NAS Support | Usability | Open Source |
 |-----|---------|--------|---------|--------|------|
 | **Optuna** | BO, TPE, CMA-ES | ✅ | ❌ | ★★★★★ | ✅ |
 | **Ray Tune** | Grid, Random, BO, ASHA, PBT | ✅ | ✅ | ★★★★☆ | ✅ |
@@ -833,40 +835,40 @@ torch.save(subnet.state_dict(), "optimized_subnet.pth")
 | **Keras Tuner** | Random, Hyperband, BO | ❌ | ✅ | ★★★★☆ | ✅ |
 | **Auto-sklearn** | SMAC, meta-learning | ❌ | ❌ | ★★★★★ | ✅ |
 | **Google Vertex AI** | BO, Grid | ✅ | ❌ | ★★★★☆ | ❌ |
-| **Azure AutoML** | 多种 | ✅ | ✅ | ★★★★☆ | ❌ |
+| **Azure AutoML** | Multiple | ✅ | ✅ | ★★★★☆ | ❌ |
 
-**推荐选择：**
-- 深度学习：Ray Tune（大规模并行） + Optuna（精细优化）
-- 传统ML：Auto-sklearn（快速baseline）
-- 生产环境：Ray Tune + [[Kubernetes|Kubernetes]]（弹性扩缩容）
-- 学术研究：Optuna（灵活、可扩展）
+**Recommended Choice:**
+- Deep Learning: Ray Tune (massive parallelism) + Optuna (fine-tuning optimization)
+- Traditional ML: Auto-sklearn (fast baseline)
+- Production Environment: Ray Tune + [[Kubernetes|Kubernetes]] (elastic scaling)
+- Academic Research: Optuna (flexible, scalable)
 
 ---
 
-<!-- chunk: 七、多目标优化 -->
-## 七、多目标优化
 
-### 7.1 帕累托前沿搜索
+## 7. Multi-objective Optimization
+
+### 7.1 Pareto Frontier Search
 
 ```python
 import optuna
 
 def multi_objective(trial):
-    """多目标优化：精度 vs 延迟"""
-    # 超参数
+    """Multi-objective optimization: precision vs latency"""
+    # Hyperparameters
     num_layers = trial.suggest_int("num_layers", 6, 24)
     hidden_size = trial.suggest_categorical("hidden_size", [256, 512, 768, 1024])
     
-    # 训练模型
+    # Train model
     model = build_model(num_layers, hidden_size)
     accuracy = train_and_evaluate(model)
     
-    # 推理延迟（ms）
+    # Inference latency (ms)
     latency = benchmark_latency(model)
     
     return accuracy, latency
 
-# 创建多目标Study
+# Create multi-objective Study
 study = optuna.create_study(
     directions=["maximize", "minimize"],  # 最大化精度，最小化延迟
     study_name="multi-objective-hpo"
@@ -874,7 +876,7 @@ study = optuna.create_study(
 
 study.optimize(multi_objective, n_trials=100)
 
-# 获取帕累托前沿
+# Get Pareto frontier
 pareto_trials = study.best_trials
 
 print(f"Number of Pareto optimal trials: {len(pareto_trials)}")
@@ -885,7 +887,7 @@ for trial in pareto_trials:
     print(f"  Latency: {trial.values[1]:.2f}ms")
     print(f"  Params: {trial.params}")
 
-# 可视化帕累托前沿
+# Visualize Pareto frontier
 import optuna.visualization as vis
 fig = vis.plot_pareto_front(study, target_names=["Accuracy", "Latency"])
 fig.write_html("pareto_front.html")
@@ -893,10 +895,10 @@ fig.write_html("pareto_front.html")
 
 ---
 
-<!-- chunk: 八、AutoML Pipeline -->
-## 八、AutoML Pipeline
 
-### 8.1 完整AutoML工作流
+## 8. AutoML Pipeline
+
+### 8.1 Complete AutoML Workflow
 
 ```python
 from sklearn.pipeline import Pipeline
@@ -906,12 +908,12 @@ from sklearn.ensemble import RandomForestClassifier
 from auto_sklearn.classification import AutoSklearnClassifier
 import pandas as pd
 
-# 加载数据
+# Load data
 df = pd.read_csv("data.csv")
 X = df.drop("target", axis=1)
 y = df["target"]
 
-# 自动特征工程
+# Automatic feature engineering
 numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
 categorical_features = X.select_dtypes(include=['object']).columns
 
@@ -922,7 +924,7 @@ preprocessor = ColumnTransformer(
     ]
 )
 
-# Auto-sklearn自动模型选择+超参数优化
+# Auto-sklearn automatic model selection + hyperparameter optimization
 automl = AutoSklearnClassifier(
     time_left_for_this_task=3600,  # 1小时
     per_run_time_limit=300,  # 每次trial 5分钟
@@ -933,25 +935,25 @@ automl = AutoSklearnClassifier(
     metric=autosklearn.metrics.accuracy
 )
 
-# 完整Pipeline
+# Complete Pipeline
 pipeline = Pipeline([
     ('preprocessor', preprocessor),
     ('classifier', automl)
 ])
 
-# 训练（自动搜索）
+# Train (automatic search)
 pipeline.fit(X_train, y_train)
 
-# 评估
+# Evaluate
 y_pred = pipeline.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
 
 print(f"Test Accuracy: {accuracy:.4f}")
 
-# 查看Auto-sklearn找到的最佳模型
+# View the best model found by Auto-sklearn
 print(automl.show_models())
 
-# 输出示例：
+# Output example:
 # [(0.52, SimpleClassificationPipeline(...RandomForest...)),
 #  (0.28, SimpleClassificationPipeline(...GradientBoosting...)),
 #  (0.20, SimpleClassificationPipeline(...SVM...))]
@@ -959,10 +961,10 @@ print(automl.show_models())
 
 ---
 
-<!-- chunk: 九、生产环境部署 -->
-## 九、生产环境部署
 
-### 9.1 超参数优化Job模板
+## 9. Production Environment Deployment
+
+### 9.1 Template for Hyperparameter Optimization Jobs
 
 ```yaml
 apiVersion: batch/v1
@@ -983,7 +985,7 @@ spec:
     spec:
       restartPolicy: OnFailure
       
-      # Init容器：等待Optuna DB就绪
+      # Initialization Container: waits for Optuna DB to be ready
       initContainers:
       - name: wait-for-db
         image: busybox:latest
@@ -1057,7 +1059,7 @@ spec:
           medium: Memory
           sizeLimit: 16Gi
       
-      # 节点亲和性：优先使用Spot实例
+      # Init container: wait for Optuna DB to be ready
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -1069,9 +1071,9 @@ spec:
                 values: ["spot"]
 ```
 
-### 9.2 成本优化策略
+### 9.2 Cost Optimization Strategies
 
-**Spot实例节省：**
+**Spot Instances Savings:**
 ```yaml
 # Karpenter Provisioner for HPO
 apiVersion: karpenter.sh/v1alpha5
@@ -1089,7 +1091,7 @@ spec:
   - key: nvidia.com/gpu
     operator: Exists
   
-  # Spot中断处理
+  # Spot interruption handling
   ttlSecondsAfterEmpty: 30
   ttlSecondsUntilExpired: 3600  # 1小时
   
@@ -1097,25 +1099,25 @@ spec:
     resources:
       nvidia.com/gpu: 50
 
-# 成本节省：
-# - On-Demand g5.xlarge: $1.006/小时
-# - Spot g5.xlarge: ~$0.30/小时 (70% off)
-# - 50次trial × 30分钟 = 25 GPU小时
-# - On-Demand成本: $25.15
-# - Spot成本: $7.50
-# - 节省: $17.65 (70%)
+# Cost savings:
+# - On-Demand g5.xlarge: $1.006/hour
+# - Spot g5.xlarge: ~$0.30/hour (70% off)
+# - 50 trials × 30 minutes = 25 GPU hours
+# - On-Demand cost: $25.15
+# - Spot cost: $7.50
+# - Savings: $17.65 (70%)
 ```
 
 ---
 
-<!-- chunk: 十、最佳实践 -->
-## 十、最佳实践
 
-### 10.1 超参数搜索策略
+## 10. Best Practices
 
-**1. 粗搜索 + 精搜索：**
+### 10.1 Hyperparameter Search Strategies
+
+**1. Broad Search + Narrow Search:**
 ```python
-# Stage 1: 粗搜索（大范围、少样本）
+# Stage 1: Coarse Search (Broad Scope, Few Samples)
 coarse_search_space = {
     "learning_rate": tune.loguniform(1e-6, 1e-2),  # 4个数量级
     "batch_size": tune.choice([8, 16, 32, 64, 128]),
@@ -1131,7 +1133,7 @@ coarse_analysis = tune.run(
 
 best_coarse_lr = coarse_analysis.best_config["learning_rate"]
 
-# Stage 2: 精搜索（小范围、多样本）
+# Stage 2: Fine Search (Narrow Scope, Diverse Samples)
 fine_search_space = {
     "learning_rate": tune.uniform(
         best_coarse_lr * 0.5,
@@ -1149,17 +1151,17 @@ fine_analysis = tune.run(
 )
 ```
 
-**2. 先优化学习率，后优化其他：**
+**2. Optimize the learning rate first, then optimize other parameters:**
 ```python
-# 学习率对模型性能影响最大，优先优化
-# Step 1: 只优化LR
+# Learning rate has the greatest impact on model performance, prioritize optimization
+# Step 1: Optimize only LR
 lr_search = {
     "learning_rate": tune.loguniform(1e-5, 1e-3),
     "batch_size": 32,  # 固定
     "num_epochs": 3
 }
 
-# Step 2: 固定最佳LR，优化其他
+# Step 2: Fix the best LR and optimize other parameters
 best_lr = lr_analysis.best_config["learning_rate"]
 
 other_search = {
@@ -1170,7 +1172,7 @@ other_search = {
 }
 ```
 
-### 10.2 避免过拟合搜索空间
+### 10.2 Avoid Overfitting Search Space
 
 ```python
 """
@@ -1182,24 +1184,24 @@ other_search = {
 3. 测试集：最终评估（仅一次）
 """
 
-# ❌ 错误示例
+# ❌ Error Example
 def objective_wrong(trial):
     model = train(config)
     accuracy = evaluate(model, test_dataset)  # 泄露测试集信息！
     return accuracy
 
-# ✅ 正确示例
+# ✅ Correct Example
 def objective_correct(trial):
     model = train(config, train_dataset)
     accuracy = evaluate(model, val_dataset)  # 使用验证集
     return accuracy
 
-# 最终评估（仅一次）
+# Final Evaluation (Once Only)
 best_model = load_model(best_trial)
 final_accuracy = evaluate(best_model, test_dataset)
 ```
 
-### 10.3 早停策略
+### 10.3 Early Stopping Strategy
 
 ```python
 # Optuna MedianPruner
@@ -1209,61 +1211,61 @@ pruner = MedianPruner(
     interval_steps=1  # 每个epoch检查一次
 )
 
-# 在训练循环中报告中间结果
+# Report intermediate results within the training loop
 for epoch in range(num_epochs):
     train_loss = train_one_epoch()
     val_accuracy = validate()
     
-    # 报告给Optuna
+    # Report to Optuna
     trial.report(val_accuracy, epoch)
     
-    # 检查是否应该剪枝
+    # Check if pruning should be performed
     if trial.should_prune():
         raise optuna.TrialPruned()
 
-# 效果：节省50-70%计算资源
+# Effect: Save 50-70% computational resources
 ```
 
 ---
 
-<!-- chunk: 十一、监控与可视化 -->
-## 十一、监控与可视化
 
-### 11.1 实时监控Dashboard
+## 11. Monitoring and Visualization
+
+### 11.1 Real-time Monitoring Dashboard
 
 ```python
 import optuna
 from optuna.visualization import plot_optimization_history, plot_param_importances
 import streamlit as st
 
-# Streamlit实时Dashboard
+# Streamlit Real-time Dashboard
 st.title("Hyperparameter Optimization Dashboard")
 
-# 连接Optuna Study
+# Connect Optuna Study
 study = optuna.load_study(
     study_name="bert-classification-hpo",
     storage="postgresql://optuna:password@postgres:5432/optuna"
 )
 
-# 实时刷新
+# Real-time Refresh
 while True:
-    # 优化历史
+    # Optimize History
     st.subheader("Optimization History")
     fig1 = plot_optimization_history(study)
     st.plotly_chart(fig1)
     
-    # 参数重要性
+    # Parameter Importance
     st.subheader("Hyperparameter Importances")
     fig2 = plot_param_importances(study)
     st.plotly_chart(fig2)
     
-    # 统计信息
+    # Statistical Information
     st.subheader("Statistics")
     st.metric("Total Trials", len(study.trials))
     st.metric("Best Value", f"{study.best_value:.4f}")
     st.metric("Best Trial", study.best_trial.number)
     
-    # 最佳参数
+    # Best Parameters
     st.subheader("Best Parameters")
     st.json(study.best_params)
     
@@ -1272,12 +1274,12 @@ while True:
 
 ---
 
-**相关表格：**
-- [111-AI基础设施架构](./01-ai-infrastructure.md)
-- [112-分布式训练框架](./05-distributed-training-frameworks.md)
-- [117-AI实验管理](./07-ai-experiment-management.md)
+**Related tables:**
+- [111-AI Infrastructure Architecture](./01-ai-infrastructure.md)
+- [112-Distributed Training Frameworks](./05-distributed-training-frameworks.md)
+- [117-AI Experiment Management](./07-ai-experiment-management.md)
 
-**版本信息：**
+**Version Information:**
 - Optuna: v3.5.0+
 - Ray Tune: v2.9.0+
 - Auto-sklearn: v0.15.0+
@@ -1285,21 +1287,21 @@ while True:
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure - Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AI Model Registry and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## See Also
 
@@ -1310,7 +1312,7 @@ while True:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

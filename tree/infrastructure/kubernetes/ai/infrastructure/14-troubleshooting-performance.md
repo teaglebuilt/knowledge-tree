@@ -1,6 +1,6 @@
 ---
-title: AI平台故障排查与性能优化
-description: '# AI平台故障排查与性能优化'
+title: AI Platform Fault Diagnosis and Performance Optimization
+description: '# AI Platform Fault Diagnosis and Performance Optimization'
 summary: 'nvidia-smi --query-gpu=temperature.gpu,power.draw,enforced.power.limit --format=csv,noheader,nounits'
 category: ai-infra
 tags:
@@ -20,18 +20,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI平台故障排查与性能优化 是什么
-- 如何 AI平台故障排查与性能优化
-- Kubernetes 11 ai infra 最佳实践
-- AI平台故障排查与性能优化 故障排查
-- AI平台故障排查与性能优化 排障步骤
+- What is AI Platform Fault Diagnosis and Performance Optimization
+- How to do AI Platform Fault Diagnosis and Performance Optimization
+- Kubernetes 11 ai infra best practices
+- Fault Diagnosis and Troubleshooting for AI Platform
+- Steps for Troubleshooting AI Platform
 trigger_keywords:
-- AI平台故障排查与性能优化
+- AI Platform Fault Diagnosis and Performance Optimization
 - ai
 - infra
 prerequisites:
@@ -52,33 +52,35 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: skill
   path: ../domain-10-troubleshooting-diagnostics/topic-skills/17-performance-bottleneck.md
-  label: '运维技能: 17-performance-bottleneck'
+  label: 'Operational Skills: 17-performance-bottleneck'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/14-troubleshooting-performance.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Before executing, please confirm: whether the target cluster and Namespace are correct; whether sufficient RBAC permissions exist; and whether these commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI平台故障排查与性能优化
+# AI Platform Fault Diagnosis and Performance Optimization
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **最后更新**: 2026-02 | **参考**: [Kubernetes Troubleshooting](https://kubernetes.io/docs/tasks/debug/) | [NVIDIA DCGM](https://developer.nvidia.com/dcgm)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Last Updated**: 2026-02 | **Reference**: [Kubernetes Troubleshooting](https://kubernetes.io/docs/tasks/debug/) | [NVIDIA DCGM](https://developer.nvidia.com/dcgm)
 
-<!-- chunk: 一、AI平台故障诊断体系 -->
-## 一、AI平台故障诊断体系
 
-### 1.1 问题分类与诊断流程
+## 1. AI Platform Fault Diagnosis System
+
+### 1.1 Problem Classification and Diagnosis Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -86,59 +88,59 @@ cross_refs:
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                      │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            问题识别阶段 (Problem Identification)               │  │
+│  │                            Problem Identification Stage                          │  │
 │  │                                                                               │  │
-│  │  用户报告问题 ──▶ 症状收集 ──▶ 影响范围评估 ──▶ 优先级确定                      │  │
+│  │  Report User Issues ──▶ Symptoms Collection ──▶ Impact Scope Evaluation ──▶ Priority Determination                      │  │
 │  │       │              │              │              │                            │  │
 │  │       ▼              ▼              ▼              ▼                            │  │
 │  │  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐                         │  │
-│  │  │  SLA    │   │  日志    │   │  监控    │   │  用户    │                         │  │
-│  │  │  影响   │   │  收集    │   │  数据    │   │  反馈    │                         │  │
+│  │  │  SLA    │   │  Logs    │   │  Monitoring    │   │  Users    │                         │  │
+│  │  │  Impact   │   │  Collection    │   │  Data    │   │  Feedback    │                         │  │
 │  │  └─────────┘   └─────────┘   └─────────┘   └─────────┘                         │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            根因分析阶段 (Root Cause Analysis)                  │  │
+│  │                            Root Cause Analysis Stage                              │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
-│  │  │   基础设施   │  │    模型     │  │    应用     │  │    网络     │          │  │
-│  │  │    层面     │  │    层面     │  │    层面     │  │    层面     │          │  │
+│  │  │   Infrastructure   │  │    Model     │  │    Application     │  │    Network     │          │  │
+│  │  │    Layer     │  │    Layer     │  │    Layer     │  │    Layer     │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • GPU问题   │  │ • 模型损坏   │  │ • 代码缺陷   │  │ • 网络延迟   │          │  │
-│  │  │ • 存储异常   │  │ • 版本不匹配 │  │ • 配置错误   │  │ • 带宽不足   │          │  │
-│  │  │ • 节点问题   │  │ • 数据污染   │  │ • 资源竞争   │  │ • DNS解析   │          │  │
+│  │  │ • GPU issues   │  │ • Model Damage   │  │ • Code Defects   │  │ • Network Latency   │          │  │
+│  │  │ • Storage Abnormalities   │  │ • Version Mismatch │  │ • Configuration Errors   │  │ • Bandwidth Insufficiency   │          │  │
+│  │  │ • Node Issues   │  │ • Data Pollution   │  │ • Resource Competition   │  │ • DNS Resolution   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            解决方案阶段 (Solution Implementation)              │  │
+│  │                            Solution Implementation Stage                           │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
-│  │  │   临时      │  │   永久      │  │   预防      │  │   验证      │          │  │
-│  │  │   修复      │  │   修复      │  │   措施      │  │   测试      │          │  │
+│  │  │   Temporary   │  │   Permanent   │  │   Preventive   │  │   Validation   │          │  │
+│  │  │   Repair   │  │   Repair   │  │   Measure   │  │   Test   │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 快速缓解   │  │ • 根治问题   │  │ • 改进监控   │  │ • 回归测试   │          │  │
-│  │  │ • 服务降级   │  │ • 代码修复   │  │ • 更新流程   │  │ • 性能验证   │          │  │
-│  │  │ • 容错切换   │  │ • 架构优化   │  │ • 培训文档   │  │ • 用户验收   │          │  │
+│  │  │ • Quick Mitigation   │  │ • Root Cause Fix   │  │ • Improve Monitoring   │  │ • Regression Testing   │          │  │
+│  │  │ • Service Degradation   │  │ • Code Fix   │  │ • Process Update   │  │ • Performance Validation   │          │  │
+│  │  │ • Fault Tolerance Switch   │  │ • Architecture Optimization   │  │ • Training Documentation   │  │ • User Acceptance   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            经验总结阶段 (Knowledge Management)                 │  │
+│  │                            Knowledge Management Stage                             │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
-│  │  │   文档      │  │   培训      │  │   工具      │  │   流程      │          │  │
-│  │  │   更新      │  │   分享      │  │   改进      │  │   优化      │          │  │
+│  │  │   Document   │  │   Training   │  │   Tool   │  │   Process   │          │  │
+│  │  │   Update   │  │   Share   │  │   Improve   │  │   Optimize   │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 问题手册   │  │ • 经验分享   │  │ • 自动化    │  │ • SOP更新   │          │  │
-│  │  │ • 最佳实践   │  │ • 团队培训   │  │ • 预警机制   │  │ • 响应提速   │          │  │
-│  │  │ • 案例库     │  │ • 知识传递   │  │ • 诊断工具   │  │ • 协作改进   │          │  │
+│  │  │ • Issue Manual   │  │ • Experience Sharing   │  │ • Automation   │  │ • SOP Updates   │          │  │
+│  │  │ • Best Practices   │  │ • Team Training   │  │ • Alert Mechanism   │  │ • Speed Up Response   │          │  │
+│  │  │ • Case Library   │  │ • Knowledge Transfer   │  │ • Diagnostic Tools   │  │ • Collaboration Improvement   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
@@ -146,79 +148,79 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 常见故障模式矩阵
+### 1.2 Common Fault Pattern Matrix
 
-| 问题类型 | 典型症状 | 影响层级 | MTTR | 诊断工具 |
+| Problem Type | Typical Symptoms | Impact Level | MTTR | Diagnostic Tools |
 |----------|----------|----------|------|----------|
-| **GPU问题** | CUDA错误、驱动崩溃、温度过高 | 基础设施 | 30min | nvidia-smi, dcgmi |
-| **模型加载失败** | 无法启动、OOM、权重损坏 | 应用层 | 15min | model logs, kubectl describe |
-| **推理延迟高** | P99>500ms、吞吐量下降 | 服务层 | 45min | [[Prometheus|Prometheus]], [[Jaeger|Jaeger]] |
-| **训练卡住** | Loss不收敛、梯度消失 | 计算层 | 60min | TensorBoard, profiling |
-| **数据访问异常** | 数据读取慢、文件损坏 | 存储层 | 20min | iostat, storage logs |
-| **网络通信问题** | 连接超时、丢包严重 | 网络层 | 25min | ping, tcpdump, traceroute |
+| **GPU Issues** | CUDA errors, driver crashes, high temperature | Infrastructure | 30min | nvidia-smi, dcgmi |
+| **Model Loading Failure** | Unable to start, OOM, weight damage | Application Layer | 15min | model logs, kubectl describe |
+| **High Latency Inference** | P99>500ms, throughput decline | Service Layer | 45min | [[Prometheus|Prometheus]], [[Jaeger|Jaeger]] |
+| **Training Stuck** | Loss not converging, gradient vanishing | Compute Layer | 60min | TensorBoard, profiling |
+| **Data Access Abnormalities** | Slow data read, file damage | Storage Layer | 20min | iostat, storage logs |
+| **Network Communication Issues** | Connection timeouts, severe packet loss | Network Layer | 25min | ping, tcpdump, traceroute |
 
 ---
 
-<!-- chunk: 二、基础设施层故障排查 -->
-## 二、基础设施层故障排查
 
-### 2.1 GPU相关问题诊断
+## 2. Infrastructure Layer Fault Diagnosis
+
+### 2.1 GPU-related Issue Diagnosis
 
 ```bash
 #!/bin/bash
-# gpu_diagnostics.sh - GPU故障诊断脚本
+# gpu_diagnostics.sh - GPU diagnostic script
 
-echo "=== GPU诊断报告 ==="
-echo "生成时间: $(date)"
-echo "节点名称: $(hostname)"
+echo "=== GPU diagnosis report ==="
+echo "Generated time: $(date)"
+echo "Node name: $(hostname)"
 echo
 
-# 1. 基础信息收集
-echo "1. GPU基本信息:"
+# 1. Collect basic information
+echo "1. GPU basic information:"
 nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used --format=csv,noheader,nounits
 echo
 
-# 2. 温度和功耗检查
-echo "2. 温度和功耗状态:"
+# 2. Check temperature and power consumption
+echo "2. Temperature and power state:"
 nvidia-smi --query-gpu=temperature.gpu,power.draw,enforced.power.limit --format=csv,noheader,nounits
 echo
 
-# 3. 进程和内存使用
-echo "3. GPU进程占用:"
+# 3. Check process and memory usage
+echo "3. GPU process occupancy:"
 nvidia-smi pmon -i 0 -s um
 echo
 
-# 4. ECC错误检查
-echo "4. ECC错误统计:"
+# 4. ECC error check
+echo "4. ECC error statistics:"
 nvidia-smi --query-gpu=ecc.errors.corrected.volatile.total,ecc.errors.uncorrected.volatile.total --format=csv,noheader,nounits
 echo
 
-# 5. PCIe连接状态
-echo "5. PCIe连接状态:"
+# 5. PCIe connection status
+echo "5. PCIe connection status:"
 nvidia-smi --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv,noheader,nounits
 echo
 
-# 6. DCGM健康检查
-echo "6. DCGM健康状态:"
+# 6. DCGM health check
+echo "6. DCGM health status:"
 if command -v dcgmi &> /dev/null; then
     dcgmi health -g 0 -v
 else
-    echo "DCGM未安装，跳过健康检查"
+    echo "DCGM not installed, skipping health check"
 fi
 echo
 
-# 7. GPU拓扑检查
-echo "7. GPU拓扑结构:"
+# 7. GPU topology check
+echo "7. GPU topology:"
 nvidia-smi topo -m
 echo
 
-# 8. 性能测试
-echo "8. GPU性能基准测试:"
+# 8. Performance test
+echo "8. GPU performance benchmark:"
 python3 -c "
 import torch
 if torch.cuda.is_available():
     device = torch.device('cuda')
-    # 简单的矩阵乘法测试
+    # Simple matrix multiplication test
     a = torch.randn(1000, 1000).to(device)
     b = torch.randn(1000, 1000).to(device)
     torch.cuda.synchronize()
@@ -227,85 +229,85 @@ if torch.cuda.is_available():
     c = torch.mm(a, b)
     torch.cuda.synchronize()
     end = time.time()
-    print(f'矩阵乘法耗时: {(end-start)*1000:.2f} ms')
-    print(f'GPU利用率: {torch.cuda.utilization()}%')
+    print(f'Matrix multiplication time: {(end-start)*1000:.2f} ms')
+    print(f'GPU utilization: {torch.cuda.utilization()}%')
 else:
-    print('CUDA不可用')
+    print('CUDA unavailable')
 "
 ```
 
-**常见GPU故障处理**：
+**Common GPU Fault Handling**:
 
-> ⚠️ **🟠 高危操作** — 影响业务流量或节点状态，需变更工单+影响评估+计划回滚
-> - `systemctl stop/restart`：停止/重启系统服务，影响节点上所有容器
+> ⚠️ **🟠 High-Risk Operations** — Affect business traffic or node status, require change ticket + impact assessment + planned rollback
+> - `systemctl stop/restart`: Stop/restart system services, affecting all containers on the node
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# GPU驱动问题
-# 重启nvidia驱动
+# 🟢 Low risk: read-only/information gathering, usually no side effects
+# GPU driver issues
+# Restart NVIDIA driver
 sudo systemctl restart nvidia-persistenced
 sudo modprobe -r nvidia_uvm && sudo modprobe nvidia_uvm
 
-# 清理GPU内存
+# Clean GPU memory
 sudo nvidia-smi --gpu-reset
 
-# 检查GPU是否被独占
+# Check if GPU is exclusive
 lsof /dev/nvidia*
 
-# 温度过高处理
-# 检查风扇转速
+# Handle high temperatures
+# Check fan speed
 nvidia-settings -q [gpu:0]/GPUFanControlState
-# 设置风扇策略
+# Set fan policy
 nvidia-settings -a [gpu:0]/GPUFanControlState=1 -a [fan:0]/GPUTargetFanSpeed=80
 ```
-### 2.2 存储性能问题排查
+### 2.2 Storage Performance Issue Diagnosis
 
 ```bash
 #!/bin/bash
-# storage_diagnostics.sh - 存储性能诊断
+# storage_diagnostics.sh - Storage performance diagnostic
 
-echo "=== 存储诊断报告 ==="
-echo "节点: $(hostname)"
-echo "时间: $(date)"
+echo "=== Storage diagnosis report ==="
+echo "Node: $(hostname)"
+echo "Time: $(date)"
 echo
 
-# 1. 存储挂载检查
-echo "1. 存储挂载状态:"
+# 1. Check storage mountings
+echo "1. Storage mount status:"
 df -h | grep -E "(models|data|storage)"
 mount | grep -E "(nfs|ceph|gluster)"
 echo
 
-# 2. I/O性能测试
-echo "2. I/O性能基准测试:"
-echo "顺序读取测试:"
+# 2. I/O performance testing
+echo "2. I/O performance benchmark:"
+echo "Sequential read test:"
 dd if=/dev/zero of=/tmp/testfile bs=1G count=1 oflag=direct 2>&1 | tail -1
-echo "顺序写入测试:"
+echo "Sequential write test:"
 dd if=/tmp/testfile of=/dev/null bs=1G count=1 iflag=direct 2>&1 | tail -1
 rm -f /tmp/testfile
 echo
 
-# 3. 存储延迟检查
-echo "3. 存储延迟统计:"
+# 3. Storage latency check
+echo "3. Storage delay statistics:"
 iostat -x 1 5 | grep -A 1 "^Device"
 echo
 
-# 4. 文件系统检查
-echo "4. 文件系统健康状态:"
+# 4. File system check
+echo "4. File system health status:"
 for fs in $(df -T | awk '/ext4|xfs|zfs/{print $1}'); do
-    echo "检查 $fs:"
+    echo "Checking $fs:"
     tune2fs -l $fs 2>/dev/null | grep -E "(State|Last checked)"
 done
 echo
 
-# 5. NFS挂载问题排查
-echo "5. NFS连接状态:"
-showmount -e localhost 2>/dev/null || echo "NFS服务未运行"
+# 5. NFS mount issue troubleshooting
+echo "5. NFS connection status:"
+showmount -e localhost 2>/dev/null || echo "NFS service is not running"
 rpcinfo -p localhost 2>/dev/null | grep nfs
 echo
 
-# 6. Ceph存储检查（如果使用）
+# 6. Ceph storage check (if used)
 if command -v ceph &> /dev/null; then
-    echo "6. Ceph集群状态:"
+    echo "6. Ceph cluster status:"
     ceph health detail
     ceph df
     ceph osd pool stats
@@ -314,65 +316,65 @@ fi
 
 ---
 
-<!-- chunk: 三、应用层故障诊断 -->
-## 三、应用层故障诊断
 
-### 3.1 模型服务故障排查
+## 3. Application-Level Fault Diagnosis
+
+### 3.1 Model Service Fault Diagnosis
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low risk: read-only/information gathering, typically no side effects
 #!/bin/bash
-# model_service_diagnostics.sh - 模型服务诊断脚本
+# model_service_diagnostics.sh - model service diagnostic script
 
 NAMESPACE=${1:-ai-models}
 SERVICE_NAME=${2:-llama3-inference}
 
-echo "=== 模型服务诊断报告 ==="
-echo "命名空间: $NAMESPACE"
-echo "服务名称: $SERVICE_NAME"
-echo "时间: $(date)"
+echo "=== Model service diagnostic report ==="
+echo "Namespace: $NAMESPACE"
+echo "Service name: $SERVICE_NAME"
+echo "Time: $(date)"
 echo
 
-# 1. Pod状态检查
-echo "1. Pod运行状态:"
+# 1. Check pod status
+echo "1. Pod running status:"
 kubectl get pods -n $NAMESPACE -l app=$SERVICE_NAME -o wide
 echo
 
-# 2. 服务端点检查
-echo "2. 服务端点状态:"
+# 2. Endpoint check
+echo "2. Service endpoint status:"
 kubectl get endpoints -n $NAMESPACE $SERVICE_NAME
 echo
 
-# 3. 服务日志分析
-echo "3. 最近错误日志:"
+# 3. Service log analysis
+echo "3. Recent error logs:"
 kubectl logs -n $NAMESPACE -l app=$SERVICE_NAME --tail=100 | grep -i "error|exception|failed" | tail -20
 echo
 
-# 4. 资源使用情况
-echo "4. 资源使用统计:"
+# 4. Resource usage
+echo "4. Resource usage statistics:"
 kubectl top pods -n $NAMESPACE -l app=$SERVICE_NAME
 echo
 
-# 5. 服务描述信息
-echo "5. 服务详细信息:"
+# 5. Service description information
+echo "5. Service detailed information:"
 kubectl describe service $SERVICE_NAME -n $NAMESPACE
 echo
 
-# 6. 部署配置检查
-echo "6. 部署配置状态:"
+# 6. Deployment configuration check
+echo "6. Deployment configuration status:"
 kubectl describe deployment $SERVICE_NAME -n $NAMESPACE
 echo
 
-# 7. 网络策略检查
-echo "7. 网络策略影响:"
+# 7. Network policy check
+echo "7. Network policy impact:"
 kubectl get networkpolicies -n $NAMESPACE
 echo
 
-# 8. 健康检查探针
-echo "8. 健康检查状态:"
+# 8. Health check probes
+echo "8. Health check status:"
 kubectl get events -n $NAMESPACE --field-selector involvedObject.name=$SERVICE_NAME --sort-by='.lastTimestamp' | tail -10
 ```
-**模型加载失败常见原因**：
+**Common Causes of Model Loading Failure**:
 
 ```python
 # model_loading_debugger.py
@@ -386,7 +388,7 @@ class ModelLoadingDebugger:
         self.checks = []
         
     def diagnose_loading_failure(self, model_path, error_message):
-        """诊断模型加载失败的根本原因"""
+        """Diagnose the root cause of model loading failure"""
         
         diagnosis = {
             'error_analysis': self._analyze_error_message(error_message),
@@ -396,13 +398,13 @@ class ModelLoadingDebugger:
             'recommendations': []
         }
         
-        # 根据诊断结果生成建议
+        # Generate recommendations based on diagnosis results
         diagnosis['recommendations'] = self._generate_recommendations(diagnosis)
         
         return diagnosis
         
     def _analyze_error_message(self, error_msg):
-        """分析错误消息类型"""
+        """Analyze error message types"""
         
         error_patterns = {
             'memory_error': ['out of memory', 'oom', 'cuda out of memory'],
@@ -425,9 +427,9 @@ class ModelLoadingDebugger:
         }
         
     def _check_system_resources(self):
-        """检查系统资源"""
+        """Check system resources"""
         
-        # GPU资源检查
+        # GPU resource check
         gpus = GPUtil.getGPUs()
         gpu_info = []
         for gpu in gpus:
@@ -440,7 +442,7 @@ class ModelLoadingDebugger:
                 'utilization': gpu.load
             })
             
-        # CPU和内存检查
+        # CPU and memory check
         cpu_percent = psutil.cpu_percent(interval=1)
         memory = psutil.virtual_memory()
         
@@ -452,18 +454,18 @@ class ModelLoadingDebugger:
         }
         
     def _verify_file_integrity(self, model_path):
-        """验证模型文件完整性"""
+        """validate model file integrity"""
         
         import os
         import hashlib
         
         if not os.path.exists(model_path):
-            return {'status': 'missing', 'details': '文件不存在'}
+            return {'status': 'missing', 'details': 'file not found'}
             
-        # 检查文件大小
+        # Check file size
         file_size = os.path.getsize(model_path)
         
-        # 计算校验和（如果是已知的模型）
+        # Calculate checksum (if known model)
         expected_checksums = {
             'llama3-70b.bin': 'expected_md5_hash_here'
         }
@@ -482,11 +484,11 @@ class ModelLoadingDebugger:
         return {
             'status': 'unknown',
             'file_size_mb': file_size / (1024*1024),
-            'note': '无校验和信息'
+            'note': 'no checksum information'
         }
         
     def _calculate_md5(self, filepath):
-        """计算文件MD5校验和"""
+        """calculate file MD5 checksum"""
         import hashlib
         hash_md5 = hashlib.md5()
         with open(filepath, "rb") as f:
@@ -495,7 +497,7 @@ class ModelLoadingDebugger:
         return hash_md5.hexdigest()
         
     def _check_dependencies(self):
-        """检查依赖项兼容性"""
+        """check compatibility of dependencies"""
         
         import torch
         import transformers
@@ -509,67 +511,67 @@ class ModelLoadingDebugger:
         }
         
     def _generate_recommendations(self, diagnosis):
-        """生成解决建议"""
+        """Generate solution suggestions"""
         
         recommendations = []
         error_type = diagnosis['error_analysis']['type']
         
         if error_type == 'memory_error':
             recommendations.extend([
-                "增加GPU内存分配",
-                "启用模型量化减少内存需求",
-                "使用模型并行或流水线并行",
-                "检查是否有其他进程占用GPU内存"
+                "increase GPU memory allocation",
+                "enable model quantization to reduce memory demand",
+                "use model parallelism or pipeline parallelism",
+                "check if other processes are occupying GPU memory"
             ])
             
         elif error_type == 'file_error':
             recommendations.extend([
-                "重新下载模型文件",
-                "验证存储系统的完整性",
-                "检查文件权限设置",
-                "确认模型路径配置正确"
+                "re-download the model file",
+                "validate the integrity of the storage system",
+                "check file permission settings",
+                "confirm correct model path configuration"
             ])
             
         elif error_type == 'compatibility_error':
             recommendations.extend([
-                "更新PyTorch和Transformers版本",
-                "检查CUDA和cuDNN版本兼容性",
-                "确认模型格式与框架版本匹配",
-                "查看官方文档的版本要求"
+                "update PyTorch and Transformers versions",
+                "check compatibility of CUDA and cuDNN versions",
+                "confirm model format matches framework version",
+                "review the version requirements in the official documentation"
             ])
             
-        # 添加通用建议
+        # Add general suggestions
         recommendations.extend([
-            "查看完整的错误堆栈信息",
-            "检查系统日志获取更多信息",
-            "尝试在不同环境中重现问题",
-            "联系模型提供商获取支持"
+            "view complete error stack trace information",
+            "check system logs for more information",
+            "try to reproduce the issue in different environments",
+            "contact the model provider for support"
         ])
         
         return recommendations
 
-# 使用示例
+# Usage Example
 debugger = ModelLoadingDebugger()
 
 try:
-    # 尝试加载模型
+    # Try loading the model
     model = load_model("path/to/model")
 except Exception as e:
-    # 诊断失败原因
+    # Diagnose failure reasons
     diagnosis = debugger.diagnose_loading_failure("path/to/model", str(e))
     
-    print("=== 模型加载故障诊断报告 ===")
-    print(f"错误类型: {diagnosis['error_analysis']['type']}")
-    print(f"错误详情: {diagnosis['error_analysis']['message']}")
-    print("\n系统资源:")
-    print(f"可用内存: {diagnosis['resource_check']['memory_available_gb']:.2f} GB")
-    print(f"GPU状态: {[gpu['name'] for gpu in diagnosis['resource_check']['gpus']]}")
-    print("\n解决建议:")
+    print("=== model loading fault diagnosis report ===")
+    print(f"error type: {diagnosis['error_analysis']['type']}")
+    print(f"Error details: {diagnosis['error_analysis']['message']}")
+    print("\nSystem resources:\n")
+    print(f"Available memory: {diagnosis['resource_check']['memory_available_gb']:.2f} GB")
+    print(f"GPU status: {[gpu['name'] for gpu in diagnosis['resource_check']['gpus']]}")
+    print("\nSuggestion:\n")
     for i, rec in enumerate(diagnosis['recommendations'], 1):
         print(f"{i}. {rec}")
 ```
 
-### 3.2 推理性能问题分析
+### 3.2 Inference Performance Analysis
 
 ```python
 # inference_performance_analyzer.py
@@ -592,14 +594,14 @@ class InferencePerformanceAnalyzer:
         }
         
     def stress_test(self, duration_seconds=300, concurrent_requests=10, payload=None):
-        """执行压力测试"""
+        """Perform stress testing"""
         
-        print(f"开始压力测试: {duration_seconds}秒, {concurrent_requests}并发")
+        print(f"Starting pressure test: {duration_seconds} seconds, {concurrent_requests} concurrent")
         
         start_time = time.time()
         end_time = start_time + duration_seconds
         
-        # 测试负载
+        # Test load
         default_payload = {
             "prompt": "Hello, how are you?",
             "max_tokens": 100,
@@ -607,7 +609,7 @@ class InferencePerformanceAnalyzer:
         }
         test_payload = payload or default_payload
         
-        # 并发执行测试
+        # Concurrent execution test
         with ThreadPoolExecutor(max_workers=concurrent_requests) as executor:
             futures = []
             
@@ -615,10 +617,10 @@ class InferencePerformanceAnalyzer:
                 future = executor.submit(self._single_request, test_payload)
                 futures.append(future)
                 
-                # 控制请求频率
+                # Control request frequency
                 time.sleep(0.1)
                 
-        # 收集结果
+        # Collect results
         for future in futures:
             try:
                 result = future.result(timeout=30)
@@ -633,7 +635,7 @@ class InferencePerformanceAnalyzer:
         self._analyze_results()
         
     def _single_request(self, payload):
-        """执行单次推理请求"""
+        """Perform a single inference request"""
         
         import requests
         import json
@@ -651,7 +653,7 @@ class InferencePerformanceAnalyzer:
             latency = (end_time - start_time) * 1000  # 转换为毫秒
             
             if response.status_code == 200:
-                # 计算吞吐量（tokens/second）
+                # Calculate throughput (tokens/second)
                 response_data = response.json()
                 output_tokens = len(response_data.get('generated_text', '').split())
                 throughput = output_tokens / (latency / 1000) if latency > 0 else 0
@@ -681,16 +683,16 @@ class InferencePerformanceAnalyzer:
             }
             
     def _analyze_results(self):
-        """分析测试结果"""
+        """Analyze test results"""
         
         latencies = self.metrics['latencies']
         errors = self.metrics['errors']
         
         if not latencies:
-            print("没有成功请求的数据")
+            print("No successful requests found:\n")
             return
             
-        # 基本统计
+        # Basic statistics
         stats = {
             'total_requests': len(latencies) + len(errors),
             'successful_requests': len(latencies),
@@ -704,7 +706,7 @@ class InferencePerformanceAnalyzer:
             'std_deviation': statistics.stdev(latencies)
         }
         
-        # 吞吐量统计
+        # Throughput statistics
         throughputs = self.metrics['throughputs']
         if throughputs:
             stats.update({
@@ -717,101 +719,101 @@ class InferencePerformanceAnalyzer:
         self._generate_charts(stats)
         
     def _print_analysis(self, stats):
-        """打印分析结果"""
+        """Print analysis results"""
         
-        print("\n=== 推理性能分析报告 ===")
-        print(f"模型: {self.model_name}")
-        print(f"测试时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print("\n--- 性能指标 ---")
-        print(f"总请求数: {stats['total_requests']}")
-        print(f"成功请求数: {stats['successful_requests']}")
-        print(f"错误率: {stats['error_rate']:.2f}%")
-        print(f"\n延迟统计 (ms):")
-        print(f"  平均延迟: {stats['avg_latency']:.2f}")
-        print(f"  中位数延迟: {stats['median_latency']:.2f}")
-        print(f"  P95延迟: {stats['p95_latency']:.2f}")
-        print(f"  P99延迟: {stats['p99_latency']:.2f}")
-        print(f"  最小延迟: {stats['min_latency']:.2f}")
-        print(f"  最大延迟: {stats['max_latency']:.2f}")
-        print(f"  标准差: {stats['std_deviation']:.2f}")
+        print("\n=== Inference Performance Analysis Report ===\n")
+        print(f"Model: {self.model_name}\n")
+        print(f"Test time: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        print("\n--- Performance metrics ---\n")
+        print(f"Total requests: {stats['total_requests']}\n")
+        print(f"Successful requests: {stats['successful_requests']}\n")
+        print(f"Error rate: {stats['error_rate']:.2f}%\n")
+        print(f"\nLatency statistics (ms):\n")
+        print(f"  Average latency: {stats['avg_latency']:.2f}\n")
+        print(f"  Median latency: {stats['median_latency']:.2f}\n")
+        print(f"  P95 latency: {stats['p95_latency']:.2f}\n")
+        print(f"  P99 latency: {stats['p99_latency']:.2f}\n")
+        print(f"  Minimum latency: {stats['min_latency']:.2f}\n")
+        print(f"  Maximum delay: {stats['max_latency']:.2f}")
+        print(f"  Standard deviation: {stats['std_deviation']:.2f}")
         
         if 'avg_throughput' in stats:
-            print(f"\n吞吐量统计 (tokens/sec):")
-            print(f"  平均吞吐量: {stats['avg_throughput']:.2f}")
-            print(f"  最大吞吐量: {stats['max_throughput']:.2f}")
-            print(f"  最小吞吐量: {stats['min_throughput']:.2f}")
+            print(f"  Maximum throughput: {stats['max_throughput']:.2f}")
+            print(f"  Minimum throughput: {stats['min_throughput']:.2f}")
+            print(f"  maximum throughput: {stats['max_throughput']:.2f}")
+            print(f"  minimum throughput: {stats['min_throughput']:.2f}")
             
-        # 性能评级
+        # Performance rating
         self._performance_rating(stats)
         
     def _performance_rating(self, stats):
-        """性能评级"""
+        """Performance rating"""
         
         ratings = []
         
-        # 延迟评级
+        # Latency rating
         avg_latency = stats['avg_latency']
         if avg_latency < 100:
-            ratings.append(("延迟", "优秀 ⭐⭐⭐⭐⭐"))
+            ratings.append(("delay", "excellent ⭐⭐⭐⭐⭐"))
         elif avg_latency < 300:
-            ratings.append(("延迟", "良好 ⭐⭐⭐⭐"))
+            ratings.append(("delay", "good ⭐⭐⭐⭐"))
         elif avg_latency < 500:
-            ratings.append(("延迟", "一般 ⭐⭐⭐"))
+            ratings.append(("delay", "average ⭐⭐⭐"))
         else:
-            ratings.append(("延迟", "较差 ⭐⭐"))
+            ratings.append(("delay", "poor ⭐⭐"))
             
-        # 错误率评级
+        # Error rate rating
         error_rate = stats['error_rate']
         if error_rate == 0:
-            ratings.append(("稳定性", "优秀 ⭐⭐⭐⭐⭐"))
+            ratings.append(("Stability", "Excellent ⭐⭐⭐⭐⭐"))
         elif error_rate < 1:
-            ratings.append(("稳定性", "良好 ⭐⭐⭐⭐"))
+            ratings.append(("Stability", "good ⭐⭐⭐⭐"))
         elif error_rate < 5:
-            ratings.append(("稳定性", "一般 ⭐⭐⭐"))
+            ratings.append(("Stability", "average ⭐⭐⭐"))
         else:
-            ratings.append(("稳定性", "较差 ⭐⭐"))
+            ratings.append(("Stability", "poor ⭐⭐"))
             
-        print("\n--- 性能评级 ---")
+        print("\n--- Performance Rating ---")
         for metric, rating in ratings:
             print(f"  {metric}: {rating}")
             
     def _generate_charts(self, stats):
-        """生成性能图表"""
+        """Generate performance charts"""
         
         latencies = sorted(self.metrics['latencies'])
         percentiles = [i/len(latencies)*100 for i in range(len(latencies))]
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
         
-        # 延迟分布直方图
+        # Delay histogram
         ax1.hist(latencies, bins=50, alpha=0.7, color='blue')
-        ax1.set_xlabel('延迟 (ms)')
-        ax1.set_ylabel('频次')
-        ax1.set_title('延迟分布')
+        ax1.set_xlabel('delay (ms)')
+        ax1.set_ylabel('frequency')
+        ax1.set_title('delay distribution')
         ax1.axvline(stats['avg_latency'], color='red', linestyle='--', 
-                   label=f'平均: {stats["avg_latency"]:.1f}ms')
+                   ax1.set_ylabel('Frequency')
         ax1.axvline(stats['p95_latency'], color='orange', linestyle='--',
                    label=f'P95: {stats["p95_latency"]:.1f}ms')
         ax1.legend()
         
-        # 累积分布函数
+        # Cumulative distribution function
         ax2.plot(percentiles, latencies)
-        ax2.set_xlabel('百分位 (%)')
-        ax2.set_ylabel('延迟 (ms)')
-        ax2.set_title('延迟累积分布')
+        ax2.set_xlabel('percentile (%)')
+        ax2.set_ylabel('delay (ms)')
+        ax2.set_title('cumulative distribution of delay')
         ax2.grid(True)
         
-        # 吞吐量趋势（如果有时间序列数据）
+        # Throughput trend (if time series data available)
         if len(self.metrics['throughputs']) > 1:
             throughputs = self.metrics['throughputs']
             time_points = range(len(throughputs))
             ax3.plot(time_points, throughputs, marker='o', markersize=2)
-            ax3.set_xlabel('请求序号')
-            ax3.set_ylabel('吞吐量 (tokens/sec)')
-            ax3.set_title('吞吐量趋势')
+            ax3.set_xlabel('request number')
+            ax3.set_ylabel('throughput (tokens/sec)')
+            ax3.set_title('Throughput trend')
             ax3.grid(True)
             
-        # 错误分析饼图
+        # Delay distribution histogram
         error_categories = {}
         for error in self.metrics['errors']:
             category = error.split(':')[0] if ':' in error else 'Other'
@@ -819,24 +821,24 @@ class InferencePerformanceAnalyzer:
             
         if error_categories:
             ax4.pie(error_categories.values(), labels=error_categories.keys(), autopct='%1.1f%%')
-            ax4.set_title('错误类型分布')
+            ax4.set_title('Error type distribution')
         else:
-            ax4.text(0.5, 0.5, '无错误', ha='center', va='center', transform=ax4.transAxes)
-            ax4.set_title('错误分析')
+            ax4.text(0.5, 0.5, 'No error', ha='center', va='center', transform=ax4.transAxes)
+            ax4.set_title('Error analysis')
             
         plt.tight_layout()
         plt.savefig(f'inference_performance_{int(time.time())}.png', dpi=300, bbox_inches='tight')
         plt.show()
         
-        print(f"\n性能图表已保存为: inference_performance_{int(time.time())}.png")
+        print(f"\nPerformance charts have been saved as: inference_performance_{int(time.time())}.png")
 
-# 使用示例
+# Usage example
 analyzer = InferencePerformanceAnalyzer(
     endpoint_url="http://model-service.ai-models.svc.cluster.local:8000/v1/completions",
     model_name="llama3-70b"
 )
 
-# 执行压力测试
+# Execute pressure testing
 analyzer.stress_test(
     duration_seconds=300,  # 5分钟测试
     concurrent_requests=20,  # 20并发
@@ -850,10 +852,10 @@ analyzer.stress_test(
 
 ---
 
-<!-- chunk: 四、监控告警体系建设 -->
-## 四、监控告警体系建设
 
-### 4.1 关键指标告警配置
+## 4. Monitoring and Alerting System Construction
+
+### 4.1 Key Metric Alert Configuration
 
 ```yaml
 # ai_monitoring_alerts.yaml
@@ -864,7 +866,7 @@ metadata:
   namespace: monitoring
 spec:
   groups:
-  # GPU相关告警
+  # GPU-related alerts
   - name: ai.gpu.alerts
     rules:
     - alert: HighGPUUtilization
@@ -874,8 +876,8 @@ spec:
         severity: warning
         team: ai-platform
       annotations:
-        summary: "GPU利用率过高 ({{ $labels.instance }} GPU {{ $labels.gpu }})"
-        description: "GPU利用率持续超过95%，可能导致性能瓶颈"
+        summary: "GPU utilization is too high ({{ $labels.instance }} GPU {{ $labels.gpu }})"
+        description: "GPU utilization has been consistently over 95%, which may cause performance bottlenecks"
         
     - alert: HighGPUTemperature
       expr: DCGM_FI_DEV_GPU_TEMP > 80
@@ -884,8 +886,8 @@ spec:
         severity: critical
         team: ai-platform
       annotations:
-        summary: "GPU温度过高 ({{ $labels.instance }})"
-        description: "GPU温度达到{{ $value }}°C，可能影响稳定性和寿命"
+        summary: "GPU temperature is too high ({{ $labels.instance }})"
+        description: "GPU temperature reaches {{ $value }}°C, which may affect stability and lifespan"
         
     - alert: GPUMemoryPressure
       expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100 > 90
@@ -894,10 +896,10 @@ spec:
         severity: warning
         team: ai-platform
       annotations:
-        summary: "GPU内存压力过大"
-        description: "GPU内存使用率{{ $value | printf \"%.2f\" }}%，接近上限"
+        summary: "GPU memory pressure is too high"
+        description: "GPU memory usage rate is {{ $value | printf \"%.2f\" }}%, approaching the upper limit"
         
-  # 模型服务告警
+  # Model service alerts
   - name: ai.model.alerts
     rules:
     - alert: HighInferenceLatency
@@ -907,8 +909,8 @@ spec:
         severity: warning
         service: inference
       annotations:
-        summary: "推理延迟过高 ({{ $labels.service }})"
-        description: "P99延迟超过500ms，当前值: {{ $value | printf \"%.3f\" }}s"
+        summary: "Inference delay is too high ({{ $labels.service }})"
+        description: "P99 delay exceeds 500ms, current value: {{ $value | printf \"%.3f\" }}s"
         
     - alert: ModelServiceDown
       expr: up{job=~"model-.*"} == 0
@@ -917,8 +919,8 @@ spec:
         severity: critical
         team: ai-platform
       annotations:
-        summary: "模型服务不可用"
-        description: "服务 {{ $labels.job }} 无法访问"
+        summary: "Model service is unavailable"
+        description: "Service {{ $labels.job }} cannot be accessed"
         
     - alert: HighModelErrorRate
       expr: sum(rate(model_errors_total[5m])) / sum(rate(model_requests_total[5m])) > 0.05
@@ -927,10 +929,10 @@ spec:
         severity: critical
         service: model-serving
       annotations:
-        summary: "模型错误率异常"
-        description: "错误率超过5%，当前值: {{ $value | printf \"%.2f\" }}%"
+        summary: "Model error rate is abnormal"
+        description: "Error rate exceeds 5%, current value: {{ $value | printf \"%.2f\" }}%"
         
-  # 训练任务告警
+  # Training task alerts
   - name: ai.training.alerts
     rules:
     - alert: TrainingJobStuck
@@ -940,8 +942,8 @@ spec:
         severity: warning
         team: ml-engineering
       annotations:
-        summary: "训练任务卡住"
-        description: "训练任务 {{ $labels.job_name }} 已运行超过30分钟无进展"
+        summary: "Training task stuck"
+        description: "Training task {{ $labels.job_name }} has run for more than 30 minutes without progress"
         
     - alert: TrainingLossNaN
       expr: training_loss{status="invalid"} > 0
@@ -950,10 +952,10 @@ spec:
         severity: critical
         team: ml-engineering
       annotations:
-        summary: "训练损失出现NaN值"
-        description: "训练过程中出现无效的损失值，请检查数据和模型配置"
+        summary: "Training loss shows NaN value"
+        description: "Invalid loss value occurred during training, please check the data and model configuration"
         
-  # 存储告警
+  # Storage alerts
   - name: ai.storage.alerts
     rules:
     - alert: LowDiskSpace
@@ -963,8 +965,8 @@ spec:
         severity: critical
         team: ai-platform
       annotations:
-        summary: "磁盘空间不足"
-        description: "节点 {{ $labels.instance }} 可用空间低于10%"
+        summary: "Insufficient disk space"
+        description: "Node {{ $labels.instance }} available space below 10%"
         
     - alert: HighStorageLatency
       expr: rate(node_disk_read_time_seconds_total[1m]) / rate(node_disk_reads_completed_total[1m]) > 0.1
@@ -973,11 +975,11 @@ spec:
         severity: warning
         team: ai-platform
       annotations:
-        summary: "存储延迟过高"
-        description: "存储I/O延迟超过100ms"
+        summary: "Storage delay is too high"
+        description: "Storage I/O delay exceeds 100ms"
 ```
 
-### 4.2 自动化诊断工具
+### 4.2 Automated Diagnostic Tools
 
 ```python
 # automated_diagnostic_tool.py
@@ -995,49 +997,49 @@ class AutomatedDiagnosticTool:
         self.results = {}
         
     def _load_config(self, config_file):
-        """加载诊断配置"""
+        """Load diagnostic configuration"""
         with open(config_file, 'r') as f:
             return yaml.safe_load(f)
             
     def run_full_diagnosis(self):
-        """运行完整诊断"""
+        """Run full diagnosis"""
         
-        print("开始AI平台全面诊断...")
+        print("Starting comprehensive diagnosis of AI platform...")
         start_time = datetime.now()
         
-        # 1. 基础设施检查
+        # 1. Infrastructure check
         self.results['infrastructure'] = self._check_infrastructure()
         
-        # 2. Kubernetes集群状态
+        # 2. Kubernetes cluster status
         self.results['kubernetes'] = self._check_kubernetes()
         
-        # 3. AI服务状态
+        # 3. AI service status
         self.results['ai_services'] = self._check_ai_services()
         
-        # 4. 性能指标分析
+        # 4. Performance metric analysis
         self.results['performance'] = self._analyze_performance()
         
-        # 5. 安全检查
+        # 5. Security check
         self.results['security'] = self._check_security()
         
-        # 6. 生成报告
+        # 6. Generate report
         self._generate_report()
         
-        # 7. 发送告警（如有问题）
+        # 7. Send alert (if there's an issue)
         if self._has_critical_issues():
             self._send_alerts()
             
         end_time = datetime.now()
-        print(f"诊断完成，耗时: {end_time - start_time}")
+        print(f"Diagnosis completed, duration: {end_time - start_time}")
         
         return self.results
         
     def _check_infrastructure(self):
-        """检查基础设施状态"""
+        """Check infrastructure status"""
         
         checks = {}
         
-        # GPU状态检查
+        # GPU status check
         try:
             gpu_output = subprocess.check_output(['nvidia-smi', '--query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], text=True)
             checks['gpus'] = []
@@ -1051,106 +1053,106 @@ class AutomatedDiagnosticTool:
                     'memory_total': int(parts[4])
                 })
         except subprocess.CalledProcessError:
-            checks['gpus'] = '无法获取GPU信息'
+            checks['gpus'] = 'Unable to obtain GPU information'
             
-        # 存储状态检查
+        # Storage status check
         try:
             df_output = subprocess.check_output(['df', '-h'], text=True)
             checks['storage'] = df_output
         except subprocess.CalledProcessError:
-            checks['storage'] = '无法获取存储信息'
+            checks['storage'] = 'Unable to obtain storage information'
             
-        # 网络连通性检查
+        # Network connectivity check
         checks['network'] = self._check_network_connectivity()
         
         return checks
         
     def _check_kubernetes(self):
-        """检查Kubernetes集群状态"""
+        """Check Kubernetes cluster status"""
         
         checks = {}
         
-        # 节点状态
+        # Node status
         try:
             nodes_output = subprocess.check_output(['kubectl', 'get', 'nodes', '-o', 'wide'], text=True)
             checks['nodes'] = nodes_output
         except subprocess.CalledProcessError:
-            checks['nodes'] = '无法获取节点信息'
+            checks['nodes'] = 'Unable to obtain node information'
             
-        # Pod状态（AI相关）
+        # Pod status (related to AI)
         try:
             pods_output = subprocess.check_output(['kubectl', 'get', 'pods', '-n', 'ai-models', '-o', 'wide'], text=True)
             checks['ai_pods'] = pods_output
         except subprocess.CalledProcessError:
-            checks['ai_pods'] = '无法获取AI Pods信息'
+            checks['ai_pods'] = 'Unable to obtain AI Pods information'
             
-        # 资源使用情况
+        # Resource usage
         try:
             top_output = subprocess.check_output(['kubectl', 'top', 'nodes'], text=True)
             checks['resource_usage'] = top_output
         except subprocess.CalledProcessError:
-            checks['resource_usage'] = '无法获取资源使用信息'
+            checks['resource_usage'] = 'Unable to obtain resource usage information'
             
         return checks
         
     def _check_ai_services(self):
-        """检查AI服务状态"""
+        """Check AI service status"""
         
         services = ['model-registry', 'inference-service', 'training-operator']
         checks = {}
         
         for service in services:
             try:
-                # 检查服务端点
+                # Check service endpoints
                 endpoints_output = subprocess.check_output(['kubectl', 'get', 'endpoints', '-n', 'ai-models', service], text=True)
-                checks[f'{service}_endpoint'] = '正常' if 'ports' in endpoints_output else '异常'
+                checks[f'{service}_endpoint'] = 'Normal' if 'ports' in endpoints_output else 'Abnormal'
                 
-                # 检查服务日志中的错误
+                # Check errors in service logs
                 logs_output = subprocess.check_output(['kubectl', 'logs', '-n', 'ai-models', f'deployment/{service}', '--tail=100'], text=True)
                 error_count = logs_output.count('ERROR') + logs_output.count('Exception')
                 checks[f'{service}_errors'] = error_count
                 
             except subprocess.CalledProcessError as e:
-                checks[f'{service}_endpoint'] = f'检查失败: {str(e)}'
+                checks[f'{service}_endpoint'] = f'Diagnosis failed: {str(e)}'
                 checks[f'{service}_errors'] = -1
                 
         return checks
         
     def _analyze_performance(self):
-        """分析性能指标"""
+        """Analyze performance metrics"""
         
-        # 从Prometheus获取指标（需要配置Prometheus地址）
+        # Fetch metrics from Prometheus (requires Prometheus address configuration)
         performance_data = {}
         
-        # 这里可以集成Prometheus API调用
-        # 示例指标检查
+        # Here you can integrate Prometheus API calls
+        # Example metric check
         performance_data['recent_issues'] = self._get_recent_performance_issues()
         
         return performance_data
         
     def _check_security(self):
-        """安全检查"""
+        """Security check"""
         
         security_checks = {}
         
-        # 检查Pod安全策略
+        # Check Pod security policies
         try:
             psp_output = subprocess.check_output(['kubectl', 'get', 'podsecuritypolicies'], text=True)
-            security_checks['pod_security_policies'] = '存在' if 'NAME' in psp_output else '缺失'
+            security_checks['pod_security_policies'] = 'Present' if 'NAME' in psp_output else 'Missing'
         except subprocess.CalledProcessError:
-            security_checks['pod_security_policies'] = '检查失败'
+            security_checks['pod_security_policies'] = 'Diagnosis failed'
             
-        # 检查网络策略
+        # Check network policies
         try:
             netpol_output = subprocess.check_output(['kubectl', 'get', 'networkpolicies', '--all-namespaces'], text=True)
-            security_checks['network_policies'] = '存在' if 'NAME' in netpol_output else '缺失'
+            security_checks['network_policies'] = 'exists' if 'NAME' in netpol_output else 'missing'
         except subprocess.CalledProcessError:
-            security_checks['network_policies'] = '检查失败'
+            security_checks['network_policies'] = 'check failed'
             
         return security_checks
         
     def _check_network_connectivity(self):
-        """检查网络连通性"""
+        """Check network connectivity"""
         
         targets = ['google.com', 'github.com', 'internal-registry.local']
         results = {}
@@ -1158,35 +1160,35 @@ class AutomatedDiagnosticTool:
         for target in targets:
             try:
                 subprocess.check_output(['ping', '-c', '3', target], stderr=subprocess.STDOUT)
-                results[target] = '可达'
+                results[target] = 'reachable'
             except subprocess.CalledProcessError:
-                results[target] = '不可达'
+                results[target] = 'unreachable'
                 
         return results
         
     def _get_recent_performance_issues(self):
-        """获取最近的性能问题"""
-        # 模拟数据，实际应该从监控系统获取
+        """Find recent performance issues"""
+        # Use simulated data instead of actual from monitoring system
         return [
             {'type': 'high_latency', 'timestamp': '2024-01-15T10:30:00Z', 'severity': 'warning'},
             {'type': 'low_throughput', 'timestamp': '2024-01-15T09:15:00Z', 'severity': 'info'}
         ]
         
     def _has_critical_issues(self):
-        """检查是否存在严重问题"""
+        """Check for severe issues"""
         
-        # 简化的严重问题判断逻辑
+        # Simplified logic for severe issue detection
         critical_indicators = [
             'gpus' in self.results.get('infrastructure', {}) and isinstance(self.results['infrastructure']['gpus'], str),
             'nodes' in self.results.get('kubernetes', {}) and 'NotReady' in self.results['kubernetes']['nodes'],
-            any(service.endswith('_endpoint') and self.results['ai_services'][service] != '正常' 
+            any(service.endswith('_endpoint') and self.results['ai_services'][service] != 'normal' 
                 for service in self.results.get('ai_services', {}))
         ]
         
         return any(critical_indicators)
         
     def _generate_report(self):
-        """生成诊断报告"""
+        """Generate diagnostic report"""
         
         report = {
             'timestamp': datetime.now().isoformat(),
@@ -1194,33 +1196,33 @@ class AutomatedDiagnosticTool:
             'detailed_results': self.results
         }
         
-        # 保存报告
+        # Save report
         with open(f'ai_diagnostic_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json', 'w') as f:
             json.dump(report, f, indent=2, default=str)
             
-        # 生成HTML报告
+        # Generate HTML report
         self._generate_html_report(report)
         
     def _generate_summary(self):
-        """生成摘要"""
+        """Generate summary"""
         
         issues = []
         
-        # 基础设施问题
+        # Infrastructure issues
         infra = self.results.get('infrastructure', {})
         if isinstance(infra.get('gpus'), str):
-            issues.append("GPU状态异常")
+            issues.append("GPU status abnormal")
             
-        # Kubernetes问题
+        # Kubernetes issues
         k8s = self.results.get('kubernetes', {})
         if 'NotReady' in k8s.get('nodes', ''):
-            issues.append("Kubernetes节点异常")
+            issues.append("Kubernetes node abnormal")
             
-        # AI服务问题
+        # AI service issues
         ai_services = self.results.get('ai_services', {})
         for service, status in ai_services.items():
-            if service.endswith('_endpoint') and status != '正常':
-                issues.append(f"{service.replace('_endpoint', '')}服务异常")
+            if service.endswith('_endpoint') and status != 'normal':
+                issues.append(f"{service.replace('_endpoint', '')} service abnormal")
                 
         return {
             'total_checks': len(self.results),
@@ -1230,7 +1232,7 @@ class AutomatedDiagnosticTool:
         }
         
     def _generate_html_report(self, report):
-        """生成HTML格式报告"""
+        """Generate HTML format report"""
         
         html_content = f"""
         <!DOCTYPE html>
@@ -1283,26 +1285,26 @@ class AutomatedDiagnosticTool:
         with open(filename, 'w') as f:
             f.write(html_content)
             
-        print(f"HTML报告已生成: {filename}")
+        print(f"HTML report has been generated: {filename}")
         
     def _send_alerts(self):
-        """发送告警邮件"""
+        """Send alert email"""
         
-        # 邮件配置
+        # Email configuration
         smtp_server = self.config.get('smtp_server', 'localhost')
         smtp_port = self.config.get('smtp_port', 587)
         sender_email = self.config.get('sender_email', 'alerts@company.com')
         recipient_emails = self.config.get('recipient_emails', [])
         
         if not recipient_emails:
-            print("未配置收件人邮箱")
+            print("No configured recipient email")
             return
             
-        # 创建邮件
+        # Create email
         msg = MIMEMultipart()
         msg['From'] = sender_email
         msg['To'] = ', '.join(recipient_emails)
-        msg['Subject'] = f"AI平台诊断告警 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        msg['Subject'] = f"AI platform diagnostic alert - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         
         body = f"""
         AI平台诊断发现严重问题：
@@ -1316,66 +1318,66 @@ class AutomatedDiagnosticTool:
         
         msg.attach(MIMEText(body, 'plain'))
         
-        # 发送邮件
+        # Send email
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
-            # 如果需要认证，取消下面注释并填写凭据
+            # If authentication is needed, uncomment and fill in credentials below
             # server.login(sender_email, "your_password")
             server.send_message(msg)
             server.quit()
-            print("告警邮件已发送")
+            print("Alert email sent")
         except Exception as e:
-            print(f"发送邮件失败: {e}")
+            print(f"Send mail failed: {e}")
 
-# 使用示例
+# Usage example
 if __name__ == "__main__":
     diagnostic = AutomatedDiagnosticTool("diagnostic_config.yaml")
     results = diagnostic.run_full_diagnosis()
-    print("诊断完成，结果已保存")
+    print("Diagnosis completed, results saved")
 ```
 
 ---
 
-<!-- chunk: 五、性能优化最佳实践 -->
-## 五、性能优化最佳实践
 
-### 5.1 系统级优化
+## 5. Performance Optimization Best Practices
 
-> ⚠️ **🟠 高危操作** — 影响业务流量或节点状态，需变更工单+影响评估+计划回滚
-> - `systemctl stop/restart`：停止/重启系统服务，影响节点上所有容器
+### 5.1 System-level Optimization
 
-> **🔴 高风险操作警告**
+> ⚠️ **🟠 High-Risk Operations** — Affect business traffic or node status, require change ticket + impact assessment + planned rollback
+> - `systemctl stop/restart`: Stop/restart system services, affecting all containers on the node
+
+> **🔴 High-Risk Operation Warning**
 >
-> 下方命令属于不可逆或高影响操作，执行前请确认：
-> - 已备份关键数据与配置
-> - 处于批准的变更窗口期
-> - 已获得相关责任人授权
-> - 已准备回滚或恢复方案
-> - 目标集群、Namespace、节点/资源名称正确无误
+> Below commands belong to irreversible or high-impact operations, execute only after confirming:
+> - Key data and configurations have been backed up
+> - Approved change window period is active
+> - Has obtained authorization from relevant responsible parties
+> - Has prepared rollback or recovery plans
+> - Target cluster, Namespace, node/resource names are correct without error
 
 ``` bash
-# 🔴 高风险：可能造成数据丢失或服务中断，执行前需备份、变更审批与回滚方案
+# 🔴 High-risk: May cause data loss or service disruption, execute after backing up, change approval, and rollback plan
 #!/bin/bash
-# system_optimization.sh - 系统性能优化脚本
+# system_optimization.sh - System performance optimization script
 
-echo "开始系统性能优化..."
+echo "Starting system performance optimization..."
 
-# 1. 内核参数优化
-echo "优化内核参数..."
+# 1. Kernel parameter optimization
+echo "Optimizing kernel parameters..."
 cat >> /etc/sysctl.conf << EOF
-# 网络优化
+# Network optimization
 net.core.rmem_max = 134217728
 net.core.wmem_max = 134217728
 net.ipv4.tcp_rmem = 4096 87380 134217728
 net.ipv4.tcp_wmem = 4096 65536 134217728
 net.ipv4.tcp_congestion_control = bbr
 
-# 文件系统优化
+# File system optimization
 fs.file-max = 2097152
 fs.nr_open = 2097152
 
-# 内存优化
+# Memory optimization
 vm.swappiness = 1
 vm.dirty_ratio = 15
 vm.dirty_background_ratio = 5
@@ -1383,16 +1385,16 @@ EOF
 
 sysctl -p
 
-# 2. GPU驱动优化
-echo "优化GPU驱动设置..."
+# 2. GPU driver optimization
+echo "Optimizing GPU driver settings..."
 cat > /etc/modprobe.d/nvidia.conf << EOF
 options nvidia NVreg_RegistryDwords="PerfLevelSrc=0x2222"
 options nvidia NVreg_RestrictProfilingToAdminUsers=0
 options nvidia NVreg_EnableGpuFirmware=1
 EOF
 
-# 3. systemd服务优化
-echo "优化systemd服务..."
+# 3. systemd service optimization
+echo "Optimizing systemd services..."
 mkdir -p /etc/systemd/system/docker.service.d
 cat > /etc/systemd/system/docker.service.d/override.conf << EOF
 [Service]
@@ -1403,9 +1405,9 @@ EOF
 systemctl daemon-reload
 systemctl restart docker
 
-# 4. Kubernetes组件优化
-echo "优化Kubernetes组件..."
-# kubelet配置优化
+# 4. Kubernetes component optimization
+echo "Optimizing Kubernetes components..."
+# kubelet configuration optimization
 cat > /var/lib/kubelet/config.yaml << EOF
 apiVersion: kubelet.config.k8s.io/v1beta1
 kind: KubeletConfiguration
@@ -1430,53 +1432,53 @@ kubeReserved:
   memory: "4Gi"
 EOF
 
-echo "系统优化完成！请重启相关服务使配置生效。"
+echo "System optimization completed! Please restart the related services to make the configuration effective."
 ```
-### 5.2 应用级优化清单
+### 5.2 Application-level Optimization Checklist
 
-✅ **模型优化**
-- [ ] 启用模型量化（FP16/INT8）
-- [ ] 使用模型并行减少单GPU压力
-- [ ] 实施动态批处理提高吞吐量
-- [ ] 启用KV缓存复用
-- [ ] 优化注意力机制（Flash Attention）
+✅ **Model Optimization**
+- [ ] Enable model quantization (FP16/INT8)
+- [ ] Use model parallelism to reduce single-GPU pressure
+- [ ] Implement dynamic batching to improve throughput
+- [ ] Enable KV caching reuse
+- [ ] Optimize attention mechanisms (Flash Attention)
 
-✅ **容器优化**
-- [ ] 设置合理的资源限制和请求
-- [ ] 启用节点亲和性和反亲和性
-- [ ] 配置合适的探针超时时间
-- [ ] 优化镜像层数和大小
-- [ ] 启用镜像预拉取
+✅ **Container Optimization**
+- [ ] Set reasonable resource limits and requests
+- [ ] Enable node affinity and anti-affinity
+- [ ] Configure appropriate probe timeout times
+- [ ] Optimize image layer count and size
+- [ ] Enable image pre-fetching
 
-✅ **网络优化**
-- [ ] 启用服务网格sidecar注入
-- [ ] 配置合理的连接池参数
-- [ ] 启用HTTP/2和gRPC
-- [ ] 优化DNS解析配置
-- [ ] 启用连接复用
-
----
+✅ **Network Optimization**
+- [ ] Enable service mesh sidecar injection
+- [ ] Configure reasonable connection pool parameters
+- [ ] Enable HTTP/2 and gRPC
+- [ ] Optimize DNS resolution configuration
+- [ ] Enable connection reuse
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+---
+
+
+## Obsidian Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- [[domain-10-troubleshooting-diagnostics/topic-fta/list/apiserver-fta.md|API Server 异常故障树分析]]
-- [[domain-10-troubleshooting-diagnostics/topic-fta/list/backup-restore-fta.md|备份/恢复异常故障树分析]]
-- [[domain-10-troubleshooting-diagnostics/topic-fta/list/calico-fta.md|calico FTA 树：Calico CNI 故障诊断]]
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- [[domain-10-troubleshooting-diagnostics/topic-fta/list/apiserver-fta.md|API Server Fault Tree Analysis]]
+- [[domain-10-troubleshooting-diagnostics/topic-fta/list/backup-restore-fta.md|Backup/Restore Fault Tree Analysis]]
+- [[domain-10-troubleshooting-diagnostics/topic-fta/list/calico-fta.md|Calico FTA Tree: Calico CNI Fault Diagnosis]]
 
 ## See Also
 

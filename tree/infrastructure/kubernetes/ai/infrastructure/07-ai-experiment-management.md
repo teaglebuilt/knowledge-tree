@@ -1,6 +1,6 @@
 ---
-title: AI实验管理与MLOps平台
-description: '# AI实验管理与MLOps平台'
+title: AI Experiment Management and MLOps Platform
+description: '# AI Experiment Management and MLOps Platform'
 summary: 'nginx.ingress.kubernetes.io/proxy-body-size: "500m"'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineer
+- MLOps Engineer
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI实验管理与MLOps平台 是什么
-- 如何 AI实验管理与MLOps平台
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Experiment Management and MLOps Platform
+- How to use AI Experiment Management and MLOps Platform
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI实验管理与MLOps平台
+- AI Experiment Management and MLOps Platform
 - ai
 - infra
 prerequisites:
@@ -48,66 +48,68 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/07-ai-experiment-management.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained herein are executable directly. Execute with confirmation that the target cluster and Namespace are correct, that sufficient RBAC permissions exist, and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but typically can be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI实验管理与MLOps平台
+# AI Experiment Management and MLOps Platform
 
-<!-- chunk: 一、实验管理平台架构 -->
-## 一、实验管理平台架构
+
+## 1. Experiment Management Platform Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        MLOps实验管理全景                                  │
+│                        MLOps Experiment Management Overview                                  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│  │  实验追踪     │───▶│  超参优化     │───▶│  模型评估     │              │
+│  │  Experiment Tracking     │───▶│  Hyperparameter Optimization     │───▶│  Model Evaluation     │              │
 │  │  MLflow      │    │  Optuna      │    │  Metrics     │              │
 │  │  W&B         │    │  Ray Tune    │    │  Validation  │              │
 │  └──────────────┘    └──────────────┘    └──────────────┘              │
 │       ▲                    ▲                    │                       │
 │       │                    │                    ▼                       │
 │  ┌────┴──────┐       ┌────┴──────┐       ┌────────────┐               │
-│  │  代码版本  │       │  数据版本  │       │  模型注册   │               │
+│  │  Code Version  │       │  Data Version  │       │  Model Registry   │               │
 │  │  Git      │       │  DVC      │       │  Registry  │               │
 │  └───────────┘       └───────────┘       └────────────┘               │
 │                                                │                        │
 │                                                ▼                        │
 │  ┌──────────────────────────────────────────────────┐                  │
 │  │              CI/CD Pipeline                       │                  │
-│  │  训练 → 评估 → 注册 → 部署 → 监控                  │                  │
+│  │  train → evaluate → register → deploy → monitor                  │                  │
 │  └──────────────────────────────────────────────────┘                  │
 │                                                                           │
 │  ┌──────────────────────────────────────────────────┐                  │
-│  │         Kubernetes基础设施                         │                  │
-│  │  • GPU调度  • 分布式训练  • 模型Serving           │                  │
+│  │         Kubernetes infrastructure                  │                  │
+│  │  • GPU Scheduling  • Distributed Training  • Model Serving           │                  │
 │  └──────────────────────────────────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-<!-- chunk: 二、MLflow实验追踪 -->
-## 二、MLflow实验追踪
 
-### 2.1 MLflow完整部署
+## 2. MLflow Experiment Tracking
+
+### 2.1 Full Deployment of MLflow
 
 ```yaml
-# PostgreSQL后端存储
+# PostgreSQL backend storage
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -249,7 +251,7 @@ spec:
   selector:
     app: mlflow-server
 ---
-# Ingress暴露外部访问
+# Expose via Ingress externally
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -277,7 +279,7 @@ spec:
     secretName: mlflow-tls-secret
 ```
 
-### 2.2 训练脚本集成MLflow
+### 2.2 Integration of Training Scripts with MLflow
 
 ```python
 import mlflow
@@ -289,11 +291,11 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Adam
 from datasets import load_dataset
 import os
 
-# 设置MLflow追踪URI
+# Set MLflow tracking URI
 mlflow.set_tracking_uri("http://mlflow-server.ai-platform.svc.cluster.local:5000")
 mlflow.set_experiment("bert-sentiment-classification")
 
-# 超参数
+# Hyperparameters
 params = {
     "model_name": "bert-base-uncased",
     "learning_rate": 2e-5,
@@ -304,28 +306,28 @@ params = {
     "weight_decay": 0.01
 }
 
-# 开始MLflow Run
+# Start MLflow Run
 with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
     
-    # 1. 记录超参数
+    # 1. Record hyperparameters
     mlflow.log_params(params)
     
-    # 2. 记录代码版本
+    # 2. Record code version
     mlflow.log_param("git_commit", os.popen("git rev-parse HEAD").read().strip())
     
-    # 3. 记录环境信息
+    # 3. Record environment information
     mlflow.log_param("cuda_version", torch.version.cuda)
     mlflow.log_param("gpu_name", torch.cuda.get_device_name(0))
     mlflow.log_param("num_gpus", torch.cuda.device_count())
     
-    # 加载模型和数据
+    # Load model and data
     model = AutoModelForSequenceClassification.from_pretrained(
         params["model_name"],
         num_labels=2
     )
     tokenizer = AutoTokenizer.from_pretrained(params["model_name"])
     
-    # 数据集
+    # Dataset
     dataset = load_dataset("imdb")
     train_dataset = dataset["train"].shuffle(seed=42).select(range(10000))
     val_dataset = dataset["test"].select(range(1000))
@@ -344,14 +346,14 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
     train_loader = DataLoader(train_dataset, batch_size=params["batch_size"], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=params["batch_size"])
     
-    # 优化器
+    # Optimizer
     optimizer = AdamW(
         model.parameters(),
         lr=params["learning_rate"],
         weight_decay=params["weight_decay"]
     )
     
-    # 训练循环
+    # Training loop
     model.cuda()
     model.train()
     
@@ -372,14 +374,14 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
             total_loss += loss.item()
             global_step += 1
             
-            # 4. 记录训练指标（每10步）
+            # 4. Record training metrics (every 10 steps)
             if global_step % 10 == 0:
                 mlflow.log_metric("train_loss", loss.item(), step=global_step)
                 mlflow.log_metric("learning_rate", optimizer.param_groups[0]["lr"], step=global_step)
         
         avg_train_loss = total_loss / len(train_loader)
         
-        # 5. 验证评估
+        # 5. Validation evaluation
         model.eval()
         val_loss = 0
         correct = 0
@@ -400,7 +402,7 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
         avg_val_loss = val_loss / len(val_loader)
         accuracy = correct / total
         
-        # 6. 记录验证指标
+        # 6. Record validation metrics
         mlflow.log_metric("val_loss", avg_val_loss, step=epoch)
         mlflow.log_metric("val_accuracy", accuracy, step=epoch)
         
@@ -410,19 +412,19 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
         
         model.train()
     
-    # 7. 保存模型到MLflow
+    # 7. Save model to MLflow
     mlflow.pytorch.log_model(
         model,
         "model",
         registered_model_name="bert-sentiment-classifier"
     )
     
-    # 8. 记录额外artifacts
-    # 保存confusion matrix图像
+    # Record additional artifacts
+    # Save confusion matrix image
     import matplotlib.pyplot as plt
     from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
     
-    # 生成预测
+    # Generate predictions
     all_preds = []
     all_labels = []
     with torch.no_grad():
@@ -440,7 +442,7 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
     plt.savefig("confusion_matrix.png")
     mlflow.log_artifact("confusion_matrix.png")
     
-    # 9. 记录模型签名
+    # 9. Record model signature
     from mlflow.models.signature import infer_signature
     sample_input = {
         "input_ids": torch.randint(0, 30522, (1, params["max_length"])),
@@ -450,7 +452,7 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
     signature = infer_signature(sample_input, sample_output)
     mlflow.pytorch.log_model(model, "model_with_signature", signature=signature)
     
-    # 10. 添加标签
+    # Add label
     mlflow.set_tag("model_type", "transformer")
     mlflow.set_tag("task", "sentiment-classification")
     mlflow.set_tag("framework", "pytorch")
@@ -460,7 +462,7 @@ with mlflow.start_run(run_name="bert-base-lr2e5-bs32") as run:
     print(f"MLflow UI: http://mlflow.example.com/#/experiments/{run.info.experiment_id}/runs/{run.info.run_id}")
 ```
 
-### 2.3 MLflow Kubernetes训练Job
+### 2.3 MLflow Kubernetes Training Job
 
 ```yaml
 apiVersion: batch/v1
@@ -526,20 +528,20 @@ spec:
 
 ---
 
-<!-- chunk: 三、Weights & Biases集成 -->
-## 三、Weights & Biases集成
 
-### 3.1 W&B特性优势
+## 3. Integrating Weights & Biases
 
-相比MLflow，W&B提供更丰富的可视化和协作功能：
+### 3.1 Advantages of W&B Features
 
-- **实时可视化**：训练曲线实时更新
-- **超参数对比**：Parallel Coordinates图
-- **模型对比**：Run Comparison Table
-- **报告生成**：Markdown格式实验报告
-- **团队协作**：共享实验、评论、讨论
+Compared to MLflow, W&B offers more extensive visualization and collaboration features:
 
-### 3.2 W&B训练集成
+- **Real-time Visualization**: Training curves update in real time
+- **Hyperparameter Comparison**: Parallel Coordinates chart
+- **Model Comparison**: Run Comparison Table
+- **Report Generation**: Markdown-formatted experiment report
+- **Team Collaboration**: Share experiments, comments, discussions
+
+### 3.2 Integration of W&B with Training
 
 ```python
 import wandb
@@ -547,7 +549,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 from datasets import load_dataset
 
-# 初始化W&B
+# Initialize W&B
 wandb.init(
     project="llama2-finetuning",
     name="llama2-7b-alpaca-lora",
@@ -567,7 +569,7 @@ wandb.init(
 
 config = wandb.config
 
-# 加载模型和数据
+# Load model and data
 model = AutoModelForCausalLM.from_pretrained(
     config.model,
     load_in_8bit=True,
@@ -575,7 +577,7 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer = AutoTokenizer.from_pretrained(config.model)
 
-# LoRA配置
+# LoRA configuration
 from peft import LoraConfig, get_peft_model, TaskType
 
 lora_config = LoraConfig(
@@ -587,10 +589,10 @@ lora_config = LoraConfig(
 )
 model = get_peft_model(model, lora_config)
 
-# 数据集
+# Dataset
 dataset = load_dataset("tatsu-lab/alpaca")
 
-# 训练参数
+# Training parameters
 training_args = TrainingArguments(
     output_dir="./checkpoints",
     per_device_train_batch_size=config.batch_size,
@@ -605,7 +607,7 @@ training_args = TrainingArguments(
     run_name=wandb.run.name
 )
 
-# Trainer会自动记录指标到W&B
+# Trainer will automatically record metrics to W&B
 trainer = Trainer(
     model=model,
     args=training_args,
@@ -613,16 +615,16 @@ trainer = Trainer(
     eval_dataset=dataset["test"]
 )
 
-# 训练
+# Train
 trainer.train()
 
-# 手动记录额外信息
+# Manually record additional information
 wandb.log({
     "trainable_params": sum(p.numel() for p in model.parameters() if p.requires_grad),
     "total_params": sum(p.numel() for p in model.parameters())
 })
 
-# 保存模型到W&B Artifacts
+# Save model to W&B Artifacts
 artifact = wandb.Artifact("llama2-7b-alpaca-lora", type="model")
 artifact.add_dir("./checkpoints/checkpoint-final")
 wandb.log_artifact(artifact)
@@ -630,7 +632,7 @@ wandb.log_artifact(artifact)
 wandb.finish()
 ```
 
-### 3.3 W&B Sweeps超参数搜索
+### 3.3 W&B Sweeps Hyperparameter Search
 
 ```yaml
 # sweep_config.yaml
@@ -659,20 +661,20 @@ early_terminate:
 ```
 
 ```python
-# 启动Sweep
+# Start Sweep
 import wandb
 
-# 创建Sweep
+# Create Sweep
 sweep_id = wandb.sweep(
     sweep_config,
     project="llama2-finetuning"
 )
 
-# 运行Sweep Agent（可在多个节点运行）
+# Run Sweep Agent (can run on multiple nodes)
 wandb.agent(sweep_id, function=train, count=20)
 ```
 
-**Kubernetes并行Sweep：**
+**Kubernetes Parallel Sweeps:**
 ```yaml
 apiVersion: batch/v1
 kind: Job
@@ -707,10 +709,10 @@ spec:
 
 ---
 
-<!-- chunk: 四、[[Kubeflow|Kubeflow]] Pipelines -->
-## 四、Kubeflow Pipelines
 
-### 4.1 完整ML Pipeline定义
+## 4. Kubeflow Pipelines
+
+### 4.1 Complete Definition of ML Pipeline
 
 ```python
 from kfp import dsl, compiler
@@ -725,22 +727,22 @@ def data_preprocessing(
     processed_data: Output[Dataset],
     train_test_split_ratio: float = 0.8
 ):
-    """数据预处理组件"""
+    """Data preprocessing component"""
     import pandas as pd
     from sklearn.model_selection import train_test_split
     import pickle
     
-    # 读取数据
+    # Read data
     df = pd.read_csv(raw_data_path)
     
-    # 清洗
+    # Clean
     df = df.dropna()
     df = df[df['amount'] > 0]
     
-    # 分割
+    # Split
     train_df, test_df = train_test_split(df, test_size=1-train_test_split_ratio, random_state=42)
     
-    # 保存
+    # Save
     output_data = {
         "train": train_df.to_dict(),
         "test": test_df.to_dict()
@@ -759,18 +761,18 @@ def model_training(
     learning_rate: float = 2e-5,
     num_epochs: int = 3
 ):
-    """模型训练组件"""
+    """Model training component"""
     import torch
     from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
     import pickle
     import mlflow
     import json
     
-    # 加载数据
+    # Load data
     with open(processed_data.path, 'rb') as f:
         data = pickle.load(f)
     
-    # 训练模型
+    # Train model
     model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
     
     training_args = TrainingArguments(
@@ -783,13 +785,13 @@ def model_training(
     trainer = Trainer(model=model, args=training_args, train_dataset=data["train"])
     trainer.train()
     
-    # 评估
+    # Evaluate
     eval_results = trainer.evaluate(data["test"])
     
-    # 保存模型
+    # Save model
     model.save_pretrained(model_output.path)
     
-    # 保存指标
+    # Save metrics
     metrics_output.log_metric("accuracy", eval_results["eval_accuracy"])
     metrics_output.log_metric("loss", eval_results["eval_loss"])
 
@@ -802,21 +804,21 @@ def model_registration(
     metrics: Input[Metrics],
     accuracy_threshold: float = 0.85
 ) -> str:
-    """模型注册组件"""
+    """Model registration component"""
     import mlflow
     
-    # 读取指标
+    # Read metrics
     accuracy = metrics.metadata["accuracy"]
     
     if accuracy >= accuracy_threshold:
-        # 注册到MLflow
+        # Register to MLflow
         mlflow.set_tracking_uri("http://mlflow-server.ai-platform.svc.cluster.local:5000")
         
         with mlflow.start_run():
             mlflow.log_metric("accuracy", accuracy)
             model_uri = mlflow.pytorch.log_model(model.path, "model")
             
-            # 注册模型
+            # Register model
             result = mlflow.register_model(
                 model_uri,
                 "bert-classifier",
@@ -824,11 +826,11 @@ def model_registration(
             )
             return result.version
     else:
-        raise ValueError(f"模型精度 {accuracy} 低于阈值 {accuracy_threshold}")
+        raise ValueError(f"model accuracy {accuracy} below threshold {accuracy_threshold}")
 
 @dsl.pipeline(
     name="ML Training Pipeline",
-    description="完整的ML训练Pipeline"
+    description="the complete ML training Pipeline"
 )
 def ml_training_pipeline(
     data_path: str = "s3://data/raw/dataset.csv",
@@ -836,65 +838,65 @@ def ml_training_pipeline(
     num_epochs: int = 3,
     accuracy_threshold: float = 0.85
 ):
-    # 数据预处理
+    # Data preprocessing
     preprocess_task = data_preprocessing(raw_data_path=data_path)
     
-    # 模型训练
+    # Model training
     train_task = model_training(
         processed_data=preprocess_task.outputs["processed_data"],
         learning_rate=learning_rate,
         num_epochs=num_epochs
     )
     
-    # 模型注册
+    # Model registration
     register_task = model_registration(
         model=train_task.outputs["model_output"],
         metrics=train_task.outputs["metrics_output"],
         accuracy_threshold=accuracy_threshold
     )
 
-# 编译Pipeline
+# Compile Pipeline
 compiler.Compiler().compile(
     pipeline_func=ml_training_pipeline,
     package_path="ml_pipeline.yaml"
 )
 ```
 
-### 4.2 Kubeflow部署
+### 4.2 Deployment of Kubeflow
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource state, recommend using --dry-run or diff first
+> - `kubectl apply/create/replace`: Create/modify cluster resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 安装Kubeflow Pipelines
+# 🟡 Medium-risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# Install Kubeflow Pipelines
 export PIPELINE_VERSION=2.0.5
 kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/cluster-scoped-resources?ref=$PIPELINE_VERSION"
 kubectl wait --for condition=established --timeout=60s crd/applications.app.k8s.io
 kubectl apply -k "github.com/kubeflow/pipelines/manifests/kustomize/env/platform-agnostic?ref=$PIPELINE_VERSION"
 
-# 端口转发访问UI
+# Port forwarding to access UI
 kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80
-# 访问 http://localhost:8080
+# Access http://localhost:8080
 ```
-### 4.3 提交Pipeline运行
+### 4.3 Submission of Pipeline Runs
 
 ```python
 import kfp
 
-# 连接到Kubeflow Pipelines
+# Connect to Kubeflow Pipelines
 client = kfp.Client(host="http://ml-pipeline-ui.kubeflow.svc.cluster.local")
 
-# 上传Pipeline
+# Upload Pipeline
 pipeline_id = client.upload_pipeline(
     pipeline_package_path="ml_pipeline.yaml",
     pipeline_name="ML Training Pipeline v1.0"
 )
 
-# 创建实验
+# Create experiment
 experiment = client.create_experiment(name="bert-classification-experiments")
 
-# 提交运行
+# Submit run
 run = client.run_pipeline(
     experiment_id=experiment.id,
     job_name="bert-training-run-001",
@@ -913,17 +915,17 @@ print(f"Run URL: http://localhost:8080/#/runs/details/{run.id}")
 
 ---
 
-<!-- chunk: 五、实验对比与分析 -->
-## 五、实验对比与分析
 
-### 5.1 MLflow UI实验对比
+## 5. Experiment Comparison and Analysis
+
+### 5.1 Experiment Comparison in MLflow UI
 
 ```python
 from mlflow.tracking import MlflowClient
 
 client = MlflowClient("http://mlflow-server.ai-platform.svc.cluster.local:5000")
 
-# 获取实验所有runs
+# Get all runs of an experiment
 experiment_id = "1"
 runs = client.search_runs(
     experiment_ids=[experiment_id],
@@ -932,7 +934,7 @@ runs = client.search_runs(
     max_results=10
 )
 
-# 对比最佳runs
+# Compare best runs
 import pandas as pd
 
 comparison_data = []
@@ -949,14 +951,14 @@ for run in runs:
 df = pd.DataFrame(comparison_data)
 print(df.to_string())
 
-# 输出示例：
+# Output example:
 #        run_id  learning_rate batch_size  val_accuracy  val_loss  duration(ms)
 # 0  abc123def45           2e-5         32        0.9234    0.2145      1234567
 # 1  ghi789jkl01           3e-5         32        0.9187    0.2298      1198765
 # 2  mno456pqr78           2e-5         64        0.9156    0.2401      987654
 ```
 
-### 5.2 自动生成实验报告
+### 5.2 Generation of Experiment Reports
 
 ```python
 import mlflow
@@ -968,7 +970,7 @@ client = MlflowClient()
 experiment_id = "1"
 runs = client.search_runs(experiment_ids=[experiment_id], max_results=20)
 
-# 生成学习曲线对比图
+# Generate learning curve comparison chart
 plt.figure(figsize=(12, 6))
 
 for run in runs[:5]:  # 前5个最佳runs
@@ -987,17 +989,17 @@ plt.legend()
 plt.grid(True)
 plt.savefig("accuracy_comparison.png", dpi=300)
 
-# 记录到MLflow
+# Record to MLflow
 with mlflow.start_run():
     mlflow.log_artifact("accuracy_comparison.png")
 ```
 
 ---
 
-<!-- chunk: 六、分布式超参数优化 -->
-## 六、分布式超参数优化
 
-### 6.1 Ray Tune集成
+## 6. Distributed Hyperparameter Optimization
+
+### 6.1 Integration of Ray Tune
 
 ```python
 from ray import tune
@@ -1007,7 +1009,7 @@ import torch
 from transformers import AutoModelForSequenceClassification, Trainer, TrainingArguments
 
 def train_model(config):
-    """训练函数"""
+    """Training function"""
     model = AutoModelForSequenceClassification.from_pretrained(
         "bert-base-uncased",
         num_labels=2
@@ -1028,24 +1030,24 @@ def train_model(config):
         eval_dataset=eval_dataset
     )
     
-    # 训练并返回结果
+    # Train and return result
     result = trainer.train()
     eval_result = trainer.evaluate()
     
-    # 报告指标给Ray Tune
+    # Report metrics to Ray Tune
     tune.report(
         accuracy=eval_result["eval_accuracy"],
         loss=eval_result["eval_loss"]
     )
 
-# Ray Tune搜索空间
+# Ray Tune search space
 search_space = {
     "learning_rate": tune.loguniform(1e-5, 1e-3),
     "batch_size": tune.choice([16, 32, 64]),
     "weight_decay": tune.uniform(0.0, 0.1)
 }
 
-# ASHA调度器（早停）
+# ASHA scheduler (early stopping)
 scheduler = ASHAScheduler(
     metric="accuracy",
     mode="max",
@@ -1054,7 +1056,7 @@ scheduler = ASHAScheduler(
     reduction_factor=2
 )
 
-# 运行超参数搜索
+# Run hyperparameter search
 analysis = tune.run(
     train_model,
     config=search_space,
@@ -1070,31 +1072,31 @@ analysis = tune.run(
     ]
 )
 
-# 最佳配置
+# Best configuration
 best_config = analysis.best_config
 print(f"Best config: {best_config}")
 print(f"Best accuracy: {analysis.best_result['accuracy']}")
 ```
 
-### 6.2 Optuna优化器
+### 6.2 Optimizer Optuna
 
 ```python
 import optuna
 import mlflow
 
 def objective(trial):
-    """Optuna目标函数"""
-    # 定义超参数搜索空间
+    """Objective function for Optuna"""
+    # Define hyperparameter search space
     learning_rate = trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True)
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64])
     num_layers = trial.suggest_int("num_layers", 6, 12)
     dropout = trial.suggest_float("dropout", 0.1, 0.5)
     
-    # 训练模型
+    # Train model
     model = build_model(num_layers=num_layers, dropout=dropout)
     accuracy = train_and_evaluate(model, learning_rate, batch_size)
     
-    # 记录到MLflow
+    # Record to MLflow
     with mlflow.start_run(nested=True):
         mlflow.log_params({
             "learning_rate": learning_rate,
@@ -1106,7 +1108,7 @@ def objective(trial):
     
     return accuracy
 
-# 创建Optuna Study
+# Create Optuna Study
 study = optuna.create_study(
     study_name="bert-optimization",
     direction="maximize",
@@ -1116,11 +1118,11 @@ study = optuna.create_study(
     pruner=optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=3)
 )
 
-# 运行优化（分布式）
+# Run optimization (distributed)
 with mlflow.start_run():
     study.optimize(objective, n_trials=50, timeout=3600)
     
-    # 记录最佳结果
+    # Record best results
     mlflow.log_params(study.best_params)
     mlflow.log_metric("best_accuracy", study.best_value)
 
@@ -1128,19 +1130,19 @@ print(f"Best trial: {study.best_trial.number}")
 print(f"Best params: {study.best_params}")
 print(f"Best accuracy: {study.best_value}")
 
-# 可视化
+# Visualize
 import optuna.visualization as vis
 
-# 优化历史
+# Optimization History
 fig = vis.plot_optimization_history(study)
 fig.write_html("optimization_history.html")
 
-# 参数重要性
+# Parameter Importance
 fig = vis.plot_param_importances(study)
 fig.write_html("param_importances.html")
 ```
 
-**Kubernetes分布式Optuna：**
+**Kubernetes Distributed Optuna:**
 ```yaml
 apiVersion: batch/v1
 kind: Job
@@ -1170,8 +1172,8 @@ spec:
 
 ---
 
-<!-- chunk: 七、CI/CD for ML -->
-## 七、CI/CD for ML
+
+## 7. CI/CD for ML
 
 ### 7.1 GitLab CI ML Pipeline
 
@@ -1285,10 +1287,10 @@ deploy-to-production:
 
 ---
 
-<!-- chunk: 八、实验管理最佳实践 -->
-## 八、实验管理最佳实践
 
-### 8.1 实验命名规范
+## 8. Experiment Management Best Practices
+
+### 8.1 Experiment Naming Conventions
 
 ```python
 """
@@ -1311,16 +1313,16 @@ def create_run_name(model_name, task, variant=""):
         parts.append(variant)
     return "_".join(parts)
 
-# 使用
+# Usage
 run_name = create_run_name("bert-base", "sentiment", "lr2e5")
 with mlflow.start_run(run_name=run_name):
-    # 训练代码
+    # Training Code
     pass
 ```
 
-### 8.2 必须记录的信息
+### 8.2 Information That Must Be Recorded
 
-**1. 代码版本：**
+**1. Code Version:**
 ```python
 import subprocess
 
@@ -1332,9 +1334,9 @@ mlflow.log_param("git_branch", git_branch)
 mlflow.set_tag("git_repo", "github.com/org/repo")
 ```
 
-**2. 数据版本：**
+**2. Data Version:**
 ```python
-# 使用DVC
+# Usage DVC
 import dvc.api
 
 data_version = dvc.api.get_url("data/train.csv", rev="main")
@@ -1342,7 +1344,7 @@ mlflow.log_param("data_version", data_version)
 mlflow.log_param("data_commit", dvc.api.get_rev())
 ```
 
-**3. 环境信息：**
+**3. Environment Information:**
 ```python
 import torch
 import transformers
@@ -1356,7 +1358,7 @@ mlflow.log_param("gpu_count", torch.cuda.device_count())
 mlflow.log_param("gpu_name", torch.cuda.get_device_name(0))
 ```
 
-**4. 数据统计：**
+**4. Data Statistics:**
 ```python
 mlflow.log_param("train_samples", len(train_dataset))
 mlflow.log_param("val_samples", len(val_dataset))
@@ -1364,10 +1366,10 @@ mlflow.log_param("num_classes", num_classes)
 mlflow.log_param("avg_sequence_length", avg_seq_len)
 ```
 
-### 8.3 模型性能追踪
+### 8.3 Model Performance Tracking
 
 ```python
-# 训练过程追踪
+# Training Process Tracking
 class MLflowCallback:
     def __init__(self, log_every_n_steps=10):
         self.log_every_n_steps = log_every_n_steps
@@ -1384,7 +1386,7 @@ class MLflowCallback:
         for key, value in val_metrics.items():
             mlflow.log_metric(f"val_{key}", value, step=epoch)
 
-# 使用
+# Usage
 callback = MLflowCallback(log_every_n_steps=10)
 
 for epoch in range(num_epochs):
@@ -1398,28 +1400,28 @@ for epoch in range(num_epochs):
 
 ---
 
-<!-- chunk: 九、成本与ROI分析 -->
-## 九、成本与ROI分析
 
-| 平台 | 部署成本 | 维护成本 | 功能完整性 | 推荐场景 |
+## 9. Cost and ROI Analysis
+
+| Platform | Deployment Cost | Maintenance Cost | Functionality Integrity | Recommended Scenarios |
 |-----|---------|---------|-----------|---------|
-| **MLflow** | 低（自建）| 低 | ★★★☆☆ | 小团队、基础追踪 |
-| **W&B** | 中（SaaS）| 极低 | ★★★★★ | 研究团队、快速迭代 |
-| **Kubeflow** | 高（复杂）| 高 | ★★★★☆ | 企业级、端到端 |
-| **自建方案** | 极高 | 极高 | 定制 | 大厂、强定制需求 |
+| **MLflow** | Low (self-hosted) | Low | ★★★☆☆ | Small teams, basic tracking |
+| **W&B** | Medium (SaaS) | Very Low | ★★★★★ | Research teams, rapid iteration |
+| **Kubeflow** | High (complex) | High | ★★★★☆ | Enterprise-level, end-to-end |
+| **self-built solution** | extremely high | extremely high | customized | large companies, strong customization needs |
 
-**成本节省策略：**
-- MLflow自建：$200/月（K8s集群 + PostgreSQL + S3）
-- W&B Team版：$50/用户/月（但节省开发时间）
-- 混合方案：MLflow追踪 + W&B可视化（最优性价比）
+**cost-saving strategies:**
+- MLflow self-built: $200/month (K8s cluster + PostgreSQL + S3)
+- W&B Team edition: $50/user/month (but saves development time)
+- Hybrid solution: MLflow tracking + W&B visualization (optimal value for money)
 
 ---
 
-<!-- chunk: 十、监控告警 -->
-## 十、监控告警
+
+## 10. Monitoring Alerts
 
 ```yaml
-# Prometheus告警规则
+# Prometheus Alert Rules
 groups:
 - name: mlflow_alerts
   interval: 30s
@@ -1430,7 +1432,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "MLflow服务不可用"
+      summary: "MLflow service unavailable"
   
   - alert: ExperimentRunFailureRateHigh
     expr: rate(mlflow_run_failures_total[10m]) > 0.1
@@ -1438,7 +1440,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "实验失败率 > 10%"
+      summary: "exceeds 10% failure rate in experiments"
   
   - alert: ModelRegistrationStuck
     expr: (time() - mlflow_last_model_registration_timestamp) > 86400
@@ -1446,19 +1448,19 @@ groups:
     labels:
       severity: info
     annotations:
-      summary: "超过24小时未注册新模型"
+      summary: "more than 24 hours without new model registration"
 ```
 
 ---
 
-**相关表格：**
-- [111-AI基础设施架构](./01-ai-infrastructure.md)
-- [112-分布式训练框架](./05-distributed-training-frameworks.md)
-- [113-AI模型注册中心](./09-model-registry.md)
-- [115-AI数据处理Pipeline](./06-ai-data-pipeline.md)
-- [116-LLM模型Serving架构](./18-llm-serving-architecture.md)
+**related tables:**
+- [111-AI infrastructure architecture](./01-ai-infrastructure.md)
+- [112-Distributed training frameworks](./05-distributed-training-frameworks.md)
+- [113-AI model registry center](./09-model-registry.md)
+- [115-AI data processing Pipeline](./06-ai-data-pipeline.md)
+- [116-LLM model Serving architecture](./18-llm-serving-architecture.md)
 
-**版本信息：**
+**version information:**
 - MLflow: v2.9.0+
 - Weights & Biases: latest
 - Kubeflow Pipelines: v2.0+
@@ -1468,21 +1470,21 @@ groups:
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## See Also
 
@@ -1493,7 +1495,7 @@ groups:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

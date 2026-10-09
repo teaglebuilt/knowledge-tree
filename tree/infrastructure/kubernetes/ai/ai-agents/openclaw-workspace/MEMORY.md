@@ -143,32 +143,32 @@ cluster_profiles:
 ```yaml
 known_issues:
   - id: KI-001
-    title: "Terway ENI 模式 Pod IP 分配延迟"
+    title: "Terway ENI Mode Pod IP Allocation Delay"
     symptoms:
-      - "Pod 启动慢（>30s）"
-      - "Events 中出现 'waiting for ENI' 相关信息"
-    root_cause: "ENI 弹性网卡分配需要调用 ECS API，高峰期有延迟"
-    workaround: "确认节点 ENI 余量，必要时预热 ENI 池"
+      - "Pod startup slow ( >30s )"
+      - "Events appears 'waiting for ENI' related information"
+    root_cause: "ENI elastic network interface allocation needs to call the ECS API, there is a delay during peak hours"
+    workaround: "Confirm ENI capacity of the node, preheat the ENI pool if necessary"
     reference: "domain-10-troubleshooting-diagnostics/03-networking-cni-troubleshooting.md"
     discovered: 2026-01-15
 
   - id: KI-002
-    title: "ESSD 云盘挂载 Multi-Attach 报错"
+    title: "ESSD Cloud Disk Mount Multi-Attach Error"
     symptoms:
-      - "PVC 挂载失败"
+      - "PVC Mount Failed"
       - "Events: 'Multi-Attach error for volume'"
-    root_cause: "上一个 Pod 未正常释放卷，VolumeAttachment 残留"
-    workaround: "检查并删除残留的 VolumeAttachment"
+    root_cause: "Previous Pod did not release the volume normally, VolumeAttachment residue"
+    workaround: "Check and delete residual VolumeAttachment"
     reference: "domain-10-troubleshooting-diagnostics/14-pvc-storage-troubleshooting.md"
     discovered: 2026-02-20
 
   - id: KI-003
-    title: "CoreDNS 5s 延迟问题（conntrack race condition）"
+    title: "CoreDNS 5s Delay Issue (conntrack race condition)"
     symptoms:
-      - "DNS 查询偶发 5 秒超时"
-      - "约 1% 的 DNS 请求受影响"
-    root_cause: "Linux conntrack 竞态条件导致 UDP DNS 包被丢弃"
-    workaround: "CoreDNS 配置 force_tcp 或 Pod 使用 single-request-reopen"
+      - "DNS Query occasional 5-second timeout"
+      - "about 1% of DNS requests were affected"
+    root_cause: "Linux conntrack race condition causes UDP DNS packets to be dropped"
+    workaround: "CoreDNS configuration force_tcp or Pod uses single-request-reopen"
     reference: "domain-10-troubleshooting-diagnostics/26-dns-troubleshooting.md"
     discovered: 2025-11-10
 ```
@@ -178,9 +178,9 @@ known_issues:
 ```yaml
 team_conventions:
   naming:
-    - "Namespace 命名: {team}-{env}，如 payment-prod, order-staging"
-    - "Deployment 命名: {app}-{component}，如 gateway-nginx, api-server"
-    - "ConfigMap/Secret: {app}-{type}，如 api-server-config, api-server-tls"
+    - "Namespace Name: {team}-{env}, such as payment-prod, order-staging"
+    - "Deployment Name: {app}-{component}, such as gateway-nginx, api-server"
+    - "ConfigMap/Secret: {app}-{type}, such as api-server-config, api-server-tls"
 
   labeling:
     required_labels:
@@ -191,15 +191,15 @@ team_conventions:
       - "env"
 
   resource_policy:
-    - "所有 Deployment 必须设置 requests 和 limits"
-    - "CPU requests 不超过 limits 的 50%"
-    - "Memory requests = limits（避免 OOM 场景下的不可预测行为）"
-    - "所有生产 Deployment 必须设置 PDB"
+    - "All Deployments must set requests and limits"
+    - "CPU requests do not exceed limits by 50%"
+    - "Memory requests = limits (avoid unpredictable behavior in OOM scenarios)"
+    - "All production Deployments must set PDB"
 
   change_management:
-    - "生产环境变更需要在工单系统中记录"
-    - "大规模变更（影响 >10% 节点）需要审批"
-    - "凌晨 02:00-06:00 为变更静默窗口"
+    - "Changes in production environment need to be recorded in the work order system"
+    - "Major changes (affecting more than 10% of nodes) require approval"
+    - "From 02:00 to 06:00 AM is a silent window for changes"
 ```
 
 ## 2. Experience-Based Patterns (Agent Automatically Extracted)
@@ -209,39 +209,39 @@ team_conventions:
 ```yaml
 frequent_patterns:
   - pattern_id: FP-001
-    title: "Java 应用 OOM — Heap 配置与容器 limits 不匹配"
+    title: "Java Application OOM — Heap Configuration and Container Limits Do Not Match"
     frequency: 12 次/月
-    trigger: "Pod OOMKilled，退出码 137"
-    root_cause: "JVM -Xmx 设置接近容器 memory limits，未留余量给非堆内存"
+    trigger: "Pod OOMKilled, exit code 137"
+    root_cause: "JVM -Xmx set close to container memory limits, leaving insufficient space for non-heap memory"
     effective_diagnosis_path:
-      - "kubectl describe pod → 确认 OOMKilled"
-      - "kubectl get pod -o jsonpath resources → 查看 limits"
-      - "kubectl logs --previous → 查看 JVM GC 日志"
-      - "计算: Xmx 应为 limits 的 70-80%"
+      - "kubectl describe pod → Confirm OOMKilled"
+      - "kubectl get pod -o jsonpath resources → Check limits"
+      - "kubectl logs --previous → Check JVM GC logs"
+      - "Calculation: Xmx should be 70-80% of limits"
     confidence: 高
     last_seen: 2026-03-28
 
   - pattern_id: FP-002
-    title: "HPA 频繁扩缩导致服务抖动"
+    title: "HPA Frequent Scaling Causes Service Jitter"
     frequency: 5 次/月
-    trigger: "Pod 数量在短时间内频繁波动"
-    root_cause: "HPA scaleDown stabilization 窗口太短，或 CPU 指标波动大"
+    trigger: "Pod count fluctuates rapidly within a short period"
+    root_cause: "HPA scaleDown stabilization window is too short, or CPU metric fluctuations are large"
     effective_diagnosis_path:
-      - "kubectl get hpa -n <ns> → 确认当前状态"
-      - "kubectl describe hpa → 查看 events 和 metrics"
-      - "PromQL: 查看 CPU 利用率波动情况"
+      - "kubectl get hpa -n <ns> → Confirm current status"
+      - "kubectl describe hpa → Check events and metrics"
+      - "PromQL: Check CPU utilization fluctuation situation"
     confidence: 高
     last_seen: 2026-03-25
 
   - pattern_id: FP-003
-    title: "Ingress 502 — 后端 Pod 未就绪"
+    title: "Ingress 502 — Backend Pods Are Not Ready"
     frequency: 8 次/月
-    trigger: "Ingress 返回 502/503"
-    root_cause: "readinessProbe 配置不当，Pod 还未就绪就被加入 Endpoints"
+    trigger: "Ingress returns 502/503"
+    root_cause: "ReadinessProbe configuration is incorrect, Pod has not yet been ready but is added to Endpoints"
     effective_diagnosis_path:
-      - "kubectl get endpoints <svc> → 确认 Endpoints 是否为空"
-      - "kubectl get pods -l <selector> → 确认 Pod Ready 状态"
-      - "kubectl describe pod → 检查 readinessProbe 配置"
+      - "kubectl get endpoints <svc> → confirm if Endpoints is empty"
+      - "kubectl get pods -l <selector> → confirm if Pod is Ready"
+      - "kubectl describe pod → check readinessProbe configuration"
     confidence: 高
     last_seen: 2026-04-01
 ```
@@ -252,25 +252,25 @@ frequent_patterns:
 effective_paths:
   - scenario: "Pod Pending + FailedScheduling"
     optimal_path:
-      - "kubectl describe pod（看 Events，80% 情况下能直接定位）"
-      - "kubectl get events --field-selector（补充事件信息）"
-      - "kubectl top nodes（确认资源是否真的不足）"
+      - "kubectl describe pod(look at Events, 80% of the time it can be directly pinpointed)"
+      - "kubectl get events --field-selector(supplement event information)"
+      - "kubectl top nodes(confirm if resources are truly insufficient)"
     avg_steps: 3
     success_rate: 92%
 
   - scenario: "Node NotReady"
     optimal_path:
-      - "kubectl describe node（看 Conditions，区分 Ready/Pressure/Network）"
+      - "kubectl describe node(check Conditions, distinguish between Ready/Pressure/Network)"
       - "kubectl get events --field-selector involvedObject.name=<node>"
-      - "kubectl top node（确认资源压力程度）"
+      - "kubectl top node(confirm resource pressure level)"
     avg_steps: 3
     success_rate: 88%
 
-  - scenario: "Service 不通"
+  - scenario: "Service is unreachable"
     optimal_path:
-      - "kubectl get endpoints（第一步！80% 问题在 Endpoints 为空）"
-      - "kubectl get pods -l <selector>（确认 Pod 选择器匹配）"
-      - "kubectl get networkpolicy（检查是否被 NetworkPolicy 拦截）"
+      - "kubectl get endpoints(first step! 80% of issues are due to Endpoints being empty)"
+      - "kubectl get pods -l <selector>(confirm if Pod selector matches)"
+      - "kubectl get networkpolicy(check if NetworkPolicy intercepts)"
     avg_steps: 3
     success_rate: 85%
 ```
@@ -281,17 +281,17 @@ effective_paths:
 lessons_learned:
   - id: LL-001
     date: 2026-02-15
-    mistake: "直接建议客户调大 memory limits 解决 OOM"
-    impact: "客户集群总资源不足，扩 limits 后其他 Pod 更容易被驱逐"
-    lesson: "调整 limits 前必须检查节点剩余资源和集群整体容量"
-    prevention: "SKILL.md OOM 修复决策树中增加集群容量检查步骤"
+    mistake: "directly suggest customers increase memory limits to solve OOM"
+    impact: "the cluster has insufficient total resources, increasing limits makes other Pods more likely to be evicted"
+    lesson: "before adjusting limits, must check remaining resources on the node and overall cluster capacity"
+    prevention: "SKILL.md Add a step to check cluster capacity in the OOM repair decision tree"
 
   - id: LL-002
     date: 2026-03-10
-    mistake: "在诊断 DNS 问题时，没有先检查 CoreDNS Pod 是否正常"
-    impact: "在应用层排查了 30 分钟才发现 CoreDNS 自己 CrashLoop"
-    lesson: "DNS 诊断第一步永远是 kubectl get pods -n kube-system -l k8s-app=kube-dns"
-    prevention: "SKILL.md DNS SOP 中将 CoreDNS 状态检查提到第一步"
+    mistake: "when diagnosing DNS issues, did not first check if the CoreDNS Pod is normal"
+    impact: "after applying 30 minutes of application-layer troubleshooting, only then realized that CoreDNS itself crashed in a CrashLoop"
+    lesson: "DNS diagnosis always starts with kubectl get pods -n kube-system -l k8s-app=kube-dns"
+    prevention: "SKILL.md In the DNS SOP, move the CoreDNS status check to the first step"
 ```
 
 ## 3. User Preference Memory
@@ -299,9 +299,9 @@ lessons_learned:
 ```yaml
 user_preferences:
   output_format:
-    - "偏好表格形式展示对比数据"
-    - "命令输出用代码块包裹"
-    - "修复步骤用有序列表"
+    - "Preference table-based display of comparison data"
+    - "Command outputs wrapped in code blocks"
+    - "Fix steps listed in ordered lists"
 
   frequently_used_commands:
     - "kubectl get pods -o wide -n <ns>"
@@ -309,8 +309,8 @@ user_preferences:
     - "kubectl top nodes"
 
   focus_areas:
-    - "2026 Q2: 工单诊断效率、Agent 辅助诊断"
-    - "关注 Terway 网络和 ESSD 存储相关问题"
+    - "Q2 2026: Work order diagnosis efficiency, Agent auxiliary diagnosis"
+    - "Focus on Terway network and ESSD storage-related issues"
 ```
 
 ## 4. Memory Metadata Management
@@ -322,10 +322,10 @@ memory_metadata:
   next_scheduled_consolidation: 2026-04-08
 
   retention_policy:
-    confirmed_rules: "永久保留"
-    high_confidence_patterns: "保留 6 个月，到期后降级或删除"
-    medium_confidence_patterns: "保留 3 个月"
-    low_confidence_patterns: "保留 1 个月，未被引用则自动删除"
+    confirmed_rules: "Permanently retained"
+    high_confidence_patterns: "Retained for 6 months, downgraded or deleted upon expiration"
+    medium_confidence_patterns: "Retained for 3 months"
+    low_confidence_patterns: "Retained for 1 month, automatically deleted if unused"
 
   quality_metrics:
     avg_pattern_confidence: 0.82

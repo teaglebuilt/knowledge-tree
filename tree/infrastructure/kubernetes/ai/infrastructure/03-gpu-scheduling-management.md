@@ -1,9 +1,9 @@
 ---
-title: GPU 调度与管理
-description: 深入解析 K8s GPU 调度：NVIDIA Device Plugin、MIG 调度、GPU 资源配额、时间切片、多实例 GPU (MIG)、AMD
-  GPU 调度与 GPU 健康监控
-summary: 深入解析 K8s GPU 调度：NVIDIA Device Plugin、MIG 调度、GPU 资源配额、时间切片、多实例 GPU (MIG)、AMD
-  GPU 调度与 GPU 健康监控
+title: GPU Scheduling and Management
+description: Deeply analyze K8s GPU Scheduling: NVIDIA Device Plugin, MIG Scheduling, GPU Resource Quotas, Time Slicing, Multi-instance GPU (MIG), AMD
+  GPU Scheduling and GPU Health Monitoring
+summary: Deeply analyze K8s GPU Scheduling: NVIDIA Device Plugin, MIG Scheduling, GPU Resource Quotas, Time Slicing, Multi-instance GPU (MIG), AMD
+  GPU Scheduling and GPU Health Monitoring
 category: domain-11-ai-infra
 tags:
 - k8s
@@ -22,17 +22,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- GPU 调度与管理 是什么
-- 如何 GPU 调度与管理
-- Kubernetes 11 ai infra 最佳实践
+- What is GPU Scheduling and Management
+- How is GPU Scheduling and Management
+- Kubernetes 11 ai infra Best Practices
 trigger_keywords:
 - GPU
-- 调度与管理
+- Scheduling and Management
 - ai
 - infra
 prerequisites:
@@ -55,56 +55,58 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: fta
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/gpu-fta.md
-  label: '故障树: gpu'
+  label: 'Fault Tree: gpu'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
 related_docs:
 - path: 01-ai-infrastructure-overview.md
   type: depth
-  desc: AI 基础设施架构
+  desc: AI Infrastructure Architecture
 - path: 05-distributed-training-frameworks.md
   type: depth
-  desc: 分布式训练框架
+  desc: Distributed Training Framework
 - path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/gpu-fta.md
   type: fta
-  desc: GPU 故障树
+  desc: GPU Fault Tree
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/03-gpu-scheduling-management.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 133 - GPU调度与管理 (GPU Scheduling & Management)
+# 133 - GPU Scheduling & Management
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **最后更新**: 2026-01 | **参考**: [NVIDIA Device Plugin](https://github.com/NVIDIA/k8s-device-plugin)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **Last Updated**: 2026-01 | **Reference**: [NVIDIA Device Plugin](https://github.com/NVIDIA/k8s-device-plugin)
 
 ---
 
-<!-- chunk: 一、GPU资源管理架构 (Architecture Overview) -->
-## 一、GPU资源管理架构 (Architecture Overview)
 
-### 1.1 Kubernetes GPU调度架构
+## 1. GPU Resource Management Architecture
+
+### 1.1 Kubernetes GPU Scheduling Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Kubernetes GPU 调度架构                                   │
+│                    Kubernetes GPU Scheduler Architecture                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                      Control Plane                                   │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
 │  │  │ kube-scheduler│  │ Device Plugin│  │ GPU Operator │              │   │
-│  │  │   (调度决策)  │  │  Manager     │  │  (生命周期)   │              │   │
+│  │  │   (scheduler decision)  │  │  Manager     │  │  (lifecycle)   │              │   │
 │  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘              │   │
 │  │         │                 │                 │                       │   │
 │  │         │    Extended Resources API         │                       │   │
@@ -117,15 +119,15 @@ related_docs:
 │  │                        GPU Node                                      │   │
 │  │  ┌──────────────────────────────────────────────────────────────┐   │   │
 │  │  │  NVIDIA Device Plugin (DaemonSet)                             │   │   │
-│  │  │  ├── GPU发现与注册                                            │   │   │
-│  │  │  ├── 健康检查                                                 │   │   │
-│  │  │  ├── 设备分配 (nvidia.com/gpu)                                │   │   │
-│  │  │  └── MIG/Time-Slicing管理                                     │   │   │
+│  │  │  ├── GPU discovery and registration                                            │   │   │
+│  │  │  ├── health checks                                                 │   │   │
+│  │  │  ├── device allocation (nvidia.com/gpu)                                │   │   │
+│  │  │  └── MIG/Time-Slicing management                                     │   │   │
 │  │  └──────────────────────────────────────────────────────────────┘   │   │
 │  │                              │                                       │   │
 │  │  ┌──────────────┐  ┌────────┴────────┐  ┌──────────────┐           │   │
 │  │  │ DCGM Exporter│  │ Container Runtime│  │ GPU Driver   │           │   │
-│  │  │ (监控指标)    │  │ (nvidia-container)│  │ (CUDA/cuDNN) │           │   │
+│  │  │ (monitoring metrics)    │  │ (nvidia-container)│  │ (CUDA/cuDNN) │           │   │
 │  │  └──────────────┘  └─────────────────┘  └──────────────┘           │   │
 │  │                              │                                       │   │
 │  │  ┌──────────────────────────────────────────────────────────────┐   │   │
@@ -140,31 +142,31 @@ related_docs:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 GPU虚拟化技术对比
+### 1.2 Comparison of GPU Virtualization Technologies
 
-| 技术 | 隔离级别 | 粒度 | 显存隔离 | 算力隔离 | 适用GPU | 适用场景 |
+| Technology | Isolation Level | Granularity | Memory Isolation | Compute Isolation | Applicable GPU | Applicable Scenario |
 |-----|---------|------|---------|---------|--------|---------|
-| **Passthrough** | 强(硬件) | 整卡 | 完全 | 完全 | 所有 | 训练/大模型推理 |
-| **MIG** | 强(硬件) | 1/7卡 | 完全 | 完全 | A100/H100 | 多租户/混合推理 |
-| **Time-Slicing** | 弱(时分) | 模拟多卡 | 软限制 | 无 | 所有 | 开发/小模型推理 |
-| **vGPU** | 中(软件) | 百分比 | 软隔离 | 软隔离 | 企业版 | 虚拟化/VDI |
-| **MPS** | 弱(进程) | 共享 | 无 | 无 | 所有 | 小任务混部 |
-| **DRA** (v1.31+) | 灵活 | 动态 | 取决于驱动 | 取决于驱动 | 所有 | 下一代资源管理 |
+| **Passthrough** | Strong (Hardware) | Whole Card | Complete | Complete | All | Training/Large Model Inference |
+| **MIG** | Strong (Hardware) | 1/7 Card | Complete | Complete | A100/H100 | Multi-tenant/Mixed Inference |
+| **Time-Slicing** | Weak (Time Slicing) | Simulated Multi-Cards | Soft Limitations | None | All | Development/Small Model Inference |
+| **vGPU** | Medium (Software) | Percentage | Soft Isolation | Soft Isolation | Enterprise Edition | Virtualization/VDI |
+| **MPS** | Weak (Process) | Shared | None | None | All | Small Tasks Mixed-Mode |
+| **DRA** (v1.31+) | Flexible | Dynamic | Depends on Driver | Depends on Driver | All | Next Generation Resource Management |
 
 ---
 
-<!-- chunk: 二、GPU Operator部署 (GPU Operator Deployment) -->
-## 二、GPU Operator部署 (GPU Operator Deployment)
 
-### 2.1 GPU Operator架构
+## 2. GPU Operator Deployment
+
+### 2.1 GPU Operator Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      NVIDIA GPU Operator 组件                                │
+│                      NVIDIA GPU Operator component                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────┐                                                        │
-│  │  GPU Operator   │ ← 控制器,管理所有组件生命周期                           │
+│  │  GPU Operator   │ ← controller, manages all component lifecycles                           │
 │  │  (Deployment)   │                                                        │
 │  └────────┬────────┘                                                        │
 │           │                                                                  │
@@ -173,29 +175,29 @@ related_docs:
 │  │                                                                      │   │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │   │
 │  │  │ Driver      │  │ Container   │  │ Device      │                 │   │
-│  │  │ (驱动安装)   │  │ Toolkit     │  │ Plugin      │                 │   │
-│  │  │             │  │ (运行时)     │  │ (设备发现)   │                 │   │
+│  │  │ (driver installation)   │  │ Toolkit     │  │ Plugin      │                 │   │
+│  │  │             │  │ (runtime)     │  │ (device discovery)   │                 │   │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘                 │   │
 │  │                                                                      │   │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                 │   │
 │  │  │ DCGM        │  │ MIG Manager │  │ Node Feature│                 │   │
-│  │  │ Exporter    │  │ (MIG配置)    │  │ Discovery   │                 │   │
-│  │  │ (监控)      │  │             │  │ (节点标签)   │                 │   │
+│  │  │ Exporter    │  │ (MIG configuration)    │  │ Discovery   │                 │   │
+│  │  │ (monitoring)      │  │             │  │ (node labels)   │                 │   │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘                 │   │
 │  │                                                                      │   │
 │  │  ┌─────────────┐  ┌─────────────┐                                  │   │
 │  │  │ GPU Feature │  │ Validator   │                                  │   │
-│  │  │ Discovery   │  │ (验证)      │                                  │   │
+│  │  │ Discovery   │  │ (validation)      │                                  │   │
 │  │  └─────────────┘  └─────────────┘                                  │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 部署配置
+### 2.2 Deployment Configuration
 
 ```yaml
-# GPU Operator Helm Values (生产级配置)
+# GPU Operator Helm Values (Production-Level Configuration)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -210,7 +212,7 @@ data:
       version: "535.104.12"
       repository: nvcr.io/nvidia
       
-      # 驱动升级策略
+      # Driver Upgrade Strategy
       upgradePolicy:
         autoUpgrade: false
         maxParallelUpgrades: 1
@@ -218,7 +220,7 @@ data:
         waitForCompletion:
           timeoutSeconds: 0
           
-      # RDMA支持
+      # RDMA Support
       rdma:
         enabled: true
         useHostMofed: true
@@ -231,7 +233,7 @@ data:
       enabled: true
       version: "v0.14.3"
       
-      # Time-Slicing配置
+      # Time-Slicing Configuration
       config:
         name: "time-slicing-config"
         default: "any"
@@ -259,12 +261,12 @@ data:
       enabled: true
 ```
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource status, recommend to first use --dry-run or diff to confirm
+> - `helm upgrade/install` : Deploy/Upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 部署GPU Operator
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# Deploy GPU Operator
 helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
 helm repo update
 
@@ -276,17 +278,17 @@ helm install gpu-operator nvidia/gpu-operator \
 ```
 ---
 
-<!-- chunk: 三、Time-Slicing配置 (Time-Slicing Configuration) -->
-## 三、Time-Slicing配置 (Time-Slicing Configuration)
 
-### 3.1 Time-Slicing原理
+## 3. Time-Slicing Configuration
+
+### 3.1 Principle of Time-Slicing
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     Time-Slicing 工作原理                                    │
+│                     Time-Slicing principle                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  物理GPU (1张 A100)                                                         │
+│  Physical GPU (1 A100)                                                         │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                                                                     │   │
 │  │    Time Slice 1    Time Slice 2    Time Slice 3    Time Slice 4    │   │
@@ -296,23 +298,23 @@ helm install gpu-operator nvidia/gpu-operator \
 │  │  └──────────────┘└──────────────┘└──────────────┘└──────────────┘  │   │
 │  │        ↓               ↓               ↓               ↓          │   │
 │  │  ══════════════════════════════════════════════════════════════   │   │
-│  │                    时间片轮转 (Context Switch)                     │   │
+│  │                    Context Switch (Time Slice)                     │   │
 │  │  ══════════════════════════════════════════════════════════════   │   │
 │  │                                                                     │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  Kubernetes视角: 4个 nvidia.com/gpu 资源                                     │
-│  实际硬件: 1张物理GPU,显存共享                                               │
+│  Kubernetes perspective: 4 nvidia.com/gpu resources                                     │
+│  Actual hardware: 1 physical GPU, shared memory                                               │
 │                                                                             │
-│  注意事项:                                                                   │
-│  - 显存不隔离,所有Pod共享80GB                                                │
-│  - 算力按时间片轮转,非真实隔离                                               │
-│  - 适合开发调试,不适合生产训练                                               │
+│  Notes:                                                                   │
+│  - Unisolated memory, all Pods share 80GB                                                │
+│  - Compute rotates on time slices, not true isolation                                               │
+│  - Suitable for development debugging, not production training                                               │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Time-Slicing配置
+### 3.2 Time-Slicing Configuration
 
 ```yaml
 # Time-Slicing ConfigMap
@@ -353,21 +355,21 @@ data:
           replicas: 10          # 开发环境最大切片
 
 ---
-# 节点标签应用不同配置
-# 生产训练节点: 不启用Time-Slicing
+# Apply Different Configurations to Node Labels
+# Production Training Nodes: Disable Time-Slicing
 kubectl label node gpu-train-01 nvidia.com/device-plugin.config=none
 
-# 推理节点: 8倍切片
+# Inference Nodes: 8x Slicing
 kubectl label node gpu-infer-01 nvidia.com/device-plugin.config=inference
 
-# 开发节点: 10倍切片
+# Development Nodes: 10x Slicing
 kubectl label node gpu-dev-01 nvidia.com/device-plugin.config=development
 ```
 
-### 3.3 使用Time-Slicing资源
+### 3.3 Using Time-Slicing Resources
 
 ```yaml
-# 使用Time-Slicing GPU的Pod
+# Pods Using Time-Slicing GPUs
 apiVersion: v1
 kind: Pod
 metadata:
@@ -386,7 +388,7 @@ spec:
       value: "all"
       
 ---
-# 验证Time-Slicing效果
+# Validate Time-Slicing Effect
 apiVersion: v1
 kind: Pod
 metadata:
@@ -403,17 +405,17 @@ spec:
 
 ---
 
-<!-- chunk: 四、MIG配置与管理 (MIG Configuration) -->
-## 四、MIG配置与管理 (MIG Configuration)
 
-### 4.1 MIG架构
+## 4. MIG Configuration & Management
+
+### 4.1 MIG Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     A100 80GB MIG 配置示例                                   │
+│                     A100 80GB MIG configuration example                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  配置模式1: 7x 1g.10gb (最大实例数)                                          │
+│  Configuration mode 1: 7x 1g.10gb (maximum number of instances)                                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐          │   │
 │  │ │10GB │ │10GB │ │10GB │ │10GB │ │10GB │ │10GB │ │10GB │          │   │
@@ -422,7 +424,7 @@ spec:
 │  │ Instance 0-6: nvidia.com/mig-1g.10gb                              │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  配置模式2: 3x 2g.20gb + 1x 1g.10gb (混合配置)                               │
+│  Configuration mode 2: 3x 2g.20gb + 1x 1g.10gb (mixed configuration)                               │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │ ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌─────┐                  │   │
 │  │ │   20GB    │ │   20GB    │ │   20GB    │ │10GB │                  │   │
@@ -431,7 +433,7 @@ spec:
 │  │ nvidia.com/mig-2g.20gb x3   nvidia.com/mig-1g.10gb x1             │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  配置模式3: 1x 4g.40gb + 3x 1g.10gb (大小混合)                               │
+│  Configuration mode 3: 1x 4g.40gb + 3x 1g.10gb (mixed size)                               │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │ ┌───────────────────────┐ ┌─────┐ ┌─────┐ ┌─────┐                  │   │
 │  │ │        40GB           │ │10GB │ │10GB │ │10GB │                  │   │
@@ -440,19 +442,19 @@ spec:
 │  │ nvidia.com/mig-4g.40gb x1   nvidia.com/mig-1g.10gb x3             │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  配置模式4: 1x 7g.80gb (单实例)                                              │
+│  Configuration mode 4: 1x 7g.80gb (single instance)                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │ ┌─────────────────────────────────────────────────────────────────┐ │   │
 │  │ │                          80GB                                   │ │   │
 │  │ │                          7/7SM (Full GPU)                       │ │   │
 │  │ └─────────────────────────────────────────────────────────────────┘ │   │
-│  │ nvidia.com/mig-7g.80gb x1 (等同于整卡)                              │   │
+│  │ nvidia.com/mig-7g.80gb x1 (equivalent to whole card)                              │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 MIG配置管理
+### 4.2 MIG Configuration Management
 
 ```yaml
 # MIG Manager ConfigMap
@@ -465,14 +467,14 @@ data:
   config.yaml: |
     version: v1
     mig-configs:
-      # 推理优化配置: 7个小实例
+      # Inference Optimization Configuration: 7 small instances
       all-1g.10gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "1g.10gb": 7
             
-      # 混合推理配置: 3中+1小
+      # Mixed Inference Configuration: 3 medium + 1 small
       all-2g.20gb:
         - devices: all
           mig-enabled: true
@@ -480,7 +482,7 @@ data:
             "2g.20gb": 3
             "1g.10gb": 1
             
-      # 大模型推理: 2大+1小
+      # Large Model Inference: 2 large + 1 small
       all-3g.40gb:
         - devices: all
           mig-enabled: true
@@ -488,20 +490,20 @@ data:
             "3g.40gb": 2
             "1g.10gb": 1
             
-      # 训练配置: 单大实例
+      # Training Configuration: Single large instance
       all-7g.80gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "7g.80gb": 1
             
-      # 禁用MIG
+      # Disable MIG
       all-disabled:
         - devices: all
           mig-enabled: false
 
 ---
-# 应用MIG配置到节点
+# Apply MIG Configuration to Nodes
 apiVersion: v1
 kind: Node
 metadata:
@@ -510,7 +512,7 @@ metadata:
     nvidia.com/mig.config: "all-1g.10gb"    # 7个小实例
     
 ---
-# 节点选择器使用MIG资源
+# Use MIG Resources with Node Selectors
 apiVersion: v1
 kind: Pod
 metadata:
@@ -526,25 +528,25 @@ spec:
         nvidia.com/mig-1g.10gb: 1           # 请求1个MIG实例
 ```
 
-### 4.3 MIG实例类型规格
+### 4.3 Specifications of MIG Instance Types
 
-| MIG Profile | 显存 | SM数 | 显存带宽 | 适用场景 |
+| MIG Profile | Memory | SM Count | Memory Bandwidth | Applicable Scenario |
 |------------|------|------|---------|---------|
-| **1g.10gb** | 10GB | 14 | ~285GB/s | 小模型推理/开发 |
-| **2g.20gb** | 20GB | 28 | ~570GB/s | 中型模型推理 |
-| **3g.40gb** | 40GB | 42 | ~855GB/s | 大模型推理 |
-| **4g.40gb** | 40GB | 56 | ~1140GB/s | 大模型推理/微调 |
-| **7g.80gb** | 80GB | 98 | ~2000GB/s | 训练/大模型 |
+| **1g.10gb** | 10GB | 14 | ~285GB/s | Small Model Inference/Development |
+| **2g.20gb** | 20GB | 28 | ~570GB/s | Medium Model Inference |
+| **3g.40gb** | 40GB | 42 | ~855GB/s | Large Model Inference |
+| **4g.40gb** | 40GB | 56 | ~1140GB/s | Large Model Inference/Tuning |
+| **7g.80gb** | 80GB | 98 | ~2000GB/s | Training/Large Model |
 
 ---
 
-<!-- chunk: 五、高级调度策略 (Advanced Scheduling) -->
-## 五、高级调度策略 (Advanced Scheduling)
 
-### 5.1 GPU拓扑感知调度
+## 5. Advanced Scheduling Strategies
+
+### 5.1 GPU Topology-Aware Scheduling
 
 ```yaml
-# GPU拓扑感知调度 (多GPU任务)
+# GPU Topology-Aware Scheduling (Multi-GPU Tasks)
 apiVersion: scheduling.volcano.sh/v1beta1
 kind: PodGroup
 metadata:
@@ -582,7 +584,7 @@ spec:
           env:
           - name: NCCL_TOPO_FILE
             value: "/etc/nccl/topo.xml"
-        # GPU拓扑亲和性
+        # GPU Topology Affinity
         affinity:
           podAntiAffinity:
             preferredDuringSchedulingIgnoredDuringExecution:
@@ -594,10 +596,10 @@ spec:
                 topologyKey: kubernetes.io/hostname
 ```
 
-### 5.2 Kueue GPU队列管理
+### 5.2 Kueue GPU Queue Management
 
 ```yaml
-# Kueue ResourceFlavor定义GPU类型
+# Kueue ResourceFlavor Definition for GPU Types
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -611,7 +613,7 @@ spec:
     effect: NoSchedule
     
 ---
-# ClusterQueue定义GPU配额
+# ClusterQueue Definition for GPU Quota
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
 metadata:
@@ -631,13 +633,13 @@ spec:
         nominalQuota: 64
         borrowingLimit: 32            # 可借用上限
         
-  # 抢占策略
+  # Preemption Strategy
   preemption:
     reclaimWithinCohort: Any
     withinClusterQueue: LowerPriority
 
 ---
-# LocalQueue绑定到namespace
+# LocalQueue Bound to Namespace
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
 metadata:
@@ -647,7 +649,7 @@ spec:
   clusterQueue: gpu-cluster-queue
   
 ---
-# Workload提交
+# Workload Submission
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: Workload
 metadata:
@@ -670,10 +672,10 @@ spec:
               nvidia.com/gpu: "8"
 ```
 
-### 5.3 Volcano批调度
+### 5.3 Volcano Batch Scheduling
 
 ```yaml
-# Volcano Queue配置
+# Volcano Queue Configuration
 apiVersion: scheduling.volcano.sh/v1beta1
 kind: Queue
 metadata:
@@ -687,7 +689,7 @@ spec:
     nvidia.com/gpu: "64"
     
 ---
-# Gang Scheduling训练任务
+# Gang Scheduling Training Tasks
 apiVersion: batch.volcano.sh/v1alpha1
 kind: Job
 metadata:
@@ -697,14 +699,14 @@ spec:
   schedulerName: volcano
   queue: training-queue
   
-  # 调度策略
+  # Scheduling Strategy
   policies:
   - event: PodEvicted
     action: RestartJob
   - event: TaskCompleted
     action: CompleteJob
     
-  # 插件配置
+  # Plugin Configuration
   plugins:
     env: []
     svc: []
@@ -745,29 +747,29 @@ spec:
 
 ---
 
-<!-- chunk: 六、GPU监控与诊断 (Monitoring & Diagnostics) -->
-## 六、GPU监控与诊断 (Monitoring & Diagnostics)
 
-### 6.1 DCGM监控指标
+## 6. GPU Monitoring & Diagnostics
 
-| 指标名称 | Field ID | 说明 | 告警阈值 |
+### 6.1 DCGM Monitoring Metrics
+
+| Metric Name | Field ID | Description | Alert Threshold |
 |---------|----------|------|---------|
-| `DCGM_FI_DEV_GPU_UTIL` | 203 | GPU利用率% | < 50% 低效 |
-| `DCGM_FI_DEV_MEM_COPY_UTIL` | 204 | 显存拷贝利用率% | - |
-| `DCGM_FI_DEV_FB_USED` | 252 | 已用显存(MB) | > 95% |
-| `DCGM_FI_DEV_FB_FREE` | 251 | 空闲显存(MB) | < 5% |
-| `DCGM_FI_DEV_GPU_TEMP` | 150 | GPU温度(°C) | > 83°C |
-| `DCGM_FI_DEV_POWER_USAGE` | 155 | 功耗(W) | > TDP |
-| `DCGM_FI_DEV_SM_CLOCK` | 100 | SM时钟(MHz) | 降频告警 |
-| `DCGM_FI_DEV_MEM_CLOCK` | 101 | 显存时钟(MHz) | 降频告警 |
-| `DCGM_FI_DEV_PCIE_TX_THROUGHPUT` | 409 | PCIe发送(MB/s) | - |
-| `DCGM_FI_DEV_PCIE_RX_THROUGHPUT` | 410 | PCIe接收(MB/s) | - |
-| `DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL` | 450 | NVLink带宽(GB/s) | - |
-| `DCGM_FI_DEV_XID_ERRORS` | 230 | XID错误计数 | > 0 |
-| `DCGM_FI_DEV_ECC_SBE_VOL_TOTAL` | 310 | 单比特ECC错误 | 增长趋势 |
-| `DCGM_FI_DEV_ECC_DBE_VOL_TOTAL` | 313 | 双比特ECC错误 | > 0 |
+| `DCGM_FI_DEV_GPU_UTIL` | 203 | GPU Utilization% | < 50% Low Efficiency |
+| `DCGM_FI_DEV_MEM_COPY_UTIL` | 204 | Memory Copy Utilization\% | - |
+| `DCGM_FI_DEV_FB_USED` | 252 | Used Memory (MB) | > 95\% |
+| `DCGM_FI_DEV_FB_FREE` | 251 | Free Memory (MB) | < 5\% |
+| `DCGM_FI_DEV_GPU_TEMP` | 150 | GPU Temperature (\xB0C) | > 83\xb0C |
+| `DCGM_FI_DEV_POWER_USAGE` | 155 | Power Usage (W) | > TDP |
+| `DCGM_FI_DEV_SM_CLOCK` | 100 | SM Clock (MHz) | Frequency Warning |
+| `DCGM_FI_DEV_MEM_CLOCK` | 101 | Memory Clock (MHz) | Frequency Warning |
+| `DCGM_FI_DEV_PCIE_TX_THROUGHPUT` | 409 | PCIe Transmitted (MB/s) | - |
+| `DCGM_FI_DEV_PCIE_RX_THROUGHPUT` | 410 | PCIe Received (MB/s) | - |
+| `DCGM_FI_DEV_NVLINK_BANDWIDTH_TOTAL` | 450 | Total NVLink Bandwidth (GB/s) | - |
+| `DCGM_FI_DEV_XID_ERRORS` | 230 | XID Errors Count | > 0 |
+| `DCGM_FI_DEV_ECC_SBE_VOL_TOTAL` | 310 | Single Bit ECC Errors | Trend Increase |
+| `DCGM_FI_DEV_ECC_DBE_VOL_TOTAL` | 313 | Double Bit ECC Errors | > 0 |
 
-### 6.2 Prometheus告警规则
+### 6.2 Prometheus Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -779,7 +781,7 @@ spec:
   groups:
   - name: gpu-alerts
     rules:
-    # GPU利用率低
+    # Low GPU Utilization
     - alert: GPULowUtilization
       expr: |
         avg_over_time(DCGM_FI_DEV_GPU_UTIL[10m]) < 30
@@ -787,10 +789,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "GPU利用率过低"
-        description: "GPU {{ $labels.gpu }} 利用率 {{ $value }}%"
+        summary: "GPU utilization is too low"
+        description: "GPU {{ $labels.gpu }} utilization {{ $value }}%"
         
-    # GPU显存即将满
+    # GPU Memory Nearly Full
     - alert: GPUMemoryNearFull
       expr: |
         DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.95
@@ -798,9 +800,9 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "GPU显存使用率超过95%"
+        summary: "GPU memory usage exceeds 95%"
         
-    # GPU温度过高
+    # GPU Temperature Too High
     - alert: GPUHighTemperature
       expr: |
         DCGM_FI_DEV_GPU_TEMP > 83
@@ -808,10 +810,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "GPU温度超过83°C"
-        description: "GPU {{ $labels.gpu }} 温度 {{ $value }}°C"
+        summary: "GPU temperature exceeds 83°C"
+        description: "GPU {{ $labels.gpu }} temperature {{ $value }}°C"
         
-    # XID错误
+    # XID Error
     - alert: GPUXIDError
       expr: |
         increase(DCGM_FI_DEV_XID_ERRORS[5m]) > 0
@@ -819,10 +821,10 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "GPU XID错误"
-        description: "GPU {{ $labels.gpu }} 发生XID错误"
+        summary: "GPU XID error"
+        description: "GPU {{ $labels.gpu }} experienced an unrecoverable XID error"
         
-    # ECC错误
+    # ECC Error
     - alert: GPUECCError
       expr: |
         increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h]) > 0
@@ -830,10 +832,10 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "GPU双比特ECC错误"
-        description: "GPU {{ $labels.gpu }} 发生不可纠正的ECC错误,需要更换"
+        summary: "GPU double-bit ECC error"
+        description: "GPU {{ $labels.gpu }} experienced an uncorrectable ECC error, replacement required"
         
-    # GPU掉卡
+    # GPU Detached
     - alert: GPUNotAvailable
       expr: |
         absent(DCGM_FI_DEV_GPU_UTIL{gpu=~".+"})
@@ -841,113 +843,113 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "GPU不可用"
-        description: "无法获取GPU指标,GPU可能已掉卡"
+        summary: "GPU is unavailable"
+        description: "Unable to obtain GPU metrics, GPU may have dropped card"
 ```
 
-### 6.3 故障诊断命令
+### 6.3 Fault Diagnosis Commands
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# ========== 基础诊断 ==========
+# 🟢 Low Risk: ReadOnly/Information Collection, Typically No Side Effects
+# ========== Basic Diagnosis ==========
 
-# GPU状态概览
+# GPU Status Overview
 nvidia-smi
 
-# 详细GPU信息
+# Detailed GPU Information
 nvidia-smi -q
 
-# GPU拓扑
+# GPU Topology
 nvidia-smi topo -m
 
-# NVLink状态
+# NVLink Status
 nvidia-smi nvlink -s
 
-# ========== 性能诊断 ==========
+# ========== Performance Diagnosis ==========
 
-# 实时监控
+# Real-time Monitoring
 nvidia-smi dmon -s pucvmet -d 1
 
-# GPU进程
+# GPU Process
 nvidia-smi pmon -s um -d 1
 
-# 时钟频率
+# Clock Frequency
 nvidia-smi -q -d CLOCK
 
-# 功耗限制
+# Power Limiting
 nvidia-smi -q -d POWER
 
-# ========== 故障诊断 ==========
+# ========== Fault Diagnosis ==========
 
-# XID错误
+# XID Error
 dmesg | grep -i "nvrm|xid"
 
-# ECC错误
+# ECC Error
 nvidia-smi -q -d ECC
 
-# GPU重置历史
+# GPU Reset History
 nvidia-smi -q -d PAGE_RETIREMENT
 
-# 驱动版本
+# Driver Version
 cat /proc/driver/nvidia/version
 
-# ========== MIG诊断 ==========
+# ========== MIG Diagnosis ==========
 
-# MIG状态
+# MIG Status
 nvidia-smi mig -lgi
 nvidia-smi mig -lci
 
-# MIG实例详情
+# MIG Instance Details
 nvidia-smi mig -lgip
 nvidia-smi mig -lcip
 
-# ========== Kubernetes诊断 ==========
+# ========== Kubernetes Diagnosis ==========
 
-# GPU节点资源
+# GPU Node Resources
 kubectl describe node <gpu-node> | grep -A 10 "Allocated resources"
 
-# Device Plugin日志
+# Device Plugin Logs
 kubectl logs -n gpu-operator -l app=nvidia-device-plugin-daemonset
 
-# GPU Operator状态
+# GPU Operator Status
 kubectl get pods -n gpu-operator
 
-# 节点GPU标签
+# Node GPU Tags
 kubectl get nodes -L nvidia.com/gpu.product,nvidia.com/gpu.count,nvidia.com/mig.config
 ```
-### 6.4 常见XID错误代码
+### 6.4 Common XID Error Codes
 
-| XID | 错误类型 | 原因 | 解决方案 |
+| XID | Error Type | Reason | Solution |
 |-----|---------|------|---------|
-| **13** | Graphics Engine Exception | CUDA kernel错误 | 检查CUDA代码 |
-| **31** | GPU memory page fault | 显存访问越界 | 检查显存分配 |
-| **43** | GPU stopped processing | GPU挂起 | 重置GPU |
-| **45** | Preemptive cleanup | 显存清理超时 | 检查驱动版本 |
-| **48** | Double Bit ECC Error | 不可纠正ECC | 更换GPU |
-| **61** | Internal micro-controller breakpoint | 固件问题 | 重启节点 |
-| **62** | Internal micro-controller halt | 固件严重错误 | 更换GPU |
-| **63** | ECC page retirement | ECC页面退役 | 监控趋势 |
-| **64** | ECC page retirement | 页面退役达上限 | 更换GPU |
-| **74** | NVLink Error | NVLink问题 | 检查硬件连接 |
-| **79** | GPU access to memory denied | 内存访问拒绝 | 检查驱动/BIOS |
-| **94** | Contained ECC error | ECC错误已隔离 | 监控 |
-| **95** | Uncontained ECC error | ECC错误未隔离 | 更换GPU |
+| **13** | Graphics Engine Exception | CUDA kernel error | Check CUDA code |
+| **31** | GPU Memory Page Fault | Out-of-bounds Memory Access | Check GPU Memory Allocation |
+| **43** | GPU Stopped Processing | GPU Suspended | Reset GPU |
+| **45** | Preemptive Cleanup | Memory Cleanup Timeout | Check Driver Version |
+| **48** | Double Bit ECC Error | Un-correctable ECC | Replace GPU |
+| **61** | Internal Micro-controller Breakpoint | Firmware Issue | Restart Node |
+| **62** | Internal micro-controller halt | Firmware severe error | Replace GPU |
+| **63** | ECC page retirement | ECC page retirement | Monitor trend |
+| **64** | ECC page retirement | Page retirement at limit | Replace GPU |
+| **74** | NVLink Error | NVLink issue | Check hardware connection |
+| **79** | GPU access to memory denied | Memory access denied | Check driver/BIOS |
+| **94** | Contained ECC error | Isolated ECC error | Monitor |
+| **95** | Uncontained ECC error | Unisolated ECC error | Replace GPU |
 
 ---
 
-<!-- chunk: 七、GPU资源最佳实践 (Best Practices) -->
-## 七、GPU资源最佳实践 (Best Practices)
 
-### 7.1 资源请求配置
+## 7. GPU Resource Best Practices (Best Practices)
+
+### 7.1 Resource Request Configuration
 
 ```yaml
-# 训练任务配置 (完整资源声明)
+# Training Task Configuration (Complete Resource Declaration)
 apiVersion: v1
 kind: Pod
 metadata:
   name: training-pod
 spec:
-  # 调度约束
+  # Scheduling Constraints
   nodeSelector:
     nvidia.com/gpu.product: "NVIDIA-A100-SXM4-80GB"
   tolerations:
@@ -959,7 +961,7 @@ spec:
   - name: trainer
     image: nvcr.io/nvidia/pytorch:24.01-py3
     
-    # 资源请求=限制 (保证QoS)
+    # Resource Request = Limit (Ensure QoS)
     resources:
       requests:
         cpu: "64"
@@ -970,7 +972,7 @@ spec:
         memory: "512Gi"
         nvidia.com/gpu: "8"
         
-    # GPU环境变量
+    # GPU Environment Variables
     env:
     - name: CUDA_VISIBLE_DEVICES
       value: "0,1,2,3,4,5,6,7"
@@ -979,7 +981,7 @@ spec:
     - name: NVIDIA_DRIVER_CAPABILITIES
       value: "compute,utility"
       
-    # NCCL优化
+    # NCCL Optimization
     - name: NCCL_DEBUG
       value: "WARN"
     - name: NCCL_IB_DISABLE
@@ -989,11 +991,11 @@ spec:
     - name: NCCL_P2P_LEVEL
       value: "NVL"
       
-    # 显存优化
+    # Memory Optimization
     - name: PYTORCH_CUDA_ALLOC_CONF
       value: "max_split_size_mb:512"
       
-    # 卷挂载
+    # Volume Mounting
     volumeMounts:
     - name: shm
       mountPath: /dev/shm
@@ -1010,10 +1012,10 @@ spec:
       claimName: training-data
 ```
 
-### 7.2 多GPU训练优化
+### 7.2 Multi-GPU Training Optimization
 
 ```yaml
-# 分布式训练配置
+# Distributed Training Configuration
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
@@ -1042,7 +1044,7 @@ spec:
                 rdma/rdma_shared_device_a: 1   # RDMA设备
                 
             env:
-            # torchrun配置
+            # torchrun Configuration
             - name: MASTER_ADDR
               valueFrom:
                 fieldRef:
@@ -1050,7 +1052,7 @@ spec:
             - name: NPROC_PER_NODE
               value: "8"
               
-            # 性能优化
+            # Performance Optimization
             - name: OMP_NUM_THREADS
               value: "8"
             - name: MKL_NUM_THREADS
@@ -1068,7 +1070,7 @@ spec:
               medium: Memory
               sizeLimit: "128Gi"
               
-          # 拓扑亲和性
+          # Topology Affinity
           affinity:
             podAntiAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -1080,85 +1082,85 @@ spec:
 
 ---
 
-<!-- chunk: 八、快速参考 (Quick Reference) -->
-## 八、快速参考 (Quick Reference)
 
-### 8.1 GPU资源类型
+## 8. Quick Reference (Quick Reference)
+
+### 8.1 GPU Resource Types
 
 ```bash
-# 整卡资源
+# Whole Card Resources
 nvidia.com/gpu: 1
 
-# MIG资源 (A100/H100)
+# MIG Resources (A100/H100)
 nvidia.com/mig-1g.10gb: 1
 nvidia.com/mig-2g.20gb: 1
 nvidia.com/mig-3g.40gb: 1
 nvidia.com/mig-4g.40gb: 1
 nvidia.com/mig-7g.80gb: 1
 
-# Time-Slicing (虚拟切片)
+# Time-Slicing (Virtual Slicing)
 nvidia.com/gpu: 1  # 实际为1/N物理卡
 ```
 
-### 8.2 常用kubectl命令
+### 8.2 Common kubectl Commands
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 查看GPU节点
+# 🟢 Low Risk: Read-Only/Information Collection, Typically No Side Effects
+# View GPU Nodes
 kubectl get nodes -l nvidia.com/gpu.present=true
 
-# 查看GPU分配
+# View GPU Allocation
 kubectl describe node <node> | grep -A 5 "nvidia.com/gpu"
 
-# 查看GPU Pod
+# View GPU Pod
 kubectl get pods -A -o wide --field-selector spec.nodeName=<gpu-node>
 
-# GPU Operator状态
+# GPU Operator Status
 kubectl get clusterpolicy
 
-# MIG配置状态
+# MIG Configuration Status
 kubectl get nodes -L nvidia.com/mig.config
 
-# Device Plugin日志
+# Device Plugin Log
 kubectl logs -n gpu-operator -l app=nvidia-device-plugin-daemonset --tail=100
 ```
 ---
 
-**GPU管理原则**: 合理切分资源 → 监控利用率 → 及时处理XID错误 → 定期健康检查
+**GPU Management Principles**: Reasonably partition resources → Monitor utilization →in time handle XID errors → Regular health checks
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table bottom marks**: Kusheet Project, author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## Related
 
 - [[README]]
 - [[MOC]]
 
-- AI 基础设施架构
-- 分布式训练框架
-- 相关知识域: domain-02-workloads-applications
-- 相关知识域: domain-03-networking-traffic
-- [[domain-17-system-foundation/topic-cheat-sheet/go.md|速查卡: go]]
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- AI Infrastructure Architecture
+- Distributed Training Framework
+- Related Knowledge Domain: domain-02-workloads-applications
+- Related Knowledge Domain: domain-03-networking-traffic
+- [[domain-17-system-foundation/topic-cheat-sheet/go.md|Cheat Sheet: go]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 ## See Also
 

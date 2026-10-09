@@ -1,6 +1,6 @@
 ---
-title: AI平台可观测性体系
-description: '## 一、AI平台可观测性全景架构'
+title: AI Platform Observability System
+description: '## One,AI Platform Observability Panoramic Architecture'
 summary: 'pos_file /var/log/fluentd-containers.log.pos'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI平台可观测性体系 是什么
-- 如何 AI平台可观测性体系
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Platform Observability System
+- How is AI Platform Observability System
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI平台可观测性体系
+- AI Platform Observability System
 - ai
 - infra
 prerequisites:
@@ -53,30 +53,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/13-ai-platform-observability.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk levels for commands: 🔴 High Risk (can lead to data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI平台可观测性体系
+# AI Platform Observability System
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **最后更新**: 2026-02 | **参考**: [[entities/prometheus.md|Prometheus]]](https://prometheus.io/) | [[entities/opentelemetry.md|OpenTelemetry]]](https://opentelemetry.io/) | [Grafana](https://grafana.com/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Last Updated**: 2026-02 | **References**: [[entities/prometheus.md|Prometheus]](https://prometheus.io/) | [[entities/opentelemetry.md|OpenTelemetry]](https://opentelemetry.io/) | [Grafana](https://grafana.com/)
 
-<!-- chunk: 一、AI平台可观测性全景架构 -->
-## 一、AI平台可观测性全景架构
 
-### 1.1 统一监控架构
+## 1. Overall Architecture of AI Platform Observability
+
+### 1.1 Unified Monitoring Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -84,28 +86,28 @@ cross_refs:
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                      │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                              数据采集层 (Collection)                           │  │
+│  │                              Data Collection Layer (Collection)                           │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │  Prometheus │  │   DCGM      │  │ OpenTelemetry│  │   Fluentd   │          │  │
 │  │  │   Server    │  │  Exporter   │  │   Collector  │  │   Agent     │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • K8s指标   │  │ • GPU利用率 │  │ • 推理延迟  │  │ • 应用日志  │          │  │
-│  │  │ • Pod状态   │  │ • 显存使用  │  │ • Token数   │  │ • 训练日志  │          │  │
-│  │  │ • 节点资源  │  │ • 温度功耗  │  │ • 错误率    │  │ • 系统日志  │          │  │
+│  │  │ • Kubernetes metrics   │  │ • GPU utilization │  │ • Inference latency  │  │ • Application logs  │          │  │
+│  │  │ • Pod status   │  │ • Memory usage  │  │ • Token count   │  │ • Training logs  │          │  │
+│  │  │ • Node resources  │  │ • Temperature power consumption  │  │ • Error rate    │  │ • System logs  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                              存储层 (Storage)                                 │  │
+│  │                              Storage Layer (Storage)                                 │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │  Prometheus │  │    Loki     │  │   Tempo     │  │   Mimir     │          │  │
 │  │  │   TSDB      │  │   Log Store │  │ Trace Store │  │   Backend   │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 15天保留  │  │ • 30天保留  │  │ • 3天保留   │  │ • 长期存储  │          │  │
+│  │  │ • Retain for 15 days  │  │ • Retain for 30 days  │  │ • Retain for 3 days   │  │ • Long-term storage  │          │  │
 │  │  │ • 100GB     │  │ • 500GB     │  │ • 50GB      │  │ • S3/GCS    │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
@@ -113,29 +115,29 @@ cross_refs:
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                             分析处理层 (Processing)                           │  │
+│  │                             Processing Layer (Processing)                           │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │ Alertmanager│  │   Grafana   │  │  Pyroscope  │  │  Custom     │          │  │
 │  │  │             │  │             │  │             │  │  Analytics  │          │  │
-│  │  │ • 告警路由  │  │ • 可视化    │  │ • 性能分析  │  │ • 成本分析  │          │  │
-│  │  │ • 抑制静默  │  │ • 仪表板    │  │ • 火焰图    │  │ • 趋势预测  │          │  │
-│  │  │ • 通知分组  │  │ • 探索查询  │  │ • 持续分析  │  │ • 异常检测  │          │  │
+│  │  │ • Alert routing  │  │ • Visualization    │  │ • Performance analysis  │  │ • Cost analysis  │          │  │
+│  │  │ • Suppression silence  │  │ • Dashboard    │  │ • Flame graph    │  │ • Trend forecasting  │          │  │
+│  │  │ • Notification grouping  │  │ • Exploration query  │  │ • Continuous analysis  │  │ • Anomaly detection  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                             展示告警层 (Presentation)                         │  │
+│  │                             Presentation Layer (Presentation)                         │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   Grafana   │  │   Slack     │  │    Email    │  │  Webhook    │          │  │
 │  │  │  Dashboards │  │  Channels   │  │  Templates  │  │ Integrations│          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • GPU监控   │  │ • 实时告警  │  │ • 详细报告  │  │ • 自动修复  │          │  │
-│  │  │ • 成本分析  │  │ • 升级通知  │  │ • 周报月报  │  │ • 运维工单  │          │  │
-│  │  │ • 模型性能  │  │ • 团队频道  │  │ • 管理汇报  │  │ • CMDB同步  │          │  │
+│  │  │ • GPU monitoring   │  │ • Real-time alert  │  │ • Detailed report  │  │ • Automatic repair  │          │  │
+│  │  │ • Cost analysis  │  │ • Upgrade notification  │  │ • Weekly/monthly reports  │  │ • Service tickets  │          │  │
+│  │  │ • Model performance  │  │ • Team channel  │  │ • Management report  │  │ • CMDB synchronization  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
@@ -143,24 +145,24 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 监控指标体系
+### 2.2 Configuration of Monitoring Indicators for GPUs
 
-#### 核心监控维度
+#### Core Monitoring Dimensions
 
-| 维度 | 指标类别 | 关键指标 | 告警阈值 | 采集频率 |
+| Dimension | Metric Category | Key Metrics | Alert Thresholds | Collection Frequency |
 |------|----------|----------|----------|----------|
-| **基础设施** | 节点/GPU/网络 | CPU/Memory/GPU Utilization | 80%/85%/90% | 15s |
-| **训练作业** | 训练进度/资源 | Loss/Accuracy/GPU Mem | Loss突增/准确率下降 | 30s |
-| **推理服务** | 性能/质量 | Latency/Throughput/Error Rate | P99>500ms/错误率>1% | 10s |
-| **存储系统** | 容量/性能 | Disk IO/Latency/Usage | 使用率>85%/延迟>100ms | 30s |
-| **成本管理** | 资源消耗 | GPU Hours/Cost/Utilization | 成本超预算/利用率<30% | 5min |
+| **Infrastructure** | Nodes/GPUs/Network | CPU/Memory/GPU Utilization | 80%/85%/90% | 15s |
+| **Training Jobs** | Training Progress/Resources | Loss/Accuracy/GPU Mem | Loss increases/Accuracy drops | 30s |
+| **Inference Services** | Performance/Quality | Latency/Throughput/Error Rate | P99>500ms/Error rate>1% | 10s |
+| **Storage Systems** | Capacity/Performance | Disk IO/Latency/Usage | Usage>85%/Latency>100ms | 30s |
+| **Cost Management** | Resource Consumption | GPU Hours/Cost/Utilization | Exceeding budget/Utilization<30% | 5min |
 
 ---
 
-<!-- chunk: 二、Prometheus监控体系部署 -->
-## 二、Prometheus监控体系部署
 
-### 2.1 完整监控栈部署
+## 2. AI Platform Observability System Deployment
+
+### 2.1 Complete Monitoring Stack Deployment
 
 ```yaml
 # ai-monitoring-stack.yaml
@@ -171,7 +173,7 @@ metadata:
   labels:
     istio-injection: enabled
 ---
-# Prometheus Server配置
+# Prometheus Server Configuration
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
@@ -199,7 +201,7 @@ spec:
         resources:
           requests:
             storage: 200Gi
-  # 远程写配置 - 长期存储
+  # Remote write configuration - Long-term storage
   remoteWrite:
   - url: http://mimir-remote-write:9009/api/v1/push
     writeRelabelConfigs:
@@ -207,7 +209,7 @@ spec:
       regex: '(kubecost|dcgm|llm)_.*'
       action: keep
 ---
-# GPU监控ServiceMonitor
+# GPU Monitoring ServiceMonitor
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -229,7 +231,7 @@ spec:
     - sourceLabels: [__meta_kubernetes_pod_label_nvidia_com_gpu_product]
       targetLabel: gpu_type
 ---
-# 推理服务监控
+# Inference Service Monitoring
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -252,13 +254,13 @@ spec:
       replacement: 'llm_$1'
 ```
 
-### 2.2 GPU监控指标配置
+### 2.2 Configuration of Monitoring Indicators for GPUs
 
 ```yaml
 # dcgm-exporter-values.yaml
 # DCGM Exporter Helm values
 dcgmExporter:
-  # 启用的指标
+  # Enabled metrics
   metrics:
     - DCGM_FI_DEV_GPU_TEMP
     - DCGM_FI_DEV_POWER_USAGE
@@ -271,13 +273,13 @@ dcgmExporter:
     - DCGM_FI_DEV_PCIE_TX_THROUGHPUT
     - DCGM_FI_DEV_PCIE_RX_THROUGHPUT
   
-  # 自定义指标标签
+  # Custom metric tags
   serviceMonitor:
     enabled: true
     additionalLabels:
       team: ai-platform
     
-  # 资源限制
+  # Resource limits
   resources:
     limits:
       cpu: 100m
@@ -289,10 +291,10 @@ dcgmExporter:
 
 ---
 
-<!-- chunk: 三、Grafana仪表板配置 -->
-## 三、Grafana仪表板配置
 
-### 3.1 GPU资源监控面板
+## 3. Grafana Dashboard Configuration
+
+### 3.1 GPU Resource Monitoring Panel
 
 ```json
 {
@@ -332,7 +334,7 @@ dcgmExporter:
 }
 ```
 
-### 3.2 推理服务性能面板
+### 3.2 Performance Panel of Inference Services
 
 ```json
 {
@@ -379,10 +381,10 @@ dcgmExporter:
 
 ---
 
-<!-- chunk: 四、告警规则配置 -->
-## 四、告警规则配置
 
-### 4.1 核心告警规则
+## 4. Alert Rule Configuration
+
+### 4.1 Core Alert Rules
 
 ```yaml
 # ai-alert-rules.yaml
@@ -397,7 +399,7 @@ spec:
   groups:
   - name: ai.gpu.rules
     rules:
-    # GPU利用率过高告警
+    # High GPU utilization alert
     - alert: HighGPUUtilization
       expr: avg by(node)(DCGM_FI_DEV_GPU_UTIL) > 95
       for: 5m
@@ -405,10 +407,10 @@ spec:
         severity: warning
         team: ai-platform
       annotations:
-        summary: "GPU利用率过高 ({{ $labels.node }})"
-        description: "节点 {{ $labels.node }} 上GPU平均利用率达到 {{ $value }}%"
+        summary: "GPU utilization is too high ({{ $labels.node }})"
+        description: "Average GPU utilization on node {{ $labels.node }} reaches {{ $value }}%"
         
-    # GPU温度异常告警
+    # Abnormal GPU temperature alert
     - alert: HighGPUTemperature
       expr: DCGM_FI_DEV_GPU_TEMP > 85
       for: 2m
@@ -416,12 +418,12 @@ spec:
         severity: critical
         team: ai-platform
       annotations:
-        summary: "GPU温度过高 ({{ $labels.node }})"
-        description: "节点 {{ $labels.node }} 上GPU温度达到 {{ $value }}°C"
+        summary: "GPU temperature is too high ({{ $labels.node }})"
+        description: "GPU temperature on node {{ $labels.node }} reaches {{ $value }}°C"
         
   - name: ai.inference.rules
     rules:
-    # 推理延迟过高告警
+    # High inference latency alert
     - alert: HighInferenceLatency
       expr: histogram_quantile(0.99, sum(rate(llm_request_duration_seconds_bucket[5m])) by (le)) > 0.5
       for: 3m
@@ -429,10 +431,10 @@ spec:
         severity: warning
         service: llm-inference
       annotations:
-        summary: "推理延迟过高"
-        description: "P99延迟超过500ms，当前值: {{ $value }}s"
+        summary: "Inference latency is too high"
+        description: "P99 latency exceeds 500ms, current value: {{ $value }}s"
         
-    # 推理错误率上升告警
+    # Rising inference error rate alert
     - alert: HighInferenceErrorRate
       expr: sum(rate(llm_requests_failed_total[5m])) / sum(rate(llm_requests_total[5m])) > 0.01
       for: 2m
@@ -440,11 +442,11 @@ spec:
         severity: critical
         service: llm-inference
       annotations:
-        summary: "推理错误率异常"
-        description: "错误率超过1%，当前值: {{ $value | humanizePercentage }}"
+        summary: "Inference error rate is abnormal"
+        description: "Error rate exceeds 1%, current value: {{ $value | humanizePercentage }}"
 ```
 
-### 4.2 告警通知配置
+### 4.2 Configuration of Alert Notification
 
 ```yaml
 # alertmanager-config.yaml
@@ -466,7 +468,7 @@ data:
       group_interval: 5m
       repeat_interval: 3h
       
-      # AI平台告警路由
+      # AI Platform Alert Routing
       routes:
       - matchers:
         - team="ai-platform"
@@ -493,10 +495,10 @@ data:
 
 ---
 
-<!-- chunk: 五、日志收集与分析 -->
-## 五、日志收集与分析
 
-### 5.1 Fluentd配置
+## 5. Log Collection and Analysis
+
+### 5.1 Configuration of Fluentd
 
 ```yaml
 # fluentd-config.yaml
@@ -525,7 +527,7 @@ data:
       @id filter_kube_metadata
     </filter>
     
-    # AI特定日志处理
+    # Specific Log Processing for AI
     <filter kubernetes.var.log.containers.*_ai-*_*.log>
       @type record_transformer
       <record>
@@ -553,23 +555,23 @@ data:
     </match>
 ```
 
-### 5.2 Loki查询示例
+### 5.2 Example of Loki Query
 
 ```logql
-# 查询训练日志中的loss值变化
+# Querying Change in Loss Value in Training Logs
 {namespace="ai-training", log_type="training"} 
 |~ "loss=" 
 | regexp "loss=(?P<loss>[0-9.]+)" 
 | unwrap loss 
 | __error__="" 
 
-# 查询推理错误日志
+# Querying Inference Error Logs
 {namespace="ai-inference", log_type="inference"} 
 |= "ERROR" 
 | json 
 | level="ERROR"
 
-# 统计各模型的错误次数
+# Counting Errors for Each Model
 sum by(model_name) (
   count_over_time(
     {namespace="ai-inference"} |= "ERROR" [1h]
@@ -579,10 +581,10 @@ sum by(model_name) (
 
 ---
 
-<!-- chunk: 六、成本监控集成 -->
-## 六、成本监控集成
 
-### 6.1 Kubecost集成配置
+## 6. Cost Monitoring Integration
+
+### 6.1 Configuration of Kubecost Integration
 
 ```yaml
 # kubecost-ai-integration.yaml
@@ -592,9 +594,9 @@ metadata:
   name: kubecost-ai-config
   namespace: ai-monitoring
 data:
-  # AI工作负载成本分配规则
+  # AI Workload Cost Allocation Rules
   cost-analyzer-config.yaml: |
-    # 按标签分配成本
+    # Allocate costs by tag
     allocation:
       labels:
         - team
@@ -603,14 +605,14 @@ data:
         - environment
         - cost-center
       
-      # AI特定的分摊规则
+      # Specific Cost Allocation Rules for AI
       sharedNamespaces:
         - ai-monitoring
         - ai-ops
       sharedLabels:
         team: ai-platform
         
-    # GPU成本自定义定价
+    # Custom Pricing for GPUs
     pricing:
       customPrices:
         GPU:
@@ -618,7 +620,7 @@ data:
             price: "32.77"  # A100按需价格
             spotPrice: "10.00"
             
-    # 成本告警配置
+    # Cost Alarm Configuration
     alerts:
       budgets:
         - name: "ai-monthly-budget"
@@ -634,7 +636,7 @@ data:
           window: "7d"
 ```
 
-### 6.2 成本可视化面板
+### 6.2 Cost Visualization Panel
 
 ```json
 {
@@ -668,86 +670,86 @@ data:
 
 ---
 
-<!-- chunk: 七、运维最佳实践 -->
-## 七、运维最佳实践
 
-### 7.1 监控配置检查清单
+## 7. Best Practices
 
-✅ **基础设施监控**
-- [ ] 所有GPU节点都有DCGM Exporter
-- [ ] 节点资源使用率监控到位
-- [ ] 网络带宽和延迟监控配置
-- [ ] 存储IO和容量监控启用
+### 7.1 Monitoring Configuration Checklist
 
-✅ **应用性能监控**
-- [ ] 训练任务Loss/Accuracy指标采集
-- [ ] 推理服务延迟/吞吐量监控
-- [ ] 模型版本和部署状态跟踪
-- [ ] 错误率和成功率监控
+✅ **Infrastructure Monitoring**
+- [ ] All GPU nodes have DCGM Exporter
+- [ ] Node resource usage monitoring is in place
+- [ ] Network bandwidth and latency monitoring configured
+- [ ] Storage I/O and capacity monitoring enabled
 
-✅ **告警配置**
-- [ ] 关键指标都有相应告警规则
-- [ ] 告警分级和路由配置正确
-- [ ] 通知渠道测试通过
-- [ ] 告警抑制和静默规则设置
+✅ **Application Performance Monitoring**
+- [ ] Collect Loss/Accuracy metrics for training tasks
+- [ ] Monitor inference service latency/throughput
+- [ ] Track model version and deployment status
+- [ ] Monitor error rate and success rate
 
-✅ **日志管理**
-- [ ] 结构化日志格式统一
-- [ ] 关键字段都有适当标签
-- [ ] 日志保留策略明确
-- [ ] 异常日志能够快速检索
+✅ **Alert Configuration**
+- [ ] Key metrics have corresponding alert rules
+- [ ] Correct alert grading and routing configuration
+- [ ] Notification channels are tested successfully
+- [ ] Alert suppression and silent rules are set up
 
-### 7.2 常见问题排查
+✅ **Log Management**
+- [ ] Unified structured log format
+- [ ] Appropriate labels for key fields
+- [ ] Clear log retention policy
+- [ ] Abnormal logs can be quickly searched
 
-**GPU监控无数据**
+### 7.2 Common Issue Troubleshooting
+
+**GPU monitoring has no data**
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 检查DCGM Exporter状态
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# Check DCGM Exporter status
 kubectl get pods -n ai-monitoring -l app=dcgm-exporter
 kubectl logs -n ai-monitoring -l app=dcgm-exporter
 
-# 验证指标采集
+# Verify metric collection
 kubectl port-forward svc/dcgm-exporter 9400:9400
 curl http://localhost:9400/metrics | grep DCGM_FI
 ```
-**推理延迟告警频繁**
+**Inference latency alerts occur frequently**
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 检查推理服务资源使用
+# 🟢 Low Risk: Read-only/information gathering, usually has no side effects
+# Check inference service resource usage
 kubectl top pods -n ai-inference -l app=vllm
 kubectl describe nodes | grep -A 10 "Allocated resources"
 
-# 分析慢查询日志
+# Analyze slow query logs
 kubectl logs -n ai-inference -l app=vllm --since=1h | grep "slow"
 ```
-**成本超出预算**
+**Cost exceeds budget**
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 查看实时成本
+# 🟢 Low Risk: Read-only/information gathering, usually has no side effects
+# View real-time cost
 kubectl get --raw /apis/metrics.k8s.io/v1beta1/namespaces/ai-training/pods
 
-# 分析资源浪费
+# Analyze resource waste
 kubectl get pods -n ai-training -o wide | grep -E "(Pending|Evicted)"
 ```
 ---
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
 
 ## See Also
 
@@ -758,8 +760,8 @@ kubectl get pods -n ai-training -o wide | grep -E "(Pending|Evicted)"
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/observability-index.md|Observability 可观测性知识图谱索引]]
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/observability-index.md|Observability Index]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Index]]
 
 
 <!-- risk-assessed -->

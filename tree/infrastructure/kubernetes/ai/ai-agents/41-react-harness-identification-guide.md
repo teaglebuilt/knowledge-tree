@@ -1,6 +1,7 @@
----title: ReAct Agent 与 Harness 识别指南 (domain-14-ai-ml-infra)
-description: 'title: ReAct Agent 与 Harness 识别指南'
-summary: 'title: ReAct Agent 与 Harness 识别指南'
+---
+title: ReAct Agent And Harness Identification Guide (domain-14-ai-ml-infra)
+description: 'title: ReAct Agent And Harness Identification Guide'
+summary: 'title: ReAct Agent And Harness Identification Guide'
 category: general
 tags:
 - ai
@@ -17,17 +18,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- ReAct Agent 与 Harness 识别指南 是什么
-- 如何 ReAct Agent 与 Harness 识别指南
-- Kubernetes 14 ai ml infra 最佳实践
+- What is ReAct Agent with Harness identification guide
+- How ReAct Agent and Harness Reference Guides Recognize
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - ReAct
 - Agent
 - Harness
-- 识别指南
+- What is the recognition guide
 - ai
 - ml
 - infra
@@ -38,17 +39,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/41-react-harness-identification-guide.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: ReAct Agent 与 Harness 识别指南
-description: '# ReAct Agent 与 Harness 识别指南'
+title: ReAct Agent and Harness Identification Guide
+description: '# ReAct Agent and Harness Identification Guide'
 category: ai-agent
 tags:
 - ai
@@ -62,18 +65,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- ReAct Agent 与 Harness 识别指南 是什么
-- 如何 ReAct Agent 与 Harness 识别指南
+- What is ReAct Agent and Harness Identification Guide
+- How to use ReAct Agent and Harness Identification Guide
 trigger_keywords:
 - ReAct
 - Agent
 - Harness
-- 识别指南
+- Identification Guide
 - ai
 - agent
 authors:
@@ -87,264 +90,264 @@ k8s_versions:
 - '1.32'
 ---
 
-# ReAct Agent 与 Harness 识别指南
+# ReAct Agent and Harness Identification Guide
 
-> **文档类型**: 实践参考指南 | **最后更新**: 2026-04 | **关键词**: ReAct, Agent Harness, 识别判断, 推理框架, 成熟度模型, 分类标准, Agent Loop, Verification, Constraints
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-在构建和评估 Agent 系统时，两个最基础的问题是：**"这个 Agent 是不是 ReAct？"** 和 **"这个 Agent 有没有 Harness？"**。前者决定了 Agent 的推理模式和能力边界，后者决定了 Agent 是否具备生产级的可靠性和可控性。
-
-本文提供系统化的判断标准、清单和代码级的识别方法，帮助工程师快速评估 Agent 的推理模式和 Harness 完整度。
+> **Document Type**: Practice Reference Guide | **Last Updated**: 2026-04 | **Keywords**: ReAct, Agent Harness, Identification Judgment, Inference Framework, Maturity Model, Classification Standards, Agent Loop, Verification, Constraints
 
 ---
 
-<!-- chunk: 1. 如何判断一个 Agent 是否是 ReAct -->## 1. 如何判断一个 Agent 是否是 ReAct
+## 1. Introduction
 
-## 1.1 ReAct 核心定义
+In building and evaluating an Agent system, two fundamental questions are: "Is this Agent a ReAct?" and "Does this Agent have a Harness?". The former determines the inference mode and capability boundaries of the Agent, while the latter determines whether the Agent has production-level reliability and controllability.
 
-**ReAct = Reasoning + Acting**，是最广泛使用的 Agent 推理模式。其核心特征是**交替进行思考（Thought）和行动（Action）**：
+This document provides systematic judgment criteria, checklists, and code-level identification methods to help engineers quickly assess the inference mode and completeness of the Harness in the Agent.
+
+---
+
+## 1. How to determine if an Agent is ReAct
+
+## 1.1 Core definition of ReAct
+
+**ReAct = Reasoning + Acting** is the most widely used inference mode for Agents. Its core feature is **alternating between reasoning (Thought) and action (Action)**:
 
 ```
-ReAct 循环:
-  Thought: 分析当前情况，决定下一步行动
-  Action: 调用工具/执行操作
-  Observation: 获取工具返回结果
-  ... (循环直到任务完成)
-  Final Answer: 给出最终答案
+ReAct Loop:
+  Thought: Analyze current situation, decide on next action
+  Action: Call tool/execute operation
+  Observation: Get tool return result
+  ... (loop until task completes)
+  Final Answer: Give the final answer
 ```
 
-## 1.2 三要素判断法
+## 1.2 Three-element judgment method
 
-ReAct 的三要素必须**同时具备**：
+The three elements of ReAct must be **all present simultaneously**:
 
-| 特征 | 说明 | 判断方法 |
+| Feature | Description | Judgment Method |
 |------|------|---------|
-| **Thought（思考）** | 每步都有显式的推理/分析过程 | 看输出是否包含 `Thought:` 或推理步骤 |
-| **Action（行动）** | 基于推理调用工具/执行操作 | 看是否有 `Action:` + 工具调用 |
-| **Observation（观察）** | 获取工具执行结果并反馈到下一轮 | 看是否有 `Observation:` + 结果解析 |
+| **Thought (Thought)** | Explicit reasoning or analysis steps at each step | Check if the output contains `Thought:` or reasoning steps |
+| **Action (Action)** | Calls tools/actions based on reasoning | Check if there is `Action:` followed by tool call |
+| **Observation (Observation)** | Feedbacks tool execution results back to the next round | Check if there is `Observation:` followed by result parsing |
 
-## 1.3 完整判断清单
+## 1.3 Complete judgment checklist
 
 ```
-✅ 是 ReAct Agent 的标志:
-  1. 有 Agent Loop（循环执行，非一次性请求-响应）
-  2. 交替进行 Thought → Action → Observation 循环
-  3. 有工具调用能力（Function Calling / Tool Use）
-  4. LLM 自主决定何时调用工具、调用哪个工具
-  5. LLM 自主决定何时结束（输出 Final Answer）
-  6. 每步推理可追踪（有 trajectory）
+✅ Is a marker for ReAct Agent:
+  1. Has Agent Loop (cyclic execution, not one-time request-response)
+  2. oggle between Thought → Action → Observation oggle loop
+  3. Have tool calling capability (Function Calling / Tool Use)
+  4. LLM decide autonomously when to call the tool and which tool to call
+  5. LLM autonomously decide when to end (output Final Answer)
+  6. Each inference step is traceable (has trajectory)
 
-❌ 不是 ReAct 的情况:
-  - 纯 CoT: 只有思维链推理，没有工具调用
-  - 纯 Plan-and-Execute: 先一次性生成完整计划再执行，而非交替推理行动
-  - 纯对话: 没有 Agent Loop，只是多轮对话
-  - 预定义流程: 执行路径固定，LLM 不做动态决策
+❌ Not a ReAct case:
+  - Pure CoT: Only chain of thoughts, no tool invocation
+  - Pure Plan-and-Execute: Generate a complete plan upfront before execution, rather than alternating inference and action
+  - Pure dialogue: No Agent Loop, just multi-round dialogue
+  - Predefined flow: Fixed execution path, LLM does not make dynamic decisions
 ```
 
-## 1.4 代码层面判断
+## 1.4 Code-level judgment
 
-## AgentScope 框架
+## AgentScope framework
 
-直接看是否使用了 `ReActAgent` 或继承自 `ReActAgentBase`：
+Directly check if `ReActAgent` or inherits from `ReActAgentBase` is used:
 
 ```python
-# ✅ 这就是 ReAct Agent
+# ✅ This is the ReAct Agent
 from agentscope.agent import ReActAgent
 agent = ReActAgent(name="Friday", model=model, toolkit=toolkit, ...)
 
-# AgentScope 智能体继承体系:
-# AgentBase          → 通用基类，不一定是 ReAct
-# ReActAgentBase     → 有 _reasoning() + _acting()，是 ReAct
-# ReActAgent         → 开箱即用的 ReAct 实现，是 ReAct
-# UserAgent          → 用户代理，不是 ReAct
+# AgentScope agent inheritance system:
+# AgentBase          → Base class, not necessarily ReAct
+# ReActAgentBase     → Has _reasoning() + _acting(), is ReAct
+# ReActAgent         → Usable out-of-the-box ReAct implementation, is ReAct
+# UserAgent          → User agent, not ReAct
 ```
 
-## LangChain 框架
+## LangChain framework
 
 ```python
 # ✅ ReAct
 from langchain.agents import create_react_agent
 agent = create_react_agent(llm=llm, tools=tools, prompt=react_prompt)
 
-# ❌ 不是 ReAct（是 Plan-and-Execute）
+# ❌ Not ReAct (is Plan-and-Execute)
 from langgraph.prebuilt import create_plan_and_execute_agent
 ```
 
-## 自定义 Agent
+## Custom Agent
 
-检查是否具备以下结构：
+Check if it has the following structure:
 
 ```python
-# ReAct 的最小实现骨架
+# The minimum implementational skeleton of ReAct
 class ReActAgent:
     def run(self, task: str) -> str:
         while not done:
-            # 1. Thought: LLM 推理
+            # 1. Thought: LLM inference
             thought = self.llm.reason(context)
 
-            # 2. 判断是否结束
+            # 2. Check if done
             if thought.is_final_answer:
                 return thought.answer
 
-            # 3. Action: 调用工具
+            # 3. Action: Call tool
             result = self.execute_tool(thought.action)
 
-            # 4. Observation: 将结果加入上下文
+            # 4. Observation: Add result to context
             context.add_observation(result)
 ```
 
-## 1.5 ReAct 与其他推理框架对比
+## 1.5 Comparison of ReAct with other inference frameworks
 
-| 框架 | 有 Loop? | 有工具调用? | 推理方式 | 是否 ReAct |
+| Framework | Has Loop? | Has Tool Call? | Inference Method | Is ReAct? |
 |------|----------|-----------|---------|-----------|
-| **ReAct** | ✅ | ✅ | 交替 Thought/Action | ✅ |
-| CoT | ❌ | ❌ | 线性思维链 | ❌ |
-| ToT | ❌ | ❌ | 树状分支搜索 | ❌ |
-| Plan-and-Execute | ✅ | ✅ | 先计划再执行 | ❌ |
-| Reflexion | ✅ | 可选 | 自我反思迭代 | ❌（但可组合） |
+| **ReAct** | ✅ | ✅ | Alternating Thought/Action | ✅ |
+| CoT | ❌ | ❌ | Linear Chain of Reasoning | ❌ |
+| ToT | ❌ | ❌ | Tree Branch Search | ❌ |
+| Plan-and-Execute | ✅ | ✅ | Plan then Execute | ❌ |
+| Reflexion | ✅ | Optional | Self-reflection Iteration | ❌ (but composable) |
 
-## 1.6 边界案例
+## 1.6 Boundary cases
 
 ```
-灰色地带 — 需要进一步判断:
+Gray area — Requires further judgment:
 
-1. Plan-then-ReAct（计划后 ReAct 执行）
-   计划阶段: Plan-and-Execute
-   执行阶段: ReAct
-   判定: 执行层是 ReAct，整体是混合架构
+1\. Plan-then-ReAct (plan before ReAct execution)
+   Plan-and-Execute
+   ReAct
+   Judgement: Execution layer is ReAct, overall is hybrid architecture
 
-2. ReAct + Reflexion（带反思的 ReAct）
-   ReAct Loop 内执行任务
-   失败后触发 Reflexion 反思
-   判定: 核心是 ReAct，Reflexion 是增强
+2. ReAct + Reflexion (ReAct with Reflection)
+   ReAct Loop Executes Tasks
+   Fail and trigger Reflection reflect
+   Judgement: Core is ReAct, Reflexion is enhancement
 
-3. Multi-Agent 中的 ReAct Worker
-   Orchestrator 用 Plan-and-Execute
-   Worker Agent 各自用 ReAct
-   判定: Worker 是 ReAct，系统整体是混合架构
+3. Multi-Agent in ReAct Worker
+   Orchestrator  use Plan-and-Execute
+   Worker Agent each use ReAct
+   Judge: Worker is ReAct, the system as a whole is a hybrid architecture
 ```
 
 ---
 
-<!-- chunk: 2. 如何判断 Agent 是否有 Harness -->## 2. 如何判断 Agent 是否有 Harness
+## 2. How to determine if an Agent has Harness
 
-## 2.1 Harness 核心定义
+## 2.1 Core definition of Harness
 
-**Harness = 包裹在 AI 模型外部的完整运行系统**，将模型的原始认知能力转化为可靠的生产输出。
-
-```
-普通 LLM 使用（无 Harness）:
-  用户输入 → LLM 生成 → 输出结果
-  问题: 答案不稳定、幻觉、丢失上下文、无法执行、无安全边界
-
-Agent + Harness（完整系统）:
-  目标 → 循环执行 → 工具调用 → 上下文管理 → 状态持久化 → 自检验证 → 约束控制 → 可靠输出
-  效果: 稳定、可靠、可审计、可控、可度量
-
-关键比喻:
-  模型是马，Harness 是马具（缰绳、鞍座、胸带、眼罩）
-  马具不让马更强壮，而是让马的力量可靠地转化为有用的工作
-```
-
-## 2.2 六层架构检查法
-
-Harness 包含六层架构。**不需要全部具备才叫 Harness**，但层级越完整，Harness 越成熟：
+**Harness = Wraps the entire operational system around an AI model**, converting the model's raw cognitive capabilities into reliable production outputs.
 
 ```
-Agent Harness 六层架构（逐层检查）:
+Normal LLM Usage (No Harness):
+  User Input → LLM Generation → Output Result
+  Problem: Unstable answers, hallucinations, loss of context, inability to execute, lack of safety boundaries
 
-Layer 1: Loop（循环层）
-  □ 有 Agent Loop（持续运行直到目标达成）
-  □ 有超时保护
-  □ 有最大迭代限制
-  □ 有反漂移检测（防止死循环）
-  □ 有轨迹记录（trajectory）
+Agent + Harness (Complete System):
+  Goal → Iterative Execution → Tool Invocation → Context Management → State Persistence → Self-check Validation → Constraint Control → Reliable Output
+  Effect: Stable, reliable, auditable, controllable, measurable
 
-Layer 2: Tools（工具层）
-  □ 有工具注册/发现机制
-  □ 有参数校验
-  □ 有工具权限控制
-  □ 有工具错误处理和重试
-
-Layer 3: Context（上下文层）
-  □ 有上下文窗口管理
-  □ 有信息优先级排序
-  □ 有 RAG 检索集成
-  □ 有上下文压缩/摘要
-
-Layer 4: Persistence（持久化层）
-  □ 有跨会话记忆
-  □ 有执行记录持久存储
-  □ 有状态恢复能力
-
-Layer 5: Verification（验证层）      ← 关键分水岭
-  □ 有输出自检循环
-  □ 有事实验证
-  □ 有格式校验
-  □ 有幻觉检测
-
-Layer 6: Constraints（约束层）
-  □ 有安全边界（只读/命令黑名单）
-  □ 有成本控制（Token 预算）
-  □ 有审计日志
-  □ 有人工审批机制
+Key Metaphor:
+  Model is the horse, Harness is the tack (reins, saddle, breastplate, blindfold)
+  Bridles do not make horses stronger but make horse strength reliably usable for useful work
 ```
 
-## 2.3 五级成熟度模型判断法
+## 2.2 Six-layer architecture check method
 
-| 等级 | 名称 | 特征 | 是否有 Harness |
+Harness consists of six layers. **Not all layers are required to be a Harness**, but the more complete the layers, the more mature the Harness:
+
+```
+Agent Harness Six-layer architecture (layer-by-layer check):
+
+Layer 1: Loop(Loop)
+  □ Has Agent Loop (runs until goal is achieved)
+  □ Has timeout protection
+  □ Has a maximum iteration limit
+  □ Have drift detection (to prevent dead loops)
+  □ Has trajectory record (trajectory)
+
+Layer 2: Tools(Tools)
+  □ Have tool registration/discovery mechanism
+  □ Parameter validation
+  □ Have tool permission control
+  □ Have tool error handling and retry
+
+Layer 3: Context(Context)
+  □ Have context window management
+  □ Have information priority sorting
+  □ Have RAG retrieval integration
+  □ Have contextual compression/summary
+
+Layer 4: Persistence(Persistence)
+  □ Have cross-session memory
+  □ Have execution records persisted storage
+  □ Stateful recovery capability
+
+Layer 5: Verification(verification layer)      ← key milestone
+  □ Has self-check loop
+  □ Has fact verification
+  □ Has format check
+  □ Has hallucination detection
+
+Layer 6: Constraints(constraints layer)
+  □ Has security boundary (read-only/command blacklist)
+  □ Has cost control (Token budget)
+  □ Has audit logs
+  □ Has manual approval mechanism
+```
+
+## 2.3 Five-tier maturity model judgment method
+
+| Level | Name | Feature | Has Harness? |
 |------|------|------|--------------|
-| **L1** | 裸 Agent（Ad-hoc） | 直接调用 LLM API，无循环、无工具、无验证 | ❌ 无 Harness |
-| **L2** | 基础 Harness（Managed） | 有 Agent Loop + 工具调用 + 超时保护，但无验证、无约束 | ⚠️ 最低限度 Harness |
-| **L3** | 生产就绪（Production-Ready） | 六层架构完整 + CI/CD 质量门禁 + 基本监控 | ✅ 有 Harness |
-| **L4** | 企业级（Enterprise） | 多 Agent 编排 + 灰度发布 + A/B 测试 + 完整可观测性 | ✅ 成熟 Harness |
-| **L5** | 自进化（Self-Evolving） | Meta-Agent 自动优化 Harness 参数 | ✅ 高级 Harness |
+| **L1** | Bare Agent (Ad-hoc) | Directly calls LLM API, no loop, no tool, no validation | ❌ No Harness |
+| **L2** | Managed Harness (Basic) | Has Agent Loop + Tool Call + Timeout Protection, but no validation, no constraints | ⚠️ Minimum Harness |
+| **L3** | Production-Ready (Production) | Six-layer architecture complete + CI/CD quality gates + basic monitoring | ✅ Has Harness |
+| **L4** | Enterprise (Enterprise) | Multi-Agent orchestration + gray-scale release + A/B testing + complete observability | ✅ Mature Harness |
+| **L5** | Self-Evolving (Self-Evolving) | Meta-Agent automatically optimizes Harness parameters | ✅ Advanced Harness |
 
-## 2.4 快速判断清单
+## 2.4 Quick judgment checklist
 
-## 最小 Harness 判断（L2 — 至少满足以下全部）
-
-```
-□ 有 Agent Loop（循环执行，非一次性调用）
-□ 有工具调用（>= 2 个工具）
-□ 有超时保护
-□ 有最大迭代限制
-```
-
-## 生产级 Harness 判断（L3 — 在 L2 基础上增加）
+## Minimum Harness Judgment (L2 — At least meet all the following)
 
 ```
-□ 有验证层（>= 3 个验证器）           ← 关键分水岭
-□ 有约束层（只读 + 命令黑名单）
-□ 有上下文管理（分层构建）
-□ 有持久化（执行记录持久存储）
-□ 有 Prometheus 指标
-□ 有 CI/CD 质量门禁
-□ 有基线对比
-□ 有基本告警规则
+□ Has Agent Loop(loop execution, not single call)
+□ Has tool invocation (>= 2 tools)
+□ Has timeout protection
+□ Has maximum iteration limit
 ```
 
-## 企业级 Harness 判断（L4 — 在 L3 基础上增加）
+## Production-grade Harness Judgment (L3 — Add on top of L2)
 
 ```
-□ 有多 Agent 编排
-□ 有灰度发布流程
-□ 有 A/B 测试
-□ 有 OTel 全链路追踪
-□ 有 Langfuse 集成
-□ 有红队测试
-□ 有 LLM 提供商容灾
-□ 有 SLA 监控
-□ 有配置热更新
-□ 有 Prompt 版本管理
+□ Has verification layer (>= 3 verifiers)           ← key milestone
+□ Has constraints layer (read-only + command blacklist)
+□ Has context management (layered construction)
+□ Has persistence (persistent storage of execution records)
+□ Has Prometheus metrics
+□ Has CI/CD quality gates
+□ Has baseline comparison
+□ Has basic alert rules
 ```
 
-## 2.5 代码级 Harness 识别
+## Enterprise-grade Harness Judgment (L4 — Add on top of L3)
 
-## 有 Harness 的 Agent（典型结构）
+```
+□ Has multi-Agent orchestration
+□ Has gray release process
+□ Has A/B testing
+□ Has OTel full-trace
+□ Has Langfuse integration
+□ Has red team tests
+□ Has LLM provider disaster recovery
+□ Has SLA monitoring
+□ Has configuration hot update
+□ Has prompt version management
+```
+
+## 2.5 Code-Level Harness Recognition
+
+## Agents with Harnesses (Typical Structure)
 
 ```python
 class HarnessedAgent:
@@ -362,7 +365,7 @@ class HarnessedAgent:
         # Layer 4: Persistence
         self.memory = AsyncSQLAlchemyMemory(url="postgresql://...")
 
-        # Layer 5: Verification  ← 分水岭
+        # Layer 5: Verification  ← Watershed
         self.verifiers = [
             FaithfulnessVerifier(),
             FormatVerifier(),
@@ -378,104 +381,104 @@ class HarnessedAgent:
 
     async def run(self, task: str) -> dict:
         for i in range(self.max_iterations):
-            # Loop 驱动
+            # Loop-driven
             thought = await self.llm.reason(context)
             if thought.is_final:
-                # Verification 验证
+                # Verification: Validate
                 verified = await self.verify(thought.answer)
                 if verified:
                     return {"status": "success", "answer": thought.answer}
                 else:
                     continue  # 自检失败，重试
 
-            # Constraints 约束检查
+            # Constraints: Check constraints
             if not self.constraints.allow(thought.action):
                 return {"status": "blocked", "reason": "constraint_violation"}
 
-            # Tools 执行
+            # Tools: Execute
             result = await self.tool_registry.execute(thought.action)
 
-            # Context 更新
+            # Context: Update
             self.context_manager.add_observation(result)
 
-            # Persistence 记录
+            # Persistence: Record
             await self.memory.save_step(thought, result)
 ```
 
-## 无 Harness 的 Agent（裸 Agent）
+## Agents without Harnesses (Bare Agents)
 
 ```python
-# ❌ 裸 Agent：直接调用 LLM + 工具，无验证、无约束、无持久化
+# ❌ Bare Agent: Directly call LLM + tools, no verification, no constraints, no persistence
 class NakedAgent:
     def run(self, task: str) -> str:
         response = self.llm.chat(task)
         if response.tool_calls:
             result = self.execute_tool(response.tool_calls[0])
-            return self.llm.chat(f"工具返回: {result}")
+            return self.llm.chat(f"Tool returns: {result}")
         return response.content
 ```
 
-## 2.6 关键分水岭：验证层
+## 2.6 Critical Milestone: Validation Layer
 
-行业实证数据表明，**验证层是 Harness 区别于"裸 Agent"的关键分水岭**：
-
-```
-验证层 ROI 实证:
-
-LangChain 编码 Agent（2026-02 实验）:
-  无验证:        基准分 52.8%
-  添加自检循环:   基准分 66.5%  → +13.7% 绝对提升（最高单项改进）
-
-Anthropic 长运行 Agent:
-  无验证:        任务完成率 71%
-  带验证:        任务完成率 89%  → +18% 绝对提升
-
-验证拦截的问题类型:
-  - 幻觉输出: 40%
-  - 格式错误: 25%
-  - 逻辑不一致: 20%
-  - 安全风险: 15%
-```
-
-## 2.7 一句话总结
+Industry empirical data shows that **the validation layer is the key differentiator between Harness and "bare Agent"**:
 
 ```
-裸 Agent       = LLM + 工具 + Loop
-有 Harness     = 裸 Agent + 验证（自检循环）+ 约束（安全边界）+ 上下文管理 + 持久化 + 可观测性
+Validation layer ROI empirical:
 
-最简判断:
-  ✅ 有自检验证 + 有约束控制 → 有 Harness
-  ❌ 只有 LLM + 工具循环调用 → 裸 Agent
+LangChain coding Agent (2026-02 experiment):
+  No validation:        Baseline score 52.8%
+  Add self-check loop: baseline score 66.5% → +13.7% absolute improvement (highest single-item enhancement)
+
+Anthropic long-running Agent:
+  No validation:        Task completion rate 71%
+  Verified:      Task completion rate 89%  → +18% absolute improvement
+
+Verify the type of issues to intercept:
+  - Spurious output: 40%
+  - Format error: 25%
+  - Logical inconsistency: 20%
+  - Security risk: 15%
+```
+
+## 2.7 One-Liner Summary
+
+```
+Bare Agent = LLM + Tool + Loop
+With Harness = Bare Agent + Validation (self-check loop) + Constraints (security boundary) + Context Management + Persistence + Observability
+
+Simplest judgment:
+  ✅ Have self-check validation + Have constraint control → Have Harness
+  ❌ Only LLM + tool loop call → bare Agent
 ```
 
 ---
 
-<!-- chunk: 3. 综合识别矩阵 -->## 3. 综合识别矩阵
+## 3. Comprehensive Identification Matrix
 
-| 系统特征 | 纯 LLM | 裸 Agent | 基础 Harness (L2) | 生产 Harness (L3+) |
+| System Feature | Pure LLM | Bare Agent | Basic Harness (L2) | Production Harness (L3+)| 
 |---------|--------|---------|------------------|-------------------|
-| LLM 推理 | ✅ | ✅ | ✅ | ✅ |
-| 工具调用 | ❌ | ✅ | ✅ | ✅ |
+| LLM Inference | ✅ | ✅ | ✅ | ✅ |
+| Tool Call | ❌ | ✅ | ✅ | ✅ |
 | Agent Loop | ❌ | ✅ | ✅ | ✅ |
-| 超时/迭代限制 | ❌ | ❌/⚠️ | ✅ | ✅ |
-| 反漂移检测 | ❌ | ❌ | ⚠️ 可选 | ✅ |
-| 上下文管理 | ❌ | ❌ | ⚠️ 基础 | ✅ |
-| 持久化 | ❌ | ❌ | ❌ | ✅ |
-| **验证层** | ❌ | ❌ | ❌ | **✅ 分水岭** |
-| 约束层 | ❌ | ❌ | ❌ | ✅ |
-| 可观测性 | ❌ | ❌ | ❌ | ✅ |
-| 轨迹记录 | ❌ | ⚠️ | ✅ | ✅ |
-| 审计日志 | ❌ | ❌ | ❌ | ✅ |
+| Timeout/Iteration Limitations | ❌ | ❌/⚠️ | ✅ | ✅ |
+| Drift Detection | ❌ | ❌ | ⚠️ Optional | ✅ |
+| Context Management | ❌ | ❌ | ⚠️ Foundation | ✅ |
+| Persistence | ❌ | ❌ | ❌ | ✅ |
+| **Validation Layer** | ❌ | ❌ | ❌ | **✅ Watershed** | 
+| Constraint Layer | ❌ | ❌ | ❌ | ✅ |
+| Observability | ❌ | ❌ | ❌ | ✅ |
+| Trace Logging | ❌ | ⚠️ | ✅ | ✅ |
+| Audit Logs | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
-<!-- chunk: 4. 实战应用示例 -->## 4. 实战应用示例
+## 4. Real-World Application Examples
 
-## 4.1 评估现有 Agent 系统
+## 4.1 Assessment of Existing Agent Systems
 
 ```python
 class AgentSystemAssessment:
-    """Agent 系统快速评估工具"""
+    """Agent system quick evaluation tool"""
 
     def assess(self, agent_system: dict) -> dict:
         """
@@ -495,17 +498,17 @@ class AgentSystemAssessment:
             "has_observability": False,
         }
         """
-        # 1. 判断推理模式
+        # 1. Determine inference mode
         is_react = (
             agent_system.get("has_agent_loop", False)
             and agent_system.get("has_tools", False)
             and agent_system.get("has_thought_action_observation", True)
         )
 
-        # 2. 判断 Harness 等级
+        # 2. Determine Harness grade
         harness_level = self._assess_harness_level(agent_system)
 
-        # 3. 差距分析
+        # 3. Analyze differences
         gaps = self._gap_analysis(harness_level, agent_system)
 
         return {
@@ -538,86 +541,86 @@ class AgentSystemAssessment:
 
     def _recommend(self, level: str) -> str:
         recommendations = {
-            "L1": "添加 Agent Loop + 工具 + 超时保护，升级到 L2",
-            "L2": "添加验证层（最高 ROI 改进）+ 约束层，升级到 L3",
-            "L3": "添加完整可观测性 + 灰度发布，升级到 L4",
-            "L4": "探索 Meta-Agent 自优化，向 L5 演进",
+            "L1": "Add Agent Loop + Tool + Timeout Protection, upgrade to L2",
+            "L2": "Add Validation Layer (highest ROI improvement) + Constraint Layer, upgrade to L3",
+            "L3": "Add full observability + Canary Release, upgrade to L4",
+            "L4": "Explore Meta-Agent self-optimization, evolve to L5",
         }
-        return recommendations.get(level, "已达最高成熟度")
+        return recommendations.get(level, "Reached highest maturity level")
 ```
 
-## 4.2 团队 Code Review 中的 Agent 分类
+## 4.2 Classification of Agents in Team Code Reviews
 
-在团队 Code Review 中，可以使用以下问题快速分类：
+In team Code Reviews, you can use the following questions to quickly categorize:
 
 ```
-Agent 分类 Code Review Checklist:
+Agent Classification Code Review Checklist:
 
-1. 推理模式识别
-   Q: 执行过程中是否交替进行 Thought/Action/Observation？
-   → 是 → ReAct
-   → 否 → 检查是否是 Plan-and-Execute 或 CoT
+1. Inference mode recognition
+   Q: Are thoughts/actions/observations alternated during execution?
+   → Yes → ReAct
+   → No → Check if it is Plan-and-Execute or CoT
 
-2. Harness 等级识别
-   Q: 有没有输出验证（self-check）？
-   → 无 → 最多 L2（基础 Harness 或更低）
-   → 有 → 至少 L3
+2. Harness level recognition
+   Q: Is there any output validation (self-check)?
+   → None → Maximum L2 (Foundation Harness or lower)
+   → have → at least L3
 
-   Q: 有没有安全约束（命令黑名单/只读模式）？
-   → 无 → 不适合生产环境
-   → 有 → 继续检查其他维度
+   Q: Are there any security constraints (command blacklist/read-only mode)?
+   → Not applicable → Unsuitable for production environment
+   → There → Continue checking other dimensions
 
-   Q: 有没有可观测性（metrics/traces/logs）？
-   → 无 → 生产运维困难
-   → 有 → 具备生产级可观测性
+   Q: Are there observability (metrics/traces/logs)?
+   → None → Maintenance operations difficult
+   → have → possess
 ```
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Documentation | Associated Content |
 |------|---------|
-| [01 - AI Agent 基础与核心架构](./01-ai-agent-fundamentals.md) | ReAct/CoT/ToT/Reflexion 推理框架理论基础 |
-| [17 - AgentScope 核心概念](./17-agentscope-core-concepts.md) | AgentScope 中 ReActAgent 继承体系 |
-| [30 - Agent Harness 工程](./30-agent-harness-engineering.md) | Harness 六层架构总览、设计模式、行业实证 |
-| [31 - Harness Loop 与执行引擎](./31-agent-harness-loop-execution.md) | Loop 层状态机、反漂移检测 |
-| [34 - Harness 验证与质量门禁](./34-agent-harness-verification-quality.md) | 验证层（分水岭）设计详解 |
-| [35 - Harness 安全与约束工程](./35-agent-harness-security-constraints.md) | 约束层四层模型 |
-| [40 - Harness 生产运维与成熟度模型](./40-agent-harness-production-maturity.md) | 五级成熟度评估清单 |
+| [01 - AI Agent Fundamentals and Core Architecture](./01-ai-agent-fundamentals.md) | ReAct/CoT/ToT/Reflexion Inference Framework Theoretical Foundations |
+| [17 - AgentScope Core Concepts](./17-agentscope-core-concepts.md) | ReActAgent Inheritance System in AgentScope |
+| [30 - Harness Engineering](./30-agent-harness-engineering.md) | Six-layer Architecture Overview, Design Patterns, Industry Proofs |
+| [31 - Harness Loop and Execution Engine](./31-agent-harness-loop-execution.md) | State Machine at Loop Layer, Anti-drift Detection |
+| [34 - Harness Verification and Quality Gates](./34-agent-harness-verification-quality.md) | Validation Layer (Watershed) Detailed Design |
+| [35 - Harness Security and Constraint Engineering](./35-agent-harness-security-constraints.md) | Four-layer Model of Constraint Layer |
+| [40 - Harness Production Operations and Maturity Model](./40-agent-harness-production-maturity.md) | Five-stage Maturity Assessment Checklist |
 
 ---
 
-<!-- chunk: 参考来源 -->## 参考来源
+## References
 
-| 来源 | 内容 | 日期 |
+| Source | Content | Date |
 |------|------|------|
-| Yao et al. | 《ReAct: Synergizing Reasoning and Acting in Language Models》 | 2022-10 |
-| Birgitta Böckeler (Martin Fowler) | 《Harness Engineering》概念提出 | 2026-02 |
-| Anthropic | 《Building Effective Agents》、《Effective Harnesses for Long-Running Agents》 | 2025-12 |
-| LangChain | Agent Loop 反漂移检测实验、自检循环 ROI 数据 | 2026-02 |
-| Sean Goedecke (GitHub) | Copilot Agent Mode 执行引擎设计 | 2025 |
+| Yao et al. | "ReAct: Synergizing Reasoning and Acting in Language Models" | 2022-10 |
+| Birgitta Böckeler (Martin Fowler) | "Harness Engineering" Concept Introduced | 2026-02 |
+| Anthropic | "Building Effective Agents", "Effective Harnesses for Long-Running Agents" | 2025-12 |
+| LangChain | Agent Loop Drift Detection Experiment, Self-check Loop ROI Data | 2026-02 |
+| Sean Goedecke (GitHub) | Copilot Agent Mode Execution Engine Design | 2025 |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 系列原创内容，提供 ReAct Agent 与 Harness 的系统化识别方法。*
+*This document is original content from the kudig-database project series 02-ai-agents, providing a systematic identification method for ReAct Agents and Harness.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian-related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM 基座模型选型与评估|LLM 基座模型选型与评估]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM Foundation Model Selection and Evaluation|LLM Foundation Model Selection and Evaluation]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Main Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Architecture for Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|System for Agent Evaluation and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

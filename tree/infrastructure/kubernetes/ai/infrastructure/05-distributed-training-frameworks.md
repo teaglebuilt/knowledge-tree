@@ -1,9 +1,9 @@
 ---
-title: 分布式训练框架
-description: 深入解析 AI 分布式训练框架在 K8s 上的部署：PyTorch DDP/FSDP、TensorFlow MultiWorkerMirroredStrategy、DeepSpeed、Horovod、MPI
-  作业调度与 NCCL 调优
-summary: 深入解析 AI 分布式训练框架在 K8s 上的部署：PyTorch DDP/FSDP、TensorFlow MultiWorkerMirroredStrategy、DeepSpeed、Horovod、MPI
-  作业调度与 NCCL 调优
+title: Distributed Training Framework
+description: Deeply analyze the deployment of AI distributed training frameworks on K8s: PyTorch DDP/FSDP, TensorFlow MultiWorkerMirroredStrategy, DeepSpeed, Horovod, MPI
+  job scheduling and NCCL optimization
+summary: Deeply analyze the deployment of AI distributed training frameworks on K8s: PyTorch DDP/FSDP, TensorFlow MultiWorkerMirroredStrategy, DeepSpeed, Horovod, MPI
+  ask scheduling and NCCL uning
 category: domain-11-ai-infra
 tags:
 - k8s
@@ -22,16 +22,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineer
+- MLOps Engineer
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 分布式训练框架 是什么
-- 如何 分布式训练框架
-- Kubernetes 11 ai infra 最佳实践
+- What is a distributed training framework
+- How to use a distributed training framework
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- 分布式训练框架
+- Distributed Training Framework
 - ai
 - infra
 prerequisites:
@@ -53,71 +53,73 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
 related_docs:
 - path: 01-ai-infrastructure-overview.md
   type: depth
-  desc: AI 基础设施架构
+  desc: AI Infrastructure Architecture
 - path: 03-gpu-scheduling-management.md
   type: depth
-  desc: GPU 调度与管理
+  desc: GPU Scheduling and Management
 - path: ../domain-14-ai-ml-infra/02-ai-agents/
   type: ai-agent
-  desc: AI Agent 工程
+  desc: AI Agent Engineering
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/05-distributed-training-frameworks.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 分布式训练框架
+# Distributed Training Frameworks
 
-> **适用版本**: v1.25 - v1.32 | **最后更新**: 2026-01 | **参考**: [PyTorch Distributed](https://pytorch.org/tutorials/beginner/dist_overview.html) | [DeepSpeed](https://www.deepspeed.ai/)
+> **Applicable Version**: v1.25 - v1.32 | **Last Updated**: 2026-01 | **Reference**: [PyTorch Distributed](https://pytorch.org/tutorials/beginner/dist_overview.html) | [DeepSpeed](https://www.deepspeed.ai/)
 
-<!-- chunk: 分布式训练架构对比 -->
-## 分布式训练架构对比
+
+## Distributed Training Architecture Comparison
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│             数据并行 (Data Parallelism)                      │
+│             Data Parallelism                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ 完整模型 │  │ 完整模型 │  │ 完整模型 │  │ 完整模型 │   │
+│  │ Full Model │  │ Full Model │  │ Full Model │  │ Full Model │   │
 │  │ GPU 0    │  │ GPU 1    │  │ GPU 2    │  │ GPU 3    │   │
-│  │ 数据分片1│  │ 数据分片2│  │ 数据分片3│  │ 数据分片4│   │
+│  │ Shard 1    │  │ Shard 2    │  │ Shard 3    │  │ Shard 4    │   │
 │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
 │       └──────────────┴──────────────┴──────────────┘       │
-│                    梯度同步 (AllReduce)                     │
+│                    Gradient Synchronization (AllReduce) │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│             模型并行 (Model Parallelism)                     │
+│             Model Parallelism                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ 层 1-10  │─→│ 层11-20  │─→│ 层21-30  │─→│ 层31-40  │   │
+│  │ level 1-10  │─→│ level11-20  │─→│ level21-30  │─→│ level31-40  │   │
 │  │ GPU 0    │  │ GPU 1    │  │ GPU 2    │  │ GPU 3    │   │
-│  │ 完整数据 │  │ 完整数据 │  │ 完整数据 │  │ 完整数据 │   │
+│  │ Full Data  │  │ Full Data  │  │ Full Data  │  │ Full Data  │   │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-│                    流水线并行 (Pipeline)                    │
+│                    Pipeline Parallelism                │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│        3D并行 (DP + PP + TP - DeepSpeed/Megatron)          │
+│        3D Parallelism (DP + PP + TP - DeepSpeed/Megatron) │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │  Data Parallel Group 1                             │    │
 │  │  ┌──────────┐  ┌──────────┐  (Tensor Parallel)    │    │
-│  │  │层1-20切片│  │层21-40切片│                        │    │
+│  │  │ Shard 1-20 │  │ Shard 21-40 │                        │    │
 │  │  │  GPU 0   │  │  GPU 1   │  ← Pipeline Stage 1  │    │
 │  │  └──────────┘  └──────────┘                        │    │
 │  │  ┌──────────┐  ┌──────────┐                        │    │
-│  │  │层41-60切片│ │层61-80切片│                        │    │
+│  │  │ Shard 41-60 │ │ Shard 61-80 │                        │    │
 │  │  │  GPU 2   │  │  GPU 3   │  ← Pipeline Stage 2  │    │
 │  │  └──────────┘  └──────────┘                        │    │
 │  └────────────────────────────────────────────────────┘    │
@@ -126,12 +128,12 @@ related_docs:
 
 ---
 
-<!-- chunk: 一、PyTorch分布式训练 -->
-## 一、PyTorch分布式训练
+
+## 1. PyTorch Distributed Training
 
 ### 1. DistributedDataParallel (DDP)
 
-#### 训练脚本
+#### Training Script
 
 ```python
 import torch
@@ -140,7 +142,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data.distributed import DistributedSampler
 
 def setup(rank, world_size):
-    """初始化分布式环境"""
+    """Initialize distributed environment"""
     dist.init_process_group(
         backend="nccl",  # GPU推荐nccl
         init_method="env://",  # 从环境变量读取配置
@@ -155,11 +157,11 @@ def cleanup():
 def train(rank, world_size):
     setup(rank, world_size)
     
-    # 模型包装
+    # Model wrapper
     model = YourModel().cuda(rank)
     model = DDP(model, device_ids=[rank])
     
-    # 数据加载器(关键)
+    # Data loader (key)
     train_dataset = YourDataset()
     train_sampler = DistributedSampler(
         train_dataset,
@@ -177,7 +179,7 @@ def train(rank, world_size):
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
     
-    # 训练循环
+    # Training loop
     for epoch in range(10):
         train_sampler.set_epoch(epoch)  # 打乱数据
         
@@ -193,7 +195,7 @@ def train(rank, world_size):
             loss.backward()  # 自动梯度同步
             optimizer.step()
         
-        # 仅rank 0保存检查点
+        # Save checkpoints only for rank 0
         if rank == 0:
             torch.save({
                 'epoch': epoch,
@@ -209,7 +211,7 @@ if __name__ == "__main__":
     train(rank, world_size)
 ```
 
-#### PyTorchJob配置
+#### PyTorchJob Configuration
 
 ```yaml
 apiVersion: kubeflow.org/v1
@@ -293,13 +295,13 @@ spec:
 
 ### 2. FSDP (Fully Sharded Data Parallel)
 
-#### 核心优势
+#### Core Advantages
 
-- **显存优化**: 模型参数、梯度、优化器状态全部分片
-- **零冗余**: 相比DDP节省显存 8x (8卡场景)
-- **通信优化**: AllGather + ReduceScatter
+- **Memory Optimization**: Splitting model parameters, gradients, and optimizer states
+- **Zero Redundancy**: Saves 8x GPU memory compared to DDP (8xA100 scenario)
+- **Communication Optimization**: AllGather + ReduceScatter
 
-#### FSDP配置
+#### FSDP Configuration
 
 ```python
 import torch
@@ -314,19 +316,19 @@ from torch.distributed.fsdp.wrap import (
     transformer_auto_wrap_policy,
 )
 
-# 混合精度配置
+# Mixed precision configuration
 mixed_precision_policy = MixedPrecision(
     param_dtype=torch.float16,
     reduce_dtype=torch.float16,
     buffer_dtype=torch.float16,
 )
 
-# 自动包装策略(按层大小)
+# Automatic packaging strategy (by layer size)
 auto_wrap_policy = size_based_auto_wrap_policy(
     min_num_params=1e8  # 1亿参数以上的层独立分片
 )
 
-# 或者按Transformer层包装
+# Or package by Transformer layers
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 auto_wrap_policy = partial(
     transformer_auto_wrap_policy,
@@ -343,36 +345,36 @@ model = FSDP(
     device_id=torch.cuda.current_device(),
 )
 
-# 训练循环与DDP相同
+# Training loop and DDP are the same
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 ```
 
-#### FSDP vs DDP显存对比
+#### FSDP vs DDP Memory Comparison
 
-| 模型规模 | DDP (8xA100) | FSDP (8xA100) | 节省 |
+| Model Size | DDP (8xA100) | FSDP (8xA100) | Savings |
 |---------|-------------|--------------|------|
 | **7B** | 56GB | 20GB | 64% |
-| **13B** | OOM | 35GB | 可训练 |
-| **70B** | OOM | OOM(需CPU offload) | - |
-| **70B+CPU Offload** | - | 60GB | 可训练 |
+| **13B** | OOM | 35GB | Trainable |
+| **70B** | OOM | OOM (requires CPU offloading) | - |
+| **70B+CPU Offload** | - | 60GB | Trainable |
 
 ---
 
-<!-- chunk: 二、DeepSpeed -->
-## 二、DeepSpeed
 
-### ZeRO优化阶段
+## 2. DeepSpeed
 
-| ZeRO阶段 | 分片内容 | 显存节省 | 通信开销 | 适用场景 |
+### Zero Optimization Phase
+
+| Zero-Ro Stage | Split Content | Memory Savings | Communication Overhead | Applicable Scenario |
 |---------|---------|---------|---------|---------|
-| **ZeRO-0** | 无分片 | 1x | 1x | 基准 |
-| **ZeRO-1** | 优化器状态 | 4x | 1.5x | <10B模型 |
-| **ZeRO-2** | 优化器+梯度 | 8x | 2x | 10-50B模型 |
-| **ZeRO-3** | 优化器+梯度+参数 | Nd倍 | 1.5x | 50B+模型 |
+| **Zero-Ro-0** | No Split | 1x | 1x | Baseline |
+| **Zero-Ro-1** | Optimizer State | 4x | 1.5x | <10B models |
+| **Zero-Ro-2** | Optimizer + Gradients | 8x | 2x | 10-50B models |
+| **Zero-Ro-3** | Optimizer + Gradients + Parameters | Nd times | 1.5x | 50B+ models |
 
 ---
 
-### DeepSpeed配置
+### DeepSpeed Configuration
 
 #### ds_config.json
 
@@ -446,25 +448,25 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 }
 ```
 
-#### 训练脚本
+#### Training Script
 
 ```python
 import deepspeed
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# 模型加载
+# Model loading
 model = AutoModelForCausalLM.from_pretrained("meta-llama/Llama-2-70b-hf")
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-70b-hf")
 
-# DeepSpeed初始化
+# DeepSpeed initialization
 model_engine, optimizer, _, _ = deepspeed.initialize(
     model=model,
     model_parameters=model.parameters(),
     config="ds_config.json"
 )
 
-# 训练循环
+# Training loop
 for step, batch in enumerate(train_dataloader):
     inputs = tokenizer(batch["text"], return_tensors="pt", padding=True)
     inputs = {k: v.to(model_engine.device) for k, v in inputs.items()}
@@ -478,7 +480,7 @@ for step, batch in enumerate(train_dataloader):
     if step % 100 == 0:
         print(f"Step {step}, Loss: {loss.item()}")
     
-    # 保存检查点
+    # Save checkpoints
     if step % 1000 == 0:
         model_engine.save_checkpoint("/checkpoint", tag=f"step_{step}")
 ```
@@ -536,30 +538,30 @@ spec:
 
 ---
 
-<!-- chunk: 三、Megatron-LM (NVIDIA) -->
-## 三、Megatron-LM (NVIDIA)
 
-### 3D并行配置
+## 3. Megatron-LM (NVIDIA)
+
+### 3D Parallel Configuration
 
 ```bash
-# Megatron-LM训练命令
+# Megatron-LM training command
 python pretrain_gpt.py \
-  --tensor-model-parallel-size 8 \    # 张量并行度(单节点8卡)
-  --pipeline-model-parallel-size 4 \  # 流水线并行度(4个stage)
-  --num-layers 96 \                   # 模型层数
-  --hidden-size 12288 \               # 隐藏层大小
-  --num-attention-heads 96 \          # 注意力头数
-  --seq-length 2048 \                 # 序列长度
+  --tensor-model-parallel-size 8 \    # Tensor parallelism (8 GPUs per node)
+  --pipeline-model-parallel-size 4 \  # Pipeline parallelism (4 stages)
+  --num-layers 96 \                   # Number of layers
+  --hidden-size 12288 \               # Hidden layer size
+  --num-attention-heads 96 \          # Number of attention heads
+  --seq-length 2048 \                 # Sequence length
   --max-position-embeddings 2048 \
-  --micro-batch-size 4 \              # 微批次大小
-  --global-batch-size 512 \           # 全局批次大小
-  --train-iters 500000 \              # 训练步数
-  --lr 1.5e-4 \                       # 学习率
+  --micro-batch-size 4 \              # Micro-batch size
+  --global-batch-size 512 \           # Global batch size
+  --train-iters 500000 \              # Number of training iterations
+  --lr 1.5e-4 \                       # Learning rate
   --lr-decay-style cosine \
   --min-lr 1.0e-5 \
   --weight-decay 0.1 \
   --clip-grad 1.0 \
-  --fp16 \                            # 混合精度
+  --fp16 \                            # Mixed precision
   --data-path /data/my-dataset \
   --vocab-file /data/vocab.json \
   --merge-file /data/merges.txt \
@@ -570,8 +572,8 @@ python pretrain_gpt.py \
 
 ---
 
-<!-- chunk: 四、Ray Train (分布式训练编排) -->
-## 四、Ray Train (分布式训练编排)
+
+## 4. Ray Train (Distributed Training Orchestration)
 
 ### Ray Cluster on K8s
 
@@ -584,7 +586,7 @@ metadata:
 spec:
   rayVersion: '2.9.0'
   
-  # Head节点
+  # Head node
   headGroupSpec:
     serviceType: ClusterIP
     rayStartParams:
@@ -606,7 +608,7 @@ spec:
                 cpu: 8
                 memory: 32Gi
   
-  # Worker节点
+  # Worker node
   workerGroupSpecs:
     - replicas: 8
       minReplicas: 4
@@ -633,7 +635,7 @@ spec:
                 claimName: training-data-pvc
 ```
 
-### Ray Train训练脚本
+### Ray Train Training Script
 
 ```python
 import ray
@@ -645,7 +647,7 @@ def train_func(config):
     import torch
     from torch.nn.parallel import DistributedDataParallel as DDP
     
-    # Ray自动处理分布式环境
+    # Ray automates distributed environment management
     model = YourModel()
     model = train.torch.prepare_model(model)  # 自动DDP包装
     
@@ -662,10 +664,10 @@ def train_func(config):
             loss.backward()
             optimizer.step()
         
-        # 报告指标
+        # Report Metrics
         train.report({"loss": loss.item(), "epoch": epoch})
 
-# 配置训练器
+# Configure Trainer
 trainer = TorchTrainer(
     train_func,
     scaling_config=ScalingConfig(
@@ -684,49 +686,49 @@ trainer = TorchTrainer(
     ),
 )
 
-# 启动训练
+# Start training
 result = trainer.fit()
 ```
 
 ---
 
-<!-- chunk: 五、通信后端优化 -->
-## 五、通信后端优化
 
-### NCCL配置最佳实践
+## 5. Communication Backend Optimization
+
+### NCCL Best Practices Configuration
 
 ```bash
-# 基础配置
+# Foundation Configuration
 export NCCL_DEBUG=INFO
 export NCCL_DEBUG_SUBSYS=ALL
 
-# InfiniBand/RoCE配置
+# InfiniBand/RoCE Configuration
 export NCCL_IB_DISABLE=0
 export NCCL_IB_HCA=mlx5_0:1,mlx5_1:1,mlx5_2:1,mlx5_3:1
 export NCCL_IB_GID_INDEX=3
 export NCCL_NET_GDR_LEVEL=5  # GPU Direct RDMA
 export NCCL_IB_TC=106        # 流量类别
 
-# P2P通信
+# Peer-to-Peer Communication
 export NCCL_P2P_DISABLE=0
 export NCCL_P2P_LEVEL=SYS    # NVLink优先
 
-# 网络接口
+# Network interface
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_TIMEOUT=22
 
-# 性能调优
+# Performance Tuning
 export NCCL_BUFFSIZE=8388608       # 8MB buffer
 export NCCL_NTHREADS=512           # 线程数
 export NCCL_NSOCKS_PERTHREAD=8     # 每线程socket数
 export NCCL_SOCKET_NTHREADS=8
 
-# 拓扑优化
+# Topology Optimization
 export NCCL_TOPO_FILE=/etc/nccl_topo.xml
 export NCCL_GRAPH_FILE=/etc/nccl_graph.txt
 ```
 
-### 通信性能测试
+### Communication Performance Testing
 
 ```bash
 # NCCL Tests
@@ -734,10 +736,10 @@ git clone https://github.com/NVIDIA/nccl-tests.git
 cd nccl-tests
 make
 
-# AllReduce测试(模拟梯度同步)
+# AllReduce test (simulate gradient synchronization)
 ./build/all_reduce_perf -b 8 -e 128M -f 2 -g 8
 
-# 输出示例:
+# Example Output:
 # #    bytes   #iters  time(us)  algbw(GB/s)  busbw(GB/s)
 #   8388608      100    1243.2       6.75       11.81
 #  16777216      100    2198.4       7.63       13.35
@@ -746,90 +748,90 @@ make
 
 ---
 
-<!-- chunk: 六、框架选型决策 -->
-## 六、框架选型决策
 
-### 训练规模推荐
+## 6. Framework Selection Decisions
 
-| 模型规模 | GPU数量 | 推荐方案 | 配置要点 |
+### Training Size Recommendations
+
+| Model Size | Number of GPUs | Recommended Solution | Configuration Points |
 |---------|---------|---------|---------|
-| **<1B** | 1-8 | PyTorch DDP | 标准数据并行 |
-| **1B-10B** | 8-64 | PyTorch FSDP | ZeRO-2等价 |
+| **<1B** | 1-8 | PyTorch DDP | Standard Data Parallelism |
+| **1B-10B** | 8-64 | PyTorch FSDP | Equivalent to Zero-Ro-2 |
 | **10B-100B** | 64-512 | DeepSpeed ZeRO-3 | CPU offload |
 | **100B+** | 512+ | Megatron-LM 3D | TP+PP+DP |
 
-### 框架特性对比
+### Framework Feature Comparison
 
-| 特性 | PyTorch DDP | FSDP | DeepSpeed | Megatron |
+| Feature | PyTorch DDP | FSDP | DeepSpeed | Megatron |
 |------|------------|------|-----------|----------|
-| **易用性** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| **显存优化** | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **通信效率** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **模型规模** | <10B | <50B | <200B | 1T+ |
-| **生态成熟度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Usability** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **Memory Optimization** | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Communication Efficiency** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Model Size** | <10B | <50B | <200B | 1T+ |
+| **Ecosystem Maturity** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
 
 ---
 
-<!-- chunk: 七、生产最佳实践 -->
-## 七、生产最佳实践
 
-### 训练稳定性
+## 7. Production Best Practices
 
-- ✅ 启用梯度裁剪(gradient clipping)
-- ✅ 配置自动重启策略
-- ✅ 频繁保存检查点(每N步)
-- ✅ 监控GPU温度和ECC错误
-- ✅ 配置OOM重试机制
+### Training Stability
 
-### 性能优化
+- ✅ Enable gradient clipping
+- ✅ Configure automatic restart strategy
+- ✅ Save checkpoints frequently (every N steps)
+- ✅ Monitor GPU temperature and ECC errors
+- ✅ Configure OOM retry mechanism
 
-- ✅ 使用混合精度训练(FP16/BF16)
-- ✅ 启用梯度累积(gradient accumulation)
-- ✅ 优化DataLoader(num_workers/pin_memory)
-- ✅ 启用编译优化(torch.compile)
-- ✅ 使用Flash Attention 2
+### Performance Optimization
 
-### 成本优化
+- ✅ Use mixed precision training (FP16/BF16)
+- ✅ Enable gradient accumulation
+- ✅ Optimize DataLoader (num_workers/pin_memory)
+- ✅ Enable compilation optimization (torch.compile)
+- ✅ Use Flash Attention 2
 
-- ✅ Spot实例+检查点容错
-- ✅ 混合使用多代GPU(A100+V100)
-- ✅ 动态调整batch size
-- ✅ 数据预处理离线化
-- ✅ 模型并行度自动调优
+### Cost Optimization
 
----
-
-**表格维护**: Kusheet Project | **作者**: Allen Galler (allengaller@gmail.com)
+- ✅ Spot instances + checkpoint fault tolerance
+- ✅ Hybrid use of multi-generational GPUs (A100+V100)
+- ✅ Dynamically adjust batch size
+- ✅ Offline data preprocessing
+- ✅ Automatic model parallelism tuning
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**Table Maintenance**: Kusheet Project | **Author**: Allen Galler (allengaller@gmail.com)
+
+---
+
+
+## Obsidian Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## Related
 
 - [[README]]
 - [[MOC]]
 
-- AI 基础设施架构
-- GPU 调度与管理
-- 相关知识域: domain-02-workloads-applications
-- 相关知识域: domain-03-networking-traffic
-- [[domain-17-system-foundation/topic-cheat-sheet/go.md|速查卡: go]]
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- AI Infrastructure Architecture
+- GPU Scheduling and Management
+- Related Knowledge Domain: domain-02-workloads-applications
+- Related Knowledge Domain: domain-03-networking-traffic
+- [[domain-17-system-foundation/topic-cheat-sheet/go.md|Cheat Sheet: go]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 ## See Also
 

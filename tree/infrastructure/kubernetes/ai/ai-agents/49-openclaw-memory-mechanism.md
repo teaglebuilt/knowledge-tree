@@ -1,6 +1,7 @@
----title: OpenClaw MEMORY.md 机制深度解析 (domain-14-ai-ml-infra)
-description: 'title: OpenClaw MEMORY.md 机制深度解析'
-summary: 'title: OpenClaw MEMORY.md 机制深度解析'
+---
+title: OpenClaw MEMORY.md Mechanism Deep Dive (domain-14-ai-ml-infra)
+description: 'title: OpenClaw MEMORY.md Mechanism Deep Dive'
+summary: 'title: OpenClaw MEMORY.md Mechanism Deep Dive'
 category: general
 tags:
 - ai
@@ -17,16 +18,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- OpenClaw MEMORY.md 机制深度解析 是什么
-- 如何 OpenClaw MEMORY.md 机制深度解析
-- Kubernetes 14 ai ml infra 最佳实践
+- What is OpenClaw MEMORY.md Mechanism Deep Dive
+- How to do OpenClaw MEMORY.md Mechanism Deep Dive
+- Best Practices for OpenClaw MEMORY.md Mechanism Deep Dive in Kubernetes 14 ai ml infra
 trigger_keywords:
 - OpenClaw
 - MEMORY.md
-- 机制深度解析
+- What is OpenClaw MEMORY.md Mechanism Deep Dive
 - ai
 - ml
 - infra
@@ -37,17 +38,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/49-openclaw-memory-mechanism.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: OpenClaw MEMORY.md 机制深度解析
-description: '# OpenClaw MEMORY.md 机制深度解析'
+title: OpenClaw MEMORY.md Mechanism Deep Dive
+description: '# OpenClaw MEMORY.md Mechanism Deep Dive'
 category: ai-agent
 tags:
 - ai
@@ -62,17 +65,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- OpenClaw MEMORY.md 机制深度解析 是什么
-- 如何 OpenClaw MEMORY.md 机制深度解析
+- What is OpenClaw MEMORY.md Mechanism Deep Dive
+- How to OpenClaw MEMORY.md Mechanism Deep Dive
 trigger_keywords:
 - OpenClaw
 - MEMORY.md
-- 机制深度解析
+- Mechanism Deep Dive
 - ai
 - agent
 authors:
@@ -86,284 +89,284 @@ k8s_versions:
 - '1.32'
 ---
 
-# OpenClaw MEMORY.md 机制深度解析
+# OpenClaw MEMORY.md Mechanism Deep Dive
 
-> **文档类型**: 前沿工程专题 | **最后更新**: 2026-04 | **关键词**: OpenClaw, MEMORY.md, 记忆系统, Persistence 层, 长期记忆, 短期记忆, 新陈代谢, 经验积累
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-MEMORY.md 是 OpenClaw File-First 架构中管理 **Agent 长期记忆** 的配置文件。它存储跨会话的经验、模式和确定性规则，让 Agent 具备"学习能力"——每次诊断的经验都能积累下来，逐步提升诊断效率和准确率。在 Harness Engineering 中主要映射到 **Persistence 层**。
-
-MEMORY.md 配合 `memory/` 目录（短期记忆）构成完整的记忆系统：MEMORY.md 存储长期规则和模式，`memory/YYYY-MM-DD.md` 存储每日诊断流水。
+> **Document Type**: Frontier Engineering Special Topic | **Last Updated**: 2026-04 | **Keywords**: OpenClaw, MEMORY.md, Memory System, Persistence Layer, Long-Term Memory, Short-Term Memory, Metabolism, Experience Accumulation
 
 ---
 
-<!-- chunk: 1. 设计原理 -->## 1. 设计原理
+## Overview
 
-## 1.1 三层记忆模型
+MEMORY.md is a configuration file in the OpenClaw File-First architecture responsible for managing **Agent's long-term memory**. It stores cross-session experiences, patterns, and deterministic rules, enabling the Agent to possess "learning capability"—each diagnostic experience can be accumulated over time, gradually improving diagnostic efficiency and accuracy. In Harness Engineering, it primarily maps to the **Persistence Layer**.
+
+MEMORY.md works in conjunction with the `memory/` directory (short-term memory) to form a complete memory system: MEMORY.md stores long-term rules and patterns, while `memory/YYYY-MM-DD.md` stores daily diagnostic logs.
+
+---
+
+## 1. Design Principles
+
+## 1.1 Three-Level Memory Model
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-MEMORY.md 三层记忆模型:
+# 🟢 Low Risk: read-only/information collection, usually with no side effects
+MEMORY.md three-layer memory model:
 
-Layer 1: 确定性规则（人工维护）
-  │  集群环境基线: 节点数、版本、CNI、存储方案
-  │  已知问题: KI-001 Terway ENI 延迟、KI-002 ESSD Multi-Attach
-  │  团队约定: Namespace 命名规范、变更流程
-  │  特点: 100% 准确，手动创建和更新
+Layer 1: deterministic rules (maintained manually)
+  │  Cluster baseline: number of nodes, version, CNI, storage solution
+  │  Known issues: KI-001 Terway ENI latency, KI-002 ESSD Multi-Attach
+  │  Team agreement: namespace naming conventions, change process
+  │  Characteristics: 100% accurate, manually created and updated
   │
-Layer 2: 经验模式（Agent 自动提炼）
-  │  高频故障模式: 症状→根因的统计规律
-  │  有效诊断路径: 哪些步骤最高效
-  │  失败教训: 走过的弯路和误判
-  │  特点: 概率性知识，需标注置信度
+Layer 2: empirical mode (Agent automatically abstracts)
+  │  Frequent failure patterns: statistical laws of symptoms to root causes
+  │  Effective diagnostic path: which steps are most efficient
+  │  Lessons learned: detours and misjudgments
+  │  Characteristics: probabilistic knowledge, must annotate confidence
   │
-Layer 3: 用户偏好（交互学习）
-     常用命令: 用户习惯的 kubectl 用法
-     关注指标: 用户最关心的监控维度
-     历史反馈: 对 Agent 输出的正/负面反馈
-     特点: 个性化定制，随使用而丰富
+Layer 3: user preferences (interactive learning)
+     Common commands: kubectl usage habits of users
+     Key metrics: monitoring dimensions that users care about most
+     Historical feedback: positive/negative feedback on Agent outputs
+     Characteristics: personalized customization, enriched with use
 ```
-## 1.2 记忆流转机制
+## 1.2 Memory Flow Mechanism
 
 ```
-记忆生命周期:
+Memory lifecycle:
 
-日常诊断中产生
+Generated during routine diagnosis
   │
   ▼
-短期记忆: memory/2026-04-03.md
-  │  每次诊断的关键发现、使用的命令、诊断路径
-  │  保留期: 7 天
+Short-term memory: memory/2026-04-03.md
+  │  Key findings in each diagnosis, commands used, diagnostic path
+  │  Retention period: 7 days
   │
-  ▼ 每周提炼（手动或自动）
-情景记忆: 重要事件和解决方案
-  │  "2026-04-03 ack-prod 集群发生大规模 OOM，根因是 Java 应用内存泄漏"
-  │  保留期: 3 个月
+  ▼ Extraction weekly (manually or automatically)
+Situational memory: important events and solutions
+  │  "2026-04-03 ack-prod cluster experienced a large-scale OOM, root cause was Java application memory leak"
+  │  Retention period: 3 months
   │
-  ▼ 模式抽象（累计 3+ 次同类事件后）
-语义记忆: MEMORY.md 中的规则和模式
-  │  "FP-001: 高频故障模式 — Java 应用 OOM，首查 JVM 堆配置"
-  │  保留期: 根据置信度和使用频率
+  ▼ Pattern abstraction (after 3+ similar events)
+Semantic memory: rules and patterns in MEMORY.md
+  │  "FP-001: Frequent fault pattern — Java application OOM, first check JVM heap configuration"
+  │  Retention period: Based on confidence and usage frequency
   │
-  ▼ 检索注入
-下次会话: MEMORY.md + 最近 3 天 memory/ → 注入上下文
+  ▼ Query injection
+Next session: MEMORY.md + recent 3 days memory/ → injection context
 ```
 
-## 1.3 新陈代谢机制
+## 1.3 Metabolism Mechanism
 
 ```
-记忆新陈代谢（防止记忆膨胀）:
+Memory metabolism (to prevent memory expansion):
 
-保留策略:
-  确定性规则 → 永久保留（手动删除）
-  高置信模式 → 保留 6 个月
-  中置信模式 → 保留 3 个月
-  低置信模式 → 保留 1 个月
+Retention strategy:
+  Certain rules → Permanent retention (manual deletion)
+  High-confidence patterns → Retain for 6 months
+  Medium-confidence patterns → Retain for 3 months
+  Low-confidence patterns → Retain for 1 month
 
-淘汰条件:
-  - 超过保留期
-  - 30 天内未被引用
-  - 被新记忆覆盖
+Elimination criteria:
+  - Exceeds retention period
+  - Not referenced within 30 days
+  - Covered by new memories
 
-质量指标:
-  avg_confidence: 0.82       # 平均置信度
-  utilization_rate: 0.75     # 75% 的模式在近 30 天被引用
-  stale_entries: 2           # 超 3 个月未引用的条目数
+quality metrics:
+  avg_confidence: 0.82       # average confidence
+  utilization_rate: 0.75     # 75% of patterns were referenced in the last 30 days
+  stale_entries: 2           # number of entries older than 3 months
 
-目标: 保持记忆的"信噪比" > 0.7
-  记忆不是越多越好，过时记忆 = 噪声 = 误导决策
+goal: keep the "signal-to-noise ratio" of memories > 0.7
+  memories are not better when more exist, outdated memories = noise = misleading decisions
 ```
 
 ---
 
-<!-- chunk: 2. Harness Engineering 映射 -->## 2. Harness Engineering 映射
+## 2. Harness Engineering Mapping
 
-## 2.1 映射关系
+## 2.1 Mapping Relationships
 
 ```
-MEMORY.md × Harness 六层映射:
+MEMORY.md × Harness six-layer mapping:
 
                │ Loop │ Tools │ Context │ Persist │ Verify │ Constrain │
 ──────────────┼──────┼───────┼─────────┼─────────┼────────┼───────────│
 MEMORY.md     │      │       │    ◐    │    ●    │        │           │
 
-● = 主要映射（Persistence 层 — 持久化存储）
-◐ = 次要映射（Context 层 — 记忆注入上下文）
+● = main mapping (Persistence layer — persistent storage)
+◐ = secondary mapping (Context layer — memory injection context)
 ```
 
-## 2.2 Persistence 层映射详解
+## 2.2 Persistence Layer Mapping Details
 
-| MEMORY.md 内容 | Harness Persistence 实现 | 存储方式 |
+| MEMORY.md Content | Harness Persistence Implementation | Storage Method |
 |---------------|------------------------|---------|
-| 确定性规则（1） | `RuleStore` — 规则持久化 | YAML 格式，手动维护 |
-| 经验模式（2） | `PatternStore` — 模式持久化 | Agent 自动写入，带置信度 |
-| 用户偏好（3） | `PreferenceStore` — 偏好持久化 | 交互学习，自动更新 |
-| 管理元数据（4） | `MemoryMetadata` — 元数据管理 | 自动统计和维护 |
-| memory/ 目录 | `DailyLog` — 每日诊断日志 | 每天一个 Markdown 文件 |
+| Deterministic Rules (1) | `RuleStore` — Rule Persistence | YAML format, manually maintained |
+| Experience Patterns (2) | `PatternStore` — Pattern Persistence | Agent automatically writes, with confidence level |
+| User Preferences (3) | `PreferenceStore` — Preference Persistence | Interactive learning, automatically updated |
+| Metadata Management (4) | `MemoryMetadata` — Metadata Management | Automatically tracked and maintained |
+| `memory/` Directory | `DailyLog` — Daily Diagnostic Logs | One Markdown file per day |
 
-## 2.3 Context 层映射
+## 2.3 Context Layer Mapping
 
 ```
-MEMORY.md 记忆注入 LLM 上下文的策略:
+MEMORY.md Memory injection LLM context strategy:
 
-每次会话开始（唤醒协议 Step 3）:
+at the start of each session (Step 3 of wake-up protocol):
 
-1. 加载 MEMORY.md 全文（长期记忆）
-   → 确定性规则 + 高频模式
+1. Load the full MEMORY.md document (long-term memory)
+   → Deterministic rules + frequent patterns
    → ~800 tokens
 
-2. 加载最近 3 天 memory/（短期记忆）
-   → 最近的诊断上下文
+2. Load recent 3 days' memory/ (short-term memory)
+   → Most recent diagnostic context
    → ~500 tokens
 
-3. 组装记忆上下文
+3. Assemble memory context
    system_prompt += f"""
-   <!-- chunk: 长期记忆 -->## 长期记忆
+   ## Long-term Memory
    {memory_md_summary}
 
-   <!-- chunk: 近期上下文 -->## 近期上下文
+   ## Recent Context
    {recent_daily_logs}
    """
 
-总记忆 Token 预算: ~1300 tokens（占 system_prompt 的 15-20%）
+total memory token budget: ~1300 tokens (15-20% of system_prompt)
 ```
 
 ---
 
-<!-- chunk: 3. K8S 运维实战案例 -->## 3. K8S 运维实战案例
+## 3. Kubernetes Operational Case Studies
 
-## 3.1 案例：已知问题命中
-
-```
-# 🟢 低风险：只读/信息收集，通常无副作用
-场景: 用户报告 "Pod 启动很慢，等了 30 多秒"
-
-MEMORY.md 已知问题匹配:
-  KI-001: "Terway ENI 模式 Pod IP 分配延迟"
-  症状: "Pod 启动慢（>30s）"
-  根因: "ENI 弹性网卡分配需要调用 ECS API，高峰期有延迟"
-
-Agent 响应（快速命中已知问题）:
-  "症状匹配已知问题 KI-001: Terway ENI 分配延迟。
-   验证: kubectl describe pod <pod> -n <ns> | grep 'waiting for ENI'
-   如果确认:
-   1. 检查节点 ENI 余量: kubectl get eniconfig
-   2. 考虑预热 ENI 池
-   参考: domain-10-troubleshooting-diagnostics/03-networking-cni-troubleshooting.md"
-
-效果: 跳过常规诊断流程，直接给出已知解决方案
-  诊断时间: 从 5 分钟缩短到 30 秒
-```
-## 3.2 案例：经验模式学习
+## 3.1 Case Study: Known Issue Hit
 
 ```
-第 1 次诊断（无经验）:
-  问题: Java 应用 OOMKilled
-  诊断路径: 常规流程 → 查看 resources → 查看日志 → 发现 JVM 堆溢出
-  耗时: 8 分钟
+# 🟢 Low Risk: read-only/information collection, usually with no side effects
+scenario: User reports "Pod startup is very slow, waited 30+ seconds"
 
-Agent 记录到 memory/2026-04-01.md:
-  "Java 应用 OOMKilled → 先查 JVM 堆配置(-Xmx vs container memory limit)"
+MEMORY.md Known issues match:
+  KI-001: "Terway ENI mode Pod IP allocation delay"
+  Symptoms: "Pod starts slowly (>30s)"
+  Root cause: "Allocation of ENI elastic network interface requires calling the ECS API, which has delays during peak hours"
 
-第 3 次诊断（经验积累后）:
-  问题: 另一个 Java 应用 OOMKilled
-  MEMORY.md 高频模式匹配: FP-001
-  Agent 直接执行: 查看 container resources + JVM -Xmx 参数
-  耗时: 2 分钟
+Agent response (quickly identifies known issue):
+  "Symptoms match known issue KI-001: Terway ENI allocation delay.
+   Verification: kubectl describe pod <pod> -n <ns> | grep 'waiting for ENI'
+   If confirmed:
+   1. Check ENI availability on nodes: kubectl get eniconfig
+   2. Consider preheating ENI pool
+   Reference: domain-10-troubleshooting-diagnostics/03-networking-cni-troubleshooting.md"
 
-经验提炼到 MEMORY.md:
+Effect: Skips the routine diagnostic process and directly provides a known solution
+  Diagnostic time: Shortened from 5 minutes to 30 seconds
+```
+## 3.2 Case Study: Learning from Experience
+
+```
+First diagnosis (no experience):
+  Problem: Java application OOMKilled
+  Diagnosis path: Routine process → Check resource limits → Check logs → Finds JVM heap overflow
+  Time: 8 minutes
+
+Agent records in memory/2026-04-01.md:
+  "Java application OOMKilled → First check JVM heap configuration (-Xmx vs container memory limit)"
+
+Third diagnosis (after experience accumulation):
+  Problem: Another Java application OOMKilled
+  MEMORY.md High Frequency Pattern Matching: FP-001
+  Agent Direct Execution: Check container resources + JVM -Xmx parameter
+  Duration: 2 minutes
+
+Experience Extracted to MEMORY.md:
   FP-001:
-    pattern: "Java 应用 OOMKilled"
+    pattern: "Java application OOMKilled"
     first_check: "JVM -Xmx vs container memory limit"
     confidence: 0.85
     occurrences: 5
 ```
 
-## 3.3 案例：失败教训记录
+## 3.3 Case Study: Record of Failures
 
 ```
-失败案例:
-  问题: DNS 解析偶发超时
-  错误诊断: Agent 建议重启 CoreDNS → 问题未解决
-  正确根因: conntrack race condition（KI-003）
+Failed Case:
+  Problem: DNS resolution occasional timeout
+  Incorrect Diagnosis: Agent Suggests Restarting CoreDNS → Issue Unresolved
+  Correct Root Cause: conntrack race condition (KI-003)
 
-记录到 MEMORY.md:
+Recorded to MEMORY.md:
   LL-001:
-    title: "DNS 超时不要急于重启 CoreDNS"
-    wrong_approach: "重启 CoreDNS Pod"
-    correct_approach: "检查 conntrack 竞态条件，配置 force_tcp"
-    lesson: "5s 超时是 conntrack 特征，不是 CoreDNS 本身的问题"
+    title: "DNS Timeout Avoid Restarting CoreDNS"
+    wrong_approach: "Restart CoreDNS Pod"
+    correct_approach: "Check conntrack race condition, configure force_tcp"
+    lesson: "5s timeout is a feature of conntrack, not a problem with CoreDNS itself"
 
-下次遇到 DNS 超时:
-  Agent 匹配 LL-001 → 避免重复犯错
-  直接检查 conntrack 而非重启 CoreDNS
+Next Time DNS Timeout Occurs:
+  Agent Matches LL-001 → Avoid Repetitive Mistakes
+  Directly Check conntrack Instead of Restarting CoreDNS
 ```
 
 ---
 
-<!-- chunk: 4. 配置协作机制 -->## 4. 配置协作机制
+## 4. Configuration Collaboration Mechanism
 
-## 4.1 MEMORY.md 与其他文件的协作
+## 4.1 Collaboration between MEMORY.md and Other Files
 
 ```
-MEMORY.md 在配置体系中的记忆角色:
+MEMORY.md Role in Configuration Memory System:
 
 AGENTS.md ──→ MEMORY.md
-  │           唤醒协议 Step 3: 加载 MEMORY.md
-  │           Phase 5: 诊断结果写入 memory/
+  │           Wakeup Protocol Step 3: Load MEMORY.md
+  │           Phase 5: Write diagnostic results to memory/
   │
 SOUL.md ──→ MEMORY.md
-  │          SOUL.md 诚实原则约束记忆质量
-  │          只有数据支撑的结论才能写入
+  │          SOUL.md  honesty principle constrains memory quality
+  │          Only conclusions supported by data can be written
   │
 SKILL.md ──→ MEMORY.md
-  │           SKILL.md 提供 SOP → 诊断中发现新模式 → 记录到 MEMORY.md
-  │           MEMORY.md 高频模式 → 反馈优化 SKILL.md SOP
+  │           SKILL.md provide SOP → diagnosed new mode in diagnosis → record to MEMORY.md
+  │           MEMORY.md frequent patterns → feedback for optimization of SKILL.md SOP
   │
 USER.md ──→ MEMORY.md
-             USER.md 定义初始偏好
-             MEMORY.md 从交互中学习更多偏好
+             USER.md define initial preferences
+             MEMORY.md learn more preferences from interactions
 ```
 
-## 4.2 memory/ 目录管理
+## 4.2 Management of the memory/ Directory
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-短期记忆目录结构:
+# 🟢 Low Risk: read-only/information collection, usually with no side effects
+Short-term memory directory structure:
 
 memory/
-├── 2026-04-01.md    # Day 1 诊断流水
-├── 2026-04-02.md    # Day 2 诊断流水
-├── 2026-04-03.md    # Day 3 诊断流水（今天）
+├── 2026-04-01.md    # Day 1 diagnostic flow
+├── 2026-04-02.md    # Day 2 diagnostic flow
+├── 2026-04-03.md    # Day 3 diagnostic flow (today)
 └── ...
 
-每日文件格式:
-  # 2026-04-03 诊断日志
-  <!-- chunk: Session 1 (09:15) -->## Session 1 (09:15)
-  - 问题: Pod coredns-xxx Pending
-  - 根因: 节点 taint 不匹配
-  - 解决: 添加 tolerations
-  - 标记: routine（常规问题）
+Daily file format:
+  # 2026-04-03 Diagnostic Logs
+  ## Session 1 (09:15)
+  - Problem: Pod coredns-xxx Pending
+  - Root cause: node taint does not match
+  - Solution: add tolerations
+  - Tag: routine (routine issue)
 
-  <!-- chunk: Session 2 (14:30) -->## Session 2 (14:30)
-  - 问题: API Server 响应慢
-  - 根因: etcd compaction 未及时执行
-  - 解决: 手动执行 etcdctl compact
-  - 标记: key_insight（重要发现，建议提炼到 MEMORY.md）
+  ## Session 2 (14:30)
+  - Problem: API Server response is slow
+  - Root cause: etcd compaction was not executed in time
+  - Solution: manually execute etcdctl compact
+  - Tag: key_insight (important discovery, suggest to be refined to MEMORY.md)
 
-清理策略:
-  保留最近 7 天
-  标记为 key_insight 的内容 → 提炼到 MEMORY.md 后可删除
-  超过 7 天的文件 → 自动归档或删除
+Deletion strategy:
+  retain the last 7 days
+  Mark as key_insight content → Condense to MEMORY.md after deletion
+  Over 7 days' files → Automatically archive or delete
 ```
 ---
 
-<!-- chunk: 5. AgentScope 集成代码 -->## 5. AgentScope 集成代码
+## 5. Integration Code for AgentScope
 
-## 5.1 MemoryManager 实现
+## 5.1 Implementation of MemoryManager
 
 ```python
 import os
@@ -373,7 +376,7 @@ from typing import Optional
 
 
 class MemoryManager:
-    """基于 MEMORY.md 的记忆管理器"""
+    """Based on MEMORY.md's memory manager"""
 
     def __init__(self, workspace_path: str):
         self.workspace_path = workspace_path
@@ -382,56 +385,56 @@ class MemoryManager:
         self.long_term = self._load_long_term()
 
     def _load_long_term(self) -> str:
-        """加载 MEMORY.md 长期记忆"""
+        """Load MEMORY.md long-term memory"""
         if os.path.exists(self.memory_path):
             with open(self.memory_path) as f:
                 return f.read()
         return ""
 
     def load_context(self, days: int = 3) -> str:
-        """加载记忆上下文（长期 + 最近 N 天短期）"""
+        """Load context memory (long-term + last N days' short-term)"""
         context_parts = []
 
-        # 长期记忆
-        context_parts.append("<!-- chunk: 长期记忆\n") -->## 长期记忆\n")
+        # Long-term Memory
+        context_parts.append("## Long-term memory\n")
         context_parts.append(self._summarize_long_term())
 
-        # 短期记忆
-        context_parts.append("\n<!-- chunk: 近期上下文\n") -->## 近期上下文\n")
+        # Short-term Memory
+        context_parts.append("\n## Recent context\n")
         recent_logs = self._load_recent_daily(days)
         if recent_logs:
             context_parts.append(recent_logs)
         else:
-            context_parts.append("（无近期诊断记录）")
+            context_parts.append("(No recent diagnostic records)")
 
         return "\n".join(context_parts)
 
     def _summarize_long_term(self) -> str:
-        """提取长期记忆摘要（控制 Token 消耗）"""
+        """Extract long-term memory summary (control Token consumption)"""
         content = self.long_term
         sections = []
 
-        # 提取已知问题
+        # Extract Known Issues
         if "known_issues:" in content:
-            sections.append("已知问题: KI-001(Terway ENI延迟), "
+            sections.append("Known issues: FP-001(Java OOM→check JVM), "
                           "KI-002(ESSD Multi-Attach), "
                           "KI-003(DNS 5s conntrack)")
 
-        # 提取高频模式
+        # Extract High-Frequency Patterns
         if "fault_patterns:" in content:
-            sections.append("高频模式: FP-001(Java OOM→查JVM), "
-                          "FP-002(Pod Pending→查资源+taint), "
-                          "FP-003(API Server慢→查etcd)")
+            sections.append("High-frequency mode: FP-002(Pod Pending→check resources+taint), "
+                          "FP-003(API Server slow→check etcd)")
+                          sections.append("Lessons learned: LL-001(DNS timeout≠CoreDNS issue), "
 
-        # 提取失败教训
+        # Extract Failure Lessons
         if "lessons_learned:" in content:
-            sections.append("教训: LL-001(DNS超时≠CoreDNS问题), "
-                          "LL-002(节点NotReady先查kubelet)")
+            sections.append("Lessons learned: LL-001(DNS timeout≠CoreDNS issue), "
+                          "LL-002(Node NotReady check kubelet)")
 
-        return "\n".join(sections) if sections else "（长期记忆为空）"
+        return "\n".join(sections) if sections else "(Long-term memory is empty)"
 
     def _load_recent_daily(self, days: int) -> str:
-        """加载最近 N 天的每日诊断日志"""
+        """Load daily diagnostic logs for the last N days"""
         if not os.path.exists(self.daily_dir):
             return ""
 
@@ -443,13 +446,13 @@ class MemoryManager:
             if os.path.exists(filepath):
                 with open(filepath) as f:
                     content = f.read()
-                    # 只取前 500 字符（控制 Token）
+                    # Only take the first 500 characters (control Token)
                     logs.append(content[:500])
 
         return "\n---\n".join(logs)
 
     def record_daily(self, session_summary: str, is_key_insight: bool = False):
-        """记录每日诊断流水"""
+        """Record daily diagnostic flow"""
         os.makedirs(self.daily_dir, exist_ok=True)
         today = datetime.now().strftime("%Y-%m-%d")
         filepath = os.path.join(self.daily_dir, f"{today}.md")
@@ -457,19 +460,19 @@ class MemoryManager:
         timestamp = datetime.now().strftime("%H:%M")
         marker = " [key_insight]" if is_key_insight else ""
 
-        entry = f"\n<!-- chunk: Session ({timestamp}){marker}\n{session_summary}\n" -->## Session ({timestamp}){marker}\n{session_summary}\n"
+        entry = f"\n## Session ({timestamp}){marker}\n{session_summary}\n"
 
         with open(filepath, "a") as f:
             f.write(entry)
 
     def check_known_issues(self, symptoms: str) -> Optional[str]:
-        """检查症状是否匹配已知问题"""
+        """Check if symptoms match known issues"""
         known_issues = {
-            "启动慢": "KI-001: Terway ENI 分配延迟",
-            "waiting for ENI": "KI-001: Terway ENI 分配延迟",
-            "Multi-Attach": "KI-002: ESSD 云盘 Multi-Attach 残留",
+            "Startup slow": "KI-001: Terway ENI allocation delay",
+            "waiting for ENI": "KI-001: Terway ENI allocation delay",
+            "Multi-Attach": "KI-002: ESSD cloud disk Multi-Attach residual",
             "DNS.*5s": "KI-003: conntrack race condition",
-            "DNS.*超时": "KI-003: conntrack race condition",
+            "DNS.*timeout": "KI-003: conntrack race condition",
         }
         for pattern, issue in known_issues.items():
             if pattern.lower() in symptoms.lower():
@@ -477,85 +480,85 @@ class MemoryManager:
         return None
 
 
-# === 使用示例 ===
+# === Usage Examples ===
 memory = MemoryManager("domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace")
 
-# 加载记忆上下文（唤醒协议 Step 3）
+# Load the context of memory (Step 3 of the wake upprotocol)
 context = memory.load_context(days=3)
 
-# 检查已知问题
-match = memory.check_known_issues("Pod 启动很慢，等了 30 多秒")
-# → "KI-001: Terway ENI 分配延迟"
+# Check known issues
+match = memory.check_known_issues("Pod startup very slow, waited over 30 seconds")
+# → "KI-001: Terway ENI allocation delay"
 
-# 记录诊断结果
+# Record diagnostic results
 memory.record_daily(
-    "问题: Pod OOM, 根因: JVM -Xmx > container limit, 修复: 调整 limits",
+    "Problem: Pod OOM, root cause: JVM -Xmx > container limit, fix: adjust limits"
     is_key_insight=False,
 )
 ```
 
 ---
 
-<!-- chunk: 6. 问题排除 -->## 6. 问题排除
+## 6. Problem Resolution
 
-## 6.1 常见问题
+## 6.1 Common Issues
 
-| 问题 | 原因 | 解决方案 |
+| Issue | Reason | Solution |
 |------|------|---------|
-| Agent 不引用已知问题 | MEMORY.md 未在唤醒时加载 | 确认 AGENTS.md 唤醒协议包含 Step 3 |
-| 记忆膨胀导致 Token 爆炸 | 未执行新陈代谢清理 | 设置保留策略，定期清理低价值条目 |
-| 过时记忆误导决策 | 环境变更后未更新 MEMORY.md | 集群变更后同步更新环境基线 |
-| 短期记忆丢失 | memory/ 目录未持久化 | 确保目录在 Git 中或使用持久化存储 |
-| 经验模式置信度不准 | 样本量不足就标高置信度 | 累计 5+ 次同类事件后才标注高置信 |
-| Agent 记录低质量记忆 | 未经验证的猜测也被记录 | SOUL.md 诚实原则约束：只记录有数据支撑的结论 |
+| Agent does not reference known issues | MEMORY.md is not loaded during wake-up | Confirm that the AGENTS.md wake-up protocol includes Step 3 |
+| Memory Expansion Leading to Token Explosion | Unmet Metabolism Cleanup | Set retention policies, regularly clean low-value entries |
+| Outdated Memory Misleads Decision Making | MEMORY.md not updated after environmental changes | Synchronize updating the environmental baseline after cluster changes |
+| Short-Term Memories Lost | memory/ Directory not persistentized | Ensure directory is persisted in Git or use persistent storage |
+| Confidence of Experience Mode Inaccurate | High confidence marked with insufficient sample size | Mark high confidence after 5+ similar events |
+| Agent Records Low-Quality Memories | Unverified guesses are also recorded | SOUL.md Honesty Principle Constraint: Only record conclusions supported by data |
 
-## 6.2 调试检查清单
+## 6.2 Debugging Checklist
 
 ```
-MEMORY.md 配置验证:
+MEMORY.md configuration validation:
 
-□ 环境基线：是否反映当前集群的真实配置？
-□ 已知问题：是否有明确的症状描述和解决方案？
-□ 经验模式：是否标注了置信度和出现次数？
-□ 失败教训：是否记录了错误方法和正确方法？
-□ 保留策略：是否定义了各级记忆的过期时间？
-□ memory/ 目录：是否有最近 7 天的每日日志？
-□ 元数据：total_entries / stale_entries 是否合理？
-□ Token 控制：记忆上下文总量是否 < 1500 tokens？
+□ Environment baseline: Does it reflect the current cluster's real configuration?
+□ Known issues: Are there clear symptom descriptions and solutions?
+□ Experience mode: Are confidence levels and occurrences annotated?
+□ Failure lessons: Are wrong methods and right methods recorded?
+□ Retention policy: Is the expiration time for each level of memory defined?
+□ memory/ directory: Are there daily logs from the last 7 days?
+□ Metadata: Are total_entries / stale_entries reasonable?
+□ Token control: Is the total memory context < 1500 tokens?
 ```
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|--------|
-| [43 - OpenClaw File-First 架构集成指南](./43-openclaw-framework-integration.md) | MEMORY.md 在 7 文件体系中的定位 |
-| [33 - Harness 上下文与记忆工程](./33-agent-harness-context-memory.md) | 三层记忆模型的工程化实现 |
-| [openclaw-workspace/MEMORY.md](./openclaw-workspace/MEMORY.md) | K8S 运维 Agent 记忆系统完整配置 |
-| [46 - AGENTS.md 机制解析](./46-openclaw-agents-mechanism.md) | 唤醒协议 Step 3 加载 MEMORY.md |
-| [48 - SKILL.md 机制解析](./48-openclaw-skill-mechanism.md) | SKILL.md 诊断经验到 MEMORY.md 的流转 |
+| [43 - OpenClaw File-First Architecture Integration Guide](./43-openclaw-framework-integration.md) | Position of MEMORY.md in the 7-file system in the kudig-database project |
+| [33 - Harness Context and Memory Engineering](./33-agent-harness-context-memory.md) | Engineering implementation of a three-layer memory model |
+| [openclaw-workspace/MEMORY.md](./openclaw-workspace/MEMORY.md) | Kubernetes Operations Agent Memory System Complete Configuration |
+| [46 - AGENTS.md Mechanism Analysis](./46-openclaw-agents-mechanism.md) | Step 3 of the Wake-up Protocol loads MEMORY.md |
+| [48 - SKILL.md Mechanism Analysis](./48-openclaw-skill-mechanism.md) | Flows of diagnostic experience from SKILL.md to MEMORY.md |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容，深度解析 OpenClaw MEMORY.md 的设计机制与工程实现。*
+*This document is original content created by the kudig-database project's 02-ai-agents topic, deeply analyzing the design mechanism and engineering implementation of OpenClaw MEMORY.md.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian-related Documentation
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide on Retrieval-Augmented Generation with RAG]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Architecture of Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Implementation of Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation Framework and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

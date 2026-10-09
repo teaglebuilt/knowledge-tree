@@ -1,6 +1,6 @@
 ---
-title: 141 - AI成本分析与FinOps实践 (AI Cost Analysis & FinOps)
-description: '# 141 - AI成本分析与FinOps实践 (AI Cost Analysis & FinOps)'
+title: 141 - AI Cost Analysis & FinOps Practice (AI Cost Analysis & FinOps)
+description: '# 141 - AI Cost Analysis & FinOps Practice (AI Cost Analysis & FinOps)'
 summary: '"stage3_param_persistence_threshold": 1e5'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI成本分析与FinOps实践 (AI Cost Analysis & FinOps) 是什么
-- 如何 AI成本分析与FinOps实践 (AI Cost Analysis & FinOps)
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Cost Analysis & FinOps Practice (AI Cost Analysis & FinOps)
+- How to AI Cost Analysis & FinOps Practice (AI Cost Analysis & FinOps)
+- Kubernetes 11 AI infra Best Practices
 trigger_keywords:
-- AI成本分析与FinOps实践
+- AI Cost Analysis & FinOps Practice
 - AI
 - Cost
 - Analysis
@@ -54,87 +54,89 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/12-ai-cost-analysis-finops.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 141 - AI成本分析与FinOps实践 (AI Cost Analysis & FinOps)
+# 141 - AI cost analysis and FinOps practice (AI Cost Analysis & FinOps)
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **最后更新**: 2026-01 | **参考**: [FinOps Foundation](https://www.finops.org/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **Last Updated**: 2026-01 | **Reference**: [FinOps Foundation](https://www.finops.org/)
 
 ---
 
-<!-- chunk: 一、AI成本结构全景 (Cost Structure Overview) -->
-## 一、AI成本结构全景 (Cost Structure Overview)
 
-### 1.1 成本构成分析
+## 1. Cost Structure Overview
+
+### 1.1 Cost Composition Analysis
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        AI/ML 基础设施成本构成                                 │
+│                        AI/ML Infrastructure Cost Breakdown                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  计算成本 (Compute) 60-75%                                           │  │
-│  │  ├── GPU实例 (A100/H100/L40S)                    45-55%             │  │
-│  │  ├── CPU实例 (数据处理/编排)                      10-15%             │  │
-│  │  └── Spot/Preemptible实例                        5-10%              │  │
+│  │  Compute cost (Compute) 60-75%                                           │  │
+│  │  ├── NVIDIA GPU instance (A100/H100/L40S)                    45-55%             │  │
+│  │  ├── CPU instance (data processing/scheduling)                      10-15%             │  │
+│  │  └── Spot/Preemptible instance                        5-10%              │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  存储成本 (Storage) 15-25%                                           │  │
-│  │  ├── 对象存储 (S3/GCS/OSS)                       8-12%              │  │
-│  │  ├── 块存储 (高性能SSD)                          5-8%               │  │
-│  │  └── 文件存储 (NFS/Lustre/GPFS)                  2-5%               │  │
+│  │  Storage cost (Storage) 15-25%                                           │  │
+│  │  ├── Object storage (S3/GCS/OSS)                       8-12%              │  │
+│  │  ├── High-performance SSD storage                          5-8%               │  │
+│  │  └── NFS/Lustre/GPFS file storage                  2-5%               │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  网络成本 (Network) 5-10%                                            │  │
-│  │  ├── 跨区域/跨AZ传输                             3-5%               │  │
-│  │  ├── 公网出流量                                  1-3%               │  │
-│  │  └── 专线/VPN                                    1-2%               │  │
+│  │  Network cost (Network) 5-10%                                            │  │
+│  │  ├── Cross-region/AZ transmission                             3-5%               │  │
+│  │  ├── Public network outbound traffic                      1-3%               │  │
+│  │  └── Dedicated line/VPN                                    1-2%               │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │  其他成本 (Others) 5-10%                                             │  │
-│  │  ├── 监控/日志/APM                               2-3%               │  │
-│  │  ├── 备份/灾备                                   1-2%               │  │
-│  │  └── 软件许可证                                  2-5%               │  │
+│  │  Other costs (Others) 5-10%                                             │  │
+│  │  ├── Monitoring/log/APM                               2-3%               │  │
+│  │  ├── Backup/disaster recovery                           1-2%               │  │
+│  │  └── Software license                                  2-5%               │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 各阶段成本分布
+### 1.2 Cost Distribution by Stage
 
-| 阶段 | 计算占比 | 存储占比 | 网络占比 | 特点 |
+| Stage | Compute percentage wo percentage wo percentage | Storage percentage ratio | Network percentage share | Features |
 |-----|---------|---------|---------|------|
-| **数据准备** | 30% | 55% | 15% | I/O密集,大量数据迁移 |
-| **模型训练** | 85% | 10% | 5% | GPU密集,checkpoint频繁 |
-| **模型微调** | 75% | 15% | 10% | 中等GPU需求 |
-| **模型推理** | 70% | 10% | 20% | 稳定GPU,高网络吞吐 |
-| **MLOps平台** | 40% | 30% | 30% | 元数据/模型仓库 |
+| **Data Preparation** | 30% | 55% | 15% | I/O-intensive, large data migration |
+| **Model Training** | 85% | 10% | 5% | GPU-intensive, frequent checkpoints |
+| **Model Fine-tuning** | 75% | 15% | 10% | Moderate GPU demand |
+| **Model Inference** | 70% | 10% | 20% | Stable GPU, high network throughput |
+| **MLOps Platform** | 40% | 30% | 30% | Metadata/model repository |
 
 ---
 
-<!-- chunk: 二、GPU实例成本对比 (GPU Instance Pricing) -->
-## 二、GPU实例成本对比 (GPU Instance Pricing)
 
-### 2.1 主流云厂商GPU实例定价
+## 2. GPU Instance Cost Comparison
 
-| GPU型号 | 显存 | AWS On-Demand | AWS Spot | GCP On-Demand | Azure On-Demand | 阿里云 |
+### 2.1 Pricing of Mainstream Cloud Vendor GPU Instances
+
+| GPU Model | Memory | AWS On-Demand | AWS Spot | GCP On-Demand | Azure On-Demand | Alibaba Cloud |
 |--------|------|---------------|----------|---------------|-----------------|-------|
 | **H100 80GB** | 80GB | $32.77/h | ~$12/h | $37.20/h | $31.58/h | ¥185/h |
 | **A100 80GB** | 80GB | $32.77/h | ~$10/h | $25.20/h | $24.48/h | ¥120/h |
@@ -144,103 +146,103 @@ cross_refs:
 | **T4 16GB** | 16GB | $0.526/h | ~$0.16/h | $0.35/h | $0.45/h | ¥5/h |
 | **V100 32GB** | 32GB | $3.06/h | ~$0.92/h | $2.48/h | $2.48/h | ¥35/h |
 
-### 2.2 训练任务GPU选型指南
+### 2.2 Guide to Selecting GPUs for Training Tasks
 
-| 模型规模 | 推荐GPU | 数量 | 预估训练成本/天 | 适用场景 |
+| Model Size | Recommended GPU | Quantity | Estimated training cost/day | Applicable scenarios |
 |---------|--------|------|----------------|---------|
-| **<1B参数** | A10G/L4 | 1-4 | $25-100 | 小型模型/微调 |
-| **1-7B参数** | A100 40GB | 4-8 | $400-800 | 中型LLM |
-| **7-13B参数** | A100 80GB | 8-16 | $1,500-3,000 | 大型LLM微调 |
-| **13-70B参数** | A100 80GB/H100 | 32-64 | $6,000-15,000 | 大模型预训练 |
-| **>70B参数** | H100 | 128-512 | $50,000+ | 超大规模预训练 |
+| **<1B parameters** | A10G/L4 | 1-4 | $25-100 | Small models/fine-tuning |
+| **1-7B parameters** | A100 40GB | 4-8 | $400-800 | Medium-sized LLMs |
+| **7-13B parameters** | A100 80GB | 8-16 | $1,500-3,000 | Large model fine-tuning |
+| **13-70B parameters** | A100 80GB/H100 | 32-64 | $6,000-15,000 | Large-scale pre-training models |
+| **>70B parameters** | H100 | 128-512 | $50,000+ | Super-large-scale pre-training |
 
-### 2.3 推理服务GPU选型
+### 2.3 Guide to Selecting GPUs for Inference Services
 
-| 模型类型 | 推荐GPU | QPS/卡 | 成本/1M tokens | 适用场景 |
+| Model Type | Recommended GPU | QPS/GPU | Cost/1M tokens | Applicable scenarios |
 |---------|--------|--------|---------------|---------|
-| **7B量化模型** | T4/L4 | 50-100 | $0.05-0.10 | 低成本在线服务 |
-| **13B量化模型** | A10G/L4 | 30-60 | $0.10-0.20 | 中等质量服务 |
-| **70B量化模型** | A100 40GB | 10-20 | $0.50-1.00 | 高质量服务 |
-| **70B FP16** | A100 80GB | 5-10 | $2.00-4.00 | 最高质量服务 |
+| **7B Quantized Model** | T4/L4 | 50-100 | $0.05-0.10 | Low-cost online services |
+| **13B Quantized Model** | A10G/L4 | 30-60 | $0.10-0.20 | Medium-quality services |
+| **70B Quantized Model** | A100 40GB | 10-20 | $0.50-1.00 | High-quality services |
+| **70B FP16** | A100 80GB | 5-10 | $2.00-4.00 | Highest Quality Service |
 
 ---
 
-<!-- chunk: 三、FinOps实践框架 (FinOps Framework) -->
-## 三、FinOps实践框架 (FinOps Framework)
 
-### 3.1 FinOps成熟度模型
+## 3. FinOps Practice Framework
+
+### 3.1 FinOps Maturity Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         FinOps 成熟度模型                                    │
+│                        FinOps Maturity Model                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Level 3: 优化 (Optimize)                                                   │
+│  Level 3: Optimize (Optimize)                                                   │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ • 自动化成本优化策略                                                  │   │
-│  │ • 预测性容量规划                                                      │   │
-│  │ • 持续成本工程                                                        │   │
-│  │ • ROI驱动的资源决策                                                   │   │
+│  │ • Automated cost optimization strategies                                                  │   │
+│  │ • Predictive Capacity Planning                                                       │   │
+│  │ • Continuous Cost Engineering                                                         │   │
+│  │ • Resource Decisions Driven by ROI                                                    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                              ↑                                              │
-│  Level 2: 运营 (Operate)                                                    │
+│  Level 2: Operate                                                     │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ • 成本分配和showback/chargeback                                       │   │
-│  │ • 预算管理和告警                                                      │   │
-│  │ • 异常检测和分析                                                      │   │
-│  │ • 定期成本审计                                                        │   │
+│  │ • Cost Allocation and Showback/Chargeback                                        │   │
+│  │ • Budget Management and Alerts                                                       │   │
+│  │ • Anomaly Detection and Analysis                                                       │   │
+│  │ • Regular Cost Audits                                                         │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                              ↑                                              │
-│  Level 1: 感知 (Inform)                                                     │
+│  Level 1: Inform                                                     │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ • 成本可见性建立                                                      │   │
-│  │ • 资源标签体系                                                        │   │
-│  │ • 基础成本报表                                                        │   │
-│  │ • 团队成本意识培养                                                    │   │
+│  │ • Cost Visibility Establishment                                                       │   │
+│  │ • Resource Tagging System                                                         │   │
+│  │ • Base Cost Report                                                         │   │
+│  │ • Team Cost Awareness Cultivation                                                     │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Kubernetes资源标签体系
+### 3.2 Kubernetes Resource Label System
 
 ```yaml
-# 成本追踪标签规范
+# Cost Tracking Tag Specification
 apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    # 业务维度
+    # Business Dimension
     app.kubernetes.io/name: "llm-inference"
     app.kubernetes.io/component: "serving"
     
-    # 成本中心
+    # Cost Center
     cost-center: "ai-platform"
     business-unit: "search"
     project: "chatbot-v2"
     
-    # 环境
+    # Environment
     environment: "production"
     
-    # 责任人
+    # Responsible Party
     owner: "ml-team"
     contact: "ml-lead@company.com"
     
-    # 工作负载类型
+    # Workload Type
     workload-type: "inference"       # training/inference/data-processing
     gpu-type: "a100"
     
-    # 生命周期
+    # Lifecycle
     lifecycle: "persistent"          # persistent/ephemeral/spot
     
-    # 成本优先级
+    # Cost Priority
     cost-priority: "p1"              # p0(关键)/p1(重要)/p2(普通)/p3(可中断)
 ```
 
-### 3.3 成本分配模型
+### 3.3 Cost Allocation Model
 
 ```yaml
-# Kubecost 成本分配配置
+# Kubecost Cost Allocation Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -248,7 +250,7 @@ metadata:
   namespace: kubecost
 data:
   allocation.yaml: |
-    # 共享成本分摊规则
+    # Shared Cost Sharing Rules
     sharedCosts:
       - name: "control-plane"
         type: "cluster"
@@ -264,13 +266,13 @@ data:
         namespaces: ["gpu-operator-resources"]
         allocation: "gpu-weighted"  # 按GPU使用量分摊
     
-    # Idle资源成本
+    # Idle Resource Cost
     idleCosts:
       cpuIdleCost: 0.5              # 50%分配到用户
       gpuIdleCost: 1.0              # 100%分配到用户
       shareWithNamespaces: true
     
-    # 网络成本
+    # Network Cost
     networkCosts:
       enabled: true
       zoneCostMultiplier: 0.01
@@ -280,15 +282,15 @@ data:
 
 ---
 
-<!-- chunk: 四、成本优化策略 (Cost Optimization Strategies) -->
-## 四、成本优化策略 (Cost Optimization Strategies)
 
-### 4.1 计算资源优化
+## 4. Cost Optimization Strategies
 
-#### Spot/Preemptible实例策略
+### 4.1 Optimization of Computing Resources
+
+#### Spot/Preemptible Instance Strategy
 
 ```yaml
-# Karpenter Spot实例配置
+# Karpenter Spot Instance Configuration
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -302,14 +304,14 @@ spec:
       operator: In
       values: ["p4d.24xlarge", "p3.16xlarge", "g5.48xlarge"]
   
-  # Spot实例优先
+  # Spot Instance Priority
   weight: 100
   
-  # 中断处理
+  # Interruption Handling
   ttlSecondsAfterEmpty: 30
   ttlSecondsUntilExpired: 86400
   
-  # 混合策略: 70% Spot + 30% On-Demand
+  # Hybrid Strategy: 70% Spot + 30% On-Demand
   limits:
     resources:
       nvidia.com/gpu: 100
@@ -318,7 +320,7 @@ spec:
     name: default
     
 ---
-# Volcano调度器Spot感知配置
+# Volcano Scheduler Spot Awareness Configuration
 apiVersion: scheduling.volcano.sh/v1beta1
 kind: Queue
 metadata:
@@ -329,15 +331,15 @@ spec:
     nvidia.com/gpu: 80
   reclaimable: true        # 可被抢占
   
-  # 优先使用Spot节点
+  # Prioritize Spot Nodes
   nodeSelector:
     karpenter.sh/capacity-type: spot
 ```
 
-#### GPU利用率优化
+#### Optimization of GPU Utilization
 
 ```yaml
-# GPU Time-Slicing配置 (提升利用率)
+# GPU Time-Slicing Configuration (Enhance Utilization)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -354,7 +356,7 @@ data:
           replicas: 4           # 每张GPU模拟4张
           
 ---
-# MIG配置 (A100/H100)
+# MIG Configuration (A100/H100)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -364,14 +366,14 @@ data:
   config.yaml: |
     version: v1
     mig-configs:
-      # A100 80GB: 7个10GB实例
+      # A100 80GB: 7 instances of 10GB
       a100-80gb:
         - devices: all
           mig-enabled: true
           mig-devices:
             "1g.10gb": 7
       
-      # A100 80GB: 3个20GB + 1个40GB
+      # A100 80GB: 3 one20GB + 1 ones40GB
       a100-80gb-mixed:
         - devices: all
           mig-enabled: true
@@ -380,20 +382,20 @@ data:
             "4g.40gb": 1
 ```
 
-### 4.2 训练成本优化
+### 4.2 Optimization of Training Costs
 
-| 优化技术 | 显存节省 | 速度影响 | 成本节省 | 实现复杂度 |
+| Optimization Techniques | Memory Savings | Speed Impact | Cost Savings | Complexity Level |
 |---------|---------|---------|---------|----------|
-| **混合精度训练(AMP)** | 40-50% | +10-30% | 40-50% | 低 |
-| **梯度累积** | 60-80% | -10-20% | 30-40% | 低 |
-| **梯度检查点** | 50-70% | -20-30% | 25-35% | 中 |
-| **ZeRO-Offload** | 80%+ | -30-50% | 40-60% | 中 |
-| **模型并行** | N/A | -10-20% | 扩展性 | 高 |
-| **Early Stopping** | N/A | +20-40% | 20-40% | 低 |
-| **学习率调度** | N/A | +10-20% | 10-20% | 低 |
+| Mixed Precision Training(AMP) | 40-50% | +10-30% | 40-50% | Low |
+| Gradient Accumulation | 60-80% | -10-20% | 30-40% | Low |
+| Gradient Checkpointing | 50-70% | -20-30% | 25-35% | Medium |
+| ZeRO-Offloading | 80%+ | -30-50% | 40-60% | Medium |
+| Model Parallelism | N/A | -10-20% | Scalability | High |
+| Early Stopping | N/A | +20-40% | 20-40% | Low |
+| Learning Rate Scheduling | N/A | +10-20% | 10-20% | Low |
 
 ```python
-# DeepSpeed ZeRO配置示例
+# DeepSpeed ZeRO Configuration Example
 deepspeed_config = {
     "zero_optimization": {
         "stage": 3,
@@ -423,20 +425,20 @@ deepspeed_config = {
 }
 ```
 
-### 4.3 推理成本优化
+### 4.3 Optimization of Inference Costs
 
-| 优化技术 | 延迟影响 | 吞吐提升 | 成本节省 | 精度损失 |
+| Optimization Techniques | Delay Impact | Throughput Improvement | Cost Savings | Accuracy Loss |
 |---------|---------|---------|---------|---------|
-| **INT8量化** | -10% | +50-100% | 50-60% | <1% |
-| **INT4量化** | -20% | +100-200% | 70-80% | 1-3% |
-| **KV Cache优化** | 0% | +30-50% | 20-30% | 0% |
+| INT8 Quantization | -10% | +50-100% | 50-60% | <1% |
+| INT4 Quantization | -20% | +100-200% | 70-80% | 1-3% |
+| KV Cache Optimization | 0% | +30-50% | 20-30% | 0% |
 | **Continuous Batching** | -5% | +200-400% | 60-75% | 0% |
 | **Speculative Decoding** | +20% | +50-100% | 30-40% | 0% |
 | **Flash Attention** | -10% | +100-200% | 40-50% | 0% |
 | **PagedAttention** | 0% | +200-300% | 50-70% | 0% |
 
 ```yaml
-# vLLM高效推理配置
+# vLLM Efficient Inference Configuration
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -463,21 +465,21 @@ spec:
             cpu: "16"
 ```
 
-### 4.4 存储成本优化
+### 4.4 Optimization of Storage Costs
 
 ```yaml
-# 存储分层策略
+# Storage Hierarchical Strategy
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: ai-data-tiered
 provisioner: csi.juicefs.com
 parameters:
-  # 热数据: NVMe SSD
+  # Hot data: NVMe SSD
   juicefs-secret-name: "juicefs-secret"
   juicefs-secret-namespace: "default"
   
-  # 存储分层配置
+  # Store layered configuration
   storage-tiers: |
     tier-hot:
       backend: "nvme-ssd"
@@ -492,7 +494,7 @@ parameters:
       capacity: "unlimited"
       
 ---
-# 数据生命周期管理
+# Data Lifecycle Management
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -517,15 +519,15 @@ spec:
 
 ---
 
-<!-- chunk: 五、成本监控与告警 (Cost Monitoring & Alerting) -->
-## 五、成本监控与告警 (Cost Monitoring & Alerting)
 
-### 5.1 Kubecost部署配置
+## 5. Cost Monitoring and Alerts
+
+### 5.1 Kubecost Deployment Configuration
 
 ```yaml
 # Kubecost Helm Values
 kubecostModel:
-  # 云账单集成
+  # Cloud Billing Integration
   cloudIntegration:
     enabled: true
     aws:
@@ -535,10 +537,10 @@ kubecostModel:
       athenaDatabase: "cur_database"
       athenaTable: "cur_table"
   
-  # GPU成本
+  # GPU cost
   gpuCost:
     enabled: true
-    # 自定义GPU单价 ($/h)
+    # Custom GPU price ($/h)
     prices:
       nvidia.com/gpu:
         a100-80gb: 32.77
@@ -546,7 +548,7 @@ kubecostModel:
         a10g: 1.006
         t4: 0.526
   
-  # 预算配置
+  # Budget Configuration
   budgets:
     enabled: true
     configs:
@@ -567,7 +569,7 @@ grafana:
     enabled: true
 ```
 
-### 5.2 成本告警规则
+### 5.2 Cost Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -579,7 +581,7 @@ spec:
   groups:
   - name: ai-cost-alerts
     rules:
-    # 日成本超预算
+    # Daily cost exceeds budget
     - alert: DailyCostOverBudget
       expr: |
         sum(increase(kubecost_cluster_costs_daily[24h])) > 5000
@@ -587,10 +589,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "日成本超过$5000"
-        description: "当前日成本: ${{ $value | humanize }}"
+        summary: "Daily cost exceeds $5000"
+        description: "Current daily cost: ${{ $value | humanize }}"
     
-    # GPU空闲告警
+    # GPU Idle Alarm
     - alert: GPUIdleHigh
       expr: |
         (1 - avg(DCGM_FI_DEV_GPU_UTIL) / 100) > 0.5
@@ -598,10 +600,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "GPU空闲率超过50%"
-        description: "平均GPU利用率: {{ $value | humanizePercentage }}"
+        summary: "GPU idle rate exceeds 50%"
+        description: "Average GPU utilization: {{ $value | humanizePercentage }}"
     
-    # Spot实例中断风险
+    # Risk of Spot Instance Interruption
     - alert: SpotInstanceInterruptionRisk
       expr: |
         sum(karpenter_interruption_actions_performed) > 5
@@ -609,10 +611,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "Spot实例频繁中断"
-        description: "5分钟内中断次数: {{ $value }}"
+        summary: "Spot instance frequently interrupted"
+        description: "Number of interruptions within 5 minutes: {{ $value }}"
     
-    # 存储成本异常增长
+    # Storage cost growth exceeds expectation
     - alert: StorageCostSpike
       expr: |
         (sum(kubecost_pv_hourly_cost) - sum(kubecost_pv_hourly_cost offset 1d)) 
@@ -621,9 +623,9 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "存储成本日增长超过20%"
+        summary: "Storage cost growth exceeds 20%"
     
-    # 网络成本异常
+    # Network cost anomaly
     - alert: NetworkCostAnomaly
       expr: |
         sum(rate(kubecost_network_zone_egress_cost[1h])) > 100
@@ -631,18 +633,18 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "跨区网络成本异常"
-        description: "每小时网络成本: ${{ $value | humanize }}"
+        summary: "Cross-area network cost anomaly"
+        description: "Hourly network cost: ${{ $value | humanize }}"
 ```
 
-### 5.3 成本Dashboard (Grafana)
+### 5.3 Cost Dashboard (Grafana)
 
 ```json
 {
   "title": "AI Infrastructure Cost Overview",
   "panels": [
     {
-      "title": "总成本趋势 (Daily)",
+      "title": "Total Cost Trend (Daily)"
       "type": "timeseries",
       "targets": [{
         "expr": "sum(increase(kubecost_cluster_costs_daily[24h]))",
@@ -650,7 +652,7 @@ spec:
       }]
     },
     {
-      "title": "成本分布 (By Namespace)",
+      "title": "Cost Distribution (By Namespace)"
       "type": "piechart",
       "targets": [{
         "expr": "sum by (namespace) (kubecost_namespace_hourly_cost * 24 * 30)",
@@ -658,7 +660,7 @@ spec:
       }]
     },
     {
-      "title": "GPU成本效率",
+      "title": "GPU cost efficiency"
       "type": "gauge",
       "targets": [{
         "expr": "avg(DCGM_FI_DEV_GPU_UTIL) / 100 * 100"
@@ -672,7 +674,7 @@ spec:
       }
     },
     {
-      "title": "Spot节省金额",
+      "title": "Amount saved by Spot"
       "type": "stat",
       "targets": [{
         "expr": "sum(kubecost_savings_spot_monthly)"
@@ -684,55 +686,55 @@ spec:
 
 ---
 
-<!-- chunk: 六、成本优化案例 (Optimization Case Studies) -->
-## 六、成本优化案例 (Optimization Case Studies)
 
-### 6.1 训练任务优化案例
+## 6. Optimization Case Studies
 
-| 优化项 | 优化前 | 优化后 | 节省 | 年化节省 |
+### 6.1 Training Task Optimization Case
+
+| Optimization Items | Before Optimization | After Optimization | Savings | Annual Savings |
 |-------|-------|-------|------|---------|
-| **Spot实例** | 100% On-Demand | 70% Spot | 49% | $180,000 |
-| **混合精度训练** | FP32 | AMP | 45% | $120,000 |
-| **GPU利用率** | 35% | 75% | 53% | $150,000 |
-| **存储分层** | 全SSD | 热/温/冷分层 | 60% | $48,000 |
-| **预留实例** | 按需 | 1年预留 | 35% | $80,000 |
-| **调度优化** | 手动 | Kueue自动 | 20% | $40,000 |
-| **总计** | - | - | **51%** | **$618,000** |
+| Spot Instances | 100% On-Demand | 70% Spot | 49% | $180,000 |
+| Mixed Precision Training | FP32 | AMP | 45% | $120,000 |
+| GPU Utilization | 35% | 75% | 53% | $150,000 |
+| Storage Tiering | All SSD | Hot/Cold/Temperature Tiering | 60% | $48,000 |
+| Reserved Instances | On-Demand | 1 Year Reserved | 35% | $80,000 |
+| Scheduling Optimization | Manual | Kueue Auto | 20% | $40,000 |
+| **total** | - | - | **51%** | **$618,000** |
 
-### 6.2 推理服务优化案例
+### 6.2 Inference Service Optimization Case
 
-| 服务 | 原配置 | 优化后 | 延迟影响 | 成本节省 |
+| Service | Original Config | Optimized | Delay Impact | Cost Savings |
 |-----|-------|-------|---------|---------|
 | **ChatBot** | 8x A100 FP16 | 4x A100 INT4 | +5ms | 65% |
-| **搜索排序** | 16x V100 | 8x A10G | -2ms | 70% |
-| **图像生成** | 4x A100 | 2x A100 MIG | +10ms | 50% |
-| **语音识别** | 8x T4 | 4x T4 Batch | +50ms | 50% |
+| **Search Ranking** | 16x V100 | 8x A10G | -2ms | 70% |
+| **Image Generation** | 4x A100 | 2x A100 MIG | +10ms | 50% |
+| **Speech Recognition** | 8x T4 | 4x T4 Batch | +50ms | 50% |
 
 ---
 
-<!-- chunk: 七、FinOps工具生态 (FinOps Tools) -->
-## 七、FinOps工具生态 (FinOps Tools)
 
-### 7.1 成本管理工具对比
+## 7. FinOps Tool Ecosystem (FinOps Tools)
 
-| 工具 | 类型 | 云支持 | K8s原生 | GPU成本 | 开源 | 价格 |
+### 7.1 Cost Management Tool Comparison
+
+| Tools | Type | Cloud Support | Kubernetes Native | GPU Cost | Open Source | Price |
 |-----|------|-------|--------|--------|------|------|
-| **Kubecost** | 成本分析 | AWS/GCP/Azure | 是 | 是 | 是 | 免费/企业版 |
-| **[[OpenCost|OpenCost]]** | 成本分析 | 多云 | 是 | 是 | 是 | 免费 |
-| **Vantage** | FinOps平台 | 多云 | 是 | 是 | 否 | 付费 |
-| **CloudHealth** | FinOps平台 | 多云 | 部分 | 否 | 否 | 付费 |
-| **Spot.io** | 优化 | AWS/GCP/Azure | 是 | 是 | 否 | 付费 |
-| **CAST AI** | 优化 | 多云 | 是 | 是 | 否 | 付费 |
+| **Kubecost** | Cost Analysis | AWS/GCP/Azure | Yes | Yes | Yes | Free/Business Edition |
+| **[[OpenCost|OpenCost]]** | Cost Analysis | Multi-cloud | Yes | Yes | Yes | Free |
+| **Vantage** | FinOps platform | Multi-cloud | Yes | Yes | No | Paid |
+| **CloudHealth** | FinOps Platform | Multi-cloud | Partial | No | No | Paid |
+| **Spot.io** | Optimization | AWS/GCP/Azure | Yes | Yes | No | Paid |
+| **CAST AI** | Optimization | Multi-cloud | Yes | Yes | No | Paid |
 
-### 7.2 OpenCost快速部署
+### 7.2 OpenCost Quick Deployment
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource status, recommend to first --dry-run or diff confirm
+> - `helm upgrade/install`: Deploy/upgrade release
+> - `kubectl apply/create/replace`: Create/modify cluster resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 部署OpenCost
+# 🔴 Medium Risk: Modifies cluster/resource state, confirm target, impact scope, and authorization before deployment
+# Deploy OpenCost
 helm install opencost opencost/opencost \
   --namespace opencost \
   --create-namespace \
@@ -742,61 +744,61 @@ helm install opencost opencost/opencost \
   --set opencost.customPricing.enabled=true \
   --set opencost.customPricing.configmapName="opencost-custom-pricing"
 
-# 自定义GPU价格
+# Custom GPU Price
 kubectl create configmap opencost-custom-pricing -n opencost --from-file=pricing.json
 ```
 ---
 
-<!-- chunk: 八、成本治理最佳实践 (Governance Best Practices) -->
-## 八、成本治理最佳实践 (Governance Best Practices)
 
-### 8.1 成本治理流程
+## 8. Cost Governance Best Practices (Governance Best Practices)
+
+### 8.1 Cost Governance Process
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        成本治理周期                                          │
+│                        cost governance cycle                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
-│  │   计划      │───→│   执行      │───→│   检查      │───→│   改进      │  │
+│  │   Plan      │───→│   Execute      │───→│   Check      │───→│   Improve      │  │
 │  │   Plan      │    │   Do        │    │   Check     │    │   Act       │  │
 │  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘  │
 │        │                  │                  │                  │          │
 │        ▼                  ▼                  ▼                  ▼          │
-│  • 制定预算          • 资源标签         • 成本报告         • 优化策略      │
-│  • 成本预测          • 成本分配         • 异常分析         • 策略调整      │
-│  • 目标设定          • 自动化执行       • KPI评估          • 流程改进      │
+│  • set budget          • resource tags         • cost report         • optimization strategy      │
+│  • Cost Forecasting          • Cost Allocation         • Anomaly Analysis         • Strategy Adjustments       │
+│  • Goal Setting          • Automated Execution       • KPI Evaluation          • Process Improvements       │
 │                                                                             │
 │  ════════════════════════════════════════════════════════════════════════  │
-│                              月度循环                                        │
+│                              monthly cycle                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 成本优化检查清单
+### 8.2 Cost Optimization Checklist
 
 ```markdown
-<!-- chunk: 月度成本审计检查清单 -->
-## 月度成本审计检查清单
 
-### 计算资源
+## Monthly Cost Audit Checklist
+
+### Compute Resources
 - [ ] GPU利用率 > 70%
 - [ ] CPU利用率 > 50%
 - [ ] Spot实例占比 > 60% (可中断任务)
 - [ ] 无长期空闲GPU实例
 - [ ] 预留实例覆盖率达标
 
-### 存储资源
+### Storage Resources
 - [ ] 存储分层策略生效
 - [ ] 无孤儿PV/PVC
 - [ ] 快照保留策略合理
 - [ ] 跨区域复制必要性验证
 
-### 网络资源
+### Network Resources
 - [ ] 跨区流量最小化
 - [ ] CDN覆盖率优化
 - [ ] 专线利用率合理
 
-### 治理合规
+### Governance Compliance
 - [ ] 所有资源100%标签覆盖
 - [ ] 成本分配准确性验证
 - [ ] 预算告警有效性测试
@@ -805,73 +807,73 @@ kubectl create configmap opencost-custom-pricing -n opencost --from-file=pricing
 
 ---
 
-<!-- chunk: 九、快速参考 (Quick Reference) -->
-## 九、快速参考 (Quick Reference)
 
-### 9.1 成本计算公式
+## 9. Quick Reference (Quick Reference)
+
+### 9.1 Cost Calculation Formula
 
 ```
-# GPU小时成本
-GPU小时成本 = GPU单价 × 使用时长 × (1 - Spot折扣)
+# GPU Hour Cost
+GPU hours cost = GPU unit price × usage duration × (1 - Spot discount)
 
-# 训练总成本
-训练总成本 = GPU小时成本 × GPU数量 × 训练时长 + 存储成本 + 网络成本
+# Total Training Cost
+Training total cost = GPU hours cost × number of GPUs × training duration + storage cost + network cost
 
-# 推理服务月成本
-月成本 = (GPU单价 × 24 × 30) × 实例数 × (1 + 冗余系数)
+# Inference Service Monthly Cost
+Monthly cost = (GPU unit price × 24 × 30) × number of instances × (1 + redundancy factor)
 
-# 成本效率
-成本效率 = 模型性能提升 / 成本增加
-ROI = (业务价值 - 总成本) / 总成本 × 100%
+# Cost Efficiency
+Cost efficiency = model performance improvement / cost increase
+ROI = (business value - total cost) / total cost × 100%
 ```
 
-### 9.2 常用命令
+### 9.2 Common Commands
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource status, recommend to first --dry-run or diff confirm
+> - `kubectl exec`: Enter container to execute commands, may change container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Kubecost成本查询
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# Kubecost Cost Query
 kubectl cost namespace --window 7d --show-all-resources
 
-# OpenCost API查询
+# OpenCost API Query
 curl http://opencost.opencost:9003/allocation/compute?window=7d
 
-# GPU利用率查询
+# GPU Utilization Query
 kubectl exec -it dcgm-exporter-xxx -- dcgmi dmon -e 203,204
 
-# Spot实例状态
+# Spot Instance Status
 kubectl get nodes -l karpenter.sh/capacity-type=spot
 
-# 成本标签覆盖率检查
+# Cost Label Coverage Check
 kubectl get pods -A -o json | jq '[.items[] | select(.metadata.labels["cost-center"] == null)] | length'
 ```
 ---
 
-**成本优化原则**: Spot优先 → 提升利用率 → 存储分层 → 持续监控
+**cost optimization principles**: Spot priority → Improve utilization → Storage tiering → Continuous monitoring
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**table bottom mark**: Kusheet Project, author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 
@@ -882,7 +884,7 @@ kubectl get pods -A -o json | jq '[.items[] | select(.metadata.labels["cost-cent
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

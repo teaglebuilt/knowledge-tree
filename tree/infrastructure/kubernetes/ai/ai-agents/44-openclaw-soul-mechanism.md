@@ -1,6 +1,7 @@
----title: OpenClaw SOUL.md 机制深度解析 (domain-14-ai-ml-infra)
-description: 'title: OpenClaw SOUL.md 机制深度解析'
-summary: 'title: OpenClaw SOUL.md 机制深度解析'
+---
+title: OpenClaw SOUL.md Mechanism Deep Dive (domain-14-ai-ml-infra)
+description: 'title: OpenClaw SOUL.md Mechanism Deep Dive'
+summary: 'title: OpenClaw SOUL.md Mechanism Deep Dive'
 category: general
 tags:
 - ai
@@ -16,16 +17,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- OpenClaw SOUL.md 机制深度解析 是什么
-- 如何 OpenClaw SOUL.md 机制深度解析
-- Kubernetes 14 ai ml infra 最佳实践
+- What is OpenClaw SOUL.md Mechanism Deep Dive
+- How to do OpenClaw SOUL.md Mechanism Deep Dive
+- Best Practices for OpenClaw SOUL.md Mechanism Deep Dive in Kubernetes 14 ai ml infra
 trigger_keywords:
 - OpenClaw
 - SOUL.md
-- 机制深度解析
+- What is Mechanism Deep Dive
 - ai
 - ml
 - infra
@@ -37,17 +38,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/44-openclaw-soul-mechanism.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: OpenClaw SOUL.md 机制深度解析
-description: '# OpenClaw SOUL.md 机制深度解析'
+title: OpenClaw SOUL.md Mechanism Deep Dive
+description: '# OpenClaw SOUL.md Mechanism Deep Dive'
 category: ai-agent
 tags:
 - ai
@@ -61,17 +64,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- OpenClaw SOUL.md 机制深度解析 是什么
-- 如何 OpenClaw SOUL.md 机制深度解析
+- What is OpenClaw SOUL.md Mechanism Deep Dive
+- How to OpenClaw SOUL.md Mechanism Deep Dive
 trigger_keywords:
 - OpenClaw
 - SOUL.md
-- 机制深度解析
+- Mechanism Deep Dive
 - ai
 - agent
 authors:
@@ -85,224 +88,224 @@ k8s_versions:
 - '1.32'
 ---
 
-# OpenClaw SOUL.md 机制深度解析
+# OpenClaw SOUL.md Mechanism Deep Dive
 
-> **文档类型**: 前沿工程专题 | **最后更新**: 2026-04 | **关键词**: OpenClaw, SOUL.md, 角色人格, 绝对红线, Constraints 层, 安全边界, Agent 人格工程
-
----
-
-## 概述
-
-SOUL.md 是 OpenClaw File-First 架构中优先级最高的配置文件，定义 Agent 的**核心身份、价值观和不可逾越的行为边界**。它在 Harness Engineering 六层架构中主要映射到 **Constraints 层**，同时作为 System Context 注入 Context 层。
-
-本文深入剖析 SOUL.md 的设计原理、三层结构模型、约束精确性原则，并结合 K8S 运维 Agent 实战案例提供工程化实现参考。
+> **Document Type**: Frontier Engineering Special Topic | **Last Updated**: 2026-04 | **Keywords**: OpenClaw, SOUL.md, Role Personality, Absolute Red Line, Constraints Layer, Security Boundary, Agent Personality Engineering
 
 ---
 
-## 1. 设计原理
+## Overview
 
-### 1.1 为什么需要 SOUL.md
+SOUL.md is the highest-priority configuration file in the OpenClaw File-First architecture, defining the core identity, values, and unbreachable behavior boundaries of an Agent. It primarily maps to the **Constraints Layer** in the Harness Engineering six-layer architecture and serves as a context injection into the Context layer.
 
-```
-核心问题:
-  LLM 是"概率机器"，输出具有随机性
-  直接用 LLM 做运维诊断 → 可能执行危险命令、编造数据、输出不一致
+This document delves into the design principles, three-layer structural model, precise constraint adherence, and provides engineering implementation references based on real-world Kubernetes operational Agent cases.
 
-SOUL.md 的作用:
-  将"非确定性"约束为"确定性行为"
-  定义 Agent 的行为边界 → 什么能做、什么绝不能做
-  确保即使 LLM 产生幻觉，也不会突破安全红线
-```
+---
 
-### 1.2 三层结构模型
+## 1. Design Principles
+
+### 1. Design Principles
 
 ```
-SOUL.md 三层结构:
+Core issue:
+  LLM is a "probabilistic machine," its output has randomness
+  Directly using LLM for operational diagnosis → may execute dangerous commands, fabricate data, produce inconsistent outputs
 
-Layer 1: 身份层（Who）
-  │  角色设定、专业领域、核心使命
-  │  = 回答"你是谁"
+SOUL.md's role:
+  Constrain "uncertainty" to "deterministic behavior"
+  Define the boundaries of an Agent's behavior → what can be done, what must not be done
+  Ensure that even if LLM hallucinates, it will not breach the safety red lines
+```
+
+### 1.2 Three Layer Structure Model
+
+```
+SOUL.md three-layer structure:
+
+Layer 1: Identity layer (Who)
+  │  Role designation, professional field, core mission
+  │  = Answer "who are you"
   │
-Layer 2: 价值观层（How）
-  │  沟通原则、决策优先级、输出规范
-  │  = 回答"怎么做事"
+Layer 2: Values layer (How)
+  │  Communication principles, decision priorities, output standards
+  │  = Answer "how to do things"
   │
-Layer 3: 红线层（Never）
-     命令级红线、信息安全红线、行为红线
-     = 回答"绝不做什么"
+Layer 3: Redline layer (Never)
+     Command-level redlines, information security redlines, behavioral redlines
+     = Answer "never do"
 
-优先级: Layer 3 > Layer 2 > Layer 1
-当身份职责与安全红线冲突时，红线优先
+Priority: Layer 3 > Layer 2 > Layer 1
+When identity responsibilities conflict with safety red lines, prioritize the red lines
 ```
 
-### 1.3 约束精确性原则
+### 1.3 Principle of Precise Constraints
 
-| 约束等级 | 示例 | 效果 |
+| Constraint Level | Example | Effect |
 |---------|------|------|
-| 模糊约束 | "要注意安全" | 几乎无效，Agent 自行解释"安全"含义 |
-| 一般约束 | "不要执行危险命令" | 部分有效，但"危险"定义模糊 |
-| 精确约束 | "禁止执行包含 `delete`/`drain`/`cordon` 的 kubectl 命令" | 高效，可编程验证 |
-| 正则约束 | `kubectl\s+(delete|drain|cordon|taint)` | 最高，可机器执行拦截 |
+| Fuzzy Constraint | "Be cautious of security" | Almost ineffective, Agent interprets the meaning of "security" independently |
+| General Constraint | "Do not execute dangerous commands" | Partially effective, but the definition of "dangerous" is vague |
+| Precise Constraint | "Prohibit execution of kubectl commands containing `delete`/`drain`/`cordon`" | Highly effective, programmable validation possible |
+| Regular Constraint | `kubectl\s+(delete|drain|cordon|taint)` | Highest level, machine-executable interception possible |
 
-**核心原则：约束越具体，Agent 行为越可预测。**
+**Core Principle: The more specific the constraints, the more predictable the Agent's behavior.**
 
 ---
 
-## 2. Harness Engineering 映射
+## Harness Engineering Mapping
 
-### 2.1 映射关系
+### 2.1 Mapping Relationships
 
 ```
-SOUL.md × Harness 六层映射:
+SOUL.md × Harness six-layer mapping:
 
                │ Loop │ Tools │ Context │ Persist │ Verify │ Constrain │
 ──────────────┼──────┼───────┼─────────┼─────────┼────────┼───────────│
 SOUL.md       │      │       │    ◐    │         │        │     ●     │
 
-● = 主要映射（Constraints 层）
-◐ = 次要映射（Context 层 — System Prompt）
+● = Main Mapping (Constraints Layer)
+◐ = Secondary Mapping (Context Layer — System Prompt)
 ```
 
-### 2.2 Constraints 层映射详解
+### 2.2 Detailed Explanation of Constraints Layer Mapping
 
-| SOUL.md 内容 | Harness Constraints 实现 | 执行方式 |
+| SOUL.md Content | Harness Constraints Implementation | Execution Method |
 |-------------|-------------------------|---------|
-| 命令级红线（4.1） | `CommandBlocker` — 正则匹配拦截 | 工具调用前强制检查 |
-| 信息安全红线（4.2） | `OutputSanitizer` — 敏感信息脱敏 | 输出前强制过滤 |
-| 行为红线（4.3） | `BehaviorGuard` — 状态机约束 | 每轮决策前检查 |
-| 决策优先级（5） | `PriorityResolver` — 冲突仲裁 | 多约束冲突时裁决 |
+| Command-Level Redline (4.1) | `CommandBlocker` — regular expression matching for interception | Mandatory pre-execution tool check |
+| Information Security Red Lines (4.2) | `OutputSanitizer` — Sensitive Data Masking | Force-filter before output |
+| Behavior Red Lines (4.3) | `BehaviorGuard` — State Machine Constraints | Check before each decision round |
+| Decision Priority (5) | `PriorityResolver` — Conflict Resolution | Decides conflicts under multiple constraints |
 
-### 2.3 Context 层映射详解
+### 2.3 Detailed Explanation of Context Layer Mapping
 
-SOUL.md 的身份层和价值观层内容作为 `system_prompt` 注入 LLM，形成 Agent 的基础上下文：
+SOUL.md's identity layer and value layer content as `system_prompt` injected into LLM to form the context for the agent:
 
 ```python
-# SOUL.md → System Prompt 注入
+# SOUL.md → System Prompt Injection
 system_prompt = f"""
-{soul_identity}      # Layer 1: 身份层 → "你是 KuDig Doctor..."
-{soul_values}        # Layer 2: 价值观层 → 沟通原则、输出格式
-{soul_redlines}      # Layer 3: 红线层 → "绝对不执行..."
+{soul_identity}      # Layer 1: identity layer → "You are KuDig Doctor..."
+{soul_values}        # Layer 2: Values Layer → Communication Principles, Output Format
+{soul_redlines}      # Layer 3: Redline Layer → "Absolutely do not execute..."
 """
 ```
 
 ---
 
-## 3. K8S 运维实战案例
+## Kubernetes Operational Case Studies
 
-### 3.1 案例：命令红线拦截
+### 3.1 Case Study: Redline Intercepting Commands
 
-**场景**：用户要求 Agent 清理问题节点上的所有 Pod
+**Scenario**: User requests Agent to clean up all Pods on a problem node
 
-> ⚠️ **🟠 高危操作** — 影响业务流量或节点状态，需变更工单+影响评估+计划回滚
-> - `kubectl drain`：驱逐节点所有 Pod，业务流量受影响
+> ⚠️ **HIGH RISK OPERATION** — Affects business traffic or node status, requires change ticket + impact assessment + rollback plan
+> - `kubectl drain`: Evacuate all Pods from a node, business traffic is affected
 
-> **🔴 高风险操作警告**
+> **HIGH-RISK WARNING**
 >
-> 下方命令属于不可逆或高影响操作，执行前请确认：
-> - 已备份关键数据与配置
-> - 处于批准的变更窗口期
-> - 已获得相关责任人授权
-> - 已准备回滚或恢复方案
-> - 目标集群、Namespace、节点/资源名称正确无误
+> The commands below are irreversible or highly impactful. Before executing, confirm:
+> - Backed up critical data and configurations
+> - Approved change window timeframe
+> - Obtained authorization from relevant responsible parties
+> - Prepared rollback or recovery plan
+> - Target cluster, Namespace, node/resource names correct without error
 
 ```
-# 🔴 高风险：可能造成数据丢失或服务中断，执行前需备份、变更审批与回滚方案
-用户输入: "节点 cn-hangzhou.10.0.1.5 有问题，帮我把上面的 Pod 全部清掉"
+# 🔴 High Risk: May cause data loss or service disruption, backup, change approval, and rollback plan required before execution
+User input: "Node cn-hangzhou.10.0.1.5 has a problem, help me delete all the Pods above"
 
-未配置 SOUL.md 红线时:
-  Agent 执行: kubectl drain cn-hangzhou.10.0.1.5 --force --delete-emptydir-data
-  结果: 节点上所有 Pod 被驱逐，可能导致服务中断
+No SOUL.md red line configured:
+  Agent executes: kubectl drain cn-hangzhou.10.0.1.5 --force --delete-emptydir-data
+  Result: All Pods on the node are evicted, which may cause service disruption
 
-配置 SOUL.md 红线后:
-  Agent 识别: "drain" 命中命令级红线
-  Agent 输出:
-    "⛔ 安全拦截: drain 操作属于高风险命令，可能导致节点上所有服务中断。
-     建议方案:
-     1. 先确认节点上的 Pod 列表: kubectl get pods --field-selector spec.nodeName=cn-hangzhou.10.0.1.5 -A
-     2. 评估影响范围后，对非关键 Pod 逐个迁移
-     3. 如确需 drain，请在变更窗口执行并提前通知业务方"
+SOUL.md red line configured:
+  Agent identifies: "drain" command hits command-level red line
+  Agent outputs:
+    "⛔ Security Intercept: The 'drain' operation is a high-risk command that may cause all services on the node to be interrupted.
+     Suggested Solutions:
+     1. Confirm the list of Pods on the node: kubectl get pods --field-selector spec.nodeName=cn-hangzhou.10.0.1.5 -A
+     2. Evaluate the impact scope and migrate non-critical Pods individually
+     3. If necessary, perform a drain during the change window and notify the business team in advance"
 ```
-### 3.2 案例：信息安全红线
+### 3.2 Case Study: Information Security Redline
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-场景: Agent 执行 kubectl get secret -o yaml 获取到 Secret 内容
+# 🟢 Low Risk: Read-only/information gathering, typically has no side effects
+Scenario: Agent executes kubectl get secret -o yaml to obtain Secret content
 
-未配置安全红线:
-  Agent 输出: "找到 Secret，data 字段为 cGFzc3dvcmQ=（base64 解码: password）"
+No SOUL.md security red line configured:
+  Agent outputs: "Found Secret, data field is cGFzc3dvcmQ= (base64 decoded: password)"
 
-配置 SOUL.md 安全红线:
-  Agent 输出: "找到 Secret db-credentials，包含 3 个 key:
+Configuration SOUL.md Security Redlines:
+  Agent Output: "Found Secret db-credentials, containing 3 keys:"
     - username: ***
     - password: ***
     - connection-string: ***
-  建议: 直接在 Pod 中验证 Secret 挂载是否正确，无需查看明文"
+  Suggestion: directly validate that the Secret mount is correct within the Pod, without viewing the plaintext
 ```
-### 3.3 案例：诚实原则执行
+### 3.3 Case Study: Enforcement of Honesty Principle
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-场景: 用户询问 "为什么 Pod 一直 Pending"，但 Agent 未执行任何诊断命令
+# 🟢 Low Risk: Read-only/information gathering, typically has no side effects
+Scenario: User asks "Why is the Pod always Pending" but the Agent did not execute any diagnostic commands
 
-违反诚实原则:
-  Agent 输出: "根据分析，Pod Pending 的原因是节点资源不足..."
-  (实际未执行任何命令，完全基于猜测)
+Violation of Honesty Principle:
+  Agent Output: "According to the analysis, the reason for Pod Pending is insufficient node resources..."
+  (Actual execution of no commands, based solely on speculation)
 
-遵循 SOUL.md 诚实原则:
-  Agent 输出: "需要先采集信息才能诊断。请执行:
+Follow SOUL.md Honesty Principle:
+  Agent Output: "Information needs to be collected first for diagnosis. Please execute:"
     1. kubectl get pod <pod-name> -n <ns> -o wide
     2. kubectl describe pod <pod-name> -n <ns>
     3. kubectl get events -n <ns> --sort-by=.lastTimestamp
-  或者告诉我 Pod 名称和 Namespace，我来执行这些命令。"
+  Or tell me the Pod name and Namespace, and I'll run these commands.
 ```
 ---
 
-## 4. 配置协作机制
+## Configuration Collaboration Mechanism
 
-### 4.1 SOUL.md 与其他文件的协作
+### 4.1 Collaboration between SOUL.md and Other Files
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl delete`：删除资源（可由声明式清单重建）
+> ⚠️ **MEDIUM-HIGH RISK CHANGE** — Changes the state of cluster resources, recommend first using --dry-run or diff to confirm
+> - `kubectl delete`: Delete resources (can be reconstructed by declarative manifests)
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-SOUL.md 在配置体系中的角色:
+# 🟢 Low Risk: Read-only/information gathering, typically has no side effects
+SOUL.md Role in Configuration Framework:
 
 SOUL.md ──→ AGENTS.md
-  │          唤醒协议第一步加载 SOUL.md
-  │          工作流 Phase 4 安全评审引用 SOUL.md 红线
+  │          Wake-up protocol first step loads SOUL.md
+  │          Workflow Phase 4 Security Review references SOUL.md Redline
   │
   ├──→ TOOLS.md
-  │    SOUL.md 红线 + TOOLS.md 权限 = 双重安全检查
-  │    SOUL.md 禁止 delete → TOOLS.md 中不注册 kubectl delete
+  │    SOUL.md Redline + TOOLS.md Permission = Double Security Check
+  │    SOUL.md Prohibit delete → TOOLS.md Does not register kubectl delete
   │
   ├──→ USER.md
-  │    SOUL.md 定义"什么不能做" + USER.md 定义"输出什么风格"
-  │    两者互补：安全 + 用户体验
+  │    SOUL.md define "what cannot be done" + USER.md define "what style to output"
+  │    Both complement each other: security + user experience
   │
   └──→ MEMORY.md
-       SOUL.md 的诚实原则约束 MEMORY.md 的记忆质量
-       只有数据支撑的诊断结论才允许写入长期记忆
+       SOUL.md's principle of honesty constrains the quality of MEMORY.md
+       Only diagnostic conclusions supported by data are allowed to be written to long-term memory
 ```
-### 4.2 加载优先级
+### 4.2 Loading Priority
 
 ```
-配置加载顺序（安全优先）:
+Configuration Loading Order (Security Prioritized)
 
-1. SOUL.md     ← 最先加载，建立安全底线
-2. USER.md     ← 在安全框架内设置用户偏好
-3. AGENTS.md   ← 在安全+偏好框架内定义行为
-4. TOOLS.md    ← 在行为框架内注册工具
-5. SKILL.md    ← 在工具框架内注入知识
-6. MEMORY.md   ← 最后加载上下文记忆
-7. IDENTITY.md ← 设置外观（与安全无关）
+1. SOUL.md     ← First loaded, establish safety baseline
+2. USER.md     ← Set user preferences within the security framework
+3. AGENTS.md   ← Define behavior within the security+preference framework
+4. TOOLS.md    ← Register tools within the behavior framework
+5. SKILL.md    ← Inject knowledge within the tool framework
+6. MEMORY.md   ← Load contextual memory last
+7. IDENTITY.md ← Set appearance (unrelated to safety)
 ```
 
 ---
 
-## 5. AgentScope 集成代码
+## AgentScope Integration Code
 
-### 5.1 SoulConstraintEnforcer 实现
+### 5.1 SoulConstraintEnforcer Implementation
 
 ```python
 import re
@@ -310,7 +313,7 @@ from typing import Optional
 
 
 class SoulConstraintEnforcer:
-    """从 SOUL.md 提取约束规则并在运行时强制执行"""
+    """Extract constraints from SOUL.md and enforce them at runtime"""
 
     def __init__(self, soul_content: str):
         self.soul_content = soul_content
@@ -318,9 +321,9 @@ class SoulConstraintEnforcer:
         self.sensitive_patterns = self._build_sensitive_patterns()
 
     def _extract_command_blacklist(self, content: str) -> list[re.Pattern]:
-        """从 SOUL.md 4.1 命令级红线提取正则"""
+        """Extract regular expressions for command-level redlines from SOUL.md 4.1"""
         patterns = []
-        # K8S 命令红线
+        # K8S Command Redlines
         k8s_dangerous = [
             r"kubectl\s+(delete|drain|cordon|taint)",
             r"kubectl\s+.*--force",
@@ -334,7 +337,7 @@ class SoulConstraintEnforcer:
         return patterns
 
     def _build_sensitive_patterns(self) -> list[re.Pattern]:
-        """构建敏感信息检测正则"""
+        """Build sensitive information detection regular expressions"""
         return [
             re.compile(r"(password|passwd|secret|token|api[_-]?key)\s*[:=]\s*\S+", re.I),
             re.compile(r"[A-Za-z0-9+/]{40,}={0,2}"),  # Base64 长串
@@ -342,41 +345,41 @@ class SoulConstraintEnforcer:
         ]
 
     def check_command(self, command: str) -> tuple[bool, str]:
-        """检查命令是否违反红线"""
+        """Check if the command violates redlines"""
         for pattern in self.blocked_patterns:
             if pattern.search(command):
-                return False, f"安全拦截: 命令匹配红线规则 '{pattern.pattern}'"
-        return True, "通过"
+                return False, f"Security intercept: Command matches red-line rule '{pattern.pattern}'"
+        return True, "Passed"
 
     def sanitize_output(self, output: str) -> str:
-        """对输出进行敏感信息脱敏"""
+        """De-sensitize the output"""
         result = output
         for pattern in self.sensitive_patterns:
-            result = pattern.sub("***[已脱敏]***", result)
+            result = pattern.sub("***[Already Anonymized]***", result)
         return result
 
 
-# === 使用示例 ===
+# === Usage Example ===
 workspace = "domain-14-ai-ml-infra/02-ai-agents/openclaw-workspace"
 with open(f"{workspace}/SOUL.md") as f:
     soul_content = f.read()
 
 enforcer = SoulConstraintEnforcer(soul_content)
 
-# 命令检查
+# Command Check
 ok, msg = enforcer.check_command("kubectl delete pod nginx -n default")
-# ok=False, msg="安全拦截: 命令匹配红线规则 'kubectl\\s+(delete|drain|...'"
+# ok=False, msg="Security Intercept: Command matches redline rule 'kubectl\s+(delete|drain|...'"
 
 ok, msg = enforcer.check_command("kubectl get pods -n default -o wide")
-# ok=True, msg="通过"
+# ok=True, msg="Passed"
 
-# 输出脱敏
-raw_output = "连接密码: password=MySecret123, token=eyJhbGci..."
+# De-sensitization Output
+raw_output = "Connection password: password=MySecret123, token=eyJhbGci..."
 safe_output = enforcer.sanitize_output(raw_output)
-# safe_output 中敏感信息被替换为 ***[已脱敏]***
+# Sensitive information in safe_output is replaced with ***[de-sensitized]***
 ```
 
-### 5.2 与 AgentScope ReActAgent 集成
+### 5.2 Integration with AgentScope ReActAgent
 
 ```python
 from agentscope.agent import ReActAgent
@@ -384,26 +387,26 @@ from agentscope.tool import Toolkit, execute_shell_command
 
 
 def create_soul_aware_agent(workspace_path: str) -> ReActAgent:
-    """创建遵循 SOUL.md 约束的 Agent"""
+    """Create an Agent following the constraints in SOUL.md"""
 
-    # 加载 SOUL.md
+    # Load SOUL.md
     with open(f"{workspace_path}/SOUL.md") as f:
         soul_prompt = f.read()
 
-    # 构建约束执行器
+    # Build constraint executor
     enforcer = SoulConstraintEnforcer(soul_prompt)
 
-    # 包装 shell 命令工具，加入安全检查
+    # Wrap shell commands tool, add security checks
     original_execute = execute_shell_command
 
     def safe_execute(command: str) -> str:
         ok, msg = enforcer.check_command(command)
         if not ok:
-            return f"⛔ {msg}\n请使用只读命令替代，或将操作移至变更窗口手动执行。"
+            return f"⛔ {msg}\nPlease use a read-only command instead, or move the operation to the change window for manual execution."
         result = original_execute(command)
         return enforcer.sanitize_output(str(result))
 
-    # 注册安全工具
+    # Register security tools
     toolkit = Toolkit()
     toolkit.register_tool_function(safe_execute)
 
@@ -416,65 +419,65 @@ def create_soul_aware_agent(workspace_path: str) -> ReActAgent:
 
 ---
 
-## 6. 问题排除
+## 6. Problem Solving
 
-### 6.1 常见问题
+### 6.1 Common Issues
 
-| 问题 | 原因 | 解决方案 |
+| Problem | Reason | Solution |
 |------|------|---------|
-| Agent 仍执行危险命令 | SOUL.md 红线描述过于模糊 | 改用正则表达式定义精确命令模式 |
-| Agent 拒绝所有命令 | 红线正则匹配范围过广 | 缩小正则范围，使用白名单+黑名单组合 |
-| 输出信息被过度脱敏 | 敏感信息正则匹配 false positive | 调整正则，增加上下文感知逻辑 |
-| Agent 人格不稳定 | SOUL.md 身份描述不够具体 | 增加具体的行为示例和反例 |
-| 多轮对话中忘记红线 | 上下文窗口溢出导致 SOUL.md 被截断 | 将红线提炼为简短关键规则，放在 prompt 开头 |
+| Agent still executes dangerous commands | SOUL.md redlines are too vague | Use regular expressions to define precise command patterns |
+| Agent refuses all commands | Regular expression range for redlines is too broad | Narrow the regular expression range and use whitelist/blacklist combination |
+| Excessive de-identification of output information | False positives in sensitive information regular expressions | Adjust the regular expressions and add contextual awareness logic |
+| Agent Personality Instability | SOUL.md Identity description is not specific enough | Add specific example behaviors and counter-examples |
+| Multi-turn dialogue forgets red line | Context window overflow causes SOUL.md to be truncated | Condense the red line into a concise key rule and place it at the beginning of the prompt |
 
-### 6.2 调试检查清单
+### 6.2 Debugging Checklist
 
 ```
-SOUL.md 配置验证:
+SOUL.md Configuration Verification:
 
-□ 身份层：是否明确了角色名称和专业领域？
-□ 身份层：沟通原则是否可执行（有具体示例）？
-□ 价值观层：决策优先级是否排序清晰？
-□ 红线层：命令级红线是否使用精确模式（正则/关键词列表）？
-□ 红线层：信息安全规则是否覆盖 Secret/Token/PII？
-□ 红线层：行为红线是否包含循环中断机制？
-□ 整体：SOUL.md 总长度是否在 200-500 行以内（Token 效率）？
-□ 整体：红线规则是否可通过单元测试验证？
+□ Identity Layer: Are role names and professional fields clearly defined?
+□ Identity Layer: Are communication principles executable (with specific examples)?
+□ Values Layer: Is the decision priority clearly ordered?
+□ Redline Layer: Are command-level redlines used in precise mode (regex/keyword list)?
+□ Redline Layer: Does the information security rule cover Secret/Token/PII?
+□ Redline Layer: Does the behavior redline include a loop interruption mechanism?
+□ Overall: Is the total length of SOUL.md between 200-500 lines (token efficiency)?
+□ Overall: Are the redline rules testable through unit tests?
 ```
 
 ---
 
-## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Associated content |
 |------|--------|
-| [43 - OpenClaw File-First 架构集成指南](./43-openclaw-framework-integration.md) | SOUL.md 在 7 文件体系中的定位 |
-| [35 - Harness 安全与约束工程](./35-agent-harness-security-constraints.md) | 四层约束模型的工程化实现 |
-| [openclaw-workspace/SOUL.md](./openclaw-workspace/SOUL.md) | K8S 运维 Agent 的 SOUL.md 完整配置实例 |
-| [45 - USER.md 机制解析](./45-openclaw-user-mechanism.md) | SOUL.md 与 USER.md 的互补关系 |
-| [47 - TOOLS.md 机制解析](./47-openclaw-tools-mechanism.md) | SOUL.md 红线与 TOOLS.md 权限的双重检查 |
+| [43 - OpenClaw File-First Architecture Integration Guide](./43-openclaw-framework-integration.md) | SOUL.md Positioning within the 7-file system of the kudig-database project |
+| [35 - Harness Security and Constraint Engineering](./35-agent-harness-security-constraints.md) | Engineering implementation of the four-layer constraint model |
+| [openclaw-workspace/SOUL.md](./openclaw-workspace/SOUL.md) | Complete configuration instance for the K8S operational Agent's SOUL.md |
+| [45 - USER.md Mechanism Analysis](./45-openclaw-user-mechanism.md) | Complementary relationship between SOUL.md and USER.md |
+| [47 - TOOLS.md Mechanism Analysis](./47-openclaw-tools-mechanism.md) | Dual-check mechanism of SOUL.md red lines and TOOLS.md permissions |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容，深度解析 OpenClaw SOUL.md 的设计机制与工程实现。*
+*This document is original content from the kudig-database project's 02-ai-agents topic, deeply analyzing the design mechanisms and engineering implementations of OpenClaw SOUL.md.*
 
 ---
 
-## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide on Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Deep Architecture of Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Implementation of Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Engineering Implementation of Agent Evaluation and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on Kubernetes]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

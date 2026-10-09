@@ -1,6 +1,7 @@
----title: 工具授权注册表 (02-ai-agents)
-description: 'title: 工具授权注册表'
-summary: 'title: 工具授权注册表'
+---
+title: Tool Authorization Registry (02-ai-agents)
+description: 'title: Tool Authorization Registry'
+summary: 'title: Tool Authorization Registry'
 category: general
 tags:
 - ai
@@ -19,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 工具授权注册表 是什么
-- 如何 工具授权注册表
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Tool Authorization Registry
+- How to use Tool Authorization Registry
+- Kubernetes 14 ai ml infra Best Practices
 trigger_keywords:
-- 工具授权注册表
+- What is Tool Authorization Registry
 - ai
 - ml
 - infra
@@ -43,17 +44,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/openclaw-workspace/TOOLS.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 工具授权注册表
-description: K8S 运维诊断 Agent 的工具授权注册表、调用参数规范与安全约束
+title: Tool Authorization Registry
+description: Specification and security constraints for tool authorization registry of Kubernetes Operational Diagnostic Agent
 category: ai-agent
 tags:
 - ai
@@ -70,15 +73,15 @@ last_updated: 2026-04
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 工具授权注册表 是什么
-- 如何 工具授权注册表
+- What is the Tool Authorization Registry
+- How does the Tool Authorization Registry work
 trigger_keywords:
-- 工具授权注册表
+- Tool Authorization Registry
 - ai
 - agent
 authors:
@@ -91,150 +94,150 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
-# 工具授权注册表
+# Tool Authorization Registry
 
-## 1. 授权工具清单
+## 1. List of Authorized Tools
 
-### 1.1 信息采集工具（只读，默认授权）
+### 1.1 Information Collection Tools (Read-Only, Default Authorized)
 
-| 工具 | 用途 | 权限级别 | 输出格式 |
+| Tool | Purpose | Permission Level | Output Format |
 |------|------|---------|---------|
-| `kubectl get` | 查看资源列表和状态 | 只读 | table/json/yaml |
-| `kubectl describe` | 查看资源详细信息和事件 | 只读 | text |
-| `kubectl logs` | 查看 Pod 日志 | 只读 | text |
-| `kubectl top` | 查看资源使用率 | 只读 | table |
-| `kubectl events` | 查看集群事件 | 只读 | table |
-| `kubectl api-resources` | 查看可用 API 资源 | 只读 | table |
-| `kubectl cluster-info` | 查看集群基本信息 | 只读 | text |
-| `kubectl version` | 查看版本信息 | 只读 | json |
+| `kubectl get` | View resource lists and statuses | Read-Only | table/json/yaml |
+| `kubectl describe` | View detailed resource information and events | Read-Only | text |
+| `kubectl logs` | View pod logs | Read-Only | text |
+| `kubectl top` | View resource usage rates | Read-Only | table |
+| `kubectl events` | View cluster events | Read-Only | table |
+| `kubectl api-resources` | View available API resources | Read-Only | table |
+| `kubectl cluster-info` | View cluster basic information | Read-Only | text |
+| `kubectl version` | View version information | Read-Only | json |
 
-### 1.2 监控查询工具（只读，默认授权）
+### 1.2 Monitoring Query Tools (Read-Only, Default Authorized)
 
-| 工具 | 用途 | 权限级别 | 参数规范 |
+| Tool | Purpose | Permission Level | Parameter Specification |
 |------|------|---------|---------|
-| `prometheus_query` | 执行 PromQL 即时查询 | 只读 | `query`: PromQL 表达式 |
-| `prometheus_query_range` | 执行 PromQL 范围查询 | 只读 | `query`, `start`, `end`, `step` |
-| `loki_search` | 搜索日志 | 只读 | `query`: LogQL 表达式, `limit` |
-| `grafana_dashboard` | 查看 Dashboard 面板 | 只读 | `dashboard_uid`, `panel_id` |
+| `prometheus_query` | Execute Prometheus Query Language (PromQL) instant queries | Read-Only | `query`: PromQL expression |
+| `prometheus_query_range` | Execute Prometheus Query Range | Read-Only | `query`, `start`, `end`, `step` |
+| `loki_search` | Search Logs | Read-Only | `query`: LogQL expression, `limit` |
+| `grafana_dashboard` | View Dashboard Panel | Read-Only | `dashboard_uid`, `panel_id` |
 
-### 1.3 辅助工具（只读，默认授权）
+### 1.3 Auxiliary Tools (Read-Only, Default Authorized)
 
-| 工具 | 用途 | 权限级别 | 说明 |
+| Tools | Purpose | Permission Level | Description |
 |------|------|---------|------|
-| `view_text_file` | 读取文本文件 | 只读 | 用于读取 SKILL.md 等参考文件 |
-| `execute_shell_command` | 执行 Shell 命令 | 受限只读 | 只允许信息采集类命令 |
-| `helm_info` | 查看 Helm Release 信息 | 只读 | `helm list`, `helm get values` |
-| `etcdctl_status` | 查看 etcd 集群状态 | 只读 | 仅限 `endpoint status/health` |
+| `view_text_file` | Read Text File | Read-Only | Used to read REFERENCE files like SKILL.md |
+| `execute_shell_command` | Execute Shell Command | Limited Read-Only | Only allows collection-type commands |
+| `helm_info` | View Helm Release Information | Read-Only | `helm list`, `helm get values` |
+| `etcdctl_status` | View etcd Cluster Status | Read-Only | Limited to `endpoint status/health` |
 
-### 1.4 有限写操作工具（需用户确认）
+### 1.4 Limited Write Operation Tools (User Confirmation Required)
 
-| 工具 | 用途 | 权限级别 | 确认要求 |
+| Tools | Purpose | Permission Level | Confirmation Required |
 |------|------|---------|---------|
-| `kubectl apply` | 应用配置变更 | 有限写 | 必须先展示 diff，等待用户确认 |
-| `kubectl scale` | 调整副本数 | 有限写 | 显示当前值和目标值，等待确认 |
-| `kubectl rollout` | 管理滚动更新 | 有限写 | 仅允许 `restart` 和 `undo` |
-| `kubectl label` | 管理标签 | 有限写 | 显示变更内容，等待确认 |
-| `kubectl annotate` | 管理注解 | 有限写 | 显示变更内容，等待确认 |
+| `kubectl apply` | Apply Configuration Changes | Limited Write | Must first show diff, wait for user confirmation |
+| `kubectl scale` | Adjust Pod Count | Limited Write | Show current value and target value, wait for confirmation |
+| `kubectl rollout` | Manage Rolling Updates | Limited Write | Only allows `restart` and `undo` |
+| `kubectl label` | Manage Labels | Limited Write | Show change content, wait for confirmation |
+| `kubectl annotate` | Manage Annotations | Limited Write | Show change content, wait for confirmation |
 
-## 2. 工具使用优先级
+## 2. Priority of Tool Usage
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource states, suggest confirming with --dry-run or diff first
+> - `kubectl apply/create/replace`: Apply/Change cluster resources
 
 ```
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-诊断场景的工具调用顺序:
+# 🟡 Medium Risk: Modifies cluster/resource status; confirm target, impact scope, and authorization before proceeding
+Diagnostic tool call order for scenarios:
 
-Level 1: 宏观状态（必做）
+Level 1: Macro state (mandatory)
   kubectl get pods -n <ns> -o wide
   kubectl get nodes -o wide
   kubectl get events -n <ns> --sort-by=.lastTimestamp
 
-Level 2: 微观详情（按需）
+Level 2: Micro details (as needed)
   kubectl describe <resource> -n <ns>
   kubectl logs <pod> -n <ns> [--previous] [--tail=100]
   kubectl top pods/nodes
 
-Level 3: 监控数据（深度分析）
-  prometheus_query（资源使用趋势、错误率）
-  loki_search（日志关键词搜索）
+Level 3: Monitoring data (deep analysis)
+  prometheus_query (resource usage trend, error rate)
+  loki_search (log keyword search)
 
-Level 4: 写操作（仅在用户确认后）
+Level 4: Write operations (only after user confirmation)
   kubectl apply/scale/rollout
 ```
-## 3. 参数规范
+## 3. Parameter Specifications
 
-### 3.1 kubectl 通用参数
+### 3.1 General Parameters for kubectl
 
 ```
-必须包含的参数:
-  -n <namespace>          # 所有命令必须显式指定 namespace
-  --context <context>      # 多集群环境必须指定 context
+Parameters that must be included:
+  -n <namespace>          # all commands must explicitly specify namespace
+  --context <context>      # Multi-cluster environments must specify context
 
-推荐的输出格式:
-  -o wide                  # 列表查询用 wide 格式
-  -o json                  # 需要解析时用 json
-  -o jsonpath='{...}'      # 精确提取单个字段
-  -o custom-columns=...    # 自定义列输出
+Recommended output format:
+  -o wide                  # List queries use wide format
+  -o json                  # needs parsing when using json
+  -o jsonpath='{...}'      # extract a single field precisely
+  -o custom-columns=...    # Custom column output
 
-日志查询参数:
-  --tail=100               # 默认限制 100 行
-  --since=30m              # 默认最近 30 分钟
-  --previous               # CrashLoop 时查看上一次日志
-  --timestamps             # 包含时间戳
+Log query parameters:
+  --tail=100               # Default limit to 100 lines
+  --since=30m              # Default last 30 minutes
+  --previous               # View logs from the previous crash loop
+  --timestamps             # Include timestamps
 ```
 
-### 3.2 PromQL 常用模板
+### 3.2 Common Templates for PromQL
 
 ```yaml
-# Pod CPU 使用率
+# Pod CPU Usage
 sum(rate(container_cpu_usage_seconds_total{namespace="<ns>", pod=~"<pod>.*"}[5m])) by (pod)
 
-# Pod 内存使用量
+# Pod Memory Usage
 sum(container_memory_working_set_bytes{namespace="<ns>", pod=~"<pod>.*"}) by (pod)
 
-# Node CPU 使用率
+# Node CPU Usage
 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
 
-# API Server 请求延迟 P99
+# API Server Request Latency P99
 histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket[5m])) by (le, verb))
 
-# etcd 延迟
+# etcd Latency
 histogram_quantile(0.99, sum(rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) by (le))
 
-# Pod 重启次数
+# Pod Restart Count
 sum(increase(kube_pod_container_status_restarts_total{namespace="<ns>"}[1h])) by (pod)
 ```
 
-### 3.3 LogQL 常用模板
+### 3.3 Common Templates for LogQL
 
 ```yaml
-# Pod 错误日志
+# Pod Error Logs
 {namespace="<ns>", pod=~"<pod>.*"} |= "error" | logfmt
 
-# kubelet 日志
+# kubelet Logs
 {unit="kubelet"} |= "failed" | logfmt
 
-# API Server 审计日志
+# API Server Audit Logs
 {job="apiserver-audit"} | json | verb="delete"
 ```
 
-## 4. 安全约束
+## 4. Security Constraints
 
-### 4.1 命令黑名单
+### 4.1 Command Blacklist
 
-> **🔴 高风险操作警告**
+> **🔴 High Risk Operations Warning**
 >
-> 下方命令属于不可逆或高影响操作，执行前请确认：
-> - 已备份关键数据与配置
-> - 处于批准的变更窗口期
-> - 已获得相关责任人授权
-> - 已准备回滚或恢复方案
-> - 目标集群、Namespace、节点/资源名称正确无误
+> Below commands are irreversible or highly impactful operations, execute only after confirming:
+> - Backed up critical data and configurations
+> - During approved change window
+> - Has obtained authorization from relevant responsible parties
+> - Has prepared rollback or recovery plans
+> - Target cluster, Namespace, node/resource names are correct without error
 
 ```
-# 🔴 高风险：可能造成数据丢失或服务中断，执行前需备份、变更审批与回滚方案
-绝对禁止的命令模式（正则匹配）:
+# 🔴 High Risk: May cause data loss or service disruption; ensure backup, approval for changes, and rollback plan before executing
+Absolute prohibition of command modes (regex matching):
 
 kubectl\s+delete\s+(namespace|ns|node|pv)\b
 kubectl\s+delete\s+.*--all\b
@@ -247,12 +250,12 @@ kubectl\s+create\s+clusterrolebinding
 helm\s+uninstall\b
 etcdctl\s+del\b
 ```
-### 4.2 Namespace 白名单模式
+### 4.2 Whitelist Mode for Namespaces
 
 ```
-默认策略: 允许所有非系统 Namespace 的只读操作
+Default policy: Allow all read-only operations in non-system namespaces
 
-受保护的 Namespace（写操作需要额外审批）:
+Protected namespaces (write operations require additional approval):
   - kube-system
   - kube-public
   - kube-node-lease
@@ -260,87 +263,87 @@ etcdctl\s+del\b
   - istio-system
   - cert-manager
 
-完全禁止操作的 Namespace:
-  - default（生产集群不应使用 default）
+Prohibited operations in any namespace:
+  - default (production cluster should not use default)
 ```
 
-### 4.3 输出脱敏规则
+### 4.3 Output De-sensitization Rules
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-自动脱敏的内容:
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+Automatically anonymized content:
 
-Secret 类型:
-  kubectl get secret -o yaml → data 字段用 "***REDACTED***" 替代
-  kubectl get secret -o json → 同上
+Secret type:
+  kubectl get secret -o yaml → data field replaced with "***REDACTED***"
+  kubectl get secret -o json → same
 
-环境变量:
-  包含 KEY/TOKEN/PASSWORD/SECRET/CREDENTIAL 关键词的值 → "***"
+Environment variables:
+  Values containing KEY/TOKEN/PASSWORD/SECRET/CREDENTIAL keywords → "***"
 
 ConfigMap:
-  包含连接字符串、密码、API Key 的值 → 部分脱敏（保留前 4 位）
+  Values containing connection strings, passwords, API Key → partial redaction (keep first 4 characters)
 ```
-## 5. 工具组合模板
+## 5. Tool Combinations Templates
 
-### 5.1 Pod Pending 诊断工具链
+### 5.1 Diagnostic Toolchain for Pod Pending
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认状态
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+# Step 1: Confirm status
 kubectl get pod <pod> -n <ns> -o wide
 
-# Step 2: 查看事件
+# Step 2: Review events
 kubectl describe pod <pod> -n <ns> | grep -A 20 "Events:"
 
-# Step 3: 检查节点资源
+# Step 3: Check node resources
 kubectl top nodes
 kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu,MEM:.status.allocatable.memory
 
-# Step 4: 检查调度约束
+# Step 4: Check scheduling constraints
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.nodeSelector}'
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.affinity}'
 ```
-### 5.2 Node NotReady 诊断工具链
+### 5.2 Diagnostic Toolchain for Node NotReady
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认节点状态
+# 🟢 Low-risk: Read-only/information gathering, usually no side effects
+# Step 1: Confirm node status
 kubectl get nodes -o wide
 kubectl describe node <node> | grep -A 10 "Conditions:"
 
-# Step 2: 检查 kubelet
+# Step 2: Check kubelet
 kubectl get --raw /api/v1/nodes/<node>/proxy/healthz
 
-# Step 3: 检查资源压力
+# Step 3: Check resource pressure
 kubectl top node <node>
 kubectl describe node <node> | grep -A 5 "Allocated resources:"
 
-# Step 4: 查看节点事件
+# Step 4: View node events
 kubectl get events --field-selector involvedObject.name=<node> --sort-by=.lastTimestamp
 ```
-### 5.3 OOM 诊断工具链
+### 5.3 Diagnostic Toolchain for OOM
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Step 1: 确认 OOM
+# 🟢 Low-risk: Read-only/information gathering, usually no side effects
+# Step 1: Confirm OOM
 kubectl describe pod <pod> -n <ns> | grep -A 5 "Last State:"
 kubectl get events -n <ns> --field-selector reason=OOMKilling
 
-# Step 2: 查看资源配置
+# Step 2: View resource configuration
 kubectl get pod <pod> -n <ns> -o jsonpath='{.spec.containers[*].resources}'
 
-# Step 3: 查看实际使用
+# Step 3: View actual usage
 kubectl top pod <pod> -n <ns> --containers
 
-# Step 4: 查看历史趋势（Prometheus）
+# Step 4: View historical trends (Prometheus)
 # sum(container_memory_working_set_bytes{namespace="<ns>", pod="<pod>"}) by (container)
 ```
-## 6. MCP 工具集成
+## 6. MCP Tool Integration
 
-### 6.1 MCP Server 配置
+### 6.1 MCP Server Configuration
 
 ```yaml
-# 可通过 MCP 协议集成的远程工具
+# Remote tools that can be integrated via MCP protocol
 mcp_servers:
   - name: kubectl-mcp
     transport: stdio
@@ -364,28 +367,28 @@ mcp_servers:
       - loki_search
 ```
 
-### 6.2 AGENTScope Toolkit 注册示例
+### 6.2 AGENTScope Toolkit Registration Example
 
 ```python
 from agentscope.tool import Toolkit, execute_shell_command, view_text_file
 
 toolkit = Toolkit()
 
-# 基础工具
+# Base tools
 toolkit.register_tool_function(execute_shell_command)
 toolkit.register_tool_function(view_text_file)
 
-# MCP 远程工具
+# MCP remote tools
 # await toolkit.register_mcp_client(kubectl_mcp_client)
 # await toolkit.register_mcp_client(prometheus_mcp_client)
 
-# Agent Skill（领域知识）
+# Agent Skill(Domain knowledge)
 toolkit.register_agent_skill("openclaw-workspace")
 ```
 
 ---
 
-*本文件定义 Agent 的工具授权边界。添加新工具需要安全评审，删除工具需要评估影响范围。*
+*This document defines the scope of tool authorization for Agents. Adding new tools requires security review, and deleting tools requires assessing the impact range.*
 
 ## Related
 

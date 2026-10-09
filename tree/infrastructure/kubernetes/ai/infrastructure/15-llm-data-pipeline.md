@@ -1,6 +1,6 @@
 ---
-title: 142 - LLM训练数据Pipeline与管理 (LLM Data Pipeline & Management)
-description: '# 142 - LLM训练数据Pipeline与管理 (LLM Data Pipeline & Management)'
+title: 142 - LLM Training Data Pipeline and Management
+description: '# 142 - LLM Training Data Pipeline and Management'
 summary: 'csi.storage.k8s.io/provisioner-secret-name: juicefs-secret'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM训练数据Pipeline与管理 (LLM Data Pipeline & Management) 是什么
-- 如何 LLM训练数据Pipeline与管理 (LLM Data Pipeline & Management)
-- Kubernetes 11 ai infra 最佳实践
+- What is LLM Training Data Pipeline and Management
+- How to manage LLM Training Data Pipeline and Management
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- LLM训练数据Pipeline与管理
+- LLM Training Data Pipeline and Management
 - LLM
 - Data
 - Pipeline
@@ -54,78 +54,80 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/15-llm-data-pipeline.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether these commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 142 - LLM训练数据Pipeline与管理 (LLM Data Pipeline & Management)
+# 142 - LLM training data Pipeline and Management (LLM Data Pipeline & Management)
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **最后更新**: 2026-01 | **参考**: [Ray Data](https://docs.ray.io/en/latest/data/data.html)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **Last Updated**: 2026-01 | **Reference**: [Ray Data](https://docs.ray.io/en/latest/data/data.html)
 
 ---
 
-<!-- chunk: 一、LLM数据Pipeline架构 (Pipeline Architecture) -->
-## 一、LLM数据Pipeline架构 (Pipeline Architecture)
 
-### 1.1 端到端数据流水线
+## 1. LLM Data Pipeline Architecture (Pipeline Architecture)
+
+### 1.1 End-to-End Data Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    LLM 训练数据 Pipeline 架构                                │
+│                    LLM Training Data Pipeline Architecture                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                     数据采集层 (Data Collection)                       │ │
+│  │                     Data Collection Layer (Data Collection)                       │ │
 │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐    │ │
-│  │  │ Web爬虫 │  │ API抓取 │  │ 数据库  │  │ 文档导入│  │ 用户数据│    │ │
+│  │  │ Web Crawling │  │ API Fetching │  │ Database  │  │ Document Import│  │ User Data│    │ │
 │  │  │ Scrapy  │  │ Requests│  │ Export  │  │ Unstructured │ Feedback│    │ │
 │  │  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘    │ │
 │  └───────┴────────────┴────────────┴────────────┴────────────┴──────────┘ │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                     数据清洗层 (Data Cleaning)                         │ │
+│  │                     Data Cleaning Layer (Data Cleaning)                         │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │ │
-│  │  │ 去重        │  │ 质量过滤    │  │ PII脱敏     │  │ 格式标准化  │  │ │
+│  │  │ Deduplication        │  │ Quality Filtering    │  │ PII De-identification     │  │ Format Standardization  │  │ │
 │  │  │ MinHash/LSH │  │ FastText    │  │ Presidio    │  │ JSON/Parquet│  │ │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                     数据处理层 (Data Processing)                       │ │
+│  │                     Data Processing Layer (Data Processing)                       │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │ │
-│  │  │ Tokenization│  │ 数据配比    │  │ 数据增强    │  │ 序列打包    │  │ │
+│  │  │ Tokenization│  │ Data Balancing    │  │ Data Augmentation    │  │ Sequence Packing    │  │ │
 │  │  │ HF/SentenceP│  │ Mix Ratio   │  │ Augmentation│  │ Packing     │  │ │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                     数据存储层 (Data Storage)                          │ │
+│  │                     Data Storage Layer (Data Storage)                          │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │ │
-│  │  │ 对象存储    │  │ 分布式缓存  │  │ 向量数据库  │  │ 元数据管理  │  │ │
+│  │  │ Object Storage    │  │ Distributed Caching  │  │ Vector Database  │  │ Metadata Management  │  │ │
 │  │  │ S3/OSS/GCS  │  │ Alluxio     │  │ Milvus      │  │ MLflow      │  │ │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                        │
 │                                    ▼                                        │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                     数据加载层 (Data Loading)                          │ │
+│  │                     Data Loading Layer (Data Loading)                          │ │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │ │
-│  │  │ DataLoader  │  │ 预取缓冲    │  │ 分布式采样  │  │ 流式加载    │  │ │
+│  │  │ DataLoader  │  │ Prefetch Buffer    │  │ Distributed Sampling  │  │ Stream Loading    │  │ │
 │  │  │ Ray Data    │  │ Prefetch    │  │ DistSampler │  │ Streaming   │  │ │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
@@ -133,43 +135,43 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 数据Pipeline组件对比
+### 1.2 Comparison of Data Pipeline Components
 
-| 组件 | 类型 | 处理能力 | K8s集成 | GPU支持 | 适用场景 |
+| Component | Type | Processing Capacity | K8s Integration | GPU Support | Applicable Scenario |
 |-----|------|---------|--------|--------|---------|
-| **Ray Data** | 分布式处理 | TB级 | Ray Operator | 是 | ML数据预处理 |
-| **Spark** | 批处理 | PB级 | Spark Operator | 有限 | 大规模ETL |
-| **Dask** | 并行计算 | TB级 | Dask Operator | 是 | Python原生 |
-| **Flink** | 流处理 | 无限 | Flink Operator | 否 | 实时数据流 |
-| **[[domain-14-ai-ml-infra/03-agent-runtime/09-prefect-inngest-agent-workflow.md|Prefect]]** | 编排 | 依赖后端 | K8s Agent | 否 | 工作流编排 |
-| **Airflow** | 编排 | 依赖后端 | K8s Executor | 否 | DAG调度 |
+| **Ray Data** | Distributed Processing | TB-level | Ray Operator | Yes | ML data preprocessing |
+| **Spark** | Batch Processing | PB-level | Spark Operator | Limited | Large-scale ETL |
+| **Dask** | Parallel Computing | TB-level | Dask Operator | Yes | Native Python |
+| **Flink** | Stream Processing | Infinite | Flink Operator | No | Real-time data streams |
+| **[[domain-14-ai-ml-infra/03-agent-runtime/09-prefect-inngest-agent-workflow.md|Prefect]]** | Orchestration | Backend-dependent | K8s Agent | No | Workflow orchestration |
+| **Airflow** | Orchestration | Backend-dependent | K8s Executor | No | DAG scheduling |
 
 ---
 
-<!-- chunk: 二、数据格式与存储 (Data Formats & Storage) -->
-## 二、数据格式与存储 (Data Formats & Storage)
 
-### 2.1 LLM训练数据格式
+## 2. Data Format and Storage (Data Formats & Storage)
 
-| 格式 | 压缩率 | 读取速度 | 列裁剪 | 流式读取 | 适用场景 |
+### 2.1 LLM Training Data Format
+
+| Format | Compression Ratio | Read Speed | Column Pruning | Streaming Read | Applicable Scenario |
 |-----|-------|---------|--------|---------|---------|
-| **Parquet** | 高(70%) | 快 | 支持 | 支持 | 结构化数据 |
-| **Arrow** | 无 | 极快 | 支持 | 支持 | 内存交换 |
-| **WebDataset** | 高 | 极快 | 不支持 | 原生 | 图像/视频 |
-| **JSONL** | 低 | 慢 | 不支持 | 原生 | LLM文本 |
-| **MDS** | 高 | 极快 | 支持 | 原生 | MosaicML优化 |
-| **TFRecord** | 中 | 快 | 不支持 | 支持 | TensorFlow |
+| **Parquet** | High(70%) | Fast | Supported | Supported | Structured data |
+| **Arrow** | None | Very fast | Supported | Supported | Memory swapping |
+| **WebDataset** | High | Very fast | Not supported | Native | Images/videos |
+| **JSONL** | Low | Slow | Not supported | Native | LLM text |
+| **MDS** | High | Very fast | Supported | Native | MosaicML optimization |
+| **TFRecord** | Medium | Fast | Not supported | Supported | TensorFlow |
 
-### 2.2 数据格式转换
+### 2.2 Data Format Conversion
 
 ```python
-# JSONL转Parquet (优化存储和读取)
+# JSONL to Parquet (Optimize Storage and Reading)
 import pyarrow as pa
 import pyarrow.parquet as pq
 import json
 
 def jsonl_to_parquet(input_path, output_path, batch_size=10000):
-    """JSONL转Parquet，支持流式处理大文件"""
+    """Convert JSONL to Parquet, supports streaming large files"""
     schema = None
     writer = None
     batch = []
@@ -192,7 +194,7 @@ def jsonl_to_parquet(input_path, output_path, batch_size=10000):
                 writer.write_table(table)
                 batch = []
                 
-    # 处理剩余数据
+    # Handle remaining data
     if batch:
         table = pa.Table.from_pylist(batch)
         writer.write_table(table)
@@ -202,7 +204,7 @@ def jsonl_to_parquet(input_path, output_path, batch_size=10000):
 ```
 
 ```yaml
-# WebDataset格式配置
+# WebDataset format configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -213,7 +215,7 @@ data:
     import json
     
     def create_shards(data_path, output_pattern, max_size=1e9):
-        """创建WebDataset分片"""
+        """Create WebDataset shards"""
         with wds.ShardWriter(
             output_pattern,
             maxsize=max_size,
@@ -226,7 +228,7 @@ data:
                 })
 ```
 
-### 2.3 分布式存储配置
+### 2.3 Distributed Storage Configuration
 
 ```yaml
 # JuiceFS for LLM Data
@@ -258,7 +260,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: ml-data
   
 ---
-# Alluxio数据缓存
+# Alluxio Data Caching
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
 metadata:
@@ -274,7 +276,7 @@ spec:
       aws.secretKey: "${AWS_SECRET_ACCESS_KEY}"
       aws.region: "us-east-1"
       
-  # 数据预热配置
+  # Data Warm-up Configuration
   dataRestoreLocation:
     path: "s3://llm-training-data/cache"
     
@@ -287,7 +289,7 @@ metadata:
 spec:
   replicas: 10
   
-  # 分层存储
+  # Layered Storage
   tieredstore:
     levels:
     - mediumtype: MEM
@@ -338,13 +340,13 @@ spec:
 
 ---
 
-<!-- chunk: 三、数据清洗与质量 (Data Cleaning & Quality) -->
-## 三、数据清洗与质量 (Data Cleaning & Quality)
 
-### 3.1 数据质量Pipeline
+## 3. Data Cleaning and Quality (Data Cleaning & Quality)
+
+### 3.1 Data Quality Pipeline
 
 ```yaml
-# 数据质量检查Job
+# Data Quality Check Job
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -386,51 +388,51 @@ metadata:
   name: quality-config
 data:
   quality_config.yaml: |
-    # 数据质量检查配置
+    # Data Quality Check Configuration
     
-    # 文本长度过滤
+    # Text Length Filtering
     length_filter:
       min_chars: 100
       max_chars: 100000
       min_words: 20
       max_words: 20000
       
-    # 语言检测
+    # Language Detection
     language_filter:
       enabled: true
       languages: ["en", "zh"]
       min_confidence: 0.9
       
-    # 质量分数
+    # Quality Score
     quality_score:
       enabled: true
       model: "fasttext"
       min_score: 0.7
       
-    # 重复检测
+    # Duplicate Detection
     deduplication:
       enabled: true
       method: "minhash"
       threshold: 0.8
       num_perm: 128
       
-    # PII检测
+    # PII Detection
     pii_detection:
       enabled: true
       entities: ["PERSON", "EMAIL", "PHONE", "SSN", "CREDIT_CARD"]
       action: "mask"  # mask/remove/flag
       
-    # 有害内容过滤
+    # Harmful Content Filtering
     content_filter:
       enabled: true
       categories: ["hate", "violence", "sexual", "self_harm"]
       threshold: 0.5
 ```
 
-### 3.2 数据去重实现
+### 3.2 Implementation of Data Deduplication
 
 ```python
-# MinHash去重 (Kubernetes Job)
+# MinHash Deduplication (Kubernetes Job)
 from datasketch import MinHash, MinHashLSH
 import ray
 from ray import data as ray_data
@@ -443,14 +445,14 @@ class DeduplicationWorker:
         self.lsh = MinHashLSH(threshold=threshold, num_perm=num_perm)
         
     def compute_minhash(self, text):
-        """计算文本的MinHash签名"""
+        """Compute the MinHash signature of text"""
         m = MinHash(num_perm=self.num_perm)
         for word in text.split():
             m.update(word.encode('utf-8'))
         return m
         
     def is_duplicate(self, doc_id, text):
-        """检查是否为重复文档"""
+        """Check if it's a duplicate document"""
         minhash = self.compute_minhash(text)
         result = self.lsh.query(minhash)
         
@@ -460,17 +462,17 @@ class DeduplicationWorker:
         return True
 
 def deduplicate_dataset(input_path, output_path):
-    """分布式去重"""
-    # 初始化Ray
+    """Distributed Deduplication"""
+    # Initialize Ray
     ray.init()
     
-    # 创建去重Worker
+    # Create a deduplication Worker
     workers = [DeduplicationWorker.remote() for _ in range(100)]
     
-    # 读取数据
+    # Read data
     ds = ray_data.read_parquet(input_path)
     
-    # 分布式去重
+    # Distributed deduplication
     def check_duplicate(batch, worker_idx):
         worker = workers[worker_idx % len(workers)]
         results = []
@@ -483,21 +485,21 @@ def deduplicate_dataset(input_path, output_path):
                 results.append(row)
         return results
         
-    # 执行去重
+    # Execute deduplication
     deduped_ds = ds.map_batches(
         check_duplicate,
         batch_size=1000,
         num_cpus=1
     )
     
-    # 写入结果
+    # Write results
     deduped_ds.write_parquet(output_path)
 ```
 
-### 3.3 PII脱敏配置
+### 3.3 Configuration for PII De-identification
 
 ```yaml
-# Presidio PII脱敏服务
+# Presidio PII deidentification service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -585,10 +587,10 @@ data:
 
 ---
 
-<!-- chunk: 四、Ray Data分布式处理 (Ray Data Processing) -->
-## 四、Ray Data分布式处理 (Ray Data Processing)
 
-### 4.1 Ray Cluster部署
+## 4. Ray Data Distributed Processing (Ray Data Processing)
+
+### 4.1 Deployment of Ray Cluster
 
 ```yaml
 # Ray Cluster for Data Processing
@@ -601,7 +603,7 @@ spec:
   rayVersion: '2.9.0'
   enableInTreeAutoscaling: true
   
-  # Autoscaler配置
+  # Autoscaler configuration
   autoscalerOptions:
     upscalingMode: Default
     idleTimeoutSeconds: 60
@@ -670,23 +672,23 @@ spec:
             sizeLimit: "100Gi"
 ```
 
-### 4.2 Ray Data处理Pipeline
+### 4.2 Ray Data Processing Pipeline
 
 ```python
-# LLM数据处理Pipeline
+# LLM data processing Pipeline
 import ray
 from ray import data as ray_data
 from transformers import AutoTokenizer
 import pyarrow as pa
 
-# 初始化Ray
+# Initialize Ray
 ray.init(address="ray://ray-data-cluster-head-svc:10001")
 
-# 加载tokenizer
+# Load tokenizer
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
 def tokenize_batch(batch):
-    """批量tokenize"""
+    """Batch tokenize"""
     texts = batch["text"]
     encodings = tokenizer(
         texts,
@@ -701,7 +703,7 @@ def tokenize_batch(batch):
     }
 
 def filter_by_length(batch):
-    """按长度过滤"""
+    """Length filter"""
     mask = [100 <= length <= 4096 for length in batch["length"]]
     return {
         k: [v for v, m in zip(batch[k], mask) if m]
@@ -709,7 +711,7 @@ def filter_by_length(batch):
     }
 
 def pack_sequences(batch, max_length=4096):
-    """序列打包，提高GPU利用率"""
+    """Sequence batching, to improve GPU utilization"""
     packed_input_ids = []
     current_pack = []
     current_length = 0
@@ -722,7 +724,7 @@ def pack_sequences(batch, max_length=4096):
             current_length = len(current_pack)
         else:
             if current_pack:
-                # 填充到max_length
+                # Pad to max_length
                 current_pack.extend([tokenizer.pad_token_id] * (max_length - len(current_pack)))
                 packed_input_ids.append(current_pack)
             current_pack = input_ids
@@ -734,7 +736,7 @@ def pack_sequences(batch, max_length=4096):
         
     return {"packed_input_ids": packed_input_ids}
 
-# 构建Pipeline
+# Build Pipeline
 ds = ray_data.read_parquet("s3://llm-data/cleaned/")
 
 processed_ds = (
@@ -744,18 +746,18 @@ processed_ds = (
     .map_batches(pack_sequences, batch_size=10000, num_cpus=2)
 )
 
-# 写入处理后的数据
+# Write processed data
 processed_ds.write_parquet(
     "s3://llm-data/tokenized/",
     num_rows_per_file=100000
 )
 
-# 查看统计信息
+# View statistics
 print(f"Total samples: {processed_ds.count()}")
 print(f"Schema: {processed_ds.schema()}")
 ```
 
-### 4.3 RayJob提交
+### 4.3 Submission of RayJob
 
 ```yaml
 # RayJob for Data Processing
@@ -822,24 +824,24 @@ spec:
 
 ---
 
-<!-- chunk: 五、数据配比与采样 (Data Mixing & Sampling) -->
-## 五、数据配比与采样 (Data Mixing & Sampling)
 
-### 5.1 数据配比策略
+## 5. Data Mixing and Sampling (Data Mixing & Sampling)
 
-| 数据类型 | 推荐占比 | 说明 | 来源示例 |
+### 5.1 Data Mixing Strategy
+
+| Data Type | Recommended Percentage | Description | Example Source |
 |---------|---------|------|---------|
-| **通用文本** | 40-50% | 网页、书籍、维基百科 | CommonCrawl, Wikipedia |
-| **代码** | 15-20% | 各编程语言代码 | GitHub, StackOverflow |
-| **科学论文** | 5-10% | 学术论文、技术文档 | ArXiv, PubMed |
-| **对话数据** | 10-15% | 多轮对话、QA | ShareGPT, OASST |
-| **指令数据** | 10-15% | 指令-响应对 | Alpaca, Dolly |
-| **数学推理** | 5-10% | 数学问题、证明 | GSM8K, MATH |
+| **General Text** | 40-50% | Web pages, books, Wikipedia | CommonCrawl, Wikipedia |
+| **Code** | 15-20% | Code from various programming languages | GitHub, StackOverflow |
+| **Scientific Papers** | 5-10% | Academic papers, technical documents | ArXiv, PubMed |
+| **Dialogue Data** | 10-15% | Multi-turn dialogues, QA | ShareGPT, OASST |
+| **Instruction Data** | 10-15% | Instruction-response pairs | Alpaca, Dolly |
+| **Mathematical Reasoning** | 5-10% | Mathematical problems, proofs | GSM8K, MATH |
 
-### 5.2 动态数据混合
+### 5.2 Dynamic Data Mixing
 
 ```python
-# 动态数据混合配置
+# Dynamic data mixing configuration
 import ray
 from ray import data as ray_data
 
@@ -858,36 +860,36 @@ class DynamicDataMixer:
         self.datasets = {}
         
     def load_datasets(self):
-        """加载所有数据集"""
+        """Load all datasets"""
         for name, cfg in self.config.items():
             self.datasets[name] = ray_data.read_parquet(cfg["path"])
             
     def create_mixed_dataset(self, total_samples):
-        """按权重混合数据集"""
+        """Combine datasets according to weights"""
         mixed_parts = []
         
         for name, cfg in self.config.items():
             ds = self.datasets[name]
             num_samples = int(total_samples * cfg["weight"])
             
-            # 采样
+            # Oversampling
             if ds.count() >= num_samples:
                 sampled = ds.random_shuffle().limit(num_samples)
             else:
-                # 过采样
+                # Oversampling
                 repeats = (num_samples // ds.count()) + 1
                 sampled = ds.repeat(repeats).limit(num_samples)
                 
             mixed_parts.append(sampled)
             
-        # 合并并打乱
+        # Merge and shuffle
         mixed_ds = ray_data.from_blocks(
             [ds.get_internal_block_refs() for ds in mixed_parts]
         ).random_shuffle()
         
         return mixed_ds
 
-# 使用示例
+# Usage Example
 config = {
     "web_text": {"path": "s3://data/web_text/", "weight": 0.4},
     "code": {"path": "s3://data/code/", "weight": 0.2},
@@ -904,13 +906,13 @@ mixed_ds.write_parquet("s3://data/mixed_training_data/")
 
 ---
 
-<!-- chunk: 六、数据版本管理 (Data Versioning) -->
-## 六、数据版本管理 (Data Versioning)
 
-### 6.1 DVC集成
+## 6. Data Version Management (Data Versioning)
+
+### 6.1 DVC Integration
 
 ```yaml
-# DVC Pipeline配置
+# DVC Pipeline Configuration
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1012,10 +1014,10 @@ data:
       - params.yaml
 ```
 
-### 6.2 数据血缘追踪
+### 6.2 Data Lineage Tracking
 
 ```yaml
-# MLflow数据追踪
+# MLflow Data Tracking
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1039,10 +1041,10 @@ data:
             params
         ):
             with mlflow.start_run(run_name=f"{dataset_name}_{version}"):
-                # 记录参数
+                # Record parameters
                 mlflow.log_params(params)
                 
-                # 记录数据统计
+                # Record data statistics
                 mlflow.log_metrics({
                     "num_samples": stats["num_samples"],
                     "total_tokens": stats["total_tokens"],
@@ -1050,35 +1052,35 @@ data:
                     "dedup_rate": stats["dedup_rate"]
                 })
                 
-                # 记录血缘
+                # Record lineage
                 mlflow.log_param("source_path", source_path)
                 mlflow.log_param("output_path", output_path)
                 mlflow.log_param("created_at", datetime.now().isoformat())
                 
-                # 记录schema
+                # Record schema
                 mlflow.log_dict(stats["schema"], "schema.json")
                 
-                # 标记版本
+                # Mark version
                 mlflow.set_tag("dataset_version", version)
                 mlflow.set_tag("dataset_name", dataset_name)
 ```
 
 ---
 
-<!-- chunk: 七、数据加载优化 (Data Loading Optimization) -->
-## 七、数据加载优化 (Data Loading Optimization)
 
-### 7.1 高性能DataLoader
+## 7. Data Loading Optimization
+
+### 7.1 High Performance DataLoader
 
 ```python
-# 优化的分布式DataLoader
+# Optimized Distributed DataLoader
 import torch
 from torch.utils.data import IterableDataset, DataLoader
 import ray
 from ray import data as ray_data
 
 class StreamingLLMDataset(IterableDataset):
-    """流式LLM数据集，支持分布式训练"""
+    """Stream LLM dataset supporting distributed training"""
     
     def __init__(
         self,
@@ -1099,24 +1101,24 @@ class StreamingLLMDataset(IterableDataset):
         self.shuffle_buffer = shuffle_buffer
         
     def __iter__(self):
-        # 使用Ray Data进行流式读取
+        # Use Ray Data for streaming read
         ds = ray_data.read_parquet(
             self.data_path,
             parallelism=200
         )
         
-        # 分片到当前worker
+        # Shard to current worker
         ds = ds.split(self.world_size)[self.rank]
         
-        # 流式迭代
+        # Stream iteration
         for batch in ds.iter_batches(batch_size=self.buffer_size):
-            # 本地shuffle
+            # Local shuffle
             indices = torch.randperm(len(batch["input_ids"]))
             
             for idx in indices[:self.shuffle_buffer]:
                 input_ids = batch["input_ids"][idx]
                 
-                # 填充/截断
+                # Padding/truncation
                 if len(input_ids) < self.max_length:
                     input_ids = input_ids + [self.tokenizer.pad_token_id] * (
                         self.max_length - len(input_ids)
@@ -1137,7 +1139,7 @@ def create_distributed_dataloader(
     rank,
     num_workers=4
 ):
-    """创建分布式DataLoader"""
+    """Create Distributed DataLoader"""
     dataset = StreamingLLMDataset(
         data_path=data_path,
         tokenizer=tokenizer,
@@ -1155,7 +1157,7 @@ def create_distributed_dataloader(
     )
 ```
 
-### 7.2 数据预取配置
+### 7.2 Data Prefetch Configuration
 
 ```yaml
 # Kubernetes Job with Optimized Data Loading
@@ -1175,7 +1177,7 @@ spec:
             nvidia.com/gpu: 8
             
         env:
-        # 数据加载优化
+        # Data loading optimization
         - name: DATALOADER_NUM_WORKERS
           value: "8"
         - name: DATALOADER_PIN_MEMORY
@@ -1183,11 +1185,11 @@ spec:
         - name: DATALOADER_PREFETCH_FACTOR
           value: "4"
         
-        # 内存映射优化
+        # Memory mapping optimization
         - name: PYTORCH_CUDA_ALLOC_CONF
           value: "max_split_size_mb:512"
           
-        # NCCL优化
+        # NCCL optimization
         - name: NCCL_IB_DISABLE
           value: "0"
         - name: NCCL_NET_GDR_LEVEL
@@ -1200,12 +1202,12 @@ spec:
           mountPath: /dev/shm
           
       volumes:
-      # 本地数据缓存
+      # Local data caching
       - name: data-cache
         hostPath:
           path: /mnt/nvme/cache
           type: DirectoryOrCreate
-      # 共享内存
+      # Shared memory
       - name: shm
         emptyDir:
           medium: Memory
@@ -1214,24 +1216,24 @@ spec:
 
 ---
 
-<!-- chunk: 八、监控与告警 (Monitoring & Alerting) -->
-## 八、监控与告警 (Monitoring & Alerting)
 
-### 8.1 数据Pipeline监控指标
+## 8. Monitoring & Alerting
 
-| 指标类别 | 指标名称 | 说明 | 告警阈值 |
+### 8.1 Data Pipeline Monitoring Metrics
+
+| Metric Category | Metric Name | Description | Alert Thresholds |
 |---------|---------|------|---------|
-| **处理进度** | samples_processed | 已处理样本数 | 停滞>1h |
-| **处理进度** | processing_rate | 每秒处理样本 | < 1000/s |
-| **数据质量** | duplicate_rate | 重复率 | > 10% |
-| **数据质量** | pii_detection_rate | PII检出率 | > 1% |
-| **数据质量** | filter_drop_rate | 过滤丢弃率 | > 50% |
-| **资源使用** | worker_cpu_util | Worker CPU使用率 | > 90% |
-| **资源使用** | memory_usage | 内存使用 | > 85% |
-| **存储状态** | storage_write_rate | 存储写入速率 | < 100MB/s |
-| **错误率** | processing_errors | 处理错误数 | > 0 |
+| **Processing Progress** | samples_processed | Number of processed samples | Stalled > 1 hour |
+| **Processing Progress** | processing_rate | Samples processed per second | < 1000/s |
+| **Data Quality** | duplicate_rate | Duplication rate | > 10% |
+| **Data Quality** | pii_detection_rate | Detection rate of PII | > 1% |
+| **Data Quality** | filter_drop_rate | Drop rate due to filtering | > 50% |
+| **Resource Usage** | worker_cpu_util | CPU usage by workers | > 90% |
+| **Resource Usage** | memory_usage | Memory usage | > 85% |
+| **Storage Status** | storage_write_rate | Storage write rate | < 100MB/s |
+| **Error Rate** | processing_errors | Number of processing errors | > 0 |
 
-### 8.2 Prometheus告警规则
+### 8.2 Prometheus Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1243,7 +1245,7 @@ spec:
   groups:
   - name: data-pipeline
     rules:
-    # 处理停滞
+    # Stalled processing
     - alert: DataProcessingStalled
       expr: |
         rate(data_samples_processed_total[10m]) == 0
@@ -1251,10 +1253,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "数据处理停滞"
-        description: "Pipeline {{ $labels.pipeline }} 30分钟内无进展"
+        summary: "Data processing stalled"
+        description: "Pipeline {{ $labels.pipeline }} no progress in the last 30 minutes"
         
-    # 高错误率
+    # High error rate
     - alert: DataProcessingHighErrorRate
       expr: |
         rate(data_processing_errors_total[5m]) / rate(data_samples_processed_total[5m]) > 0.01
@@ -1262,10 +1264,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "数据处理错误率高"
-        description: "错误率: {{ $value | humanizePercentage }}"
+        summary: "High data processing error rate"
+        description: "Error rate: {{ $value | humanizePercentage }}"
         
-    # 质量下降
+    # Quality decline
     - alert: DataQualityDegraded
       expr: |
         data_quality_score < 0.8
@@ -1273,10 +1275,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "数据质量下降"
-        description: "质量分数: {{ $value }}"
+        summary: "Data quality has declined"
+        description: "Quality score: {{ $value }}"
         
-    # 存储空间不足
+    # Insufficient storage space
     - alert: DataStorageNearFull
       expr: |
         data_storage_used_bytes / data_storage_total_bytes > 0.85
@@ -1284,68 +1286,68 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "数据存储空间即将满"
+        summary: "Storage space for data is nearly full"
 ```
 
 ---
 
-<!-- chunk: 九、快速参考 (Quick Reference) -->
-## 九、快速参考 (Quick Reference)
 
-### 9.1 数据规模估算
+## 9. Quick Reference
 
-| 模型规模 | 推荐训练数据 | Tokens数量 | 存储空间 | 处理时间 |
+### 9.1 Estimate Data Scale
+
+| Model Size | Recommended Training Data | Tokens | Storage Space | Processing Time |
 |---------|------------|-----------|---------|---------|
-| 1B | 20-50GB | 20B+ | ~100GB | 1-2天 |
-| 7B | 200-500GB | 200B+ | ~1TB | 3-5天 |
-| 13B | 500GB-1TB | 500B+ | ~2TB | 1周 |
-| 70B | 1-2TB | 1T+ | ~5TB | 2-3周 |
+| 1B | 20-50GB | 20B+ | ~100GB | 1-2 days |
+| 7B | 200-500GB | 200B+ | ~1TB | 3-5 days |
+| 13B | 500GB-1TB | 500B+ | ~2TB | 1 week |
+| 70B | 1-2TB | 1T+ | ~5TB | 2-3 weeks |
 
-### 9.2 常用命令
+### 9.2 Common Commands
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Ray Data状态
+# 🟢 Low risk: read-only/information gathering, typically with no side effects
+# Ray Data status
 ray status
 
-# 查看处理进度
+# Check processing progress
 kubectl logs -f job/data-processing -n ml-data
 
-# 数据统计
+# Data statistics
 python -c "import ray; ray.data.read_parquet('s3://...').count()"
 
-# 存储使用
+# Storage usage
 aws s3 ls --summarize --human-readable s3://llm-data/
 
-# DVC状态
+# DVC status
 dvc status
 dvc dag
 ```
 ---
 
-**数据Pipeline原则**: 质量优先 → 去重彻底 → 格式统一 → 版本追踪 → 缓存加速
+**Data Pipeline Principles**: Quality first → Complete deduplication → Uniform format → Version tracking → Cache acceleration
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table footnotes**: Kusheet Project, author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

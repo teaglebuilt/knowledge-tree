@@ -1,6 +1,6 @@
 ---
-title: GPU监控与可观测性
-description: '# GPU监控与可观测性'
+title: GPU Monitoring and Observability
+description: '# GPU Monitoring and Observability'
 summary: 'DCGM_FI_DEV_GPU_UTIL{gpu="0", kubernetes_node="node-1"}'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- GPU监控与可观测性 是什么
-- 如何 GPU监控与可观测性
-- Kubernetes 11 ai infra 最佳实践
+- What is GPU Monitoring and Observability
+- How to do GPU Monitoring and Observability
+- Kubernetes 11 ai infra Best Practices
 trigger_keywords:
-- GPU监控与可观测性
+- GPU Monitoring and Observability
 - ai
 - infra
 prerequisites:
@@ -50,78 +50,80 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: fta
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/monitoring-fta.md
-  label: '故障树: monitoring'
+  label: 'Fault Tree: monitoring'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/04-gpu-monitoring-dcgm.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# GPU监控与可观测性
+# GPU Monitoring and Observability
 
-> **适用版本**: v1.25 - v1.32 | **最后更新**: 2026-01 | **参考**: [DCGM Exporter](https://github.com/NVIDIA/dcgm-exporter) | [GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/)
+> **Applicable Version**: v1.25 - v1.32 | **Last Updated**: 2026-01 | **Reference**: [DCGM Exporter](https://github.com/NVIDIA/dcgm-exporter) | [GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/)
 
-<!-- chunk: GPU监控架构 -->
-## GPU监控架构
+
+## GPU Monitoring Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     GPU指标采集层                                │
+│                     GPU metrics collection layer                                │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  NVIDIA DCGM (Data Center GPU Manager)                  │  │
-│  │  - GPU利用率、温度、功率                                 │  │
-│  │  │  - 显存使用、ECC错误                                  │  │
-│  │  │  - NVLink拓扑、PCIe流量                              │  │
+│  │  - GPU utilization, temperature, power                                 │  │
+│  │  │  - Memory usage, ECC errors                                  │  │
+│  │  │  - NVLink topology, PCIe traffic                              │  │
 │  └──────────────┬───────────────────────────────────────────┘  │
 └─────────────────┼──────────────────────────────────────────────┘
-                  │ DCGM Exporter (Prometheus格式)
+                  │ DCGM Exporter (Prometheus format)
                   v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Prometheus (时序数据库)                       │
-│  - 15s粒度采集                                                   │
-│  - 30天本地保留                                                  │
-│  - Thanos长期存储                                                │
+│                     Prometheus (time series database)                       │
+│  - 15s granularity collection                                                   │
+│  - 30-day local retention                                                  │
+│  - Thanos long-term storage                                                │
 └─────────────────┬───────────────────────────────────────────────┘
                   │
                   v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     可视化与告警层                                │
+│                     Visualization and alerting layer                                │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
 │  │  Grafana    │  │ AlertManager│  │  Slack/     │            │
-│  │  Dashboard  │  │  (告警)     │  │  PagerDuty  │            │
+│  │  Dashboard  │  │  (alerting)     │  │  PagerDuty  │            │
 │  └─────────────┘  └─────────────┘  └─────────────┘            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-<!-- chunk: 一、DCGM Exporter部署 -->
-## 一、DCGM Exporter部署
 
-### 1. GPU Operator安装(推荐)
+## 1. Deploying DCGM Exporter
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+### 1. Installing GPU Operator (Recommended)
+
+> ⚠️ **🟡 Medium Risk Change** — Modifies cluster resource status, recommend using --dry-run or diff to confirm first
+> - `helm upgrade/install` : Deploy/upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 添加NVIDIA Helm仓库
+# 🟡 Medium Risk: modifies cluster/resource status; confirm target, impact scope, and authorization before proceeding
+# Add NVIDIA Helm repository
 helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
 helm repo update
 
-# 安装GPU Operator(包含DCGM Exporter)
+# Install GPU Operator (including DCGM Exporter)
 helm install --wait --generate-name \
   -n gpu-operator --create-namespace \
   nvidia/gpu-operator \
@@ -129,7 +131,7 @@ helm install --wait --generate-name \
   --set dcgmExporter.serviceMonitor.enabled=true \
   --set toolkit.enabled=true
 ```
-### 2. 独立部署DCGM Exporter
+### 2. Independent Deployment of DCGM Exporter
 
 ```yaml
 apiVersion: apps/v1
@@ -158,7 +160,7 @@ spec:
           image: nvcr.io/nvidia/k8s/dcgm-exporter:3.3.0-3.2.0-ubuntu22.04
           
           env:
-            # 采集指标配置
+            # Metrics collection configuration
             - name: DCGM_EXPORTER_LISTEN
               value: ":9400"
             - name: DCGM_EXPORTER_KUBERNETES
@@ -219,7 +221,7 @@ spec:
   type: ClusterIP
 ```
 
-### 3. ServiceMonitor配置
+### 3. Configuring ServiceMonitor
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -238,140 +240,140 @@ spec:
       interval: 15s
       path: /metrics
       relabelings:
-        # 添加节点标签
+        # Add node labels
         - sourceLabels: [__meta_kubernetes_pod_node_name]
           targetLabel: node
-        # 添加命名空间标签
+        # Add namespace labels
         - sourceLabels: [__meta_kubernetes_namespace]
           targetLabel: namespace
-        # 添加Pod标签
+        # Add Pod labels
         - sourceLabels: [__meta_kubernetes_pod_name]
           targetLabel: pod
 ```
 
 ---
 
-<!-- chunk: 二、核心GPU指标 -->
-## 二、核心GPU指标
 
-### 1. 关键指标清单
+## 2. Core GPU Metrics
 
-| 指标 | Prometheus Metric | 说明 | 告警阈值 |
+### 1. List of Key Indicators
+
+| Metric | Prometheus Metric | Description | Alert Thresholds |
 |------|------------------|------|---------|
-| **GPU利用率** | `DCGM_FI_DEV_GPU_UTIL` | GPU计算单元使用率 | <30%(浪费) >95%(饱和) |
-| **显存使用** | `DCGM_FI_DEV_FB_USED` | 已用显存(MB) | >90% |
-| **显存总量** | `DCGM_FI_DEV_FB_TOTAL` | 总显存(MB) | - |
-| **GPU温度** | `DCGM_FI_DEV_GPU_TEMP` | GPU温度(℃) | >85℃ |
-| **功率消耗** | `DCGM_FI_DEV_POWER_USAGE` | 当前功率(W) | >350W(A100) |
-| **显存温度** | `DCGM_FI_DEV_MEMORY_TEMP` | 显存温度(℃) | >95℃ |
-| **SM活跃度** | `DCGM_FI_PROF_SM_ACTIVE` | 流处理器活跃度 | <50% |
-| **SM占用率** | `DCGM_FI_PROF_SM_OCCUPANCY` | SM占用率 | <60% |
-| **Tensor Core利用率** | `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` | Tensor Core活跃度 | <30%(AI训练) |
-| **FP16活跃度** | `DCGM_FI_PROF_PIPE_FP16_ACTIVE` | FP16计算活跃度 | - |
-| **显存带宽利用率** | `DCGM_FI_PROF_DRAM_ACTIVE` | 显存带宽使用 | <70% |
-| **PCIe发送** | `DCGM_FI_PROF_PCIE_TX_BYTES` | PCIe发送字节 | >10GB/s |
-| **PCIe接收** | `DCGM_FI_PROF_PCIE_RX_BYTES` | PCIe接收字节 | >10GB/s |
-| **NVLink流量** | `DCGM_FI_PROF_NVLINK_TX_BYTES` | NVLink发送 | >50GB/s |
-| **XID错误** | `DCGM_FI_DEV_XID_ERRORS` | 硬件错误码 | >0 |
-| **ECC单比特错误** | `DCGM_FI_DEV_ECC_SBE_VOL_TOTAL` | 可纠正显存错误 | >100/天 |
-| **ECC双比特错误** | `DCGM_FI_DEV_ECC_DBE_VOL_TOTAL` | 不可纠正错误 | >0 |
+| **GPU Utilization** | `DCGM_FI_DEV_GPU_UTIL` | GPU computational unit usage | <30%(waste) >95%(saturation) |
+| **Memory Usage** | `DCGM_FI_DEV_FB_USED` | Used memory (MB) | >90% |
+| **Total Memory** | `DCGM_FI_DEV_FB_TOTAL` | Total memory (MB) | - |
+| **GPU Temperature** | `DCGM_FI_DEV_GPU_TEMP` | GPU temperature (°C) | >85°C |
+| **Power Consumption** | `DCGM_FI_DEV_POWER_USAGE` | Current power (W) | >350W(A100) |
+| **Memory Temperature** | `DCGM_FI_DEV_MEMORY_TEMP` | Memory temperature (°C) | >95°C |
+| **SM Activity** | `DCGM_FI_PROF_SM_ACTIVE` | Stream Processor activity | <50% |
+| **SM Occupancy** | `DCGM_FI_PROF_SM_OCCUPANCY` | SM occupancy | <60% |
+| **Tensor Core Utilization** | `DCGM_FI_PROF_PIPE_TENSOR_ACTIVE` | Tensor Core activity | <30%(AI training) |
+| **FP16 Activity** | `DCGM_FI_PROF_PIPE_FP16_ACTIVE` | FP16 computation activity | - |
+| **DRAM Utilization** | `DCGM_FI_PROF_DRAM_ACTIVE` | DRAM utilization | <70% |
+| **PCIe Transmitted** | `DCGM_FI_PROF_PCIE_TX_BYTES` | PCIe transmitted bytes | >10GB/s |
+| **PCIe Received** | `DCGM_FI_PROF_PCIE_RX_BYTES` | PCIe received bytes | >10GB/s |
+| **NVLink Traffic** | `DCGM_FI_PROF_NVLINK_TX_BYTES` | NVLink transmitted traffic | >50GB/s |
+| **XID Error** | `DCGM_FI_DEV_XID_ERRORS` | hardware error code | >0 |
+| **Single-bit ECC Error** | `DCGM_FI_DEV_ECC_SBE_VOL_TOTAL` | correctable memory errors | >100/day |
+| **Double-bit ECC Error** | `DCGM_FI_DEV_ECC_DBE_VOL_TOTAL` | uncorrectable errors | >0 |
 
 ---
 
-### 2. PromQL查询示例
+### 2. Example PromQL Queries
 
-#### GPU利用率
+#### GPU Utilization
 
 ```promql
-# 单GPU利用率
+# Single GPU utilization
 DCGM_FI_DEV_GPU_UTIL{gpu="0", kubernetes_node="node-1"}
 
-# 集群平均GPU利用率
+# Average GPU utilization for the cluster
 avg(DCGM_FI_DEV_GPU_UTIL)
 
-# 按节点统计平均GPU利用率
+# Average GPU utilization per node
 avg(DCGM_FI_DEV_GPU_UTIL) by (kubernetes_node)
 
-# 按Pod统计GPU利用率
+# GPU utilization per Pod
 avg(DCGM_FI_DEV_GPU_UTIL{pod=~"training-.*"}) by (pod)
 
-# GPU利用率低于30%(资源浪费)
+# GPU utilization below 30% (waste of resources)
 DCGM_FI_DEV_GPU_UTIL < 30
 ```
 
-#### 显存使用率
+#### Memory Usage Rate
 
 ```promql
-# 显存使用率(%)
+# Memory usage (%)
 (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100
 
-# 显存使用率 > 90%
+# Memory usage > 90%
 (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100 > 90
 
-# 按命名空间统计显存使用
+# Memory usage per namespace
 sum(DCGM_FI_DEV_FB_USED) by (namespace)
 
-# 可用显存
+# Available memory
 DCGM_FI_DEV_FB_FREE
 ```
 
-#### Tensor Core利用率
+#### Tensor Core Utilization
 
 ```promql
-# Tensor Core活跃度(AI训练关键指标)
+# Tensor Core activity (key AI training metric)
 DCGM_FI_PROF_PIPE_TENSOR_ACTIVE
 
-# 平均Tensor Core利用率
+# Average Tensor Core utilization
 avg(DCGM_FI_PROF_PIPE_TENSOR_ACTIVE)
 
-# Tensor Core利用率低于30%(训练效率低)
+# Tensor Core utilization below 30% (low training efficiency)
 DCGM_FI_PROF_PIPE_TENSOR_ACTIVE < 30
 ```
 
-#### GPU温度与功率
+#### GPU Temperature and Power
 
 ```promql
-# GPU温度超过85℃
+# GPU temperature exceeds 85℃
 DCGM_FI_DEV_GPU_TEMP > 85
 
-# 功率消耗趋势(5分钟平均)
+# Power Consumption Trend (5-minute Average)
 avg_over_time(DCGM_FI_DEV_POWER_USAGE[5m])
 
-# 功率超过额定值(A100=400W)
+# Power Exceeds Rated Value (A100=400W)
 DCGM_FI_DEV_POWER_USAGE > 400
 ```
 
-#### NVLink流量
+#### NVLink Traffic
 
 ```promql
-# NVLink发送速率(GB/s)
+# NVLink Transmission Rate (GB/s)
 rate(DCGM_FI_PROF_NVLINK_TX_BYTES[1m]) / 1024 / 1024 / 1024
 
-# NVLink接收速率
+# NVLink Reception Rate
 rate(DCGM_FI_PROF_NVLINK_RX_BYTES[1m]) / 1024 / 1024 / 1024
 
-# 总NVLink带宽
+# Total NVLink Bandwidth
 (rate(DCGM_FI_PROF_NVLINK_TX_BYTES[1m]) + 
  rate(DCGM_FI_PROF_NVLINK_RX_BYTES[1m])) / 1024 / 1024 / 1024
 ```
 
-#### 错误检测
+#### Error Detection
 
 ```promql
-# XID错误(硬件问题)
+# XID Errors (Hardware Issues)
 increase(DCGM_FI_DEV_XID_ERRORS[1h]) > 0
 
-# ECC单比特错误趋势
+# ECC Single-bit Error Trend
 rate(DCGM_FI_DEV_ECC_SBE_VOL_TOTAL[1h])
 
-# ECC双比特错误(严重)
+# ECC Double-bit Errors (Severe)
 increase(DCGM_FI_DEV_ECC_DBE_VOL_TOTAL[1h]) > 0
 ```
 
 ---
 
-<!-- chunk: 三、Prometheus告警规则 -->
-## 三、Prometheus告警规则
+
+## 3. Prometheus Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -384,7 +386,7 @@ spec:
     - name: gpu-health
       interval: 30s
       rules:
-        # ========== 资源利用率告警 ==========
+        # ========== Resource Utilization Alerts ==========
         
         - alert: GPULowUtilization
           expr: |
@@ -394,7 +396,7 @@ spec:
             severity: warning
             team: ml-platform
           annotations:
-            summary: "GPU利用率过低"
+            summary: "GPU utilization is too low"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               利用率过低: {{ $value | humanizePercentage }}
@@ -415,7 +417,7 @@ spec:
             severity: critical
             team: ml-platform
           annotations:
-            summary: "GPU显存即将耗尽"
+            summary: "GPU memory is about to be exhausted"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               显存使用率: {{ $value | humanizePercentage }}
@@ -433,7 +435,7 @@ spec:
             severity: warning
             team: ml-platform
           annotations:
-            summary: "Tensor Core利用率低"
+            summary: "Tensor Core utilization is low"
             description: |
               Pod {{ $labels.pod }} 的 Tensor Core 利用率仅 {{ $value | humanizePercentage }}
               
@@ -442,7 +444,7 @@ spec:
               - 检查是否使用Tensor Core优化算子
               - 增大batch size
         
-        # ========== 硬件健康告警 ==========
+        # ========== Hardware Health Alerts ==========
         
         - alert: GPUHighTemperature
           expr: |
@@ -452,7 +454,7 @@ spec:
             severity: critical
             team: infra
           annotations:
-            summary: "GPU温度过高"
+            summary: "GPU temperature is high"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               温度达到 {{ $value }}℃ (阈值: 85℃)
@@ -472,7 +474,7 @@ spec:
             severity: critical
             team: infra
           annotations:
-            summary: "显存温度异常"
+            summary: "VRAM temperature is abnormal"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               显存温度: {{ $value }}℃ (阈值: 95℃)
@@ -486,7 +488,7 @@ spec:
             severity: critical
             team: infra
           annotations:
-            summary: "检测到GPU硬件错误"
+            summary: "GPU hardware error detected"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               发生 XID 错误 (错误码: {{ $value }})
@@ -507,7 +509,7 @@ spec:
             severity: critical
             team: infra
           annotations:
-            summary: "检测到ECC双比特错误"
+            summary: "ECC double-bit error detected"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               发生不可纠正的显存错误
@@ -522,14 +524,14 @@ spec:
             severity: warning
             team: infra
           annotations:
-            summary: "ECC单比特错误率过高"
+            summary: "ECC single-bit error rate is high"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               单比特ECC错误率: {{ $value }}/小时
               
               虽可自动纠正，但错误率过高可能预示硬件老化
         
-        # ========== 通信性能告警 ==========
+        # ========== Communication Performance Alerts ==========
         
         - alert: LowNVLinkBandwidth
           expr: |
@@ -541,7 +543,7 @@ spec:
             severity: warning
             team: ml-platform
           annotations:
-            summary: "NVLink带宽异常低"
+            summary: "NVLink bandwidth is abnormally low"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 NVLink 总带宽: {{ $value }}GB/s
               
@@ -558,7 +560,7 @@ spec:
             severity: warning
             team: infra
           annotations:
-            summary: "GPU被降频"
+            summary: "GPU is underclocked"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 GPU {{ $labels.gpu }}
               被降频 (原因码: {{ $value }})
@@ -574,7 +576,7 @@ spec:
               
               影响训练性能！
         
-        # ========== 集群级告警 ==========
+        # ========== Cluster-Level Alerts ==========
         
         - alert: GPUClusterLowUtilization
           expr: |
@@ -584,7 +586,7 @@ spec:
             severity: info
             team: ml-platform
           annotations:
-            summary: "集群GPU利用率低"
+            summary: "Cluster GPU utilization is low"
             description: |
               集群整体GPU利用率: {{ $value | humanizePercentage }}
               
@@ -601,7 +603,7 @@ spec:
             severity: critical
             team: infra
           annotations:
-            summary: "GPU节点离线"
+            summary: "GPU node is offline"
             description: |
               节点 {{ $labels.kubernetes_node }} 的 DCGM Exporter 无法访问
               
@@ -613,10 +615,10 @@ spec:
 
 ---
 
-<!-- chunk: 四、Grafana Dashboard -->
-## 四、Grafana Dashboard
 
-### 1. GPU集群总览Dashboard
+## 4. Grafana Dashboards
+
+### 1. GPU Cluster Overview Dashboard
 
 ```json
 {
@@ -624,7 +626,7 @@ spec:
     "title": "GPU Cluster Overview",
     "panels": [
       {
-        "title": "GPU总数与在线率",
+        "title": "Total number of GPUs and online rate",
         "type": "stat",
         "targets": [
           {
@@ -638,7 +640,7 @@ spec:
         ]
       },
       {
-        "title": "集群GPU利用率",
+        "title": "Cluster GPU utilization",
         "type": "graph",
         "targets": [
           {
@@ -648,7 +650,7 @@ spec:
         ]
       },
       {
-        "title": "GPU利用率分布(热力图)",
+        "title": "GPU utilization distribution (heatmap)",
         "type": "heatmap",
         "targets": [
           {
@@ -658,7 +660,7 @@ spec:
         ]
       },
       {
-        "title": "显存使用情况",
+        "title": "VRAM usage situation",
         "type": "graph",
         "targets": [
           {
@@ -672,7 +674,7 @@ spec:
         ]
       },
       {
-        "title": "GPU温度分布",
+        "title": "GPU temperature distribution",
         "type": "graph",
         "targets": [
           {
@@ -702,7 +704,7 @@ spec:
         }
       },
       {
-        "title": "Tensor Core利用率(训练任务)",
+        "title": "Tensor Core utilization (training tasks)",
         "type": "graph",
         "targets": [
           {
@@ -712,7 +714,7 @@ spec:
         ]
       },
       {
-        "title": "NVLink总带宽",
+        "title": "Total NVLink bandwidth",
         "type": "graph",
         "targets": [
           {
@@ -722,7 +724,7 @@ spec:
         ]
       },
       {
-        "title": "GPU错误统计",
+        "title": "GPU error statistics"
         "type": "table",
         "targets": [
           {
@@ -738,10 +740,10 @@ spec:
 
 ---
 
-<!-- chunk: 五、训练任务专属监控 -->
-## 五、训练任务专属监控
 
-### 1. PyTorchJob监控
+## 5. Dedicated Monitoring for Training Tasks
+
+### 1. PyTorchJob Monitoring
 
 ```yaml
 apiVersion: kubeflow.org/v1
@@ -756,7 +758,7 @@ spec:
       template:
         metadata:
           annotations:
-            # Prometheus抓取配置
+            # Prometheus Scrape Configuration
             prometheus.io/scrape: "true"
             prometheus.io/port: "8000"
             prometheus.io/path: "/metrics"
@@ -779,12 +781,12 @@ spec:
                   nvidia.com/gpu: 8
 ```
 
-### 2. 训练指标导出
+### 2. Training Metrics Export
 
 ```python
 from prometheus_client import start_http_server, Gauge, Counter
 
-# 定义指标
+# Define Metrics
 training_loss = Gauge('training_loss', 'Current training loss')
 training_accuracy = Gauge('training_accuracy', 'Current training accuracy')
 training_throughput = Gauge('training_throughput_samples_per_sec', 
@@ -795,19 +797,19 @@ gpu_memory_reserved = Gauge('gpu_memory_reserved_bytes',
                             'GPU memory reserved', ['gpu_id'])
 training_step = Counter('training_steps_total', 'Total training steps')
 
-# 启动metrics服务器
+# Start metrics server
 start_http_server(8000)
 
-# 训练循环中更新指标
+# Update metrics during training loop
 for epoch in range(num_epochs):
     for batch in dataloader:
         loss = train_step(batch)
         
-        # 更新指标
+        # Update metrics
         training_loss.set(loss.item())
         training_step.inc()
         
-        # GPU显存监控
+        # GPU Memory Monitoring
         for i in range(torch.cuda.device_count()):
             allocated = torch.cuda.memory_allocated(i)
             reserved = torch.cuda.memory_reserved(i)
@@ -817,67 +819,67 @@ for epoch in range(num_epochs):
 
 ---
 
-<!-- chunk: 六、成本监控 -->
-## 六、成本监控
 
-### 1. GPU成本计算
+## 6. Cost Monitoring
+
+### 1. GPU Cost Calculation
 
 ```promql
-# 每小时GPU成本(假设A100=$3/GPU/小时)
+# Hourly GPU Cost per GPU ($3/hour assuming A100)
 sum(DCGM_FI_DEV_GPU_UTIL > 0) * 3
 
-# 按命名空间统计GPU使用成本
+# Statistic GPU Usage Cost by Namespace
 sum(DCGM_FI_DEV_GPU_UTIL > 0) by (namespace) * 3
 
-# 低效GPU成本(利用率<30%)
+# Inefficient GPU costs (utilization < 30%)
 sum(DCGM_FI_DEV_GPU_UTIL < 30 and DCGM_FI_DEV_GPU_UTIL > 0) * 3
 
-# 每日成本估算
+# Daily cost estimation
 sum(DCGM_FI_DEV_GPU_UTIL > 0) * 3 * 24
 ```
 
 ---
 
-<!-- chunk: 七、生产最佳实践 -->
-## 七、生产最佳实践
 
-### GPU监控检查清单
+## 7. Production Best Practices
 
-- ✅ 部署DCGM Exporter到所有GPU节点
-- ✅ 配置Prometheus 15s粒度采集
-- ✅ 启用ServiceMonitor自动发现
-- ✅ 配置30天本地数据保留
-- ✅ 集成Thanos长期存储
-- ✅ 创建Grafana GPU总览Dashboard
-- ✅ 配置GPU温度/显存告警
-- ✅ 监控ECC错误和XID错误
-- ✅ 跟踪Tensor Core利用率
-- ✅ 监控NVLink通信带宽
-- ✅ 集成训练任务自定义指标
-- ✅ 配置Slack/PagerDuty告警通知
-- ✅ 建立GPU成本分析Dashboard
+### GPU Monitoring Checklist
 
----
-
-**表格维护**: Kusheet Project | **作者**: Allen Galler (allengaller@gmail.com)
+- ✅ Deploy DCGM Exporter to all GPU nodes
+- ✅ Configure Prometheus for 15s sampling
+- ✅ Enable ServiceMonitor auto-discovery
+- ✅ Configure 30-day local data retention
+- ✅ Integrate Thanos for long-term storage
+- ✅ Create Grafana GPU Overview Dashboard
+- ✅ Configure GPU temperature/speed warning
+- ✅ Monitor ECC errors and XID errors
+- ✅ Track Tensor Core utilization
+- ✅ Monitor NVLink bandwidth
+- ✅ Integrate custom metrics for training tasks
+- ✅ Configure Slack/PagerDuty alert notifications
+- ✅ Establish GPU cost analysis Dashboard
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**Table Maintenance**: Kusheet Project | **Author**: Allen Galler (allengaller@gmail.com)
+
+---
+
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## See Also
 
@@ -888,7 +890,7 @@ sum(DCGM_FI_DEV_GPU_UTIL > 0) * 3 * 24
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 ```
 

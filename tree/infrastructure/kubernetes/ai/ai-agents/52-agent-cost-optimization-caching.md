@@ -58,29 +58,29 @@ LLM call costs are the primary expense in AI Agent operations. This document cov
 ## 2. Optimization Landscape
 
 ```
-LLM 成本优化策略:
+LLM cost optimization strategies:
 
-1. 缓存优化 (Cache)
-   → 语义缓存: 相似问题复用回答
-   → 精确缓存: 完全相同请求直接返回
-   → 预期节省: 30-50%
+1. Cache Optimization
+   → Semantic caching: reuse answers for similar questions
+   → Precise caching: Return identical requests directly
+   → Expected savings: 30-50%
 
-2. Token 优化 (Token)
-   → Prompt 压缩: 移除冗余上下文
-   → 上下文裁剪: 智能选择历史消息
-   → 预期节省: 20-40%
+2. Token Optimization (Token)
+   → Prompt Compress: Remove redundant context
+   → Context truncation: Intelligent selection of historical messages
+   → Expected savings: 20-40%
 
-3. 模型路由 (Routing)
-   → 简单问题 → 小模型 (GPT-3.5)
-   → 复杂问题 → 大模型 (GPT-4)
-   → 预期节省: 40-60%
+3. Model Routing (Routing)
+   → Simple problem → Small model (GPT-3.5)
+   → Complex problems → Large models (GPT-4)
+   → Expected savings: 40-60%
 
-4. 请求合并 (Batching)
-   → 相似请求批量处理
-   → 异步非关键请求
-   → 预期节省: 10-20%
+4. Batch Merge (Batching)
+   → Batch process similar requests
+   → Asynchronous non-critical requests
+   → Expected savings: 10-20%
 
-综合策略: 缓存 + Token + 路由 → 50-80% 成本降低
+Comprehensive strategy: Cache + Token + Routing → 50-80% Cost reduction
 ```
 
 ## 3. LLM Request Caching
@@ -141,7 +141,7 @@ class LLMExactCache:
 cache = LLMExactCache("redis://localhost:6379")
 response = cache.get_or_call(
     model="gpt-4",
-    messages=[{"role": "user", "content": "什么是Kubernetes?"}],
+    messages=[{"role": "user", "content": "What is Kubernetes?"}],
     llm_call_fn=openai_chat_completion
 )
 ```
@@ -200,12 +200,12 @@ class SemanticCache:
 
 # Usage Example
 semantic_cache = SemanticCache(threshold=0.90)
-response, similarity = semantic_cache.search("K8s是什么？")
+response, similarity = semantic_cache.search("K8s is what?")
 if response:
-    print(f"语义缓存命中，相似度: {similarity:.2f}")
+    print(f"Semantic cache hit, similarity: {similarity:.2f}")
 else:
     response = call_llm(...)
-    semantic_cache.add("K8s是什么？", response)
+    semantic_cache.add("K8s is what?", response)
 ```
 
 ### 3.3 Hybrid Caching Strategy
@@ -282,7 +282,7 @@ class PromptCompressor:
             # Preserve summaries for early conversations
             early = history_msgs[:-10]
             summary = self._summarize_history(early)
-            compressed.append({"role": "system", "content": f"历史对话摘要: {summary}"})
+            compressed.append({"role": "system", "content": f"Historical dialogue summary: {summary}"})
             compressed.extend(recent)
         else:
             compressed.extend(history_msgs)
@@ -511,12 +511,12 @@ class ComplexityClassifier:
     """query complexity classifier"""
 
     COMPLEX_INDICATORS = [
-        "分析", "比较", "评估", "设计", "优化", "解释原因",
+        "analysis", "comparison", "evaluation", "design", "optimization", "explain reasons",
         "analyze", "compare", "evaluate", "design", "optimize"
     ]
 
     SIMPLE_INDICATORS = [
-        "什么是", "定义", "列表", "查询", "状态",
+        "what is", "define", "list", "query", "status",
         "what is", "define", "list", "status", "check"
     ]
 
@@ -606,41 +606,41 @@ data:
     {
       "panels": [
         {
-          "title": "每小时 LLM 成本",
+          "title": "Hourly LLM Cost",
           "targets": [{
             "expr": "sum(rate(llm_cost_usd_total[1h]))",
-            "legendFormat": "总成本"
+            "legendFormat": "Total Cost"
           }]
         },
         {
-          "title": "缓存命中率",
+          "title": "Cache Hit Rate",
           "targets": [{
             "expr": "rate(llm_cache_hits_total[5m]) / rate(llm_requests_total[5m]) * 100",
-            "legendFormat": "命中率 %"
+            "legendFormat": "Hit Rate %"
           }]
         },
         {
-          "title": "模型使用分布",
+          "title": "Model Usage Distribution",
           "targets": [{
             "expr": "sum by (model)(rate(llm_requests_total[5m]))",
             "legendFormat": "{{ model }}"
           }]
         },
         {
-          "title": "Token 使用量",
+          "title": "Token Usage",
           "targets": [{
             "expr": "sum(rate(llm_input_tokens_total[5m]))",
-            "legendFormat": "输入 Token/s"
+            "legendFormat": "Input Tokens/s"
           }, {
             "expr": "sum(rate(llm_output_tokens_total[5m]))",
-            "legendFormat": "输出 Token/s"
+            "legendFormat": "Output Tokens/s"
           }]
         },
         {
-          "title": "每日成本趋势",
+          "title": "Daily Cost Trend",
           "targets": [{
             "expr": "sum(increase(llm_cost_usd_total[24h]))",
-            "legendFormat": "日成本"
+            "legendFormat": "Daily Cost"
           }]
         }
       ]
@@ -667,8 +667,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "每日 LLM 成本超过 $1000"
-            description: "当前日成本: ${{ $value }}"
+            summary: "Daily LLM Cost Exceeds $1000"
+            description: "Current daily cost: ${{ $value }}"
 
         - alert: HourlyCostSpike
           expr: |
@@ -677,7 +677,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "小时成本相比昨日同期增长 3 倍"
+            summary: "Hourly cost has increased three times compared to yesterday"
 
         - alert: CacheHitRateLow
           expr: |
@@ -686,8 +686,8 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "缓存命中率低于 30%"
-            description: "当前命中率: {{ $value | humanizePercentage }}"
+            summary: "Cache hit rate below 30%"
+            description: "Current hit rate: {{ $value | humanizePercentage }}"
 
         - alert: ExpensiveModelUsageHigh
           expr: |
@@ -696,8 +696,8 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "高级模型使用比例超过 50%"
-            description: "考虑优化路由策略，将更多简单请求路由到小模型"
+            summary: "Advanced model usage exceeds 50%"
+            description: "Consider optimizing routing strategies to route more simple requests to small models"
 ```
 
 ## 7. Cost Optimization Report
@@ -766,10 +766,10 @@ class CostOptimizationReport:
 
         hit_rate = cache_stats["cache_hits"] / max(cache_stats["total_requests"], 1)
         if hit_rate < 0.3:
-            recommendations.append("缓存命中率较低，建议检查缓存策略和相似度阈值")
+            recommendations.append("Cache hit rate is low, suggest checking caching strategy and similarity threshold")
 
         if summary["total_cost_usd"] > 500:
-            recommendations.append("日成本较高，建议增加小模型路由比例")
+            recommendations.append("Daily cost is high, suggest increasing small model routing ratio")
 
         return recommendations
 ```
@@ -777,29 +777,29 @@ class CostOptimizationReport:
 ## 8. Best Practices
 
 ```
-LLM 成本优化检查清单:
+LLM cost optimization checklist:
 
-缓存策略:
-  □ 精确缓存已启用
-  □ 语义缓存阈值已调优
-  □ 缓存 TTL 设置合理
-  □ 缓存命中率监控
+Cache strategy:
+  □ Precise caching is enabled
+  □ Semantic cache threshold has been optimized
+  □ Cache TTL settings are reasonable
+  □ Cache hit rate monitoring
 
-Token 优化:
-  □ Prompt 压缩已启用
-  □ 上下文裁剪策略已配置
-  □ Token 使用量监控
+Token optimization:
+  □ Prompt compression is enabled
+  □ Context truncation strategy has been configured
+  □ Token usage monitoring
 
-模型路由:
-  □ 复杂度分类器已训练
-  □ 模型映射表已配置
-  □ 路由决策日志完整
+Model routing:
+  □ Complexity classifier has been trained
+  □ Model mapping table has been configured
+  □ Routing decision logs are complete
 
-监控告警:
-  □ 成本 Dashboard 已创建
-  □ 成本超限告警已配置
-  □ 缓存命中率告警
-  □ 定期成本报告生成
+monitoring alerts:
+  □ Cost Dashboard has been created
+  □ Cost over-limit alert has been configured
+  □ Cache hit rate alert
+  □ Regular cost report generation
 ```
 
 ## Related

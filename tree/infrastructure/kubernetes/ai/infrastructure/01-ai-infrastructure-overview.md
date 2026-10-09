@@ -1,9 +1,9 @@
 ---
-title: AI 基础设施架构
-description: 全面介绍 AI Infrastructure 在 K8s 上的架构设计：GPU 调度、分布式训练（PyTorch DDP/FSDP/TensorRT）、LLM
-  推理（vLLM/TGI/KServe）、向量数据库与 RAG
-summary: 全面介绍 AI Infrastructure 在 K8s 上的架构设计：GPU 调度、分布式训练（PyTorch DDP/FSDP/TensorRT）、LLM
-  推理（vLLM/TGI/KServe）、向量数据库与 RAG
+title: AI Infrastructure Architecture
+description: 'Comprehensive introduction to the architecture design of AI Infrastructure on K8s: GPU scheduling, distributed training (PyTorch DDP/FSDP/TensorRT), LLM inference (vLLM/TGI/KServe), vector databases, and RAG'
+  summary: 'Comprehensive introduction to the architecture design of AI Infrastructure on K8s: GPU scheduling, distributed training (PyTorch DDP/FSDP/TensorRT), LLM inference (vLLM/TGI/KServe), vector databases, and RAG'
+summary: Comprehensive introduction to the architecture design of AI Infrastructure on K8s: GPU scheduling, distributed training (PyTorch DDP/FSDP/TensorRT), LLM
+  Reasoning (vLLM/TGI/KServe), Vector Databases, and RAG
 category: domain-11-ai-infra
 tags:
 - k8s
@@ -22,17 +22,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI 基础设施架构 是什么
-- 如何 AI 基础设施架构
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Infrastructure Architecture
+- How to design AI Infrastructure Architecture
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
 - AI
-- 基础设施架构
+- Infrastructure Architecture
 - ai
 - infra
 prerequisites:
@@ -56,65 +56,67 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
 related_docs:
 - path: 03-gpu-scheduling-management.md
   type: depth
-  desc: GPU 调度与管理
+  desc: GPU Scheduling and Management
 - path: 05-distributed-training-frameworks.md
   type: depth
-  desc: 分布式训练框架
+  desc: Distributed Training Framework
 - path: ../domain-14-ai-ml-infra/02-ai-agents/
   type: ai-agent
-  desc: AI Agent 工程
+  desc: AI Agent Engineering
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/01-ai-infrastructure-overview.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands are marked: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI基础设施架构
+# AI Infrastructure Architecture
 
-> **适用版本**: v1.25 - v1.32 | **最后更新**: 2026-01 | **参考**: [NVIDIA AI Enterprise](https://www.nvidia.com/en-us/data-center/products/ai-enterprise/) | [[entities/kubeflow.md|Kubeflow]]](https://www.kubeflow.org/)
+> **Applicable Version**: v1.25 - v1.32 \|\| **Last Updated**: 2026-01 \|\| **Reference**: [NVIDIA AI Enterprise](https://www.nvidia.com/en-us/data-center/products/ai-enterprise/) \|\| [[entities/kubeflow.md|Kubeflow]]](https://www.kubeflow.org/)
 
-<!-- chunk: AI Infra 全景架构 -->
-## AI Infra 全景架构
+
+## AI Infra Overview Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AI平台控制平面                               │
+│                     AI platform control plane                               │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  Kubernetes Control Plane (API Server/Scheduler/etcd)   │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  AI调度层: Volcano / Kueue / YuniKorn                    │  │
+│  │  AI scheduler layer: Volcano / Kueue / YuniKorn                    │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     计算资源层                                    │
+│                     Compute resource layer                                    │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐         │
-│  │  GPU集群     │  │  NPU集群     │  │  RDMA网络    │         │
-│  │  A100/H100   │  │  昇腾910B    │  │  InfiniBand  │         │
-│  │  (节点池)    │  │  (节点池)    │  │  RoCE        │         │
+│  │  GPU cluster     │  │  NPU cluster     │  │  RDMA network    │         │
+│  │  A100/H100   │  │  Ascend 910B    │  │  InfiniBand  │         │
+│  │  (node pool)    │  │  (node pool)    │  │  RoCE        │         │
 │  └──────────────┘  └──────────────┘  └──────────────┘         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AI工作负载编排层                              │
+│                     AI workload orchestration layer                              │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
-│  │ 训练框架   │  │ 推理引擎   │  │ 数据处理   │               │
+│  │ Training framework   │  │ Inference engine   │  │ Data processing   │               │
 │  │ PyTorch    │  │ vLLM       │  │ Ray        │               │
 │  │ DeepSpeed  │  │ TensorRT   │  │ Spark      │               │
 │  │ Megatron   │  │ Triton     │  │ Flink      │               │
@@ -123,14 +125,14 @@ related_docs:
                               │
                               v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     存储与数据层                                  │
+│                     Storage and data layer                                  │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
-│  │ 对象存储   │  │ 向量数据库 │  │ 特征存储   │               │
+│  │ Object storage   │  │ Vector database │  │ Feature storage   │               │
 │  │ S3/OSS     │  │ Milvus     │  │ Feast      │               │
-│  │ (模型/数据)│  │ Weaviate   │  │ Tecton     │               │
+│  │ (model/data)│  │ Weaviate   │  │ Tecton     │               │
 │  └────────────┘  └────────────┘  └────────────┘               │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
-│  │ 分布式存储 │  │ 缓存层     │  │ 数据湖     │               │
+│  │ Distributed storage │  │ Cache layer     │  │ Data lake     │               │
 │  │ JuiceFS    │  │ Alluxio    │  │ Iceberg    │               │
 │  │ CephFS     │  │ Fluid      │  │ Hudi       │               │
 │  └────────────┘  └────────────┘  └────────────┘               │
@@ -138,9 +140,9 @@ related_docs:
                               │
                               v
 ┌─────────────────────────────────────────────────────────────────┐
-│                     可观测性与治理层                              │
+│                     Observability and governance layer                              │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
-│  │ 实验跟踪   │  │ 模型管理   │  │ 数据血缘   │               │
+│  │ Experiment tracking   │  │ Model management   │  │ Data lineage   │               │
 │  │ MLflow     │  │ ModelMesh  │  │ DataHub    │               │
 │  │ W&B        │  │ Seldon     │  │ Amundsen   │               │
 │  └────────────┘  └────────────┘  └────────────┘               │
@@ -149,53 +151,53 @@ related_docs:
 
 ---
 
-<!-- chunk: 一、AI专用调度器对比 -->
-## 一、AI专用调度器对比
 
-### 调度器选型矩阵
+## 1. Comparison of Dedicated Schedulers for AI
 
-| 调度器 | Gang调度 | 队列管理 | 优先级抢占 | GPU拓扑感知 | 成熟度 | 生产推荐 |
+### Scheduler Selection Matrix
+
+| Scheduler | Gang Scheduling | Queue Management | Priority Preemption | GPU Topology Awareness | Maturity | Production Recommendation |
 |-------|---------|---------|-----------|------------|--------|---------|
-| **Volcano** | ✅ | ✅ | ✅ | ✅ | ⭐⭐⭐⭐⭐ | 强烈推荐 |
-| **Kueue** | ✅ | ✅ | ✅ | ⚠️ 部分 | ⭐⭐⭐⭐ | 推荐 |
-| **YuniKorn** | ✅ | ✅ | ✅ | ❌ | ⭐⭐⭐ | 特定场景 |
-| **原生K8s Scheduler** | ❌ | ❌ | ✅ | ❌ | ⭐⭐⭐⭐⭐ | 不推荐AI |
+| **Volcano** | ✅ | ✅ | ✅ | ✅ | ⭐⭐⭐⭐⭐ | Strongly Recommended |
+| **Kueue** | ✅ | ✅ | ✅ | ⚠️ Partial | ⭐⭐⭐⭐ | Recommended |
+| **YuniKorn** | ✅ | ✅ | ✅ | ❌ | ⭐⭐⭐ | Scenario-Specific |
+| **Native K8s Scheduler** | ❌ | ❌ | ✅ | ❌ | ⭐⭐⭐⭐⭐ | Not Recommended for AI |
 
 ---
 
-### 1. Volcano - AI专用调度器
+### 1. Volcano - Dedicated AI Scheduler
 
-#### 核心特性
+#### Core Features
 
-**Gang调度**
-- 保证分布式训练任务Pod同时调度
-- 避免资源死锁和部分失败
-- 支持最小成员数配置
+**Gang Scheduling**
+- Ensure that distributed training tasks are scheduled simultaneously across multiple nodes
+- Avoid resource deadlocks and partial failures
+- Support configuration of minimum member number
 
-**队列管理**
-- 多租户资源配额
-- 优先级队列
-- 公平调度策略
+**Queue Management**
+- Multi-tenant resource quotas
+- Priority queues
+- Fair scheduling strategies
 
-**GPU拓扑感知**
-- NVLink拓扑优化
-- PCIe亲和性调度
-- NUMA感知
+**GPU Topology Awareness**
+- Optimize NVLink topology
+- PCIe affinity scheduling
+- NUMA awareness
 
-#### Helm安装
+#### Helm Installation
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource states, recommend to first use --dry-run or diff to confirm
+> - `helm upgrade/install`: deploy/upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🔴 Medium Risk: modifies cluster/resource status; confirm target, impact scope, and authorization before proceeding
 helm repo add volcano-sh https://volcano-sh.github.io/helm-charts
 helm install volcano volcano-sh/volcano \
   --namespace volcano-system \
   --create-namespace \
   --set basic.image_tag_version=v1.8.2
 ```
-#### Queue配置
+#### Queue Configuration
 
 ```yaml
 apiVersion: scheduling.volcano.sh/v1beta1
@@ -203,25 +205,25 @@ kind: Queue
 metadata:
   name: ai-training
 spec:
-  # 资源配额
+  # resource quota
   capability:
     cpu: "1000"
     memory: 2Ti
     nvidia.com/gpu: "64"
   
-  # 权重(相对优先级)
+  # weight (relative priority)
   weight: 100
   
-  # 资源保障(guaranteed资源)
+  # guaranteed resources (resource assurance)
   guarantee:
     cpu: "500"
     memory: 1Ti
     nvidia.com/gpu: "32"
   
-  # 队列状态
+  # queue state
   state: Open
   
-  # 回收策略
+  # recycling strategy
   reclaimable: true
 ---
 apiVersion: scheduling.volcano.sh/v1beta1
@@ -241,7 +243,7 @@ spec:
   state: Open
 ```
 
-#### PyTorchJob Gang调度
+#### PyTorchJob Gang Scheduling
 
 ```yaml
 apiVersion: kubeflow.org/v1
@@ -250,7 +252,7 @@ metadata:
   name: distributed-training
   namespace: ai-training
 spec:
-  # Volcano调度器
+  # Volcano scheduler
   schedulerName: volcano
   
   pytorchReplicaSpecs:
@@ -259,7 +261,7 @@ spec:
       template:
         metadata:
           annotations:
-            # Gang调度配置
+            # Gang scheduling configuration
             scheduling.volcano.sh/group-name: distributed-training
             scheduling.volcano.sh/queue-name: ai-training
         spec:
@@ -277,7 +279,7 @@ spec:
                   nvidia.com/gpu: 8
                 requests:
                   nvidia.com/gpu: 8
-          # GPU拓扑亲和性
+          # GPU topology affinity
           affinity:
             nodeAffinity:
               requiredDuringSchedulingIgnoredDuringExecution:
@@ -313,15 +315,15 @@ spec:
 
 ---
 
-### 2. Kueue - K8s原生批处理调度
+### 2. Kueue - Batch Scheduling Native to Kubernetes
 
-#### 架构优势
+#### Architectural Advantages
 
-- K8s原生CRD，无需额外组件
-- 与K8s调度器深度集成
-- 支持多种工作负载(Job/PyTorchJob/RayJob)
+- K8s native CRD, no additional components required
+- Deeply integrated with K8s scheduler
+- Supports multiple workloads (Job/PyTorchJob/RayJob)
 
-#### ClusterQueue配置
+#### ClusterQueue Configuration
 
 ```yaml
 apiVersion: kueue.x-k8s.io/v1beta1
@@ -339,7 +341,7 @@ metadata:
 spec:
   namespaceSelector: {}
   
-  # 资源配额
+  # resource quota
   resourceGroups:
     - coveredResources: ["cpu", "memory", "nvidia.com/gpu"]
       flavors:
@@ -353,7 +355,7 @@ spec:
               nominalQuota: 64
               borrowingLimit: 16  # 可借用16个GPU
   
-  # 抢占策略
+  # Preemption Strategy
   preemption:
     reclaimWithinCohort: Any
     withinClusterQueue: LowerPriority
@@ -367,7 +369,7 @@ spec:
   clusterQueue: cluster-queue-training
 ```
 
-#### 工作负载适配
+#### Workload Adaptation
 
 ```yaml
 apiVersion: batch/v1
@@ -395,36 +397,36 @@ spec:
 
 ---
 
-<!-- chunk: 二、GPU资源管理进阶 -->
-## 二、GPU资源管理进阶
 
-### GPU共享方案对比
+## 2. Advanced GPU Resource Management
 
-| 方案 | 隔离级别 | 显存隔离 | 性能开销 | 复杂度 | 适用场景 |
+### Comparison of GPU Sharing Solutions
+
+| Solution | Isolation Level | Memory Isolation | Performance Overhead | Complexity | Applicable Scenarios |
 |------|---------|---------|---------|--------|---------|
-| **NVIDIA MIG** | 硬件级 | 完全隔离 | 0% | 低 | A100/H100多租户 |
-| **vGPU** | 硬件级 | 完全隔离 | <5% | 中 | 虚拟化环境 |
-| **Time-Slicing** | 进程级 | 软隔离 | 5-10% | 低 | 推理服务 |
-| **cGPU(阿里云)** | 进程级 | 完全隔离 | <3% | 低 | ACK推荐 |
-| **vCUDA** | 进程级 | 软隔离 | 10-15% | 高 | 测试环境 |
+| **NVIDIA MIG** | Hardware Level | Complete Isolation | 0% | Low | Multi-tenant for A100/H100 |
+| **vGPU** | Hardware Level | Complete Isolation | <5% | Medium | Virtualized environments |
+| **Time-Slicing** | Process Level | Soft Isolation | 5-10% | Low | Inference services |
+| **cGPU(Alibaba Cloud)** | Process Level | Complete Isolation | <3% | Low | Recommended by ACK |
+| **vCUDA** | Process Level | Soft Isolation | 10-15% | High | Test environments |
 
 ---
 
-### 1. NVIDIA MIG配置
+### 1. NVIDIA MIG Configuration
 
-#### MIG实例划分
+#### MIG Instance Partitioning
 
 ```bash
-# 查看MIG支持
+# Check MIG support
 nvidia-smi mig -lgip
 
-# 创建MIG实例(7个1g.10gb实例)
+# Create MIG instance (7 x 1g.10gb instances)
 nvidia-smi mig -cgi 19,19,19,19,19,19,19 -C
 
-# 查看MIG实例
+# Check MIG instance
 nvidia-smi mig -lgi
 
-# 输出示例:
+# Example output:
 # +----+--------+------+
 # | ID | Memory | SMs |
 # +====+========+======+
@@ -433,7 +435,7 @@ nvidia-smi mig -lgi
 # ...
 ```
 
-#### K8s设备插件配置
+#### Kubernetes Device Plugin Configuration
 
 ```yaml
 apiVersion: v1
@@ -452,12 +454,12 @@ data:
           - name: nvidia.com/gpu
             replicas: 10  # 单GPU虚拟10个
     
-    # MIG策略
+    # MIG policy
     flags:
       migStrategy: mixed  # single/mixed
       failOnInitError: true
     
-    # MIG设备命名
+    # MIG device naming
     resources:
       gpus:
         - pattern: "*"
@@ -471,7 +473,7 @@ data:
           name: nvidia.com/mig-3g.40gb
 ```
 
-#### MIG实例使用
+#### MIG Instance Usage
 
 ```yaml
 apiVersion: v1
@@ -490,9 +492,9 @@ spec:
 
 ---
 
-### 2. GPU Time-Slicing(时间切片)
+### 2. GPU Time-Slicing (Time Slicing)
 
-#### 配置示例
+#### Configuration Example
 
 ```yaml
 # nvidia-device-plugin-config ConfigMap
@@ -512,7 +514,7 @@ data:
             replicas: 8  # 单GPU虚拟为8个逻辑GPU
 ```
 
-#### Pod使用
+#### Pod Usage
 
 ```yaml
 apiVersion: v1
@@ -528,27 +530,27 @@ spec:
           nvidia.com/gpu: 1  # 实际使用1/8物理GPU
 ```
 
-**适用场景**:
-- 推理服务(低并发)
-- 开发测试环境
+**Applicable Scenarios**:
+- Inference services (low concurrency)
+- Development/test environments
 - Jupyter Notebook
 
-**限制**:
-- 无显存隔离(OOM会影响其他容器)
-- 性能波动(时间片竞争)
+**Limitations**:
+- No memory isolation (OOM can affect other containers)
+- Performance fluctuations (competition for time slices)
 
 ---
 
-### 3. cGPU(阿里云容器GPU)
+### 3. cGPU(Aliyun Container GPU)
 
-#### 核心优势
+#### Core Advantages
 
-- **显存隔离**: 内核级显存隔离，OOM不互相影响
-- **算力隔离**: cgroup限制GPU算力
-- **零修改**: 应用无需修改代码
-- **成本降低**: 单GPU支持10+推理容器
+- **Memory Isolation**: Kernel-level memory isolation, OOM does not affect each other
+- **Compute Isolation**: cgroup limits GPU compute power
+- **Zero Modification**: Application code does not need to be modified
+- **cost reduction**: single GPU supports 10+ inference containers
 
-#### ACK配置
+#### ACK Configuration
 
 ```yaml
 apiVersion: apps/v1
@@ -571,34 +573,34 @@ spec:
               value: "0"
 ```
 
-#### 监控指标
+#### Monitoring Metrics
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 查看cGPU使用情况
+# 🔲 Low Risk: read-only/information gathering, typically with no side effects
+# Check cGPU usage
 kubectl get nodes -o custom-columns=NAME:.metadata.name,GPU-MEM:.status.allocatable.'aliyun\.com/gpu-mem',GPU-CORE:.status.allocatable.'aliyun\.com/gpu-core'
 ```
 ---
 
-<!-- chunk: 三、高速网络方案 -->
-## 三、高速网络方案
 
-### RDMA网络对比
+## 3. High-Speed Network Solution
 
-| 方案 | 带宽 | 延迟 | 成本 | 部署复杂度 | AI训练推荐 |
+### RDMA Network Comparison
+
+| Solution | Bandwidth | Latency | Cost | Deployment Complexity | AI Training Recommendation |
 |------|------|------|------|-----------|-----------|
-| **InfiniBand** | 400Gb/s | <1μs | 高 | 高 | ⭐⭐⭐⭐⭐ |
-| **RoCE v2** | 100-400Gb/s | <5μs | 中 | 中 | ⭐⭐⭐⭐ |
-| **TCP/IP** | 10-100Gb/s | 50-100μs | 低 | 低 | ⚠️ 不推荐大规模训练 |
+| **InfiniBand** | 400Gb/s | <1μs | High | High | ⭐⭐⭐⭐⭐ |
+| **RoCE v2** | 100-400Gb/s | <5μs | Medium | Medium | ⭐⭐⭐⭐ |
+| **TCP/IP** | 10-100Gb/s | 50-100μs | Low | Low | ⚠️ Not recommended for large-scale training |
 
 ---
 
-### 1. RoCE配置(阿里云ACK)
+### 1. RoCE Configuration(Aliyun ACK)
 
-#### 节点配置
+#### Node Configuration
 
 ```yaml
-# RDMA设备插件DaemonSet
+# RDMA device plugin DaemonSet
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -633,7 +635,7 @@ spec:
             path: /sys
 ```
 
-#### Pod使用RDMA
+#### Pod Usage RDMA
 
 ```yaml
 apiVersion: v1
@@ -665,10 +667,10 @@ spec:
 
 ---
 
-### 2. NCCL优化配置
+### 2. NCCL Optimization Configuration
 
 ```bash
-# NCCL环境变量优化
+# Optimize NCCL Environment Variables
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_IB_DISABLE=0
 export NCCL_IB_HCA=mlx5_0,mlx5_1
@@ -676,48 +678,48 @@ export NCCL_IB_GID_INDEX=3
 export NCCL_NET_GDR_LEVEL=5
 export NCCL_P2P_LEVEL=SYS
 
-# NCCL性能测试
+# Perform NCCL Performance Testing
 /usr/local/bin/nccl-tests/build/all_reduce_perf -b 8 -e 128M -f 2 -g 8
 ```
 
-**性能基准**:
+**Performance Benchmarks**:
 - TCP/IP: ~10GB/s
 - RoCE: ~40-50GB/s
 - InfiniBand: ~90-100GB/s
 
 ---
 
-<!-- chunk: 四、分布式存储方案 -->
-## 四、分布式存储方案
 
-### 存储方案选型
+## 4. Distributed Storage Solutions
 
-| 方案 | 吞吐量 | IOPS | 延迟 | 成本 | AI训练推荐 |
+### 1. JuiceFS - Distributed File System
+
+| Solution | Throughput | IOPS | Latency | Cost | AI Training Recommendation |
 |------|--------|------|------|------|-----------|
-| **本地NVMe** | 7GB/s | 1M | <100μs | 高 | ⭐⭐⭐⭐⭐ 检查点 |
-| **JuiceFS** | 2-5GB/s | 100K | 1-5ms | 中 | ⭐⭐⭐⭐⭐ 数据集 |
-| **CephFS** | 1-3GB/s | 50K | 5-10ms | 中 | ⭐⭐⭐⭐ 共享存储 |
-| **对象存储(S3/OSS)** | 500MB/s | 10K | 10-50ms | 低 | ⭐⭐⭐ 模型归档 |
-| **NFS** | 500MB/s | 5K | 10-20ms | 低 | ⚠️ 不推荐训练 |
+| **Local NVMe** | 7GB/s | 1M | <100μs | High | ⭐⭐⭐⭐⭐ Checkpoint |
+| **JuiceFS** | 2-5GB/s | 100K | 1-5ms | Medium | ⭐⭐⭐⭐⭐ Dataset |
+| **CephFS** | 1-3GB/s | 50K | 5-10ms | Medium | ⭐⭐⭐⭐ Shared Storage |
+| **Object Storage (S3/OSS)** | 500MB/s | 10K | 10-50ms | Low | ⭐⭐⭐ Model Archival |
+| **NFS** | 500MB/s | 5K | 10-20ms | Low | ⚠️ Not recommended for training |
 
 ---
 
-### 1. JuiceFS - 分布式文件系统
+### 1. JuiceFS - Distributed File System
 
-#### 架构特点
+#### Helm Deployment
 
-- **POSIX兼容**: 标准文件系统接口
-- **对象存储后端**: S3/OSS/MinIO
-- **元数据分离**: Redis/TiKV/etcd
-- **缓存加速**: 本地SSD缓存
+- **POSIX compatible**: standard file system interface
+- **object storage backend**: S3/OSS/MinIO
+- **Metadata separation**: Redis/TiKV/etcd
+- **Cache acceleration**: local SSD cache
 
-#### Helm部署
+#### Helm Deployment
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+> ⚠️ **yellow warning** — change cluster resource state, recommend to first use --dry-run or diff to confirm
+> - `helm upgrade/install`: deploy/upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🟡 Medium Risk: Modifies cluster/resource states; confirm target, impact scope, and authorization before execution
 helm repo add juicefs https://juicedata.github.io/charts/
 helm install juicefs-csi-driver juicefs/juicefs-csi-driver \
   --namespace kube-system \
@@ -728,7 +730,7 @@ helm install juicefs-csi-driver juicefs/juicefs-csi-driver \
   --set storageClasses[0].backend.storage=s3 \
   --set storageClasses[0].backend.bucket=http://minio:9000/juicefs
 ```
-#### StorageClass配置
+#### StorageClass Configuration
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -742,17 +744,17 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-name: juicefs-secret
   csi.storage.k8s.io/node-publish-secret-namespace: kube-system
   
-  # 缓存配置(关键)
+  # Cache Configuration (Critical)
   juicefs/mount-cache-size: "102400"  # 100GB本地缓存
   juicefs/mount-cache-dir: "/var/jfsCache"
   juicefs/mount-prefetch: "1"  # 预读优化
   
-  # 性能调优
+  # Performance Tuning
   juicefs/mount-buffer-size: "300"  # 300MB写缓冲
   juicefs/mount-max-uploads: "50"  # 并发上传数
 ```
 
-#### PVC使用
+#### PVC Usage
 
 ```yaml
 apiVersion: v1
@@ -790,15 +792,15 @@ spec:
 
 ---
 
-### 2. Fluid - 数据编排加速
+### 2. Fluid - Data Orchestration Acceleration
 
-#### 架构价值
+#### Architecture Value
 
-- **数据预热**: 训练前将数据缓存到节点
-- **亲和性调度**: Pod调度到有缓存的节点
-- **多层缓存**: 内存+SSD+远程存储
+- **Data preheating**: cache data on nodes before training
+- **Affinity scheduling**: schedule pods to nodes with caches
+- **multi-layer caching**: memory+SSD+remote storage
 
-#### Alluxio Runtime配置
+#### Alluxio Runtime Configuration
 
 ```yaml
 apiVersion: data.fluid.io/v1alpha1
@@ -815,7 +817,7 @@ spec:
         s3a.access.key: <ACCESS_KEY>
         s3a.secret.key: <SECRET_KEY>
   
-  # 数据放置策略
+  # Data Placement Strategy
   placement: Exclusive  # 独占节点缓存
 ---
 apiVersion: data.fluid.io/v1alpha1
@@ -826,7 +828,7 @@ metadata:
 spec:
   replicas: 4  # 4个缓存节点
   
-  # Master配置
+  # Master Configuration
   master:
     jvmOptions:
       - "-Xmx16G"
@@ -836,7 +838,7 @@ spec:
         cpu: 4
         memory: 20Gi
   
-  # Worker配置
+  # Worker Configuration
   worker:
     jvmOptions:
       - "-Xmx32G"
@@ -846,7 +848,7 @@ spec:
         cpu: 8
         memory: 40Gi
   
-  # 缓存层级
+  # Cache Hierarchy
   tieredstore:
     levels:
       - mediumtype: MEM
@@ -860,13 +862,13 @@ spec:
         high: 0.95
         low: 0.7
   
-  # 数据预热
+  # Data Warmup
   data:
     replicas: 2  # 2副本
     pin: true  # 常驻内存
 ```
 
-#### 数据预热Job
+#### Data Warm-Up Job
 
 ```yaml
 apiVersion: data.fluid.io/v1alpha1
@@ -881,7 +883,7 @@ spec:
   
   loadMetadata: true
   
-  # 预热策略
+  # Warmup Strategy
   target:
     - path: /train
       replicas: 2  # 训练集2副本
@@ -891,26 +893,26 @@ spec:
 
 ---
 
-<!-- chunk: 五、AI平台组件生态 -->
-## 五、AI平台组件生态
 
-### MLOps工具栈
+## 5. AI Platform Component Ecosystem
 
-| 阶段 | 工具 | 功能 | 集成难度 | 推荐度 |
+### MLOps Toolchain
+
+| **stage** | **tool** | **function** | **integration difficulty** | **recommendation** |
 |------|------|------|---------|--------|
-| **实验跟踪** | MLflow | 参数/指标/模型版本 | ⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **实验跟踪** | Weights & Biases | 可视化/协作 | ⭐ | ⭐⭐⭐⭐ |
-| **特征存储** | Feast | 特征管理 | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **模型服务** | [[KServe|KServe]] | 推理服务 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **工作流** | Kubeflow Pipelines | DAG编排 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **工作流** | [[Argo|Argo]]go Workflows|Argo Workflows]] | 通用工作流 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-| **AutoML** | Katib | 超参数调优 | ⭐⭐⭐ | ⭐⭐⭐ |
+| **experiment tracking** | MLflow | parameters/metrics/model versions | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **experiment tracking** | Weights & Biases | visualization/collaboration | ⭐ | ⭐⭐⭐⭐ |
+| **feature storage** | Feast | feature management | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **model serving** | [[KServe|KServe]] | inference service | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **workflow** | Kubeflow Pipelines | DAG orchestration | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **workflow** | [[Argo|Argo]] Workflows]] | Argo Workflows]] | general workflow | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **automl** | Katib | hyperparameter tuning | ⭐⭐⭐ | ⭐⭐⭐ |
 
 ---
 
 ### 1. MLflow on K8s
 
-#### 部署架构
+#### Deployment Architecture
 
 ```yaml
 apiVersion: apps/v1
@@ -972,18 +974,18 @@ spec:
   type: LoadBalancer
 ```
 
-#### 训练代码集成
+#### Training Code Integration
 
 ```python
 import mlflow
 import mlflow.pytorch
 
-# MLflow跟踪配置
+# MLflow Tracking Configuration
 mlflow.set_tracking_uri("http://mlflow-service.mlops:5000")
 mlflow.set_experiment("llama2-finetuning")
 
 with mlflow.start_run():
-    # 记录参数
+    # Record Parameters
     mlflow.log_params({
         "learning_rate": 2e-5,
         "batch_size": 32,
@@ -991,28 +993,28 @@ with mlflow.start_run():
         "model": "meta-llama/Llama-2-7b"
     })
     
-    # 训练循环
+    # Training Loop
     for epoch in range(3):
         loss = train_one_epoch()
         
-        # 记录指标
+        # Record Metrics
         mlflow.log_metrics({
             "train_loss": loss,
             "epoch": epoch
         }, step=epoch)
     
-    # 记录模型
+    # Record Model
     mlflow.pytorch.log_model(model, "model")
     
-    # 记录artifacts
+    # Record artifacts
     mlflow.log_artifact("training_curve.png")
 ```
 
 ---
 
-### 2. KServe - 模型推理服务
+### 2. KServe - Model Serving Service
 
-#### InferenceService配置
+#### InferenceService Configuration
 
 ```yaml
 apiVersion: serving.kserve.io/v1beta1
@@ -1022,15 +1024,15 @@ metadata:
   namespace: ai-inference
 spec:
   predictor:
-    # 最小副本数
+    # Minimum Replicas
     minReplicas: 2
     maxReplicas: 10
     
-    # 自动扩缩容
+    # Auto-scaling
     scaleTarget: 80  # 80%并发利用率触发扩容
     scaleMetric: concurrency
     
-    # GPU资源
+    # GPU Resources
     resources:
       requests:
         cpu: 4
@@ -1041,7 +1043,7 @@ spec:
         memory: 32Gi
         nvidia.com/gpu: 1
     
-    # 容器配置
+    # Container configuration
     containers:
       - name: kserve-container
         image: vllm/vllm-openai:latest
@@ -1058,29 +1060,29 @@ spec:
         persistentVolumeClaim:
           claimName: model-pvc
   
-  # 流量分割(金丝雀)
+  # Traffic splitting (canary)
   canaryTrafficPercent: 10
 ```
 
 ---
 
-<!-- chunk: 六、AI Infra成本优化 -->
-## 六、AI Infra成本优化
 
-### 成本优化策略矩阵
+## 6. AI Infrastructure Cost Optimization
 
-| 策略 | 节省比例 | 实施难度 | 风险 | 推荐场景 |
+### Cost Optimization Strategy Matrix
+
+| **strategy** | saving ratio | implementation difficulty | risk | recommended scenarios |
 |------|---------|---------|------|---------|
-| **Spot实例** | 70-90% | ⭐⭐ | 中断风险 | 可容错训练 |
-| **GPU共享** | 60-80% | ⭐⭐⭐ | 性能波动 | 推理服务 |
-| **模型压缩** | 50-75% | ⭐⭐⭐⭐ | 精度损失 | 边缘部署 |
-| **数据缓存** | 30-50% | ⭐⭐ | 缓存命中率 | 重复训练 |
-| **资源右sizing** | 20-40% | ⭐⭐⭐ | 需监控调整 | 所有场景 |
-| **批量推理** | 40-60% | ⭐⭐ | 延迟增加 | 离线场景 |
+| **spot instances** | 70-90% | ⭐⭐ | interruption risk | fault-tolerant training |
+| **gpu sharing** | 60-80% | ⭐⭐⭐ | performance fluctuations | inference service |
+| **model compression** | 50-75% | ⭐⭐⭐⭐ | accuracy loss | edge deployment |
+| **data caching** | 30-50% | ⭐⭐ | cache hit rate | repeated training |
+| **resource sizing** | 20-40% | ⭐⭐⭐ | need monitoring adjustment | all scenarios |
+| **batch inference** | 40-60% | ⭐⭐ | increased latency | offline scenarios |
 
 ---
 
-### Spot实例配置
+### Spot Instance Configuration
 
 ```yaml
 apiVersion: v1
@@ -1088,14 +1090,14 @@ kind: Pod
 metadata:
   name: spot-training
 spec:
-  # 容忍Spot中断
+  # Tolerate Spot interruptions
   tolerations:
     - key: "kubernetes.azure.com/scalesetpriority"
       operator: "Equal"
       value: "spot"
       effect: "NoSchedule"
   
-  # 节点亲和性
+  # Node affinity
   affinity:
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
@@ -1119,68 +1121,68 @@ spec:
 
 ---
 
-<!-- chunk: 七、生产最佳实践 -->
-## 七、生产最佳实践
 
-### AI Infra检查清单
+## 7. Production Best Practices
 
-#### 计算资源
+### AI Infrastructure Checklist
 
-- ✅ GPU节点池隔离(训练/推理)
-- ✅ 配置GPU拓扑亲和性
-- ✅ 启用Gang调度(Volcano/Kueue)
-- ✅ 配置资源配额和优先级
-- ✅ 部署GPU监控(DCGM Exporter)
+#### Compute Resources
 
-#### 网络
+- ✅ GPU node pool isolation(training/inference)
+- ✅ configure GPU topology affinity
+- ✅ enable Gang scheduling(Volcano/Kueue)
+- ✅ configure resource quotas and priorities
+- ✅ Deploy GPU monitoring (DCGM Exporter)
 
-- ✅ 启用RDMA(RoCE/InfiniBand)
-- ✅ 配置NCCL优化参数
-- ✅ 网络带宽监控
-- ✅ 配置QoS保障训练流量
+#### Network
 
-#### 存储
+- ✅ Enable RDMA (RoCE/InfiniBand)
+- ✅ Configure NCCL optimization parameters
+- ✅ Network bandwidth monitoring
+- ✅ Configure QoS to ensure training traffic
 
-- ✅ 使用高性能存储(JuiceFS/Alluxio)
-- ✅ 配置数据预热
-- ✅ 本地NVMe缓存检查点
-- ✅ 对象存储归档模型
+#### Storage
 
-#### 可观测性
+- ✅ Use high-performance storage (JuiceFS/Alluxio)
+- ✅ Configure data pre-warming
+- ✅ Local NVMe cache checkpointing
+- ✅ Archive models in object storage
 
-- ✅ 实验跟踪(MLflow)
-- ✅ GPU利用率监控
-- ✅ 训练任务告警
-- ✅ 成本分析dashboard
+#### Observability
 
-#### 安全
+- ✅ Experiment tracking (MLflow)
+- ✅ Monitor GPU utilization
+- ✅ Train task alerts
+- ✅ Cost analysis dashboard
 
-- ✅ 模型加密存储
-- ✅ 训练数据访问控制
-- ✅ NetworkPolicy隔离
-- ✅ 镜像安全扫描
+#### Security
 
----
-
-**表格维护**: Kusheet Project | **作者**: Allen Galler (allengaller@gmail.com)
+- ✅ Model encryption storage
+- ✅ Train data access control
+- ✅ NetworkPolicy isolation
+- ✅ Image security scanning
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**Table Maintenance**: Kusheet Project | **Author**: Allen Galler (allengaller@gmail.com)
+
+---
+
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- 132 - AI/ML Workloads (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipelines and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## Related
 
@@ -1189,12 +1191,12 @@ spec:
 - [[README]]
 - [[MOC]]
 
-- GPU 调度与管理
-- 分布式训练框架
-- 相关知识域: domain-02-workloads-applications
-- 相关知识域: domain-03-networking-traffic
-- [[domain-17-system-foundation/topic-cheat-sheet/go.md|速查卡: go]]
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- GPU Scheduling and Management
+- Distributed Training Frameworks
+- Related Knowledge Domain: domain-02-workloads-applications
+- Related Knowledge Domain: domain-03-networking-traffic
+- [[domain-17-system-foundation/topic-cheat-sheet/go.md|Cheat Sheet: go]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 ## See Also
 

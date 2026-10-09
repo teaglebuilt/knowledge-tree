@@ -1,6 +1,6 @@
 ---
-title: AI模型部署与生命周期管理
-description: '# AI模型部署与生命周期管理'
+title: AI Model Deployment and Lifecycle Management
+description: '# AI Model Deployment and Lifecycle Management'
 summary: 'serving.kserve.io/inferenceservice: enabled'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI模型部署与生命周期管理 是什么
-- 如何 AI模型部署与生命周期管理
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Model Deployment and Lifecycle Management
+- How to do AI Model Deployment and Lifecycle Management
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI模型部署与生命周期管理
+- AI Model Deployment and Lifecycle Management
 - ai
 - infra
 prerequisites:
@@ -49,33 +49,35 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: fta
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/deployment-fta.md
-  label: '故障树: deployment'
+  label: 'Fault Tree: deployment'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/10-model-deployment-management.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify the cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# AI模型部署与生命周期管理
+# AI Model Deployment and Lifecycle Management
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **最后更新**: 2026-02 | **参考**: [[entities/kserve.md|KServe]]](https://kserve.github.io/website/) | [Seldon Core](https://docs.seldon.io/projects/seldon-core/) | [BentoML](https://docs.bentoml.org/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Last Updated**: 2026-02 | **References**: [[entities/kserve.md|KServe]](https://kserve.github.io/website/) | [Seldon Core](https://docs.seldon.io/projects/seldon-core/) | [BentoML](https://docs.bentoml.org/)
 
-<!-- chunk: 一、模型部署架构概览 -->
-## 一、模型部署架构概览
 
-### 1.1 生产级模型部署架构
+## 1. Model Deployment Architecture Overview
+
+### 1.1 Production-Level Model Deployment Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -83,22 +85,22 @@ cross_refs:
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                      │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            模型管理平台 (Model Management)                      │  │
+│  │                            Model Management Platform (Model Management)                      │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │  Model      │  │  Model      │  │  Model      │  │  Model      │          │  │
 │  │  │  Registry   │  │  Versioning │  │  Metadata   │  │  Governance │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 存储管理   │  │ • 版本控制   │  │ • 元数据    │  │ • 审计追踪   │          │  │
-│  │  │ • 权限控制   │  │ • 血缘关系   │  │ • 标签分类   │  │ • 合规检查   │          │  │
-│  │  │ • 搜索发现   │  │ • A/B测试    │  │ • 性能指标   │  │ • 安全扫描   │          │  │
+│  │  │ • Storage Management   │  │ • Version Control   │  │ • Metadata    │  │ • Audit Tracking   │          │  │
+│  │  │ • Permission Control   │  │ • Lineage Relationship   │  │ • Tagging Classification   │  │ • Compliance Check   │          │  │
+│  │  │ • Search Discovery   │  │ • A/B Testing    │  │ • Performance Metrics   │  │ • Security Scan   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          部署编排层 (Deployment Orchestration)                 │  │
+│  │                          Deployment Orchestration Layer (Deployment Orchestration)                 │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   KServe    │  │ Seldon Core │  │  BentoML    │  │  Custom     │          │  │
@@ -112,30 +114,30 @@ cross_refs:
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          服务管理层 (Service Management)                       │  │
+│  │                          Service Management Layer (Service Management)                       │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   Service   │  │   Gateway   │  │   Traffic   │  │   Security  │          │  │
 │  │  │   Mesh      │  │   (Istio)   │  │   Control   │  │   (mTLS)    │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 服务发现   │  │ • 路由管理   │  │ • 负载均衡   │  │ • 身份认证   │          │  │
-│  │  │ • 流量治理   │  │ • 熔断降级   │  │ • 故障转移   │  │ • 授权鉴权   │          │  │
-│  │  │ • 链路追踪   │  │ • 限流控制   │  │ • 健康检查   │  │ • 加密传输   │          │  │
+│  │  │ • Service Discovery   │  │ • Routing Management   │  │ • Load Balancing   │  │ • Authentication   │          │  │
+│  │  │ • Traffic Governance   │  │ • Circuit Breaker Degradation   │  │ • Failover   │  │ • Authorization Authentication   │          │  │
+│  │  │ • Link Tracing   │  │ • Rate Limiting Control   │  │ • Health Checks   │  │ • Encryption Transmission   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          基础设施层 (Infrastructure)                          │  │
+│  │                          Infrastructure Layer (Infrastructure)                          │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   K8s       │  │    GPU      │  │   Storage   │  │   Network   │          │  │
 │  │  │   Cluster   │  │   Nodes     │  │   System    │  │   Fabric    │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 调度管理   │  │ • 资源池    │  │ • PVC/PV    │  │ • CNI插件    │          │  │
-│  │  │ • 自动扩缩   │  │ • 拓扑优化   │  │ • 快照备份   │  │ • RDMA网络   │          │  │
-│  │  │ • 故障恢复   │  │ • 功耗管理   │  │ • 缓存加速   │  │ • 负载均衡   │          │  │
+│  │  │ • Scheduling Management   │  │ • Resource Pool    │  │ • PVC/PV    │  │ • CNI Plugin    │          │  │
+│  │  │ • Auto Scaling   │  │ • Topology Optimization   │  │ • Snapshot Backup   │  │ • RDMA Network   │          │  │
+│  │  │ • Fault Recovery   │  │ • Power Management   │  │ • Cache Acceleration   │  │ • Load Balancing   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
@@ -143,22 +145,22 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 部署模式对比
+### 1.2 Deployment Mode Comparison
 
-| 部署模式 | 适用场景 | 优势 | 劣势 | 复杂度 |
+| Deployment Mode | Applicable Scenarios | Advantages | Disadvantages | Complexity |
 |----------|----------|------|------|--------|
-| **Serverless** | 突发流量、开发测试 | 自动扩缩、成本优化 | 冷启动延迟 | ⭐⭐ |
-| **Deployment** | 稳定在线服务 | 简单可靠、易于调试 | 资源浪费 | ⭐ |
-| **[[StatefulSet|StatefulSet]]** | 有状态模型服务 | 数据持久化、有序部署 | 复杂度高 | ⭐⭐⭐ |
-| **[[DaemonSet|DaemonSet]]** | 节点本地服务 | 本地缓存、低延迟 | 资源利用率低 | ⭐⭐ |
-| **Job/CronJob** | 批处理推理 | 一次性任务、定时执行 | 不适合在线服务 | ⭐⭐ |
+| **Serverless** | Sudden traffic, development/test | Auto-scaling, cost optimization | Cold start delay | ⭐⭐ |
+| **Deployment** | Stable online services | Simple and reliable, easy to debug | Resource waste | ⭐ |
+| **[[StatefulSet|StatefulSet]]** | Stateful model services | Data persistence, ordered deployment | High complexity | ⭐⭐⭐ |
+| **[[DaemonSet|DaemonSet]]** | Node-local services | Local caching, low latency | Low resource utilization | ⭐⭐ |
+| **Job/CronJob** | Batch inference | One-time tasks, scheduled execution | Not suitable for online services | ⭐⭐ |
 
 ---
 
-<!-- chunk: 二、KServe生产部署 -->
-## 二、KServe生产部署
 
-### 2.1 完整部署配置
+## 2. KServe Production Deployment
+
+### 2.1 Complete Deployment Configuration
 
 ```yaml
 # kserve-production.yaml
@@ -170,14 +172,14 @@ metadata:
     istio-injection: enabled
     serving.kserve.io/inferenceservice: enabled
 ---
-# KServe核心组件
+# Core Components of KServe
 apiVersion: operator.kserve.io/v1alpha1
 kind: KServe
 metadata:
   name: kserve-instance
   namespace: ai-models
 spec:
-  # 启用组件
+  # Enable Components
   inferenceService:
     enabled: true
     resources:
@@ -188,7 +190,7 @@ spec:
         cpu: "1"
         memory: 2Gi
         
-  # 模型代理配置
+  # Model Proxy Configuration
   agent:
     enabled: true
     resources:
@@ -199,7 +201,7 @@ spec:
         cpu: "250m"
         memory: 512Mi
         
-  # 存储初始化器
+  # Storage Initializer
   storageInitializer:
     enabled: true
     image: kserve/storage-initializer:v0.12.0
@@ -211,14 +213,14 @@ spec:
         cpu: "250m"
         memory: 512Mi
 ---
-# InferenceService示例 - LLM推理
+# InferenceService Example - LLM Inference
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: llama3-70b-inference
   namespace: ai-models
   annotations:
-    # 启用Canary部署
+    # Enable Canary Deployment
     autoscaling.knative.dev/class: kpa.autoscaling.knative.dev
     autoscaling.knative.dev/metric: concurrency
     autoscaling.knative.dev/target: "10"
@@ -226,7 +228,7 @@ metadata:
     autoscaling.knative.dev/maxScale: "20"
 spec:
   predictor:
-    # 模型版本管理
+    # Model Version Management
     model:
       modelFormat:
         name: pytorch
@@ -254,7 +256,7 @@ spec:
               name: huggingface-secret
               key: token
               
-  # Transformer预处理
+  # Transformer Preprocessing
   transformer:
     containers:
       - image: custom/llm-transformer:v1.0
@@ -273,7 +275,7 @@ spec:
             cpu: "1"
             memory: 2Gi
             
-  # explainer配置
+  # explainer Configuration
   explainer:
     type: LIME
     containers:
@@ -284,7 +286,7 @@ spec:
             value: llama3-70b
 ```
 
-### 2.2 模型版本管理策略
+### 2.2 Model Version Management Strategy
 
 ```yaml
 # model-versioning-strategy.yaml
@@ -294,11 +296,11 @@ metadata:
   name: model-canary-deployment
   namespace: ai-models
 spec:
-  # 蓝绿部署配置
+  # Blue-Green Deployment Configuration
   predictor:
     canaryTrafficPercent: 10  # 10%流量到新版本
     model:
-      # 当前稳定版本
+      # Current Stable Version
       stable:
         name: llama3-70b-v1.0
         storageUri: s3://models/llama3-70b/v1.0
@@ -306,7 +308,7 @@ spec:
           requests:
             nvidia.com/gpu: "4"
             
-      # 新版本候选
+      # New Candidate Version
       canary:
         name: llama3-70b-v1.1
         storageUri: s3://models/llama3-70b/v1.1
@@ -314,7 +316,7 @@ spec:
           requests:
             nvidia.com/gpu: "4"
             
-  # A/B测试配置
+  # A/B Testing Configuration
   router:
     traffic:
       - revisionName: llama3-70b-v1.0
@@ -329,10 +331,10 @@ spec:
 
 ---
 
-<!-- chunk: 三、模型注册中心建设 -->
-## 三、模型注册中心建设
 
-### 3.1 MLflow模型注册表
+## 3. Model Registry Center Construction
+
+### 3.1 MLflow Model Registry
 
 ```yaml
 # mlflow-registry.yaml
@@ -396,7 +398,7 @@ spec:
   type: ClusterIP
 ```
 
-### 3.2 模型元数据管理
+### 3.2 Model Metadata Management
 
 ```python
 # model_metadata_manager.py
@@ -412,12 +414,12 @@ class ModelMetadataManager:
                                    model_uri: str,
                                    model_name: str,
                                    metadata: Dict[str, Any]):
-        """注册模型并附加元数据"""
+        """Register the model and attach metadata"""
         
-        # 注册模型
+        # Register the model
         model_version = mlflow.register_model(model_uri, model_name)
         
-        # 添加自定义标签
+        # Add custom tags
         self.client.set_model_version_tag(
             name=model_name,
             version=model_version.version,
@@ -439,7 +441,7 @@ class ModelMetadataManager:
             value=str(metadata.get("latency_ms", 0))
         )
         
-        # 记录性能指标
+        # Record performance metrics
         with mlflow.start_run():
             mlflow.log_params({
                 "model_name": model_name,
@@ -450,7 +452,7 @@ class ModelMetadataManager:
             
         return model_version
 
-# 使用示例
+# Usage Examples
 manager = ModelMetadataManager()
 model_info = manager.register_model_with_metadata(
     model_uri="runs:/abcd1234/model",
@@ -470,10 +472,10 @@ model_info = manager.register_model_with_metadata(
 
 ---
 
-<!-- chunk: 四、部署流水线自动化 -->
-## 四、部署流水线自动化
 
-### 4.1 CI/CD流水线配置
+## 4. Deployment Pipeline Automation
+
+### 4.1 CI/CD Pipeline Configuration
 
 ```yaml
 # .github/workflows/model-deployment.yaml
@@ -518,7 +520,7 @@ jobs:
     
     - name: Deploy to staging
       run: |
-        # 部署到预发环境
+        # Deploy to Staging Environment
         kubectl apply -f k8s/staging/model-deployment.yaml
         kubectl rollout status deployment/model-staging
         
@@ -535,26 +537,26 @@ jobs:
     
     - name: Deploy canary release
       run: |
-        # 更新canary流量百分比
+        # Update Canary Traffic Percentage
         kubectl patch inferenceservice model-production \
           -p '{"spec":{"predictor":{"canaryTrafficPercent": 10}}}' \
           --type=merge
           
     - name: Monitor canary metrics
       run: |
-        # 监控关键指标
+        # Monitor key metrics
         python scripts/monitor_canary.py --duration 30m
         
     - name: Promote to production
       if: success()
       run: |
-        # 全量上线
+        # Full-scale launch
         kubectl patch inferenceservice model-production \
           -p '{"spec":{"predictor":{"canaryTrafficPercent": 100}}}' \
           --type=merge
 ```
 
-### 4.2 部署质量门禁
+### 4.2 Deployment Quality Gates
 
 ```python
 # deployment_gate.py
@@ -569,12 +571,12 @@ class DeploymentQualityGate:
         self.metrics_client = self._setup_metrics_client()
         
     def _setup_metrics_client(self):
-        """初始化监控客户端"""
-        # 连接到Prometheus或其他监控系统
+        """Initialize monitoring client"""
+        # Connect to Prometheus or other monitoring systems
         pass
         
     def check_deployment_health(self) -> bool:
-        """检查部署健康状况"""
+        """Check the health of the deployment"""
         checks = [
             self._check_endpoint_availability(),
             self._check_response_time(),
@@ -586,7 +588,7 @@ class DeploymentQualityGate:
         return all(checks)
         
     def _check_endpoint_availability(self) -> bool:
-        """检查服务端点可用性"""
+        """Check the availability of service endpoints"""
         try:
             response = requests.get(f"{self.endpoint}/health", timeout=5)
             return response.status_code == 200
@@ -594,29 +596,29 @@ class DeploymentQualityGate:
             return False
             
     def _check_response_time(self) -> bool:
-        """检查响应时间"""
-        # 从监控系统获取P99延迟
+        """Check response time"""
+        # Retrieve P99 latency from the monitoring system
         p99_latency = self.metrics_client.query("histogram_quantile(0.99, ...)")
         return p99_latency <= self.thresholds.get("max_latency_ms", 500)
         
     def _check_error_rate(self) -> bool:
-        """检查错误率"""
+        """Check error rate"""
         error_rate = self.metrics_client.query("rate(http_requests_total{status=~'5..'}[5m])")
         return error_rate <= self.thresholds.get("max_error_rate", 0.01)
         
     def _check_resource_utilization(self) -> bool:
-        """检查资源利用率"""
-        # 检查CPU、内存、GPU利用率
+        """Check resource utilization"""
+        # Check CPU, memory, GPU utilization
         gpu_util = self.metrics_client.query("avg(DCGM_FI_DEV_GPU_UTIL)")
         return gpu_util >= self.thresholds.get("min_gpu_utilization", 30)
         
     def _check_business_metrics(self) -> bool:
-        """检查业务指标"""
-        # 检查准确率、召回率等业务指标
+        """Check business metrics"""
+        # Check accuracy, recall rates, and other business metrics
         accuracy = self.metrics_client.query("model_accuracy")
         return accuracy >= self.thresholds.get("min_accuracy", 0.9)
 
-# 使用示例
+# Usage Example
 gate = DeploymentQualityGate(
     service_endpoint="http://model-service.ai-models",
     thresholds={
@@ -628,18 +630,18 @@ gate = DeploymentQualityGate(
 )
 
 if gate.check_deployment_health():
-    print("✅ 部署质量检查通过")
+    print("✅ Deployment quality check passed")
 else:
-    print("❌ 部署质量检查失败")
-    # 回滚操作
+    print("❌ Deployment quality check failed")
+    # Rollback operation
 ```
 
 ---
 
-<!-- chunk: 五、故障恢复与容灾 -->
-## 五、故障恢复与容灾
 
-### 5.1 自动故障检测
+## 5. Fault Recovery and Disaster Recovery
+
+### 5.1 Automatic Fault Detection
 
 ```yaml
 # fault-detection.yaml
@@ -673,7 +675,7 @@ spec:
             cpu: "100m"
             memory: "128Mi"
 ---
-# 健康检查脚本
+# Health check script
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -703,7 +705,7 @@ spec:
           restartPolicy: OnFailure
 ```
 
-### 5.2 自动回滚策略
+### 5.2 Automatic Rollback Strategy
 
 ```python
 # auto_rollback.py
@@ -723,56 +725,56 @@ class AutoRollbackManager:
         self.namespace = namespace
         
     def monitor_and_rollback(self, deployment_name: str, rollback_window_minutes: int = 10):
-        """监控部署并在出现问题时自动回滚"""
+        """Monitor the deployment and automatically roll back if issues arise"""
         
-        # 获取当前部署状态
+        # Get the current deployment status
         deployment = self.apps_v1.read_namespaced_deployment(deployment_name, self.namespace)
         current_replicas = deployment.spec.replicas
         
-        # 监控窗口期内的指标
+        # Monitor metrics within the monitoring window
         start_time = time.time() - (rollback_window_minutes * 60)
         
         while time.time() - start_time < (rollback_window_minutes * 60):
             if self._should_rollback(deployment_name):
-                logger.warning(f"检测到异常，触发自动回滚: {deployment_name}")
+                logger.warning(f"Detected abnormality, triggering automatic rollback: {deployment_name}")
                 self._perform_rollback(deployment_name)
                 return True
                 
             time.sleep(30)  # 每30秒检查一次
             
-        logger.info(f"部署稳定，无需回滚: {deployment_name}")
+        logger.info(f"Deployment stable, no need to rollback: {deployment_name}")
         return False
         
     def _should_rollback(self, deployment_name: str) -> bool:
-        """判断是否需要回滚"""
+        """Determine if a rollback is needed"""
         
-        # 检查错误率
+        # check error rate
         error_query = f'sum(rate(http_requests_total{{deployment="{deployment_name}",status=~"5.."}}[5m]))'
         error_rate = self._query_prometheus(error_query)
         if error_rate > 0.05:  # 错误率超过5%
-            logger.warning(f"错误率过高: {error_rate}")
+            logger.warning(f"Error rate too high: {error_rate}")
             return True
             
-        # 检查延迟
+        # check latency
         latency_query = f'histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{{deployment="{deployment_name}"}}[5m]))'
         latency_99 = self._query_prometheus(latency_query)
         if latency_99 > 2.0:  # P99延迟超过2秒
-            logger.warning(f"延迟过高: {latency_99}s")
+            logger.warning(f"Too high latency: {latency_99}s")
             return True
             
-        # 检查可用性
+        # check availability
         availability_query = f'avg(up{{deployment="{deployment_name}"}})'
         availability = self._query_prometheus(availability_query)
         if availability < 0.95:  # 可用性低于95%
-            logger.warning(f"可用性不足: {availability}")
+            logger.warning(f"Not enough availability: {availability}")
             return True
             
         return False
         
     def _perform_rollback(self, deployment_name: str):
-        """执行回滚操作"""
+        """execute rollback operation"""
         try:
-            # 回滚到上一个版本
+            # roll back to previous version
             rollback_body = {
                 "kind": "DeploymentRollback",
                 "apiVersion": "apps/v1",
@@ -785,127 +787,127 @@ class AutoRollbackManager:
                 body=rollback_body
             )
             
-            logger.info(f"成功回滚部署: {deployment_name}")
+            logger.info(f"Successfully rolled back deployment: {deployment_name}")
             
-            # 发送告警通知
+            # send alert notification
             self._send_alert_notification(deployment_name, "automatic_rollback")
             
         except Exception as e:
-            logger.error(f"回滚失败: {e}")
+            logger.error(f"Rollback failed: {e}")
             raise
             
     def _query_prometheus(self, query: str) -> float:
-        """查询Prometheus指标"""
+        """query Prometheus metrics"""
         try:
             result = self.prometheus.custom_query(query=query)
             if result and len(result) > 0:
                 return float(result[0]['value'][1])
             return 0.0
         except Exception as e:
-            logger.error(f"Prometheus查询失败: {e}")
+            logger.error(f"Prometheus query failed: {e}")
             return 0.0
             
     def _send_alert_notification(self, deployment_name: str, reason: str):
-        """发送告警通知"""
-        # 实现通知逻辑（Slack、邮件等）
+        """send alert notification"""
+        # implement notification logic (Slack, email, etc.)
         pass
 
-# 使用示例
+# usage example
 rollback_manager = AutoRollbackManager("llama3-inference", "ai-models")
 rollback_manager.monitor_and_rollback("llama3-inference-deployment", rollback_window_minutes=15)
 ```
 
 ---
 
-<!-- chunk: 六、运维最佳实践 -->
-## 六、运维最佳实践
 
-### 6.1 部署检查清单
+## 6. Best Practices for Operations
 
-✅ **预部署检查**
-- [ ] 模型通过所有验证测试
-- [ ] 性能基准测试完成
-- [ ] 安全扫描和漏洞检查通过
-- [ ] 成本评估和预算审批完成
-- [ ] 回滚计划制定并测试
+### 6.1 Deployment Checklist
 
-✅ **部署过程中**
-- [ ] Canary流量逐步增加
-- [ ] 关键指标实时监控
-- [ ] 用户反馈及时收集
-- [ ] 异常情况快速响应
-- [ ] 部署日志完整记录
+✅ **Pre-deployment Checks**
+- [ ] All validation tests pass for the model
+- [ ] Performance benchmark testing is complete
+- [ ] Security scans and vulnerability checks pass
+- [ ] Cost assessment and budget approval are completed
+- [ ] Rollback plans are formulated and tested
 
-✅ **部署后验证**
-- [ ] 功能测试通过
-- [ ] 性能指标达标
-- [ ] 用户体验良好
-- [ ] 监控告警正常
-- [ ] 文档更新完成
+✅ **During Deployment**
+- [ ] Canary traffic is gradually increased
+- [ ] Key metrics are monitored in real time
+- [ ] User feedback is promptly collected
+- [ ] Abnormal situations are quickly responded to
+- [ ] Deploy full logging records
 
-### 6.2 常见问题处理
+✅ **Deploy and validate**
+- [ ] Functional tests pass
+- [ ] Performance metrics meet standards
+- [ ] User experience is good
+- [ ] Alerts are functioning normally
+- [ ] Documentation is updated
 
-**模型加载失败**
+### 6.2 Common Issue Handling
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+**Model loading fails**
+
+> ⚠️ **🟡 Medium-risk change** — Change cluster resource state, suggest first running --dry-run or diff to confirm
+> - `kubectl exec`: Enter container to execute commands, which may alter container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 检查存储访问权限
+# 🟡 Medium risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# check storage access permissions
 kubectl get pvc -n ai-models
 kubectl describe pv <pv-name>
 
-# 验证模型文件完整性
+# verify model file integrity
 kubectl exec -it <pod-name> -n ai-models -- ls -la /mnt/models/
 
-# 查看加载日志
+# view load logs
 kubectl logs <pod-name> -n ai-models -c model-loader
 ```
-**推理性能下降**
+**Inference performance drops**
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+> ⚠️ **🟡 Medium-risk change** — Change cluster resource state, suggest first running --dry-run or diff to confirm
+> - `kubectl exec`: Enter container to execute commands, which may alter container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 检查GPU资源使用
+# 🟡 Medium risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# check GPU resource usage
 kubectl top nodes --selector=nvidia.com/gpu.present=true
 dcgmi dmon -e 1001,1002,1003 -i 0
 
-# 分析瓶颈
+# analyze bottlenecks
 kubectl exec -it <pod-name> -n ai-models -- nvidia-smi
 kubectl exec -it <pod-name> -n ai-models -- nvtop
 ```
-**部署卡住不 progressing**
+**Deployment stalls not progressing**
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 检查部署状态
+# 🟢 Low risk: read-only/information gathering, typically no side effects
+# check deployment status
 kubectl describe deployment <deployment-name> -n ai-models
 kubectl get events --field-selector involvedObject.name=<deployment-name>
 
-# 查看Pod状态详情
+# view pod status details
 kubectl describe pods -l app=<app-name> -n ai-models
 ```
 ---
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed training frameworks
+- AI data processing Pipeline and feature engineering
+- AI experiment management and MLOps platform
+- AutoML and hyperparameter tuning
+- AI model registration center and version management
 
 ## See Also
 
@@ -916,7 +918,7 @@ kubectl describe pods -l app=<app-name> -n ai-models
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

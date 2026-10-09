@@ -1,6 +1,6 @@
 ---
-title: AI数据处理Pipeline与特征工程
-description: '## 一、AI数据Pipeline全景架构'
+title: AI Data Processing Pipeline and Feature Engineering
+description: '## one,AI Data Pipeline Panoramic Architecture'
 summary: 'from ray.data.preprocessors import StandardScaler, OneHotEncoder'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI数据处理Pipeline与特征工程 是什么
-- 如何 AI数据处理Pipeline与特征工程
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Data Processing Pipeline and Feature Engineering
+- How is AI Data Processing Pipeline and Feature Engineering
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI数据处理Pipeline与特征工程
+- AI Data Processing Pipeline and Feature Engineering
 - ai
 - infra
 prerequisites:
@@ -51,34 +51,36 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/06-ai-data-pipeline.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before execution, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# AI数据处理Pipeline与特征工程
+# AI Data Processing Pipeline and Feature Engineering
 
-<!-- chunk: 一、AI数据Pipeline全景架构 -->
-## 一、AI数据Pipeline全景架构
+
+## 1. Overall Architecture of AI Data Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         AI数据处理全流程                                  │
+│                         AI data processing full lifecycle                                  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                           │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│  │  数据采集层   │───▶│  数据处理层   │───▶│  特征工程层   │              │
+│  │  data acquisition layer   │───▶│  data processing layer   │───▶│  feature engineering layer   │              │
 │  └──────────────┘    └──────────────┘    └──────────────┘              │
 │   • Kafka/Pulsar      • Ray Data          • Feature Store              │
 │   • Object Storage    • Spark on K8s      • Feast/Tecton               │
@@ -86,36 +88,36 @@ cross_refs:
 │   • Log Collection    • Pandas/Dask       • Feature Validation         │
 │                                                                           │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐              │
-│  │  数据质量层   │───▶│  数据版本层   │───▶│  训练数据层   │              │
+│  │  Data Quality Layer  │───▶│  Data Version Layer  │───▶│  Training Data Layer  │              │
 │  └──────────────┘    └──────────────┘    └──────────────┘              │
-│   • Great Expectations • DVC              • DataLoader优化              │
+│   • Great Expectations • DVC              • DataLoader optimization              │
 │   • Data Validation   • Pachyderm         • Data Sharding              │
 │   • Schema Evolution  • LakeFS            • Distributed Cache          │
 │   • Anomaly Detection • Delta Lake        • Prefetching                │
 │                                                                           │
 │  ┌──────────────────────────────────────────────────────────┐           │
-│  │              Kubernetes调度与存储基础设施                 │           │
-│  │  • Volcano调度  • JuiceFS分布式存储  • Alluxio缓存       │           │
+│  │              Kubernetes scheduling and storage infrastructure                 │           │
+│  │  • Volcano scheduling  • JuiceFS distributed storage  • Alluxio caching       │           │
 │  └──────────────────────────────────────────────────────────┘           │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-<!-- chunk: 二、Ray Data分布式数据处理 -->
-## 二、Ray Data分布式数据处理
 
-### 2.1 Ray Data架构
+## 2. Ray Data Distributed Data Processing
 
-Ray Data是Ray生态中专为ML数据处理设计的库，提供分布式ETL能力。
+### 2.1 Ray Data Architecture
 
-**核心特性：**
-- **流式处理**：支持大规模数据集的流式读取和处理
-- **分布式转换**：自动并行化数据转换操作
-- **与训练集成**：无缝对接Ray Train和PyTorch/TensorFlow
-- **多格式支持**：Parquet、CSV、JSON、Images、自定义格式
+Ray Data is a library designed specifically for ML data processing within the Ray ecosystem, offering distributed ETL capabilities.
 
-### 2.2 Ray Cluster部署
+**Core Features:**
+- **Stream Processing**: Supports streaming read and processing of large-scale datasets
+- **Distributed Transformation**: Automatically parallelizes data transformation operations
+- **Integration with Training**: Seamless integration with Ray Train and PyTorch/TensorFlow
+- **Multi-format Support**: Parquet, CSV, JSON, Images, custom formats
+
+### 2.2 Ray Cluster Deployment
 
 ```yaml
 apiVersion: v1
@@ -130,44 +132,44 @@ data:
     from ray.data.preprocessors import StandardScaler, OneHotEncoder
     import pandas as pd
     
-    # 初始化Ray
+    # Initialize Ray
     ray.init(address="auto")
     
-    # 读取数据（支持S3/GCS/Azure Blob/JuiceFS）
+    # Read data (supports S3/GCS/Azure Blob/JuiceFS)
     ds = ray.data.read_parquet("s3://data-lake/raw/dataset.parquet")
     
-    # 数据清洗
+    # Data cleaning
     def clean_data(batch: pd.DataFrame) -> pd.DataFrame:
-        # 去除缺失值
+        # Remove missing values
         batch = batch.dropna(subset=['user_id', 'timestamp'])
-        # 时间戳转换
+        # Convert timestamps
         batch['timestamp'] = pd.to_datetime(batch['timestamp'])
-        # 异常值过滤
+        # Filter out anomalies
         batch = batch[batch['amount'] > 0]
         return batch
     
     ds = ds.map_batches(clean_data, batch_format="pandas")
     
-    # 特征工程
+    # Feature engineering
     def feature_engineering(batch: pd.DataFrame) -> pd.DataFrame:
-        # 时间特征
+        # Time features
         batch['hour'] = batch['timestamp'].dt.hour
         batch['day_of_week'] = batch['timestamp'].dt.dayofweek
-        # 统计特征
+        # Statistical features
         batch['amount_log'] = np.log1p(batch['amount'])
         return batch
     
     ds = ds.map_batches(feature_engineering, batch_format="pandas")
     
-    # 数据分割
+    # Data splitting
     train_ds, val_ds = ds.train_test_split(test_size=0.2, shuffle=True)
     
-    # 写入训练数据
+    # Write training data
     train_ds.write_parquet("s3://data-lake/processed/train/")
     val_ds.write_parquet("s3://data-lake/processed/val/")
     
-    print(f"训练集大小: {train_ds.count()}")
-    print(f"验证集大小: {val_ds.count()}")
+    print(f"training set size: {train_ds.count()}")  
+    print(f"validation set size: {val_ds.count()}")  
 ---
 apiVersion: ray.io/v1alpha1
 kind: RayCluster
@@ -285,29 +287,29 @@ spec:
           name: ray-code
 ```
 
-### 2.3 高性能数据加载Pipeline
+### 2.3 High Performance Data Loading Pipeline
 
 ```python
-# 推荐的数据处理Pipeline模式
+# Recommended data processing Pipeline pattern
 import ray
 from ray import data
 from typing import Dict, Any
 
-# 1. 数据读取优化
+# 1. Optimize data reading
 ds = ray.data.read_parquet(
     "s3://data-lake/dataset/",
     parallelism=200,  # 并行度：根据数据大小调整
     ray_remote_args={"num_cpus": 1}
 )
 
-# 2. 数据预处理Pipeline
+# 2. Data preprocessing Pipeline
 def preprocessing_pipeline(batch: Dict[str, Any]) -> Dict[str, Any]:
-    """组合多个预处理步骤减少数据传输"""
-    # 文本清洗
+    """Combine multiple preprocessing steps to reduce data transfer"""
+    # Text cleaning
     batch['text'] = batch['text'].str.lower().str.strip()
     # Tokenization
     batch['tokens'] = tokenize(batch['text'])
-    # 填充缺失值
+    # Fill missing values
     batch.fillna({'category': 'unknown'}, inplace=True)
     return batch
 
@@ -318,7 +320,7 @@ ds = ds.map_batches(
     num_cpus=1
 )
 
-# 3. 特征提取（CPU密集型）
+# 3. Feature extraction (CPU-intensive)
 def extract_features(batch: Dict[str, Any]) -> Dict[str, Any]:
     from sklearn.feature_extraction.text import TfidfVectorizer
     vectorizer = TfidfVectorizer(max_features=1000)
@@ -332,9 +334,9 @@ ds = ds.map_batches(
     compute="tasks"  # 使用Ray Tasks而非Actors
 )
 
-# 4. 数据增强（可选）
+# 4. Data augmentation (optional)
 def augment_data(batch: Dict[str, Any]) -> Dict[str, Any]:
-    # 随机替换、插入、删除
+    # Random replacement, insertion, deletion
     augmented = []
     for text in batch['text']:
         if random.random() < 0.3:  # 30%概率增强
@@ -346,16 +348,16 @@ def augment_data(batch: Dict[str, Any]) -> Dict[str, Any]:
 
 ds = ds.map_batches(augment_data, batch_size=256)
 
-# 5. 数据Shuffle（训练必需）
+# Data Shuffle (essential for training)
 ds = ds.random_shuffle(seed=42)
 
-# 6. 数据持久化与迭代
+# Data Persistence and Iteration
 ds = ds.materialize()  # 缓存到对象存储
 
-# 7. 训练集成
+# Training Integration
 train_ds, val_ds = ds.train_test_split(test_size=0.2)
 
-# 直接传递给Ray Train
+# Directly passed to Ray Train
 from ray.train.torch import TorchTrainer
 trainer = TorchTrainer(
     train_loop_per_worker=train_func,
@@ -366,17 +368,17 @@ trainer = TorchTrainer(
 
 ---
 
-<!-- chunk: 三、Spark on Kubernetes大规模ETL -->
-## 三、Spark on Kubernetes大规模ETL
 
-### 3.1 Spark Operator部署
+## 3. Spark on Kubernetes Large-scale ETL
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+### 3.1 Spark Operator Deployment
+
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource status, suggest using --dry-run or diff to confirm first
+> - `helm upgrade/install`: Deploy/upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 安装Spark Operator
+# 🟡 Medium Risk: Modifies cluster/resource state; confirm target, impact scope, and authorization before execution
+# Install Spark Operator
 helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
 helm install spark-operator spark-operator/spark-operator \
   --namespace spark-operator \
@@ -384,7 +386,7 @@ helm install spark-operator spark-operator/spark-operator \
   --set webhook.enable=true \
   --set sparkJobNamespace=ai-platform
 ```
-### 3.2 PySpark数据处理Job
+### 3.2 PySpark Data Processing Job
 
 ```yaml
 apiVersion: sparkoperator.k8s.io/v1beta2
@@ -401,26 +403,26 @@ spec:
   mainApplicationFile: s3a://code-bucket/etl_pipeline.py
   sparkVersion: "3.5.0"
   
-  # Spark配置优化
+  # Spark Configuration Optimization
   sparkConf:
-    # 内存管理
+    # Memory Management
     "spark.executor.memory": "16g"
     "spark.executor.memoryOverhead": "4g"
     "spark.driver.memory": "8g"
     "spark.driver.memoryOverhead": "2g"
-    # 动态分配
+    # Dynamic Allocation
     "spark.dynamicAllocation.enabled": "true"
     "spark.dynamicAllocation.minExecutors": "5"
     "spark.dynamicAllocation.maxExecutors": "50"
     "spark.dynamicAllocation.initialExecutors": "10"
-    # Shuffle优化
+    # Shuffle Optimization
     "spark.sql.shuffle.partitions": "200"
     "spark.shuffle.service.enabled": "true"
-    # S3访问
+    # S3 Access
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
     "spark.hadoop.fs.s3a.aws.credentials.provider": "com.amazonaws.auth.DefaultAWSCredentialsProviderChain"
     "spark.hadoop.fs.s3a.endpoint": "s3.amazonaws.com"
-    # 性能优化
+    # Performance Optimization
     "spark.sql.adaptive.enabled": "true"
     "spark.sql.adaptive.coalescePartitions.enabled": "true"
     "spark.sql.files.maxPartitionBytes": "134217728"  # 128MB
@@ -429,7 +431,7 @@ spec:
     "fs.s3a.access.key": "AKIAIOSFODNN7EXAMPLE"
     "fs.s3a.secret.key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
   
-  # Driver配置
+  # Driver Configuration
   driver:
     cores: 4
     coreLimit: "4"
@@ -441,7 +443,7 @@ spec:
     - name: AWS_REGION
       value: "us-west-2"
   
-  # Executor配置
+  # Executor Configuration
   executor:
     cores: 4
     instances: 10
@@ -452,7 +454,7 @@ spec:
     - name: AWS_REGION
       value: "us-west-2"
   
-  # 依赖管理
+  # Dependency Management
   deps:
     packages:
     - "org.apache.hadoop:hadoop-aws:3.3.4"
@@ -465,19 +467,19 @@ spec:
     onSubmissionFailureRetries: 5
     onSubmissionFailureRetryInterval: 20
 ---
-# etl_pipeline.py 内容示例
+# Example content of etl_pipeline.py
 """
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, regexp_replace, to_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType
 
-# 初始化Spark
+# Initialize Spark
 spark = SparkSession.builder.appName("DataETL").getOrCreate()
 
-# 读取原始数据
+# Read original data
 df = spark.read.parquet("s3a://data-lake/raw/user_events/")
 
-# 数据清洗
+# Data Cleaning
 df_clean = df \
     .filter(col("user_id").isNotNull()) \
     .filter(col("event_time").isNotNull()) \
@@ -485,17 +487,17 @@ df_clean = df \
     .withColumn("amount", when(col("amount") < 0, 0).otherwise(col("amount"))) \
     .dropDuplicates(["user_id", "event_time"])
 
-# 特征工程
+# Feature Engineering
 from pyspark.ml.feature import VectorAssembler, StandardScaler
 
-# 组装特征向量
+# Assemble feature vector
 assembler = VectorAssembler(
     inputCols=["amount", "duration", "click_count"],
     outputCol="features_raw"
 )
 df_features = assembler.transform(df_clean)
 
-# 标准化
+# Standardize
 scaler = StandardScaler(
     inputCol="features_raw",
     outputCol="features",
@@ -505,7 +507,7 @@ scaler = StandardScaler(
 scaler_model = scaler.fit(df_features)
 df_scaled = scaler_model.transform(df_features)
 
-# 写入处理后的数据（按日期分区）
+# Write processed data (date-partitioned)
 df_scaled.write \
     .mode("overwrite") \
     .partitionBy("event_date") \
@@ -515,7 +517,7 @@ spark.stop()
 """
 ```
 
-### 3.3 Spark性能监控
+### 3.3 Spark Performance Monitoring
 
 ```yaml
 apiVersion: v1
@@ -579,36 +581,36 @@ spec:
 
 ---
 
-<!-- chunk: 四、Feature Store特征工程平台 -->
-## 四、Feature Store特征工程平台
 
-### 4.1 Feast特征存储架构
+## 4. Feature Store Feature Engineering Platform
+
+### 4.1 Feast Feature Storage Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Feast架构                               │
+│                      Feast architecture                               │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  离线特征                在线特征                推送引擎     │
+│  Offline Features                Online Features                Push Engine     │
 │  ┌─────────┐          ┌─────────┐            ┌─────────┐   │
 │  │ Parquet │─────────▶│  Redis  │◀───────────│ Stream  │   │
-│  │ BigQuery│  物化     │DynamoDB │   实时更新  │ Kafka   │   │
+│  │ BigQuery│  Materialized  │DynamoDB │   Real-time updates  │ Kafka   │   │
 │  │  S3     │          │ Bigtable│            │ Flink   │   │
 │  └─────────┘          └─────────┘            └─────────┘   │
 │      ▲                     ▲                                │
 │      │                     │                                │
 │      │                     │                                │
 │  ┌───┴──────┐         ┌───┴──────┐                         │
-│  │  训练    │         │  推理    │                          │
-│  │ 批量获取  │         │ 低延迟   │                          │
+│  │  Training    │         │  Inference    │                          │
+│  │ Batch Fetch  │         │ Low Latency   │                          │
 │  └──────────┘         └──────────┘                         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Feast on Kubernetes部署
+### 4.2 Feast on Kubernetes Deployment
 
 ```yaml
-# Feast Registry（元数据存储）
+# Feast Registry (metadata storage)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -649,7 +651,7 @@ spec:
             cpu: "2"
             memory: "4Gi"
 ---
-# Redis作为在线特征存储
+# Redis as online feature store
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -698,7 +700,7 @@ spec:
           storage: 100Gi
 ```
 
-### 4.3 特征定义与注册
+### 4.3 Feature Definition and Registration
 
 ```python
 # feature_repo/features.py
@@ -706,21 +708,21 @@ from feast import Entity, Feature, FeatureView, FileSource, ValueType
 from feast.types import Float32, Int64, String
 from datetime import timedelta
 
-# 定义实体
+# Define entity
 user = Entity(
     name="user_id",
     value_type=ValueType.INT64,
-    description="用户唯一标识"
+    description: "user unique identifier"  
 )
 
-# 离线数据源
+# Offline data source
 user_stats_source = FileSource(
     path="s3://data-lake/feast-offline/user_stats.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp"
 )
 
-# 特征视图
+# Feature view
 user_stats_fv = FeatureView(
     name="user_statistics",
     entities=[user],
@@ -736,7 +738,7 @@ user_stats_fv = FeatureView(
     tags={"team": "data-science", "version": "v2"}
 )
 
-# 实时特征（Kafka流）
+# Real-time features (Kafka stream)
 from feast.data_source import KafkaSource
 
 user_activity_source = KafkaSource(
@@ -763,25 +765,25 @@ user_activity_fv = FeatureView(
 ```
 
 ```bash
-# 应用特征定义到Registry
+# Apply feature definitions to Registry
 cd feature_repo
 feast apply
 
-# 物化离线特征到在线存储
+# Materialize offline features to online storage
 feast materialize-incremental $(date -u +"%Y-%m-%dT%H:%M:%S")
 ```
 
-### 4.4 特征获取（训练与推理）
+### 4.4 Feature Retrieval (Training and Inference)
 
 ```python
 from feast import FeatureStore
 import pandas as pd
 from datetime import datetime
 
-# 初始化Feature Store
+# Initialize Feature Store
 store = FeatureStore(repo_path=".")
 
-# ===== 训练场景：批量获取历史特征 =====
+# ===== Training scenario: batch retrieval of historical features =====
 entity_df = pd.DataFrame({
     "user_id": [1001, 1002, 1003, 1004],
     "event_timestamp": [
@@ -792,7 +794,7 @@ entity_df = pd.DataFrame({
     ]
 })
 
-# 获取历史特征（point-in-time正确性）
+# Retrieve historical features (point-in-time accuracy)
 training_df = store.get_historical_features(
     entity_df=entity_df,
     features=[
@@ -805,11 +807,11 @@ training_df = store.get_historical_features(
 
 print(training_df.head())
 
-# ===== 推理场景：在线低延迟获取 =====
+# ===== Inference scenario: online low-latency retrieval =====
 from feast import FeatureStore
 store = FeatureStore(repo_path=".")
 
-# 单用户特征获取（<10ms延迟）
+# Single-user feature retrieval (<10ms latency)
 features = store.get_online_features(
     features=[
         "user_statistics:total_purchases",
@@ -822,7 +824,7 @@ features = store.get_online_features(
 print(features)
 # {'user_id': [1001], 'total_purchases': [45], 'avg_purchase_amount': [89.5], ...}
 
-# 批量用户特征获取
+# Batch user feature retrieval
 entity_rows = [
     {"user_id": 1001},
     {"user_id": 1002},
@@ -834,7 +836,7 @@ batch_features = store.get_online_features(
 ).to_dict()
 ```
 
-### 4.5 实时特征推送Pipeline
+### 4.5 Real-Time Feature Pushing Pipeline
 
 ```python
 # real_time_feature_push.py
@@ -845,7 +847,7 @@ from datetime import datetime
 
 store = FeatureStore(repo_path=".")
 
-# 消费Kafka流并推送特征
+# Consume Kafka stream and push features
 consumer = KafkaConsumer(
     'user-activity',
     bootstrap_servers='kafka.ai-platform.svc.cluster.local:9092',
@@ -856,7 +858,7 @@ consumer = KafkaConsumer(
 for message in consumer:
     event = message.value
     
-    # 计算实时特征
+    # Compute real-time features
     feature_data = {
         "user_id": event["user_id"],
         "last_action": event["action_type"],
@@ -865,14 +867,14 @@ for message in consumer:
         "event_timestamp": datetime.fromisoformat(event["timestamp"])
     }
     
-    # 推送到在线存储
+    # Push to online storage
     store.push(
         push_source_name="user_activity_push",
         df=pd.DataFrame([feature_data])
     )
 ```
 
-部署为Kubernetes Job：
+Deploy as Kubernetes Job:
 
 ```yaml
 apiVersion: apps/v1
@@ -916,10 +918,10 @@ spec:
 
 ---
 
-<!-- chunk: 五、数据质量与验证 -->
-## 五、数据质量与验证
 
-### 5.1 Great Expectations集成
+## 5. Data Quality and Validation
+
+### 5.1 Great Expectations Integration
 
 ```python
 # data_validation.py
@@ -927,10 +929,10 @@ import great_expectations as gx
 from great_expectations.data_context import FileDataContext
 from great_expectations.checkpoint import Checkpoint
 
-# 初始化GX Context
+# Initialize GX Context
 context = FileDataContext.create(project_root_dir="./gx")
 
-# 连接数据源（S3 Parquet）
+# Connect to the data source (S3 Parquet)
 datasource = context.sources.add_spark_s3(
     name="s3_datasource",
     bucket="data-lake",
@@ -940,22 +942,22 @@ datasource = context.sources.add_spark_s3(
     }
 )
 
-# 添加数据资产
+# Add data assets
 data_asset = datasource.add_parquet_asset(
     name="user_events",
     s3_prefix="processed/user_events/"
 )
 
-# 创建批次请求
+# Create batch request
 batch_request = data_asset.build_batch_request()
 
-# 定义Expectation Suite
+# Define Expectation Suite
 validator = context.get_validator(
     batch_request=batch_request,
     expectation_suite_name="user_events_suite"
 )
 
-# 添加数据质量期望
+# Add data quality expectations
 validator.expect_table_row_count_to_be_between(min_value=1000, max_value=10000000)
 validator.expect_column_values_to_not_be_null(column="user_id")
 validator.expect_column_values_to_not_be_null(column="event_timestamp")
@@ -969,10 +971,10 @@ validator.expect_column_values_to_be_in_set(
     value_set=["click", "purchase", "view", "signup"]
 )
 
-# 保存Expectation Suite
+# Save Expectation Suite
 validator.save_expectation_suite(discard_failed_expectations=False)
 
-# 创建Checkpoint运行验证
+# Create Checkpoint run validation
 checkpoint = Checkpoint(
     name="user_events_checkpoint",
     run_name_template="%Y%m%d-%H%M%S",
@@ -999,14 +1001,14 @@ checkpoint = Checkpoint(
     ]
 )
 
-# 执行验证
+# Execute validation
 result = checkpoint.run()
 
 if not result["success"]:
-    raise ValueError("数据质量验证失败！")
+    raise ValueError("data quality validation failed!")  
 ```
 
-### 5.2 自动化数据验证CronJob
+### 5.2 Automated Data Validation CronJob
 
 ```yaml
 apiVersion: batch/v1
@@ -1054,10 +1056,10 @@ spec:
 
 ---
 
-<!-- chunk: 六、数据版本控制（DVC） -->
-## 六、数据版本控制（DVC）
 
-### 6.1 DVC配置
+## 6. Data Version Control (DVC)
+
+### 6.1 DVC Configuration
 
 ```yaml
 # .dvc/config
@@ -1070,7 +1072,7 @@ spec:
     region = us-west-2
 ```
 
-### 6.2 数据Pipeline定义
+### 6.2 Data Pipeline Definition
 
 ```yaml
 # dvc.yaml
@@ -1130,26 +1132,26 @@ stages:
 ```
 
 ```bash
-# 运行整个Pipeline
+# Run the entire Pipeline
 dvc repro
 
-# 查看Pipeline可视化
+# View Pipeline visualization
 dvc dag
 
-# 查看指标对比
+# View metric comparison
 dvc metrics show
 dvc metrics diff
 
-# 推送数据到远程
+# Push data to remote
 dvc push
 ```
 
 ---
 
-<!-- chunk: 七、训练数据优化 -->
-## 七、训练数据优化
 
-### 7.1 PyTorch DataLoader优化
+## 7. Training Data Optimization
+
+### 7.1 PyTorch DataLoader Optimization
 
 ```python
 import torch
@@ -1158,9 +1160,9 @@ from torch.utils.data.dataloader import default_collate
 import numpy as np
 
 class OptimizedDataset(Dataset):
-    """高性能Dataset实现"""
+    """High-performance Dataset implementation"""
     def __init__(self, data_path, transform=None):
-        # 使用内存映射减少内存占用
+        # Use memory mapping to reduce memory usage
         self.data = np.load(data_path, mmap_mode='r')
         self.transform = transform
     
@@ -1168,23 +1170,23 @@ class OptimizedDataset(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        # 懒加载数据
+        # Lazy load data
         sample = self.data[idx]
         if self.transform:
             sample = self.transform(sample)
         return sample
 
-# 自定义collate_fn加速批次组装
+# Custom collate_fn for accelerated batch assembly
 def fast_collate(batch):
-    """优化的collate函数"""
+    """Optimized collate function"""
     imgs = torch.stack([item[0] for item in batch])
     labels = torch.tensor([item[1] for item in batch])
     return imgs, labels
 
-# DataLoader配置
+# DataLoader configuration
 train_dataset = OptimizedDataset("data/train.npy")
 
-# 分布式训练Sampler
+# Distributed training Sampler
 train_sampler = DistributedSampler(
     train_dataset,
     num_replicas=world_size,
@@ -1204,18 +1206,18 @@ train_loader = DataLoader(
     collate_fn=fast_collate
 )
 
-# 训练循环
+# Training loop
 for epoch in range(num_epochs):
     train_sampler.set_epoch(epoch)  # 确保每个epoch不同的shuffle
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.cuda(non_blocking=True), target.cuda(non_blocking=True)
-        # 训练步骤...
+        # Training step...
 ```
 
-### 7.2 数据缓存层（Alluxio）
+### 7.2 Data Cache Layer (Alluxio)
 
 ```yaml
-# Alluxio分布式缓存加速数据访问
+# Alluxio distributed cache accelerates data access
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1226,7 +1228,7 @@ data:
     alluxio.master.hostname=alluxio-master
     alluxio.master.mount.table.root.ufs=s3://data-lake/
     alluxio.underfs.s3.region=us-west-2
-    # 缓存配置
+    # Cache configuration
     alluxio.user.file.writetype.default=CACHE_THROUGH
     alluxio.user.file.readtype.default=CACHE
     alluxio.worker.memory.size=200GB
@@ -1301,67 +1303,67 @@ spec:
 
 ---
 
-<!-- chunk: 八、性能基准测试 -->
-## 八、性能基准测试
 
-| 数据处理引擎 | 数据量 | 处理时间 | 吞吐量 | 适用场景 |
+## 8. Performance Benchmarking
+
+| Data Processing Engine | Data Volume | Processing Time | Throughput | Use Case |
 |------------|--------|---------|--------|---------|
-| Ray Data | 100GB | 8分钟 | 208MB/s | 中小规模、复杂转换、ML集成 |
-| Spark | 1TB | 15分钟 | 1.1GB/s | 大规模批处理、SQL查询 |
-| Dask | 50GB | 12分钟 | 69MB/s | Pandas兼容、原型开发 |
-| Flink | 实时流 | - | 100万事件/秒 | 实时流处理、低延迟 |
+| Ray Data | 100GB | 8 minutes | 208MB/s | Small to medium scale, complex transformations, ML integration |
+| Spark | 1TB | 15 minutes | 1.1GB/s | Large batch processing, SQL queries |
+| Dask | 50GB | 12 minutes | 69MB/s | Compatible with Pandas, prototype development |
+| Flink | Real-time stream | - | 1 million events/second | Real-time stream processing, low latency |
 
-**成本对比（10TB数据处理）：**
-- Spark on K8s: $45（10节点 × 1小时 × $4.5/节点）
-- Ray Data: $38（8节点 × 1.2小时 × $4/节点）
-- 云托管EMR: $120（10节点 + 管理费用）
-- **节省65%成本通过自建K8s集群**
+**Cost Comparison (10TB data processing):**
+- Spark on K8s: $45 ($4.5/ node × 10 nodes × 1 hour)
+- Ray Data: $38 ($4/node × 8 nodes × 1.2 hours)
+- Cloud-managed EMR: $120 (10 nodes + management fees)
+- **save 65% cost by building your own K8s cluster**
 
 ---
 
-<!-- chunk: 九、最佳实践 -->
-## 九、最佳实践
 
-### 9.1 数据Pipeline设计原则
+## 9. Best Practices
 
-**1. 分层架构：**
+### 9.1 Data Pipeline Design Principles
+
+**1. Layered Architecture:**
 ```
-Bronze层（原始数据） → Silver层（清洗数据） → Gold层（特征数据）
+Bronze layer (raw data) → Silver layer (cleaned data) → Gold layer (feature data)
 ```
 
-**2. 幂等性保证：**
-- 所有ETL任务支持重复执行
-- 使用日期分区避免重复处理
-- 写入时使用`overwrite`模式覆盖
+**2. Idempotency Guarantee:**
+- All ETL tasks support repeated execution
+- Use date partitioning to avoid duplicate processing
+- Write with `overwrite` mode to cover
 
-**3. 增量处理：**
+**3. Incremental Processing:**
 ```python
-# 只处理新增数据
+# Process only new data
 last_processed_date = get_last_watermark()
 new_data = df.filter(col("event_date") > last_processed_date)
 process_and_write(new_data)
 update_watermark(current_date)
 ```
 
-**4. 数据血缘追踪：**
-- 每个输出数据集记录来源和转换逻辑
-- 使用DVC或Delta Lake记录版本
+**4. Data lineage tracking:**
+- Each output dataset records the source and transformation logic
+- Use DVC or Delta Lake to record versions
 
-### 9.2 性能优化Checklist
+### 9.2 Performance Optimization Checklist
 
-- [ ] **分区策略**：按日期/用户ID分区，避免小文件
-- [ ] **文件格式**：使用Parquet（列式存储）而非CSV
-- [ ] **压缩算法**：Snappy（速度）或Zstd（压缩率）
-- [ ] **并行度**：Spark partitions = 2-3倍CPU核心数
-- [ ] **内存管理**：Executor内存 = 数据大小 / 并行度 × 1.5
-- [ ] **缓存层**：Alluxio缓存热数据，减少S3访问
-- [ ] **预取**：DataLoader使用`prefetch_factor=2`
-- [ ] **异步I/O**：torch.utils.data使用`num_workers > 0`
+- [ ] **Partition Strategy:** Date/user ID partitioning, avoid small files
+- [ ] **File Format:** Use Parquet (columnar storage) instead of CSV
+- [ ] **Compression Algorithm:** Snappy (speed) or Zstd (compression ratio)
+- [ ] **Parallelism:** Spark partitions = 2-3 times CPU cores
+- [ ] **Memory Management:** Executor memory = data size / parallelism × 1.5
+- [ ] **Cache Layer:** Use Alluxio to cache hot data, reduce S3 access
+- [ ] **Prefetch:** DataLoader uses `prefetch_factor=2`
+- [ ] **Asynchronous I/O:** torch.utils.data uses `num_workers > 0`
 
-### 9.3 数据质量监控
+### 9.3 Data Quality Monitoring
 
 ```yaml
-# Prometheus告警规则
+# Prometheus alert rules
 groups:
 - name: data_quality
   interval: 5m
@@ -1372,7 +1374,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "Spark作业失败率 > 0"
+      summary: "Spark job failure rate > 0"  
       
   - alert: DataFreshnessIssue
     expr: (time() - data_last_update_timestamp) > 7200
@@ -1380,7 +1382,7 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "数据超过2小时未更新"
+      summary: "data more than 2 hours not updated"  
       
   - alert: DataQualityDegraded
     expr: data_null_ratio > 0.1
@@ -1388,85 +1390,85 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "数据缺失率 > 10%"
+      summary: "data missing rate > 10%"
 ```
 
 ---
 
-<!-- chunk: 十、故障排查 -->
-## 十、故障排查
 
-### 10.1 常见问题
+## 10. Fault Diagnosis
 
-**问题1：Spark OOM错误**
-```
-解决方案：
-1. 增加executor内存：spark.executor.memory=16g
-2. 增加分区数：spark.sql.shuffle.partitions=400
-3. 使用persist()缓存中间结果避免重算
-4. 检查数据倾斜：repartition(col("key"))
-```
+### 10.1 Common Issues
 
-**问题2：Ray Data慢**
+**Problem 1: Spark OOM errors**
 ```
-解决方案：
-1. 增加并行度：ds.repartition(200)
-2. 调整batch_size：map_batches(func, batch_size=1024)
-3. 使用.materialize()持久化中间结果
-4. 检查是否使用了慢速UDF，改用向量化操作
+Solution:
+1. Increase executor memory: spark.executor.memory=16g
+2. Increase partition count: spark.sql.shuffle.partitions=400
+3. Use persist() to cache intermediate results to avoid recalculation
+4. Check data skew: repartition(col("key"))
 ```
 
-**问题3：Feast在线特征延迟高**
+**Problem 2: Ray Data slow**
 ```
-解决方案：
-1. Redis添加只读副本分担读负载
-2. 启用Redis连接池：connection_pool_size=50
-3. 批量获取减少往返：get_online_features(entity_rows=[...])
-4. 检查网络延迟：Redis与应用Pod在同一可用区
+Solution:
+1. Increase parallelism: ds.repartition(200)
+2. Adjust batch size: map_batches(func, batch_size=1024)
+3. Use .materialize() to persist intermediate results
+4. Check for slow UDFs and use vectorized operations instead
 ```
 
-### 10.2 监控关键指标
+**Problem 3: High Feature Fetch Latency in Feast Online**
+```
+Solution:
+1. Add read-only replicas to Redis to distribute read load
+2. Enable Redis connection pool: connection_pool_size=50
+3. Reduce round trips by batch fetching: get_online_features(entity_rows=[...])
+4. Check network latency: Redis and application Pod are in the same availability zone
+```
 
-| 指标 | 阈值 | 说明 |
+### 10.2 Monitor Key Metrics
+
+| Metric | Threshold | Description |
 |-----|------|------|
-| Spark作业成功率 | >99% | 低于阈值检查代码或资源 |
-| 数据处理延迟 | <30分钟 | 超时影响模型训练 |
-| Feast在线获取延迟 | <10ms (p99) | 影响推理性能 |
-| 数据缺失率 | <5% | 影响模型质量 |
-| S3读取吞吐 | >500MB/s | 瓶颈在存储 |
+| Spark job success rate | >99% | Check code or resources for issues below threshold |
+| Data processing delay | <30 minutes | Timeout affects model training |
+| Feast online fetch latency | <10ms (p99) | Impacts inference performance |
+| Data missing rate | <5% | Affects model quality |
+| S3 read throughput | >500MB/s | Bottleneck in storage |
 
 ---
 
-**版本信息：**
+**Version Information:**
 - Ray: 2.9.0+
 - Spark: 3.5.0+
 - Feast: 0.35.0+
 - Great Expectations: 0.18.0+
 - [[Kubernetes|Kubernetes]]: v1.27+
 
-**相关表格：**
-- [111-AI基础设施架构](./01-ai-infrastructure.md)
-- [112-分布式训练框架](./05-distributed-training-frameworks.md)
-- [113-AI模型注册中心](./09-model-registry.md)
-- [08-存储卷管理](./08-storage-volumes.md)
+**Related Tables:**
+- [111-AI Infrastructure Architecture](./01-ai-infrastructure.md)
+- [112-Distributed Training Frameworks](./05-distributed-training-frameworks.md)
+- [113-AI Model Registry](./09-model-registry.md)
+- [08-Storage Volume Management](./08-storage-volumes.md)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
+- AI Model Deployment and Lifecycle Management
 
 ## See Also
 
@@ -1477,7 +1479,7 @@ groups:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

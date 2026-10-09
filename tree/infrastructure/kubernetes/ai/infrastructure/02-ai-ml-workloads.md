@@ -1,6 +1,6 @@
 ---
-title: 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-description: '# 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)'
+title: 132 - AI/ML Workload Operations
+description: '# 132 - AI/ML Workload Operations'
 summary: '"synchronize_checkpoint_boundary": false,'
 category: ai-infra
 tags:
@@ -20,17 +20,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI/ML工作负载运维 (AI/ML Workloads Operations) 是什么
-- 如何 AI/ML工作负载运维 (AI/ML Workloads Operations)
-- Kubernetes 11 ai infra 最佳实践
+- What is AI/ML Workload Operations
+- How to do AI/ML Workload Operations
+- Kubernetes 11 AI infra Best Practices
 trigger_keywords:
 - AI
-- ML工作负载运维
+- ML Workload Operations
 - AI
 - ML
 - Workloads
@@ -56,55 +56,57 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/02-ai-ml-workloads.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained herein are executable directly. Execute only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
+# 132 - AI/ML Workloads Operations
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **最后更新**: 2026-01 | **参考**: [[entities/kubeflow.md|Kubeflow]]](https://www.kubeflow.org/), [Ray](https://ray.io/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **Last Updated**: 2026-01 | **Reference**: [[entities/kubeflow.md|Kubeflow]]](https://www.kubeflow.org/), [Ray](https://ray.io/)
 
 ---
 
-<!-- chunk: 一、AI工作负载全景 (AI Workloads Overview) -->
-## 一、AI工作负载全景 (AI Workloads Overview)
 
-### 1.1 AI/ML工作负载生命周期
+## 1. AI Workloads Overview
+
+### 1.1 AI/ML Workloads Lifecycle
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    AI/ML 工作负载生命周期                                    │
+│                    AI/ML Workload Lifecycle                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐      │
-│  │ 数据准备 │──→│ 模型训练 │──→│ 模型评估 │──→│ 模型部署 │──→│ 模型监控 │      │
+│  │ data preparation │──→│ model training │──→│ model evaluation │──→│ model deployment │──→│ model monitoring │      │
 │  │  Data   │   │ Training│   │  Eval   │   │ Serving │   │Monitor │      │
 │  └────┬────┘   └────┬────┘   └────┬────┘   └────┬────┘   └────┬────┘      │
 │       │             │             │             │             │            │
 │       ▼             ▼             ▼             ▼             ▼            │
 │  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │                        资源需求特征                                  │  │
+│  │                        Resource Requirements Characteristics              │  │
 │  ├──────────┬──────────┬──────────┬──────────┬──────────────────────────┤  │
-│  │ 高I/O    │ 大量GPU  │ 中等GPU  │ 稳定GPU  │ 低资源(监控)             │  │
-│  │ 高存储   │ 高带宽   │ 批量处理 │ 低延迟   │ 高频采样                 │  │
-│  │ 批处理   │ 长时间   │ 短时间   │ 持续运行 │ 长期存储                 │  │
+│  │ High I/O │ Large GPU │ Medium GPU │ Stable GPU │ Low Resources (Monitoring) │  │
+│  │ High Storage │ High Bandwidth │ Batch Processing │ Low Latency │ Frequent Sampling │  │
+│  │ Batch Processing │ Long Time │ Short Time │ Continuous Run │ Long Term Storage │  │
 │  └──────────┴──────────┴──────────┴──────────┴──────────────────────────┘  │
 │       │             │             │             │             │            │
 │       ▼             ▼             ▼             ▼             ▼            │
 │  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │                        Kubernetes资源                                │  │
+│  │                        Kubernetes Resources                              │  │
 │  ├──────────┬──────────┬──────────┬──────────┬──────────────────────────┤  │
 │  │ Spark    │PyTorchJob│   Job    │Deployment│ Prometheus               │  │
 │  │ Ray Data │ TFJob    │  CronJob │ KServe   │ Grafana                  │  │
@@ -114,32 +116,32 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 工作负载类型对比
+### 1.2 Workload Types Comparison
 
-| 工作负载类型 | CPU需求 | GPU需求 | 内存需求 | 存储需求 | 网络需求 | 运行时长 | 容错要求 |
+| Workload Type | CPU Requirement | GPU Requirement | Memory Requirement | Storage Requirement | Network Requirement | Runtime Length | Fault Tolerance Requirements |
 |-------------|---------|---------|---------|---------|---------|---------|---------|
-| **数据预处理** | 高 | 低/无 | 高 | 非常高 | 中 | 小时级 | 中 |
-| **特征工程** | 高 | 中 | 高 | 高 | 中 | 小时级 | 中 |
-| **模型预训练** | 中 | 非常高 | 高 | 高 | 非常高 | 天/周级 | 高 |
-| **模型微调** | 中 | 高 | 高 | 中 | 高 | 小时/天级 | 高 |
-| **超参搜索** | 高 | 高 | 中 | 中 | 中 | 天级 | 中 |
-| **模型评估** | 中 | 中 | 中 | 中 | 低 | 分钟/小时 | 低 |
-| **在线推理** | 中 | 中/高 | 高 | 低 | 高 | 持续 | 非常高 |
-| **批量推理** | 中 | 高 | 高 | 高 | 中 | 小时级 | 中 |
+| **Data Preprocessing** | High | Low/None | High | Very High | Medium | Hours | Medium |
+| **Feature Engineering** | High | Medium | High | High | Medium | Hours | Medium |
+| **Model Pretraining** | Medium | Very High | High | High | Very High | Days/Weeks | High |
+| **Model Fine-tuning** | Medium | High | High | High | High | Hours/Days | High |
+| **Hyperparameter Search** | High | High | Medium | Medium | Medium | Days | Medium |
+| **Model Evaluation** | Medium | Medium | Medium | Medium | Low | Minutes/Hours | Low |
+| **Online Inference** | Medium | High/Medium | High | Low | High | Continuous | Very High |
+| **Batch Inference** | Medium | High | High | High | Medium | Hours | Medium |
 
 ---
 
-<!-- chunk: 二、分布式训练架构 (Distributed Training) -->
-## 二、分布式训练架构 (Distributed Training)
 
-### 2.1 分布式训练范式
+## 2. Distributed Training Architecture (Distributed Training)
+
+### 2.1 Distributed Training Paradigms
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      分布式训练并行策略                                      │
+│                      Distributed Training Parallel Strategies                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  数据并行 (Data Parallel)                                                   │
+│  Data Parallel (Data Parallel)                                                   │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │  Worker 0      Worker 1      Worker 2      Worker 3                 │   │
 │  │  ┌───────┐    ┌───────┐    ┌───────┐    ┌───────┐                  │   │
@@ -151,10 +153,10 @@ cross_refs:
 │  │  │Data   │    │Data   │    │Data   │    │Data   │                  │   │
 │  │  │Shard 0│    │Shard 1│    │Shard 2│    │Shard 3│                  │   │
 │  │  └───────┘    └───────┘    └───────┘    └───────┘                  │   │
-│  │                    ↓ All-Reduce 梯度同步 ↓                          │   │
+│  │                    ↓ All-Reduce Gradient Synchronization ↓                          │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  模型并行 (Model Parallel) - 张量并行                                        │
+│  Model Parallel - Tensor Parallel                                        │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                         Model Layer                                  │   │
 │  │  ┌───────────┬───────────┬───────────┬───────────┐                  │   │
@@ -165,7 +167,7 @@ cross_refs:
 │  │                    ↔ All-Gather/Reduce-Scatter ↔                    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  流水线并行 (Pipeline Parallel)                                             │
+│  Pipeline Parallel (Pipeline Parallel)                                     │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │  Stage 0        Stage 1        Stage 2        Stage 3               │   │
 │  │  (Layers 0-7)   (Layers 8-15)  (Layers 16-23) (Layers 24-31)       │   │
@@ -182,7 +184,7 @@ cross_refs:
 ### 2.2 Kubeflow Training Operator
 
 ```yaml
-# PyTorchJob 生产级配置
+# PyTorchJob Production Configuration
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
@@ -193,7 +195,7 @@ metadata:
     model: llama-70b
     stage: finetune
 spec:
-  # 弹性训练配置
+  # Elastic Training Configuration
   elasticPolicy:
     rdzvBackend: c10d
     minReplicas: 4
@@ -207,7 +209,7 @@ spec:
           type: Utilization
           averageUtilization: 80
           
-  # 任务完成策略
+  # Task Completion Strategy
   runPolicy:
     cleanPodPolicy: None
     backoffLimit: 3
@@ -227,7 +229,7 @@ spec:
         spec:
           priorityClassName: high-priority
           
-          # 调度约束
+          # Scheduling Constraints
           nodeSelector:
             nvidia.com/gpu.product: "NVIDIA-A100-SXM4-80GB"
           tolerations:
@@ -269,7 +271,7 @@ spec:
                 nvidia.com/gpu: "8"
                 
             env:
-            # PyTorch分布式
+            # PyTorch Distributed
             - name: WORLD_SIZE
               value: "4"
             - name: NCCL_DEBUG
@@ -278,7 +280,7 @@ spec:
               value: "0"
             - name: NCCL_NET_GDR_LEVEL
               value: "5"
-            # CUDA优化
+            # CUDA Optimization
             - name: CUDA_DEVICE_MAX_CONNECTIONS
               value: "1"
             - name: PYTORCH_CUDA_ALLOC_CONF
@@ -294,7 +296,7 @@ spec:
             - name: config
               mountPath: /config
               
-            # 健康检查
+            # Health Checks
             livenessProbe:
               exec:
                 command:
@@ -324,7 +326,7 @@ spec:
       restartPolicy: OnFailure
       template:
         spec:
-          # 与Master相同配置...
+          # Same Configuration as Master...
           nodeSelector:
             nvidia.com/gpu.product: "NVIDIA-A100-SXM4-80GB"
           tolerations:
@@ -337,13 +339,13 @@ spec:
             resources:
               limits:
                 nvidia.com/gpu: "8"
-            # 其他配置同Master...
+            # Other Configurations Same as Master...
 ```
 
-### 2.3 DeepSpeed配置
+### 2.3 DeepSpeed Configuration
 
 ```yaml
-# DeepSpeed ZeRO-3配置
+# DeepSpeed ZeRO-3 Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -432,18 +434,18 @@ data:
 
 ---
 
-<!-- chunk: 三、模型推理服务 (Model Serving) -->
-## 三、模型推理服务 (Model Serving)
 
-### 3.1 推理服务架构
+## 3. Model Inference Services (Model Serving)
+
+### 3.1 Serving Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      模型推理服务架构                                        │
+│                      Model Inference Service Architecture                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        流量入口层                                    │   │
+│  │                        Traffic Entry Layer                                    │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │   │
 │  │  │   Ingress    │  │ Gateway API  │  │   Istio      │              │   │
 │  │  │   (NGINX)    │  │              │  │  VirtualSvc  │              │   │
@@ -453,14 +455,14 @@ data:
 │                              │                                              │
 │                              ▼                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                        推理网关层                                    │   │
+│  │                        Inference Gateway Layer                                    │   │
 │  │  ┌──────────────────────────────────────────────────────────────┐   │   │
 │  │  │  KServe Predictor / Triton Inference Server                  │   │   │
-│  │  │  ├── 请求路由                                                 │   │   │
-│  │  │  ├── 负载均衡                                                 │   │   │
-│  │  │  ├── 流量镜像                                                 │   │   │
-│  │  │  ├── 金丝雀发布                                               │   │   │
-│  │  │  └── A/B测试                                                  │   │   │
+│  │  │  ├── Request Routing                                                 │   │   │
+│  │  │  ├── Load Balancing                                                 │   │   │
+│  │  │  ├── Traffic Mirroring                                                 │   │   │
+│  │  │  ├── Canary Release                                               │   │   │
+│  │  │  └── A/B Testing                                                  │   │   │
 │  │  └──────────────────────────────────────────────────────────────┘   │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                              │                                              │
@@ -479,37 +481,37 @@ data:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 KServe部署配置
+### 3.2 KServe Deployment Configuration
 
 ```yaml
-# KServe InferenceService (生产级配置)
+# KServe InferenceService (Production Configuration)
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: llama-70b-chat
   namespace: ml-serving
   annotations:
-    # 自动扩缩配置
+    # Auto-scaling Configuration
     autoscaling.knative.dev/class: "kpa.autoscaling.knative.dev"
     autoscaling.knative.dev/metric: "concurrency"
     autoscaling.knative.dev/target: "10"
     autoscaling.knative.dev/minScale: "2"
     autoscaling.knative.dev/maxScale: "10"
-    # GPU调度
+    # GPU Scheduling
     serving.kserve.io/enable-prometheus-scraping: "true"
 spec:
   predictor:
-    # 金丝雀发布
+    # Canary Release
     canaryTrafficPercent: 10
     
-    # 模型配置
+    # Model Configuration
     model:
       modelFormat:
         name: pytorch
       runtime: kserve-vllm
       storageUri: "s3://models/llama-2-70b-chat"
       
-    # 容器配置
+    # Container Configuration
     containers:
     - name: kserve-container
       image: vllm/vllm-openai:latest
@@ -536,7 +538,7 @@ spec:
       - name: VLLM_WORKER_MULTIPROC_METHOD
         value: "spawn"
         
-      # 健康检查
+      # Health Checks
       readinessProbe:
         httpGet:
           path: /health
@@ -552,7 +554,7 @@ spec:
         initialDelaySeconds: 180
         periodSeconds: 30
         
-    # 节点选择
+    # Node Selection
     nodeSelector:
       nvidia.com/gpu.product: "NVIDIA-A100-SXM4-80GB"
     tolerations:
@@ -560,7 +562,7 @@ spec:
       operator: "Exists"
       effect: "NoSchedule"
       
-  # Transformer (可选的预处理)
+  # Transformer (Optional Preprocessing)
   transformer:
     containers:
     - name: transformer
@@ -571,7 +573,7 @@ spec:
           memory: "4Gi"
           
 ---
-# HPA配置 (GPU利用率扩缩)
+# HPA Configuration (GPU Utilization Scaling)
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -597,7 +599,7 @@ spec:
         averageValue: "80"
 ```
 
-### 3.3 vLLM高性能推理
+### 3.3 vLLM High-Performance Inference
 
 ```yaml
 # vLLM Deployment
@@ -632,11 +634,11 @@ spec:
         - "--gpu-memory-utilization=0.92"
         - "--quantization=awq"
         - "--dtype=float16"
-        # 性能优化
+        # Performance Optimization
         - "--enable-prefix-caching"
         - "--use-v2-block-manager"
         - "--enable-chunked-prefill"
-        # API配置
+        # API Configuration
         - "--host=0.0.0.0"
         - "--port=8000"
         - "--api-key=$(API_KEY)"
@@ -708,8 +710,8 @@ spec:
 
 ---
 
-<!-- chunk: 四、数据处理管道 (Data Pipeline) -->
-## 四、数据处理管道 (Data Pipeline)
+
+## 4. Data Processing Pipeline
 
 ### 4.1 Spark on Kubernetes
 
@@ -735,19 +737,19 @@ spec:
   
   sparkVersion: "3.5.0"
   
-  # Spark配置
+  # Spark Configuration
   sparkConf:
     "spark.kubernetes.allocation.batch.size": "10"
     "spark.sql.shuffle.partitions": "1000"
     "spark.sql.adaptive.enabled": "true"
     "spark.sql.adaptive.coalescePartitions.enabled": "true"
     "spark.serializer": "org.apache.spark.serializer.KryoSerializer"
-    # S3配置
+    # S3 Configuration
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
     "spark.hadoop.fs.s3a.fast.upload": "true"
     "spark.hadoop.fs.s3a.fast.upload.buffer": "bytebuffer"
     
-  # Driver配置
+  # Driver Configuration
   driver:
     cores: 4
     coreLimit: "4"
@@ -756,7 +758,7 @@ spec:
       version: "3.5.0"
     serviceAccount: spark-sa
     
-  # Executor配置
+  # Executor Configuration
   executor:
     cores: 4
     instances: 50
@@ -764,7 +766,7 @@ spec:
     labels:
       version: "3.5.0"
     
-  # 动态分配
+  # Dynamic Allocation
   dynamicAllocation:
     enabled: true
     initialExecutors: 10
@@ -779,7 +781,7 @@ spec:
     onSubmissionFailureRetryInterval: 20
 ```
 
-### 4.2 Ray Data处理
+### 4.2 Ray Data Processing
 
 ```yaml
 # RayJob for Data Processing
@@ -855,10 +857,10 @@ spec:
 
 ---
 
-<!-- chunk: 五、实验管理与MLOps (Experiment Management) -->
-## 五、实验管理与MLOps (Experiment Management)
 
-### 5.1 MLflow部署
+## 5. Experiment Management and MLOps (Experiment Management)
+
+### 5.1 MLflow Deployment
 
 ```yaml
 # MLflow Tracking Server
@@ -954,26 +956,26 @@ spec:
   - name: ml-pipeline
     dag:
       tasks:
-      # 数据预处理
+      # Data Preprocessing
       - name: data-preprocessing
         template: preprocess
         
-      # 特征工程
+      # Feature Engineering
       - name: feature-engineering
         template: feature-eng
         dependencies: [data-preprocessing]
         
-      # 模型训练
+      # Model Training
       - name: model-training
         template: train
         dependencies: [feature-engineering]
         
-      # 模型评估
+      # Model Evaluation
       - name: model-evaluation
         template: evaluate
         dependencies: [model-training]
         
-      # 模型注册
+      # Model Registration
       - name: model-registration
         template: register
         dependencies: [model-evaluation]
@@ -1027,27 +1029,27 @@ spec:
 
 ---
 
-<!-- chunk: 六、监控与告警 (Monitoring & Alerting) -->
-## 六、监控与告警 (Monitoring & Alerting)
 
-### 6.1 AI工作负载监控指标
+## 6. Monitoring & Alerting
 
-| 指标类别 | 指标名称 | 说明 | 告警阈值 |
+### 6.1 AI Workload Monitoring Metrics
+
+| Metric Category | Metric Name | Description | Alert Threshold |
 |---------|---------|------|---------|
-| **训练进度** | epoch_progress | 当前Epoch进度 | 停滞>1h |
-| **训练进度** | training_loss | 训练损失 | 异常波动 |
-| **训练进度** | validation_loss | 验证损失 | 持续上升 |
-| **资源效率** | gpu_utilization | GPU利用率 | < 50% |
-| **资源效率** | gpu_memory_used | 显存使用 | > 95% |
-| **资源效率** | samples_per_second | 训练吞吐量 | 下降>20% |
-| **推理性能** | inference_latency_p99 | P99推理延迟 | > SLA |
-| **推理性能** | tokens_per_second | Token生成速度 | < 基准 |
-| **推理性能** | queue_depth | 请求队列深度 | > 100 |
-| **系统健康** | pod_restart_count | Pod重启次数 | > 3 |
-| **系统健康** | oom_kill_count | OOM次数 | > 0 |
-| **系统健康** | nccl_errors | NCCL通信错误 | > 0 |
+| **Training Progress** | epoch_progress | Current Epoch Progress | Stagnation > 1h |
+| **Training Progress** | training_loss | Training Loss | Abnormal Fluctuation |
+| **Training Progress** | validation_loss | Validation Loss | Persistent Increase |
+| **Resource Efficiency** | gpu_utilization | GPU Utilization | < 50% |
+| **Resource Efficiency** | gpu_memory_used | GPU Memory Usage | > 95% |
+| **Resource Efficiency** | samples_per_second | Training Throughput | Decrease > 20% |
+| **Inference Performance** | inference_latency_p99 | P99 Inference Latency | > SLA |
+| **Inference Performance** | tokens_per_second | Token generation speed | < Baseline |
+| **Inference Performance** | queue_depth | Request queue depth | > 100 |
+| **System Health** | pod_restart_count | Pod restart count | > 3 |
+| **System Health** | oom_kill_count | Out Of Memory count | > 0 |
+| **System Health** | nccl_errors | NCCL communication errors | > 0 |
 
-### 6.2 Prometheus告警规则
+### 6.2 Prometheus Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1059,7 +1061,7 @@ spec:
   groups:
   - name: ai-training-alerts
     rules:
-    # 训练任务卡住
+    # Training Task Stuck
     - alert: TrainingStalled
       expr: |
         rate(training_step_total[30m]) == 0
@@ -1068,10 +1070,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "训练任务停滞"
-        description: "任务 {{ $labels.job_name }} 30分钟内无进展"
+        summary: "Training task stalled"
+        description: "Task {{ $labels.job_name }} no progress in the last 30 minutes"
         
-    # 训练Loss异常
+    # Training Loss Abnormal
     - alert: TrainingLossAnomaly
       expr: |
         (training_loss - training_loss offset 1h) / training_loss offset 1h > 0.5
@@ -1079,10 +1081,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "训练Loss异常上升"
-        description: "任务 {{ $labels.job_name }} Loss上升超过50%"
+        summary: "Training Loss abnormally increased"
+        description: "Task {{ $labels.job_name }} Loss increased by more than 50%"
         
-    # GPU利用率低
+    # Low GPU Utilization
     - alert: TrainingGPUUnderutilized
       expr: |
         avg by (job_name) (DCGM_FI_DEV_GPU_UTIL{job_type="training"}) < 50
@@ -1090,10 +1092,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "训练GPU利用率低"
-        description: "任务 {{ $labels.job_name }} GPU利用率 {{ $value }}%"
+        summary: "Training GPU utilization low"
+        description: "Task {{ $labels.job_name }} GPU utilization {{ $value }}%"
         
-    # Checkpoint保存失败
+    # Failed to Save Checkpoint
     - alert: CheckpointSaveFailed
       expr: |
         increase(checkpoint_save_errors_total[1h]) > 0
@@ -1101,12 +1103,12 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "Checkpoint保存失败"
-        description: "任务 {{ $labels.job_name }} Checkpoint保存异常"
+        summary: "Checkpoint save failed"
+        description: "Task {{ $labels.job_name }} checkpoint save abnormal"
         
   - name: ai-inference-alerts
     rules:
-    # 推理延迟高
+    # High Inference Latency
     - alert: InferenceLatencyHigh
       expr: |
         histogram_quantile(0.99, rate(inference_latency_seconds_bucket[5m])) > 2
@@ -1114,10 +1116,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "推理P99延迟超过2秒"
-        description: "服务 {{ $labels.service }} P99延迟: {{ $value }}s"
+        summary: "Inference P99 latency exceeds 2 seconds"
+        description: "Service {{ $labels.service }} P99 latency: {{ $value }}s"
         
-    # 推理队列积压
+    # Inference Queue Backlog
     - alert: InferenceQueueBacklog
       expr: |
         inference_queue_depth > 100
@@ -1125,10 +1127,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "推理请求队列积压"
-        description: "服务 {{ $labels.service }} 队列深度: {{ $value }}"
+        summary: "Inference request queue backlog"
+        description: "Service {{ $labels.service }} queue depth: {{ $value }}"
         
-    # 推理错误率高
+    # High Inference Error Rate
     - alert: InferenceErrorRateHigh
       expr: |
         rate(inference_errors_total[5m]) / rate(inference_requests_total[5m]) > 0.01
@@ -1136,8 +1138,8 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "推理错误率超过1%"
-        description: "服务 {{ $labels.service }} 错误率: {{ $value | humanizePercentage }}"
+        summary: "Inference error rate exceeds 1%"
+        description: "Service {{ $labels.service }} error rate: {{ $value | humanizePercentage }}"
         
     # GPU OOM
     - alert: InferenceGPUOOM
@@ -1147,16 +1149,16 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "推理服务GPU OOM"
-        description: "服务 {{ $labels.service }} 发生GPU显存不足"
+        summary: "Inference service GPU OOM"
+        description: "Service {{ $labels.service }} GPU memory shortage occurs"
 ```
 
 ---
 
-<!-- chunk: 七、存储与网络加速 (Storage & Network Acceleration) -->
-## 七、存储与网络加速 (Storage & Network Acceleration)
 
-### 7.1 高性能存储配置
+## wo,Storage and Network Acceleration
+
+### 7.1 High-Performance Storage Configuration
 
 ```yaml
 # JuiceFS for AI Data
@@ -1187,7 +1189,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: kube-system
   
 ---
-# Fluid数据集预热
+# Fluid Dataset Warmup
 apiVersion: data.fluid.io/v1alpha1
 kind: Dataset
 metadata:
@@ -1232,10 +1234,10 @@ spec:
         memory: "64Gi"
 ```
 
-### 7.2 RDMA网络配置
+### 7.2 RDMA Network Configuration
 
 ```yaml
-# Multus RDMA网络配置
+# Multus RDMA Network Configuration
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
@@ -1254,7 +1256,7 @@ spec:
     }
     
 ---
-# 使用RDMA网络的训练Pod
+# Use RDMA Network for Training Pods
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1283,85 +1285,85 @@ spec:
 
 ---
 
-<!-- chunk: 八、快速参考 (Quick Reference) -->
-## 八、快速参考 (Quick Reference)
 
-### 8.1 常用命令
+## 8. Quick Reference
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+### 8.1 Common Commands
+
+> ⚠️ **Yellow Alert Change** — Change cluster resource status, suggest first using --dry-run or diff to confirm
+> - `kubectl exec`: Enter container to execute commands, which may change container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# ========== 训练任务管理 ==========
+# 🟡 Medium Risk: Will modify cluster/resource status, please confirm target, impact scope, and authorization before execution
+# ========== Training Task Management ==========
 
-# 查看PyTorchJob
+# View PyTorchJob
 kubectl get pytorchjobs -n ml-training
 kubectl describe pytorchjob <name> -n ml-training
 
-# 查看训练日志
+# View Training Logs
 kubectl logs -n ml-training <master-pod> -f
 
-# 查看训练指标
+# View Training Metrics
 kubectl exec -it <pod> -- nvidia-smi dmon -s pucvmet
 
-# ========== 推理服务管理 ==========
+# ========== Inference Service Management ==========
 
-# 查看InferenceService
+# View InferenceService
 kubectl get inferenceservices -n ml-serving
 kubectl describe inferenceservice <name> -n ml-serving
 
-# 测试推理服务
+# Test Inference Service
 curl -X POST http://<service>/v1/completions \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Hello", "max_tokens": 100}'
 
-# ========== 队列管理 ==========
+# ========== Queue Management ==========
 
-# Kueue队列状态
+# Kueue Queue Status
 kubectl get clusterqueues
 kubectl get localqueues -n ml-training
 kubectl get workloads -n ml-training
 
-# Volcano队列状态
+# Volcano Queue Status
 kubectl get queues -n volcano-system
 kubectl get podgroups -n ml-training
 ```
-### 8.2 资源需求速查
+### 8.2 Resource Requirements Quick Reference
 
-| 模型规模 | GPU类型 | GPU数量 | 显存需求 | 训练时长 |
+| Model Size | GPU Type | GPU Count | Memory Requirement | Training Duration |
 |---------|--------|--------|---------|---------|
-| 1B | A10G | 1-2 | 24GB | 1-2天 |
-| 7B | A100 40GB | 2-4 | 80-160GB | 3-7天 |
-| 13B | A100 80GB | 4-8 | 160-320GB | 1-2周 |
-| 70B | A100 80GB | 16-32 | 640-1280GB | 2-4周 |
-| 175B | H100 | 64-128 | 2.5-5TB | 1-2月 |
+| 1B | A10G | 1-2 | 24GB | 1-2 days |
+| 7B | A100 40GB | 2-4 | 80-160GB | 3-7 days |
+| 13B | A100 80GB | 4-8 | 160-320GB | 1-2 weeks |
+| 70B | A100 80GB | 16-32 | 640-1280GB | 2-4 weeks |
+| 175B | H100 | 64-128 | 2.5-5TB | 1-2 months |
 
 ---
 
-**AI工作负载原则**: 资源预估充分 → 监控覆盖完整 → 检查点策略健全 → 弹性伸缩配置
+**AI Workload Principles**: Resource estimation sufficient → Monitoring coverage complete → Checkpoint strategy sound → Elastic scaling configuration
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table Bottom Markers**: Kusheet Project, Author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
-- AI模型部署与生命周期管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed training framework
+- AI data processing Pipeline and feature engineering
+- AI experiment management and MLOps platform
+- AutoML and hyperparameter tuning
+- AI model registration center and version management
+- AI model deployment and lifecycle management
 
 ## See Also
 
@@ -1372,7 +1374,7 @@ kubectl get podgroups -n ml-training
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->
