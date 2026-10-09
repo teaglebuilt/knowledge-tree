@@ -1,6 +1,7 @@
----title: 生产部署指南：K8s 上运行 Agent 服务 (domain-14-ai-ml-infra)
-description: 'title: 生产部署指南：K8s 上运行 Agent 服务'
-summary: 'title: 生产部署指南：K8s 上运行 Agent 服务'
+---
+title: Production Deployment Guide: Running Agent Service on K8s
+description: 'title: Production Deployment Guide: Running Agent Service on K8s'
+summary: 'title: Production Deployment Guide: Running Agent Service on K8s'
 category: general
 tags:
 - ai
@@ -19,17 +20,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 生产部署指南：K8s 上运行 Agent 服务 是什么
-- 如何 生产部署指南：K8s 上运行 Agent 服务
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Production Deployment Guide: Running Agent Service on K8s
+- How to Production Deployment Guide: Running Agent Service on K8s
+- Best Practices for K8s 14 AI ML Infra
 trigger_keywords:
-- 生产部署指南：K8s
-- 上运行
+- Production Deployment Guide: K8s
+- Running
 - Agent
-- 服务
+- Service
 - ai
 - ml
 - infra
@@ -43,17 +44,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/09-production-deployment-guide.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that these commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 生产部署指南：K8s 上运行 Agent 服务
-description: '# 生产部署指南：K8s 上运行 Agent 服务'
+title: Production Deployment Guide: Running Agent Services on K8s
+description: '# Production Deployment Guide: Running Agent Services on K8s'
 category: ai-agent
 tags:
 - ai
@@ -70,18 +73,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 生产部署指南：K8s 上运行 Agent 服务 是什么
-- 如何 生产部署指南：K8s 上运行 Agent 服务
+- AI Engineer
+- Architect
 trigger_keywords:
-- 生产部署指南：K8s
-- 上运行
+- What is Production Deployment Guide: K8s Running Agent Services
+- How does Production Deployment Guide: K8s Running Agent Services work
 - Agent
-- 服务
+- K8s
 - ai
 - agent
 authors:
@@ -95,39 +98,39 @@ k8s_versions:
 - '1.32'
 ---
 
-# 生产部署指南：K8s 上运行 Agent 服务
+# Production Deployment Guide: Running Agent Services on K8s
 
-> **文档类型**: 生产运维专题 | **最后更新**: 2026-03 | **关键词**: Agent 部署, K8s 生产, GPU 调度, HPA, 限流, 灰度发布, FastAPI, vLLM, Ray Serve, ServiceMesh
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-将 Agent 服务部署到 [[Kubernetes|Kubernetes]] 生产环境，需要解决 LLM 推理服务的 GPU 资源管理、长连接和流式输出的网络处理、基于队列长度的弹性扩缩容，以及 Agent 服务特有的限流和成本控制需求。本文提供完整的生产级部署架构、YAML 清单和运维手册。
+> **Document Type**: Production Operations Special Topic | **Last Updated**: 2026-03 | **Keywords**: Agent Deployment, K8s Production, GPU Scheduling, HPA, Rate Limiting, Gray Release, FastAPI, vLLM, Ray Serve, ServiceMesh
 
 ---
 
-<!-- chunk: 1. Agent 服务架构设计 -->## 1. Agent 服务架构设计
+## Overview
 
-## 1.1 生产架构全景
+Deploy the Agent service to a production environment running on [[Kubernetes|Kubernetes]]. This requires addressing resource management for LLM inference services on GPUs, network processing for long-lived connections and streaming outputs, elastic scaling based on queue length, and specific rate limiting and cost control needs for the Agent service. This article provides a complete production-level deployment architecture, YAML manifests, and operational manual.
+
+---
+
+## 1. Agent Service Architecture Design
+
+## 1.1 Overall Architecture Perspective
 
 ```
-                    外部流量
+                    External Traffic
                        │
          ┌─────────────▼─────────────┐
          │        Ingress / Gateway   │
          │  (Kong / Nginx / Istio)    │
-         │  - SSL 终止               │
-         │  - 认证鉴权               │
-         │  - 速率限制               │
+         │  - SSL Termination               │
+         │  - Authentication and Authorization               │
+         │  - Rate Limiting               │
          └─────────────┬─────────────┘
                        │
          ┌─────────────▼─────────────┐
          │      Agent API Gateway     │
          │  (FastAPI / Flask)         │
-         │  - 请求路由               │
-         │  - 用户配额检查            │
-         │  - 异步任务入队            │
+         │  - Request Routing               │
+         │  - User Quota Check            │
+         │  - Asynchronous Task Queueing            │
          └──────────┬────────────────┘
                     │
        ┌────────────┼────────────┐
@@ -143,30 +146,30 @@ k8s_versions:
        ┌─────────────────────────┐
        │    LLM Inference Layer  │
        │  vLLM / TGI (GPU)      │
-       │  + OpenAI API (外部)    │
+       │  + OpenAI API (External)    │
        └─────────────────────────┘
                     │
        ┌─────────────────────────┐
        │    Data & Storage Layer │
-       │  Qdrant (向量库)         │
-       │  Redis (缓存/任务队列)   │
-       │  PostgreSQL (记忆/配置)  │
+       │  Qdrant (Vector Library)         │
+       │  Redis (Cache/Task Queue)   │
+       │  PostgreSQL (Memory/Configuration)  │
        └─────────────────────────┘
 ```
 
-## 1.2 同步 vs 异步模式选择
+## 1.2 Choosing Synchronous vs Asynchronous Modes
 
-| 模式 | 适用场景 | 最大超时 | 实现复杂度 |
+| Pattern | Applicable Scenario | Maximum Timeout | Implementation Complexity |
 |------|---------|---------|-----------|
-| **同步请求** | 简单问答、实时对话 | 30-60s | 低 |
-| **流式输出（SSE）** | 对话场景、用户实时体验 | 无限制 | 中 |
-| **异步任务** | 长时间分析、批处理、多 Agent | 无限制 | 高 |
+| **Synchronized Request** | Simple Q&A, Real-time Chatting | 30-60s | Low |
+| **Streamed Output (SSE)** | Conversational scenarios, real-time user experience | Unlimited | Medium |
+| **Asynchronous Tasks** | Long-running analysis, batch processing, multi-Agent | Unlimited | High |
 
 ---
 
-<!-- chunk: 2. Agent API 服务 -->## 2. Agent API 服务
+## 2. Agent API Service
 
-## 2.1 FastAPI Agent 服务
+## 2.1 FastAPI Agent Service
 
 ```python
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
@@ -180,13 +183,13 @@ from datetime import datetime
 
 app = FastAPI(title="K8s Agent API", version="1.0.0")
 
-# 请求/响应模型
+# Request/Response Model
 class AgentRequest(BaseModel):
-    task: str = Field(..., description="任务描述", max_length=2000)
-    session_id: Optional[str] = Field(None, description="会话 ID，用于多轮对话")
-    agent_type: str = Field("general", description="Agent 类型: general/network/storage/security")
-    stream: bool = Field(False, description="是否流式输出")
-    max_steps: int = Field(10, ge=1, le=20, description="最大执行步骤数")
+    task: str = Field(..., description="task description", max_length=2000)
+    session_id: Optional[str] = Field(None, description="session id, for multi-turn dialogue")
+    agent_type: str = Field("general", description="Agent type: general/network/storage/security")
+    stream: bool = Field(False, description="whether to stream output")
+    max_steps: int = Field(10, ge=1, le=20, description="maximum number of execution steps")
     timeout_seconds: int = Field(60, ge=10, le=300)
 
 class AgentResponse(BaseModel):
@@ -199,13 +202,13 @@ class AgentResponse(BaseModel):
     duration_ms: float
     tokens_used: int
 
-# 异步流式输出
+# Asynchronous Stream Output
 async def agent_stream_generator(
     task: str,
     agent_executor,
     session_id: str,
 ) -> AsyncGenerator[str, None]:
-    """生成 Server-Sent Events 格式的流式输出"""
+    """Generate Server-Sent Events formatted stream output"""
     
     async for event in agent_executor.astream_events(
         {"input": task},
@@ -214,24 +217,24 @@ async def agent_stream_generator(
         event_type = event["event"]
         
         if event_type == "on_chat_model_stream":
-            # LLM 生成文本片段
+            # LLM generate text fragment
             content = event["data"]["chunk"].content
             if content:
                 yield f"data: {json.dumps({'type': 'token', 'content': content})}\n\n"
         
         elif event_type == "on_tool_start":
-            # 工具调用开始
+            # Tool invocation begins
             tool_name = event["name"]
             tool_input = event["data"]["input"]
             yield f"data: {json.dumps({'type': 'tool_start', 'tool': tool_name, 'input': tool_input})}\n\n"
         
         elif event_type == "on_tool_end":
-            # 工具调用结束
+            # Tool invocation ends
             tool_name = event["name"]
             yield f"data: {json.dumps({'type': 'tool_end', 'tool': tool_name})}\n\n"
         
         elif event_type == "on_chain_end" and event.get("name") == "AgentExecutor":
-            # Agent 执行完成
+            # Agent execution completes
             final_output = event["data"]["output"]["output"]
             yield f"data: {json.dumps({'type': 'done', 'content': final_output})}\n\n"
     
@@ -242,12 +245,12 @@ async def run_agent(
     request: AgentRequest,
     background_tasks: BackgroundTasks,
 ):
-    """同步或流式执行 Agent 任务"""
+    """Synchronously or asynchronously execute Agent tasks"""
     
     request_id = str(uuid.uuid4())
     session_id = request.session_id or str(uuid.uuid4())
     
-    # 获取对应类型的 Agent
+    # Get corresponding type of Agent
     agent_executor = get_agent(request.agent_type, request.max_steps)
     
     if request.stream:
@@ -262,7 +265,7 @@ async def run_agent(
             }
         )
     else:
-        # 同步执行（带超时）
+        # Synchronous execution (with timeout)
         try:
             start_time = asyncio.get_event_loop().time()
             result = await asyncio.wait_for(
@@ -271,7 +274,7 @@ async def run_agent(
             )
             duration_ms = (asyncio.get_event_loop().time() - start_time) * 1000
             
-            # 异步记录审计日志
+            # Asynchronous audit log recording
             background_tasks.add_task(
                 log_agent_execution,
                 request_id=request_id,
@@ -297,12 +300,12 @@ async def run_agent(
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=408,
-                detail=f"Agent 执行超时（{request.timeout_seconds}s）"
+                detail=f"Agent execution timeout ({request.timeout_seconds}s)"
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-# 健康检查
+# Health Checks
 @app.get("/health")
 async def health_check():
     return {
@@ -313,17 +316,17 @@ async def health_check():
 
 @app.get("/ready")
 async def readiness_check():
-    """就绪检查：验证关键依赖是否可用"""
+    """Readiness check: validate key dependencies are available"""
     checks = {}
     
-    # 检查 LLM 可用性
+    # Check LLM availability
     try:
-        # 轻量 ping 检查
+        # Lightweight ping check
         checks["llm"] = await check_llm_health()
     except Exception as e:
         checks["llm"] = f"unhealthy: {e}"
     
-    # 检查向量库
+    # Check vector library
     try:
         checks["vector_store"] = await check_qdrant_health()
     except Exception as e:
@@ -339,9 +342,9 @@ async def readiness_check():
 
 ---
 
-<!-- chunk: 3. K8s 生产部署清单 -->## 3. K8s 生产部署清单
+## 3. K8s Production Deployment Checklist
 
-## 3.1 Agent 服务 Deployment
+## 3.1 Agent Service Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -375,7 +378,7 @@ spec:
     spec:
       serviceAccountName: agent-api-sa
       
-      # 优雅终止：等待现有请求完成
+      # Graceful shutdown: wait for existing requests to complete
       terminationGracePeriodSeconds: 120
       
       containers:
@@ -417,7 +420,7 @@ spec:
             cpu: "2"
             memory: "2Gi"
         
-        # 就绪探针：确认依赖就绪后才接收流量
+        # Readiness probe: accept traffic only after dependencies are ready
         readinessProbe:
           httpGet:
             path: /ready
@@ -426,7 +429,7 @@ spec:
           periodSeconds: 10
           failureThreshold: 3
         
-        # 存活探针：检测死锁等问题
+        # Health probe: detect deadlocks and other issues
         livenessProbe:
           httpGet:
             path: /health
@@ -435,13 +438,13 @@ spec:
           periodSeconds: 30
           failureThreshold: 3
         
-        # 优雅关机处理
+        # Graceful shutdown handling
         lifecycle:
           preStop:
             exec:
               command: ["/bin/sh", "-c", "sleep 10"]  # 等待 LB 摘流
       
-      # 节点亲和：Agent 服务部署到非 GPU 节点
+      # Node Affinity: Deploy Agent service to non-GPU nodes
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -468,7 +471,7 @@ spec:
             app: k8s-agent-api
 ```
 
-## 3.2 HPA（基于自定义指标）
+## 3.2 HPA (Based on Custom Metrics)
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -485,7 +488,7 @@ spec:
   maxReplicas: 20
   
   metrics:
-  # 基于 CPU 利用率
+  # Based on CPU Utilization
   - type: Resource
     resource:
       name: cpu
@@ -493,7 +496,7 @@ spec:
         type: Utilization
         averageUtilization: 60
   
-  # 基于内存利用率
+  # Based on Memory Utilization
   - type: Resource
     resource:
       name: memory
@@ -501,7 +504,7 @@ spec:
         type: Utilization
         averageUtilization: 70
   
-  # 基于请求队列深度（自定义指标）
+  # Based on Request Queue Depth (custom metric)
   - type: External
     external:
       metric:
@@ -528,7 +531,7 @@ spec:
         periodSeconds: 120
 ```
 
-## 3.3 Service 和 Ingress
+## 3.3 Service and Ingress
 
 ```yaml
 apiVersion: v1
@@ -537,7 +540,7 @@ metadata:
   name: k8s-agent-api
   namespace: ai-agents
   annotations:
-    # 支持 WebSocket 和长连接（SSE 流式输出）
+    # Support WebSocket and Long Polling (SSE streaming output)
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
 spec:
@@ -557,16 +560,16 @@ metadata:
   namespace: ai-agents
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-    # 全局速率限制
+    # Global Rate Limiting
     nginx.ingress.kubernetes.io/limit-rpm: "60"
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
-    # 超时配置（Agent 任务可能运行较长）
+    # Timeout Configuration (Agent tasks may run longer)
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-    # 请求体大小限制
+    # Request Body Size Limitation
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
-    # 启用 gzip 压缩
+    # Enable gzip Compression
     nginx.ingress.kubernetes.io/enable-access-log: "true"
 spec:
   ingressClassName: nginx
@@ -589,9 +592,9 @@ spec:
 
 ---
 
-<!-- chunk: 4. LLM 推理服务部署（vLLM） -->## 4. LLM 推理服务部署（vLLM）
+## 4. Deploying LLM Inference Services (vLLM)
 
-## 4.1 vLLM 生产配置
+## 4.1 Production Configuration for vLLM
 
 ```yaml
 apiVersion: apps/v1
@@ -680,10 +683,10 @@ spec:
       priorityClassName: gpu-high-priority
 ```
 
-## 4.2 LLM 服务的多副本路由
+## 4.2 Multi-replica Routing for LLM Services
 
 ```yaml
-# 多模型服务统一入口（通过 Label 区分）
+# Unified Entry Point for Multi-model Services (distinguished by Label)
 apiVersion: v1
 kind: Service
 metadata:
@@ -691,13 +694,13 @@ metadata:
   namespace: ai-serving
 spec:
   selector:
-    # 不指定具体 app，通过 endpoints 手动管理
+    # No specific app specified, managed manually via endpoints
   ports:
   - port: 8000
     targetPort: 8000
 
 ---
-# 使用 KEDA 基于 GPU 利用率扩缩容
+# Use KEDA to scale based on GPU Utilization
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -719,12 +722,12 @@ spec:
 
 ---
 
-<!-- chunk: 5. 灰度发布策略 -->## 5. 灰度发布策略
+## 5. Gray Release Strategy
 
-## 5.1 Canary 发布
+## 5.1 Canary Release
 
 ```yaml
-# 稳定版（90% 流量）
+# Stable Version (90% Traffic)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -746,7 +749,7 @@ spec:
         version: v1.1.0
 
 ---
-# Canary 版（10% 流量）
+# Canary Version (10% Traffic)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -768,7 +771,7 @@ spec:
         version: v1.2.0
 
 ---
-# Service 选择两个 Deployment（通过 app 标签）
+# Select two Deployments for Service (based on app label)
 apiVersion: v1
 kind: Service
 metadata:
@@ -781,7 +784,7 @@ spec:
     targetPort: 8080
 ```
 
-## 5.2 基于 Argo Rollouts 的智能灰度
+## 5.2 Intelligent Gray Release Based on Argo Rollouts
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -793,7 +796,7 @@ spec:
   replicas: 10
   strategy:
     canary:
-      # 分阶段灰度，基于成功率自动推进
+      # Phased Canary, automatically advancing based on success rate
       analysis:
         templates:
         - templateName: agent-success-rate
@@ -808,7 +811,7 @@ spec:
       - setWeight: 100  # 全量
 
 ---
-# 分析模板：成功率低于 95% 自动回滚
+# Rollback Template: Automatically rollback if success rate is below 95%
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -830,16 +833,16 @@ spec:
 
 ---
 
-<!-- chunk: 6. 限流与配额管理 -->## 6. 限流与配额管理
+## 6. Rate Limiting and Quota Management
 
-## 6.1 用户级别限流
+## 6.1 User-Level Rate Limiting
 
 ```python
 import redis.asyncio as aioredis
 from fastapi import Request, HTTPException
 
 class RateLimiter:
-    """基于 Redis 的滑动窗口限流"""
+    """Based on Redis Sliding Window Rate Limiting"""
     
     def __init__(self, redis_url: str):
         self.redis = aioredis.from_url(redis_url)
@@ -850,7 +853,7 @@ class RateLimiter:
         limit: int,
         window_seconds: int,
     ) -> tuple[bool, dict]:
-        """检查是否超过速率限制"""
+        """Check if rate limiting has been exceeded"""
         
         key = f"rate_limit:{user_id}"
         current_time = time.time()
@@ -874,7 +877,7 @@ class RateLimiter:
         
         return allowed, headers
 
-# 定义用户层级配额
+# Define User-level Quotas
 USER_RATE_LIMITS = {
     "free": {"rpm": 5, "rpd": 50, "tokens_per_day": 100_000},
     "pro": {"rpm": 30, "rpd": 500, "tokens_per_day": 2_000_000},
@@ -896,7 +899,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if not allowed:
         raise HTTPException(
             status_code=429,
-            detail="请求频率超过限制，请稍后重试",
+            detail="request frequency exceeds limit, please retry later",
             headers=headers,
         )
     
@@ -907,153 +910,153 @@ async def rate_limit_middleware(request: Request, call_next):
 
 ---
 
-<!-- chunk: 7. 生产运维 Runbook -->## 7. 生产运维 Runbook
+## 7. Production Operations Runbook
 
-## 7.1 常见故障处理
+## 7.1 Common Fault Handling
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
-> - `kubectl rollout undo/restart`：触发滚动变更，影响副本
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource status, suggest first using --dry-run or diff to confirm
+> - `kubectl exec`: Execute commands inside a container, which may alter container state
+> - `kubectl rollout undo/restart`: Trigger rolling updates, affecting replicas
 
 ```
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-问题1: Agent API 响应时间突增（>10s P95）
+# 🔴 Medium risk: modifies cluster/resource status; confirm target, impact scope, and authorization before execution
+Question 1: Agent API Response Time Spike (>10s P95)
 
-诊断步骤:
+Steps for Diagnosis:
   1. kubectl top pods -n ai-agents
-  2. kubectl get hpa -n ai-agents  # 检查是否需要扩容
-  3. 检查 LLM 服务延迟: curl http://vllm.ai-serving/health
-  4. 检查 Redis 连接: redis-cli ping
-  5. 查看 Langfuse/LangSmith 追踪，定位是哪一步慢
+  2. kubectl get hpa -n ai-agents  # Check if scaling is needed
+  3. Check LLM service latency: curl http://vllm.ai-serving/health
+  4. Check Redis connection: redis-cli ping
+  5. Review Langfuse/LangSmith traces to identify which step is slow
 
-常见原因与处理:
-  a. LLM 响应慢 → 检查 GPU 利用率，必要时增加 vLLM 副本或切换备用 API
-  b. 队列积压 → 增加 Agent Worker 副本
-  c. 向量检索慢 → Qdrant 索引未热加载，重启并预热
+Common Causes and Solutions:
+  a. LLM response slow → Check GPU utilization, increase vLLM replicas or switch to a backup API if necessary
+  b. Queue backlog → Increase Agent Worker replicas
+  c. Vector search slow → Qdrant index not hot-loaded, restart and preheat
 
-恢复验证:
+Recovery verification:
   kubectl run test-pod --rm -it --image=curlimages/curl -- \
     curl -X POST http://k8s-agent-api.ai-agents/v1/agent/run \
-    -d '{"task": "简单测试"}'
+    -d '{"task": "simple test"}'
 
-问题2: Agent Pod OOMKilled
+Problem 2: Agent Pod OOMKilled
 
-诊断:
+Analysis:
   1. kubectl describe pod <pod-name> -n ai-agents | grep -A5 OOM
-  2. 检查是否有超大上下文请求（Token 超过 50K 的请求）
-  3. 检查 embedding 缓存是否异常增大
+  2. Check for large context requests (Tokens over 50K)
+  3. Check if embedding cache is abnormally large
 
-处理:
-  1. 临时: 增加内存 limits.memory
-  2. 根本: 限制单请求最大 Token 数
-     MAX_INPUT_TOKENS=10000 (环境变量)
-  3. 添加内存告警: agent_memory_usage > 1.5Gi
+Treatment:
+  1. Temporarily: Increase memory limits.memory
+  2. Root cause: Limit maximum Tokens per request
+     MAX_INPUT_TOKENS=10000 (environment variable)
+  3. Add memory alert: agent_memory_usage > 1.5Gi
 
-问题3: vLLM OOM（GPU 内存不足）
+Problem 3: vLLM OOM (GPU memory shortage)
 
-诊断:
+Analysis:
   1. kubectl exec -n ai-serving <vllm-pod> -- nvidia-smi
-  2. 查看 vLLM 指标: /metrics 端点的 gpu_cache_usage_perc
+  2. Check vLLM metrics: /metrics endpoint's gpu_cache_usage_perc
 
-处理:
-  1. 减少 --max-num-seqs（并发请求数）
-  2. 减少 --max-model-len（最大上下文长度）
-  3. 调低 --gpu-memory-utilization 至 0.85
-  4. 重启 Pod: kubectl rollout restart deployment/vllm-xxx
+Treatment:
+  1. Reduce --max-num-seqs (concurrent requests)
+  2. Reduce --max-model-len (maximum context length)
+  3. Lower --gpu-memory-utilization to 0.85
+  4. Restart Pod: kubectl rollout restart deployment/vllm-xxx
 ```
-## 7.2 关键监控检查清单
+## 7.2 Key Monitoring Checklist
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+> ⚠️ **🟡 Medium Risk Changes** — Modify cluster resource states, suggest first using --dry-run or diff to confirm
+> - `kubectl exec`: Enter container to execute commands, which may alter container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Agent 系统健康巡检脚本
+# 🔴 Medium risk: modifies cluster/resource status; confirm target, impact scope, and authorization before execution
+# Agent system health inspection script
 #!/bin/bash
 
-echo "=== Agent 系统健康检查 ==="
-echo "时间: $(date)"
+echo "=== Agent System Health Check ==="
+echo "Time: $(date)"
 
-# 1. Pod 状态
-echo "\n[Pod 状态]"
+# 1. Pod status
+echo "\n[Pod Status]"
 kubectl get pods -n ai-agents -o wide
 
-# 2. HPA 状态
-echo "\n[HPA 状态]"
+# 2. HPA status
+echo "\n[HPA Status]"
 kubectl get hpa -n ai-agents
 
-# 3. Agent API 健康
-echo "\n[API 健康]"
+# 3. Agent API health
+echo "\n[API Health]"
 curl -s http://k8s-agent-api.ai-agents/health | python3 -m json.tool
 
-# 4. 成功率（过去 1 小时）
-echo "\n[过去1小时成功率]"
+# 4. Success rate (last hour)
+echo "\n[Success Rate in Last Hour]"
 curl -s "http://prometheus.monitoring.svc:9090/api/v1/query?query=\
   sum(rate(agent_requests_total{status='success'}[1h]))/\
   sum(rate(agent_requests_total[1h]))*100" | \
   python3 -c "import sys,json; data=json.load(sys.stdin); \
-  print(f\"成功率: {float(data['data']['result'][0]['value'][1]):.1f}%\")"
+  print(f\"success rate: {float(data['data']['result'][0]['value'][1]):.1f}%\")"
 
-# 5. LLM 服务状态
-echo "\n[LLM 服务状态]"
+# 5. LLM service status
+echo "\n[LLM Service Status]"
 kubectl get pods -n ai-serving -l app=vllm
 
-# 6. Redis 状态
-echo "\n[Redis 队列深度]"
+# 6. Redis status
+echo "\n[Redis Queue Depth]"
 kubectl exec -n ai-infra redis-master-0 -- redis-cli llen agent_task_queue
 ```
 ---
 
-<!-- chunk: 8. 最佳实践与反模式 -->## 8. 最佳实践与反模式
+## 8. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **零停机部署**：`maxUnavailable: 0` + `preStop sleep` + 就绪探针的组合确保无缝滚动更新
-- **流式输出优先**：对话场景必须支持 SSE 流式输出，显著提升用户体验
-- **HPA 使用自定义指标**：CPU 利用率不能准确反映 Agent 负载，用任务队列深度更准确
-- **LLM 服务独立部署**：vLLM 和 Agent 服务分开部署，避免相互影响并利于独立扩缩容
-- **灰度发布必须携带质量分析**：纯按比例的 Canary 不够，要加自动回滚的成功率检测
+- **Zero Downtime Deployment**: Combining `maxUnavailable: 0`, `preStop sleep`, and readiness probes ensures smooth rolling updates
+- **Prioritize Streamlined Output**: Dialog scenarios must support SSE for streaming output, significantly improving user experience
+- **Use Custom Metrics for HPA**: CPU utilization cannot accurately reflect Agent load; use task queue depth for more accurate measurement
+- **Deploy vLLM and Agent Services Independently**: Separate deployment of vLLM and Agent services avoids mutual interference and facilitates independent scaling
+- **Must Include Quality Analysis in Gradual Releases**: Pure proportional Canaries are insufficient; add automatic rollback detection for success rate
 
-## 反模式
+## Anti-patterns
 
-- **Agent 和 LLM 共用 Pod**：两者资源需求差异极大，合并导致资源浪费或 OOM
-- **无限流请求体大小**：不设置 `proxy-body-size`，大型 Prompt 攻击会打垮服务
-- **就绪探针不检查 LLM**：Agent 启动了但 LLM 连不上，就绪探针仍然通过，接入流量后全部失败
-- **不设 terminationGracePeriodSeconds**：滚动更新时强制终止进行中的 Agent 任务，造成用户体验断裂
+- **Share Pods Between Agent and LLM**: Both require vastly different resources, leading to waste or OOM if combined
+- **Unlimited Request Body Size**: Without setting `proxy-body-size`, large Prompts can overwhelm the service
+- **Readiness Probes Do Not Check LLM**: Agent starts but LLM fails to connect, still passing readiness probes; traffic ingress results in total failure
+- **No `terminationGracePeriodSeconds` Set**: Forcing terminated ongoing Agent tasks during rolling updates breaks user experience
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|---------|
-| [06 - 多 Agent 编排](./06-multi-agent-orchestration.md) | 多 Worker Pod 的协同 |
-| [08 - 评测与可观测性](./08-agent-evaluation-observability.md) | Prometheus 指标和 Langfuse |
-| [11 - 成本优化](./11-cost-latency-optimization.md) | 资源配额和成本控制 |
-| [domain-14-ai-ml-infra/17-llm-inference-serving.md](../domain-14-ai-ml-infra/17-llm-inference-serving.md) | vLLM/TGI 推理服务详情 |
-| [domain-02-workloads-applications](../domain-02-workloads-applications/) | K8s Deployment 最佳实践 |
-| [domain-32-yaml-manifests](../domain-18-manifests-patterns/) | 完整 YAML 模板参考 |
+| [06 - Multi-Agent Orchestration](./06-multi-agent-orchestration.md) | Coordination among multiple Worker Pods |
+| [08 - Evaluation and Observability](./08-agent-evaluation-observability.md) | Prometheus Indicators and Langfuse |
+| [11 - Cost Optimization](./11-cost-latency-optimization.md) | Resource Quotas and Cost Control |
+| [domain-14-ai-ml-infra/17-llm-inference-serving.md](../domain-14-ai-ml-infra/17-llm-inference-serving.md) | Details of vLLM/TGI Inference Service |
+| [domain-02-workloads-applications](../domain-02-workloads-applications/) | Best Practices for K8s Deployments |
+| [domain-32-yaml-manifests](../domain-18-manifests-patterns/) | Comprehensive YAML Template Reference |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
-- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|成本与延迟优化策略]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Models Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage and Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability System]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
+- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|Cost and Latency Optimization Strategies]]
 
 ## Related
 

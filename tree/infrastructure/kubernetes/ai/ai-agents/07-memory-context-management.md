@@ -35,6 +35,7 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
 ---
 
 # Memory Management and Contextual Window Engineering
@@ -52,29 +53,29 @@ Memory is a core capability for Agents to achieve cross-session continuity, avoi
 ## 1. Agent Memory Classification System
 
 ```
-Agent 记忆体系
+Agent Memory System
 │
-├── 感知记忆（Sensory Memory）
-│   - 最近的原始输入（当前对话轮次）
-│   - 极短暂，处理后丢弃
+├── Sensory Memory
+│   - The most recent original input (current dialogue round)
+│   - Very short, discarded after to handle
 │
-├── 工作记忆（Working Memory）
-│   - 当前任务的活跃上下文（LLM 上下文窗口）
-│   - 工具调用中间结果
-│   - 存储形式: LLM 的 messages 列表
-│   - 容量: 受 Token 限制（4K~2M tokens）
+├── Working Memory
+│   - The current active context of the task (LLM context window)
+│   - Tool calls intermediate results
+│   - Storage form: LLM's messages list
+│   - Capacity: Limited by Token (4K~2M tokens)
 │
-├── 情节记忆（Episodic Memory）
-│   - 过去的对话历史和操作记录
-│   - "我上次怎么解决这个问题的"
-│   - 存储形式: 数据库 + 向量索引
-│   - 检索方式: 基于相似度的语义检索
+├── Plot Memory (Plot Memory)
+│   - Past conversation history and operational records
+│   - "How did I solve this problem last time"
+│   - Storage form: database + vector index
+│   - Retrieval method: semantic-based similarity retrieval
 │
-└── 语义记忆（Semantic Memory）
-    - 结构化的领域知识和事实
-    - "K8s 的 Pod 有哪些状态"
-    - 存储形式: 知识库（RAG）/ Fine-tuning
-    - 来源: kudig-database 等知识库
+└── Semantic Memory
+    - Structured domain knowledge and facts
+    - "What are the states of a Pod in K8s"
+    - Storage form: Knowledge base (RAG)/ Fine-tuning
+    - Source: knowledge bases like kudig-database
 ```
 
 ---
@@ -237,7 +238,7 @@ class ContextWindowManager:
         
         summary_msg = {
             "role": "system",
-            "content": f"[历史对话摘要]\n{summary}"
+            "content": f"[historical conversation summary]\n{summary}"
         }
         
         return system_msgs + [summary_msg] + recent_msgs
@@ -283,7 +284,7 @@ class ContextWindowManager:
         
         # Include error messages that are important
         if any(keyword in content.lower() for keyword in 
-               ["error", "failed", "exception", "warning", "错误", "失败"]):
+               ["error", "failed", "exception", "warning", "error", "failure"]):
             score += 0.3
         
         # Tool call results are important
@@ -465,23 +466,23 @@ class EpisodeExtractor:
 ## 4.1 Semantic Memory vs RAG Relationship
 
 ```
-语义记忆（Semantic Memory）与 RAG 的区别：
+Semantic Memory (Semantic Memory) vs. RAG:
 
-RAG（检索增强生成）:
-  - 来源: 外部知识库文档（如 kudig-database）
-  - 粒度: 文档块级别
-  - 更新: 更新知识库文档
-  - 适合: 大量文档型知识
+RAG (Reinforcement-Augmented Generation):
+  - Source: External Knowledge Base Documents (e.g. kudig-database)
+  - Granularity: Document block level
+  - Update: Update knowledge base documents
+  - Suitable: Large volumes of document-type knowledge
 
-语义记忆（Semantic Memory）:
-  - 来源: Agent 自主学习和总结的知识
-  - 粒度: 结构化事实、规则、关系
-  - 更新: 通过新经验自动更新
-  - 适合: 精炼的领域事实和操作规则
+Semantic Memory (Semantic Memory):
+  - Source: Autonomous learning and summarization knowledge of the Agent
+  - Granularity: Structured facts, rules, relationships
+  - Update: Automatically updated through new experiences
+  - Suitable: Precise domain facts and operational rules
 
-实践建议: 两者配合使用
-  - RAG 提供背景知识（知识库）
-  - 语义记忆存储 Agent 自己总结的经验规则
+Semantic Suggestions: Use both together
+  - RAG provides background knowledge (knowledge base)
+  - Semantic memory stores the experience rules summarized by the Agent
 ```
 
 ## 4.2 Implementation of Semantic Memory
@@ -585,8 +586,8 @@ class AgentMemorySystem:
                 current_query, limit=3
             )
             if relevant_episodes:
-                episodic_context = "\n[相关历史案例]\n" + "\n".join([
-                    f"- {ep.summary}（结论: {ep.lessons_learned}）"
+                episodic_context = "\n[related historical cases]\n" + "\n".join([
+                    f"- {ep.summary}(conclusion: {ep.lessons_learned})"
                     for ep in relevant_episodes
                 ])
         
@@ -595,7 +596,7 @@ class AgentMemorySystem:
         if self.semantic_store and current_query:
             knowledge_points = self.semantic_store.recall(current_query)
             if knowledge_points:
-                semantic_context = "\n[相关知识点]\n" + "\n".join([
+                semantic_context = "\n[related knowledge points]\n" + "\n".join([
                     f"- {kp}" for kp in knowledge_points
                 ])
         
@@ -604,7 +605,7 @@ class AgentMemorySystem:
         if self.rag_retriever and current_query:
             rag_docs = self.rag_retriever.get_relevant_documents(current_query)
             if rag_docs:
-                rag_context = "\n[知识库参考]\n" + "\n\n".join([
+                rag_context = "\n[knowledge base reference]\n" + "\n\n".join([
                     d.page_content for d in rag_docs[:3]
                 ])
         

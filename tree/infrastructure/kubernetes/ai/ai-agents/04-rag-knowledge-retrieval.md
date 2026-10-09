@@ -1,5 +1,5 @@
 ---
-original_language: Chinese
+original_language: Fullwidth
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/04-rag-knowledge-retrieval.md
 ---
 ---title: RAG Retrieval-Augmented Generation In-Depth Guide (domain-14-ai-ml-infra)
@@ -99,13 +99,13 @@ k8s_versions:
 
 ---
 
-<!-- chunk: Overview -->## Overview
+## Overview
 
 RAG (Retrieval-Augmented Generation) is a core technology that combines external knowledge bases with LLM generation capabilities, and is the standard solution for addressing LLM knowledge cutoff dates, missing domain knowledge, and hallucination problems. This article covers the full engineering pipeline from data preparation, chunking strategies, Embedding selection, and vector database comparison, to hybrid retrieval, Re-ranking, Advanced RAG, and production optimization.
 
 ---
 
-<!-- chunk: 1. RAG Architecture Overview -->## 1. RAG Architecture Overview
+## 1. RAG Architecture Overview
 
 ## 1.1 Basic RAG Pipeline
 
@@ -151,7 +151,7 @@ Agentic RAG
 
 ---
 
-<!-- chunk: 2. Data Preparation and Chunking Strategies -->## 2. Data Preparation and Chunking Strategies
+## 2. Data Preparation and Chunking Strategies
 
 ## 2.1 Document Preprocessing
 
@@ -187,7 +187,7 @@ class DocumentPreprocessor:
         
         # Extract keywords and other information from Markdown frontmatter
         keywords = []
-        keyword_match = re.search(r'\*\*Keywords\*\*[：:]\s*(.+)', content)
+        keyword_match = re.search(r'\*\*Keywords\*\*[::]\s*(.+)', content)
         if keyword_match:
             keywords = [k.strip() for k in keyword_match.group(1).split(',')]
         
@@ -221,8 +221,8 @@ splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,        # approximately 1000 characters per chunk
     chunk_overlap=200,      # 200-character overlap to ensure context continuity
     separators=[
-        "\n<!-- chunk: ",   # split by level-2 headings first -->## ",   # split by level-2 headings first
-        "\n#<!-- chunk: ",  # then by level-3 headings -->## ",  # then by level-3 headings
+        "\n## ",   # split by level-2 headings first
+        "\n### ",  # then by level-3 headings
         "\n\n",    # then by paragraph
         "\n",      # then by line
         " ",       # finally by space
@@ -293,7 +293,7 @@ relevant_docs = retriever.get_relevant_documents("Reasons for Pod Pending")
 
 ---
 
-<!-- chunk: 3. Embedding Model Selection -->## 3. Embedding Model Selection
+## 3. Embedding Model Selection
 
 ## 3.1 Comparison of Mainstream Embedding Models
 
@@ -338,7 +338,7 @@ embedding_lite = client.embeddings.create(
 
 ---
 
-<!-- chunk: 4. Vector Database Selection -->## 4. Vector Database Selection
+## 4. Vector Database Selection
 
 ## 4.1 Comparison of Mainstream Vector Stores
 
@@ -464,7 +464,7 @@ results = client.search(
 
 ---
 
-<!-- chunk: 5. Hybrid Search -->## 5. Hybrid Search
+## 5. Hybrid Search
 
 Pure vector retrieval performs poorly for exact matches (such as proper nouns and error codes). Hybrid search combines dense vector retrieval with sparse BM25 retrieval:
 ## 5.1 BM25 + Vector Retrieval Fusion
@@ -538,7 +538,7 @@ results = client.query_points(
 
 ---
 
-<!-- chunk: 6. Re-ranking -->## 6. Re-ranking
+## 6. Re-ranking
 
 Re-ranking is the most effective technique in the RAG pipeline for improving retrieval precision — it re-orders the initial Top-50 results and takes the Top-5:
 
@@ -595,7 +595,7 @@ context = "\n\n".join([doc for doc, score in reranked])
 
 ---
 
-<!-- chunk: 7. Advanced RAG Techniques -->## 7. Advanced RAG Techniques
+## 7. Advanced RAG Techniques
 
 ## 7.1 Query Rewriting
 
@@ -708,7 +708,7 @@ class IterativeRAG:
 
 ---
 
-<!-- chunk: 8. RAG Evaluation Metrics -->## 8. RAG Evaluation Metrics
+## 8. RAG Evaluation Metrics
 ## 8.1 RAGAS Evaluation Framework
 
 ```python
@@ -770,7 +770,7 @@ print(result)
 
 ---
 
-<!-- chunk: 9. Production RAG Pipeline Complete Implementation -->## 9. Production RAG Pipeline Complete Implementation
+## 9. Production RAG Pipeline Complete Implementation
 
 ```python
 from langchain.chains import RetrievalQAWithSourcesChain
@@ -866,7 +866,7 @@ class ProductionRAGPipeline:
 
 ---
 
-<!-- chunk: 10. Best Practices and Common Pitfalls -->## 10. Best Practices and Common Pitfalls
+## 10. Best Practices and Common Pitfalls
 
 ## Best Practices
 
@@ -886,7 +886,7 @@ class ProductionRAGPipeline:
 
 ---
 
-<!-- chunk: Related Documents -->## Related Documents
+## Related Documents
 
 | Document | Related Content |
 |------|---------|
@@ -902,7 +902,7 @@ class ProductionRAGPipeline:
 
 ---
 
-<!-- chunk: Obsidian Related Documents -->## Obsidian Related Documents
+## Obsidian Related Documents
 
 - 02-ai-agents MOC
 - [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]

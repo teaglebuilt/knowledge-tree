@@ -112,25 +112,25 @@ LLM API call costs and response delays are core challenges for commercializing t
 ## 1.1 Decomposition of Agent Costs
 
 ```
-典型 K8s 诊断 Agent 单次任务成本分解（无优化）:
+Typical K8s Diagnosis Agent Task Cost Breakdown (no optimization):
 
-  总成本: ~$0.30
+  Total cost: ~$0.30
   │
-  ├── LLM 调用 (85%)
-  │   ├── 系统提示 Token  ~2000 tokens × $2.5/1M = $0.005 × N轮
-  │   ├── 工具定义 Token  ~3000 tokens × $2.5/1M = $0.0075 × N轮
-  │   ├── 对话历史 Token  ~5000 tokens × $2.5/1M = $0.0125 × N轮
-  │   └── 输出 Token      ~1000 tokens × $10/1M = $0.01 × N轮
-  │   (假设 10 轮交互)
+  ├── LLM Call (85%)
+  │   ├── System Prompt Tokens ~2000 tokens × $2.5/1M = $0.005 × N rounds
+  │   ├── Tool Definition Tokens ~3000 tokens × $2.5/1M = $0.0075 × N rounds
+  │   ├── Dialogue History Tokens ~5000 tokens × $2.5/1M = $0.0125 × N rounds
+  │   └── Output Tokens ~1000 tokens × $10/1M = $0.01 × N rounds
+  │   (Assuming 10 rounds of interaction)
   │
-  ├── Embedding 调用 (5%)
-  │   └── 每次 RAG 检索 ~500 tokens × $0.13/1M × 5次
+  ├── Embedding Call (5%)
+  │   └── Each RAG Retrieval ~500 tokens × $0.13/1M × 5 times
   │
-  └── 基础设施 (10%)
-      └── Qdrant、Redis、计算资源
+  └── Infrastructure (10%)
+      └── Qdrant, Redis, compute resources
 
-经过优化后（目标）:
-  总成本: ~$0.03 (-90%)
+After optimization (target):
+  Total cost: ~$0.03 (-90%)
 ```
 
 ## 1.2 Cost Monitoring Dashboard
@@ -228,13 +228,13 @@ OPTIMIZED_SYSTEM_PROMPT = """
 
 # Dynamic System Prompts (inject knowledge based on task type)
 def build_contextual_system_prompt(task_type: str) -> str:
-    BASE = "你是 K8s 运维专家 Agent。基于工具数据给出准确诊断和修复步骤。"
+    BASE = "You are a Kubernetes operations expert agent. Based on tool data, provide accurate diagnoses and repair steps."
     
     TASK_ADDONS = {
-        "network": "\n专注: CNI、Service、NetworkPolicy、DNS 问题",
-        "storage": "\n专注: PVC、StorageClass、CSI 驱动问题",
-        "security": "\n专注: RBAC、证书、Pod Security 策略问题",
-        "scheduling": "\n专注: 资源不足、亲和性、Taint/Toleration 问题",
+        "network": "\nFocused: CNI, Service, NetworkPolicy, DNS issues",
+        "storage": "\nFocused: PVC, StorageClass, CSI driver issues",
+        "security": "\nFocused: RBAC, certificates, Pod Security Strategy issues",
+        "scheduling": "\nFocus: Insufficient resources, affinity, Taint/Toleration issues"
     }
     
     return BASE + TASK_ADDONS.get(task_type, "")
@@ -259,7 +259,7 @@ VERBOSE_TOOL = {
 # Optimized (~30 tokens/tool)
 CONCISE_TOOL = {
     "function": {
-        "description": "kubectl describe pod: 获取 Pod 状态/事件/容器信息。诊断 Pending/CrashLoop/OOM 使用。",
+        "description": "kubectl describe pod: Obtain Pod status/events/container information. Diagnose Pending/CrashLoop/OOM usage.",
     }
 }
 
@@ -299,12 +299,12 @@ class AdaptiveContextCompressor:
         
         # Compress old messages
         summary = self.llm.invoke(
-            f"一句话总结以下对话的关键信息（最多 80 字）：\n{to_compress}"
+            f"A concise summary of the key points of the conversation (max 80 words):\n{to_compress}"
         ).content
         
         summary_msg = {
             "role": "system",
-            "content": f"[历史摘要: {summary}]"
+            "content": f"[Historical Summary: {summary}]"
         }
         
         return system_msgs + [summary_msg] + recent
@@ -443,12 +443,12 @@ class CachedAgentService:
     def _is_cacheable(self, query: str) -> bool:
         """Determine if a query can be cached (do not cache real-time queries)"""
         # Do not cache real-time data queries
-        realtime_keywords = ["当前", "现在", "最新", "实时", "live"]
+        realtime_keywords = ["current", "now", "latest", "realtime", "live"]
         if any(kw in query for kw in realtime_keywords):
             return False
         
         # Read operations are cacheable, write operations are not
-        modification_keywords = ["修改", "更新", "删除", "扩容", "重启"]
+        modification_keywords = ["modify", "update", "delete", "scale", "restart"]
         if any(kw in query for kw in modification_keywords):
             return False
         
@@ -525,8 +525,8 @@ class IntelligentModelRouter:
     
     def _assess_complexity(self, task: str, tool_count: int) -> str:
         """Evaluate Task Complexity"""
-        high_complexity_keywords = ["分析", "规划", "设计", "评估", "compare", "compare"]
-        medium_complexity_keywords = ["诊断", "排查", "检查", "diagnose", "investigate"]
+        high_complexity_keywords = ["analyze", "plan", "design", "evaluate", "compare", "compare"]
+        medium_complexity_keywords = ["diagnose", "probe", "check", "diagnose", "investigate"]
         
         if any(kw in task for kw in high_complexity_keywords) or tool_count > 10:
             return "high"
@@ -625,9 +625,9 @@ response = client.messages.create(
 
 # Check cache hit status
 usage = response.usage
-print(f"缓存读取 tokens: {usage.cache_read_input_tokens}")  # 0.1x 价格
-print(f"缓存写入 tokens: {usage.cache_creation_input_tokens}")  # 1.25x 价格（首次）
-print(f"普通输入 tokens: {usage.input_tokens}")
+print(f"Cache read tokens: {usage.cache_read_input_tokens}")  # 0.1x price
+print(f"Cache creation tokens: {usage.cache_creation_input_tokens}")  # 1.25x price (first time)
+print(f"Normal input tokens: {usage.input_tokens}")
 ```
 
 ## 5.2 vLLM KV Cache Optimization
@@ -757,21 +757,21 @@ async def batch_evaluate_agent(
 ## 7.2 Production Environment Cost Optimization Roadmap
 
 ```
-第一阶段（立即执行，低风险）:
-  1. 系统提示精简（节省 10-30%）
-  2. 工具描述优化（节省 5-15%）
-  3. 启用模型路由（节省 50-70%）
-  预计总节省: 60-80%
+First phase (immediate execution, low risk):
+  1. System prompt simplification (save 10-30%)
+  1. Simplify system prompts (save 10-30%)
+  2. Optimize tool descriptions (save 5-15%)
+  3. Enable model routing (save 50-70%)
 
-第二阶段（2周内，中等复杂度）:
-  4. 语义缓存集成（节省 30-60% of remaining）
-  5. 对话历史压缩（节省 20-40% of remaining）
-  预计总节省: 80-90%
+Second phase (2 weeks, moderate complexity):
+  4. Semantic caching integration (save 30-60% of remaining)
+  5. Dialog history compression (save 20-40% of remaining)
+  Expected total savings: 80-90%
 
-第三阶段（1月内，架构优化）:
-  6. Claude Prompt Caching（节省 20-50% on Claude）
-  7. 自部署 vLLM（高频场景，节省 70-90%）
-  预计总节省: 90-95%
+Third phase (within 1 month, architecture optimization):
+  6. Claude Prompt Caching (save 20-50% on Claude)
+  7. Self-deployed vLLM (high-frequency scenarios, save 70-90%)
+  Expected total savings: 90-95%
 ```
 
 ---
@@ -782,21 +782,21 @@ async def batch_evaluate_agent(
 
 ```
 # 🟢 Low Risk: Read/Information Collection, Usually No Side Effects
-Agent 任务端到端延迟分解（典型 5 步任务）:
+Agent task end-to-end latency decomposition (typical 5-step task):
 
-  总延迟: ~8500ms
+  Total delay: ~8500ms
   │
-  ├── LLM 推理 (70%)  ~6000ms
-  │   ├── TTFT (首 Token) ~500ms × 5 = 2500ms
-  │   └── Token 生成    ~700ms/500 tokens × 5 轮 = 3500ms
+  ├── LLM inference (70%) ~6000ms
+  │   ├── First Token TTF ~500ms × 5 = 2500ms
+  │   └── Token generation ~700ms/500 tokens × 5 rounds = 3500ms
   │
-  ├── 工具执行 (20%)   ~1700ms
-  │   └── kubectl 命令  ~200-500ms × 5 次
+  ├── Tool execution (20%) ~1700ms
+  │   └── kubectl command ~200-500ms × 5 times
   │
-  └── RAG 检索 (10%)   ~800ms
-      └── Qdrant 向量搜索 ~100-200ms × 4 次
+  └── RAG retrieval (10%) ~800ms
+      └── Qdrant vector search ~100-200ms × 4 times
 
-优化后目标: ~3500ms (节省 59%)
+Optimization target: ~3500ms (save 59%)
 ```
 ## 8.2 Reduce User Perceived Delay Through Streaming Output
 
@@ -810,7 +810,7 @@ async def stream_with_early_ux(query: str) -> AsyncGenerator:
     # Immediately Send "Processing In Progress" Status
     yield {
         "type": "status",
-        "content": "正在诊断中..."
+        "content": "Diagnosis in progress..."
     }
     
     async for event in agent.astream_events({"input": query}, version="v2"):
@@ -818,7 +818,7 @@ async def stream_with_early_ux(query: str) -> AsyncGenerator:
             # Real-time notification to users about which tool is being executed
             yield {
                 "type": "tool_start",
-                "content": f"正在执行: {event['name']}"
+                "content": f"Executing: {event['name']}]"
             }
         
         elif event["event"] == "on_chat_model_stream":

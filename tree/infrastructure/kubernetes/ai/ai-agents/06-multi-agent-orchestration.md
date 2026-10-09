@@ -62,31 +62,31 @@ Single-Agent systems are limited in handling complex tasks that require expertis
 ## 1.1 Six Core Patterns
 
 ```
-多 Agent 架构模式
+Multi-Agent Architecture Pattern
 │
-├── 1. Supervisor-Worker（主管-工作者）
-│      Orchestrator 分解任务 → 分发给专业 Worker Agent
-│      适合: 任务可分解为子任务的场景
+├── 1. Supervisor-Worker (Supervisor-Worker)
+│      Orchestrator decomposes tasks → distributes to specialized Worker Agents
+│      Suitable: Scenarios where tasks can be decomposed into subtasks
 │
-├── 2. Pipeline（流水线）
-│      Agent A → Agent B → Agent C → 结果
-│      适合: 有明确处理顺序的串行任务
+├── 2. Pipeline (Pipeline)
+│      Agent A → Agent B → Agent C → Result
+│      Suitable: Scenarios with a clear sequence of serial tasks
 │
-├── 3. Peer-to-Peer（对等协作）
-│      多个 Agent 平等协商，共同决策
-│      适合: 需要多视角验证的决策场景
+├── 3. Peer-to-Peer (Peer-to-Peer)
+│      Multiple Agents negotiate equally, making joint decisions
+│      Suitable: Decision scenarios requiring multi-angle validation
 │
-├── 4. Blackboard（黑板系统）
-│      共享状态黑板，多 Agent 读写协作
-│      适合: 异步、松耦合的并行任务
+├── 4. Blackboard (Blackboard System)
+│      Shared state blackboard, collaborative read/write among multiple Agents
+│      Suitable: Asynchronous, loosely coupled parallel tasks
 │
-├── 5. Debate（辩论模式）
-│      多个 Agent 提出不同方案，通过辩论收敛到最优解
-│      适合: 高风险决策需要多方验证
+├── 5. Debate (Debate Mode)
+│      Multiple Agents propose different solutions, converging to the optimal solution through debate
+│      Suitable: High-risk decisions requiring multi-party verification
 │
-└── 6. Hierarchical（层级模式）
-       多层 Orchestrator + 专业 Agent 的树状结构
-       适合: 大规模复杂系统
+└── 6. Hierarchical (Hierarchical)
+       Multi-layer Orchestrator + Professional Agent's tree structure
+       Suitable: Large-scale complex systems
 ```
 
 ---
@@ -98,23 +98,23 @@ Single-Agent systems are limited in handling complex tasks that require expertis
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     Orchestrator Agent                       │
-│                    （任务分解 + 调度）                          │
-│              使用强模型: GPT-4o / Claude 3.5 Sonnet           │
+│                    (task decomposition + scheduling)              │
+│              Use strong model: GPT-4o / Claude 3.5 Sonnet           │
 └──────┬──────────────┬──────────────┬──────────────┬──────────┘
        │              │              │              │
        ▼              ▼              ▼              ▼
 ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-│  网络     │  │  存储     │  │  应用     │  │  安全     │
-│  诊断    │  │  诊断    │  │  诊断    │  │  审计    │
+│  Network     │  │  Storage     │  │  Application     │  │  Security     │
+│  Diagnosis    │  │  Diagnosis    │  │  Diagnosis    │  │  Audit    │
 │  Worker  │  │  Worker  │  │  Worker  │  │  Worker  │
-│(专用工具) │  │(专用工具) │  │(专用工具) │  │(专用工具) │
+│(Specialized tool) │  │(Specialized tool) │  │(Specialized tool) │  │(Specialized tool) │
 └──────────┘  └──────────┘  └──────────┘  └──────────┘
        │              │              │              │
        └──────────────┴──────────────┴──────────────┘
                               │
                      ┌──────────────┐
-                     │ 结果聚合 Agent │
-                     │ (综合报告生成) │
+                     │ Result Aggregation Agent │
+                     │ (Comprehensive report generation) │
                      └──────────────┘
 ```
 
@@ -252,10 +252,10 @@ class DebateOrchestrator:
         
         # Different Roles' Agents (Same LLM, Different System Prompts)
         self.agents = {
-            "proposer": "你是变更方案提出者，负责提出并捍卫你的技术方案",
-            "critic": "你是技术审查员，专门发现方案中的风险和缺陷，持批评态度",
-            "safety_reviewer": "你是 SRE 安全审查员，关注方案对生产稳定性的影响",
-            "moderator": "你是讨论主持人，总结各方观点并推动收敛到最终决策",
+            "proposer": "You are the change proposal proposer, responsible for proposing and defending your technical solution",
+            "critic": "You are the technical reviewer, specializing in identifying risks and defects in the proposal, holding a critical attitude",
+            "safety_reviewer": "You are the SRE safety reviewer, focusing on the impact of the solution on production stability",
+            "moderator": "You are the discussion moderator, summarizing all viewpoints and pushing towards a final decision",
         }
     
     def debate(self, proposal: str) -> dict:
@@ -264,7 +264,7 @@ class DebateOrchestrator:
         
         # Initial Proposal
         proposer_response = self._agent_respond(
-            "proposer", f"请详细阐述以下方案的技术实现和优势：\n{proposal}", []
+            "proposer", f"Please provide a detailed explanation of the technical implementation and advantages of the following proposal:\n{proposal}", []
         )
         debate_history.append({"role": "proposer", "content": proposer_response})
         
@@ -273,7 +273,7 @@ class DebateOrchestrator:
             # Reviewer Raises Questions
             critic_response = self._agent_respond(
                 "critic", 
-                f"针对以下提案，指出3-5个技术风险和潜在缺陷：",
+                f"For the following proposal, point out 3-5 technical risks and potential defects:",
                 debate_history
             )
             debate_history.append({"role": "critic", "content": critic_response})
@@ -281,7 +281,7 @@ class DebateOrchestrator:
             # Security Review
             safety_response = self._agent_respond(
                 "safety_reviewer",
-                "从生产稳定性角度评估该方案的风险：",
+                "From a production stability perspective evaluate the risk of this proposal:",
                 debate_history
             )
             debate_history.append({"role": "safety_reviewer", "content": safety_response})
@@ -289,7 +289,7 @@ class DebateOrchestrator:
             # Proposer Responds
             defense = self._agent_respond(
                 "proposer",
-                "回应以上质疑，必要时修改和完善你的方案：",
+                "Evaluate the risks of this proposal from a production stability standpoint:",
                 debate_history
             )
             debate_history.append({"role": "proposer", "content": defense})
@@ -297,7 +297,7 @@ class DebateOrchestrator:
         # Chair Summarizes
         conclusion = self._agent_respond(
             "moderator",
-            "综合所有讨论，给出最终决策建议（通过/拒绝/修改后通过），说明理由：",
+            "Based on all discussions, give a final decision recommendation (approve/deny/approve after modification), explaining the reasons:",
             debate_history
         )
         
@@ -305,7 +305,7 @@ class DebateOrchestrator:
             "original_proposal": proposal,
             "debate_history": debate_history,
             "conclusion": conclusion,
-            "approved": "通过" in conclusion or "修改后通过" in conclusion,
+            "approved": "approve" in conclusion or "approve after modification" in conclusion,
         }
     
     def _agent_respond(self, role: str, task: str, history: list) -> str:
@@ -315,7 +315,7 @@ class DebateOrchestrator:
         if history:
             messages.append({
                 "role": "user",
-                "content": f"辩论历史：\n{self._format_history(history)}"
+                "content": f"Debate history:\n{self._format_history(history)}"
             })
         
         messages.append({"role": "user", "content": task})
@@ -452,16 +452,16 @@ task_message = AgentMessage(
     message_type=MessageType.TASK_ASSIGN,
     content={
         "task_id": "task-001",
-        "description": "检查 production 命名空间的网络连通性",
+        "description": "Check the network connectivity in the production namespace",
         "context": {
             "affected_pods": ["api-server-xxx", "backend-yyy"],
-            "symptoms": "前端无法访问后端 Service",
+            "symptoms": "Frontend cannot access the Backend Service",
         },
         "constraints": {
             "readonly_only": True,
             "timeout_seconds": 60,
         },
-        "expected_output": "网络连通性诊断报告（含根因和修复建议）"
+        "expected_output": "Network connectivity diagnostic report (including root cause and repair suggestions)",
     },
     priority=8,
 )
@@ -477,13 +477,13 @@ result_message = AgentMessage(
         "task_id": "task-001",
         "status": "completed",
         "findings": {
-            "root_cause": "NetworkPolicy 阻断了 frontend → backend 的 8080 端口",
-            "evidence": ["kubectl get networkpolicy 输出...", "连通性测试结果..."],
+            "root_cause": "NetworkPolicy blocked the frontend → backend port 8080",
+            "evidence": ["kubectl get networkpolicy output...", "Test results of connectivity..."],
             "confidence": 0.95,
         },
         "recommendations": [
-            "修改 NetworkPolicy 允许 frontend → backend:8080",
-            "或添加 backend Pod 的 spec.selector 标签",
+            "modify NetworkPolicy to allow frontend → backend:8080",
+            "or add a selector label to the Backend Pod's spec",
         ],
         "fix_yaml": "apiVersion: networking.k8s.io/v1\n...",
     },
@@ -590,7 +590,7 @@ class ConflictResolver:
     def _weighted_confidence(self, responses: list[dict]) -> dict:
         """Weighted confidence (suitable for confident conclusions)"""
         if not responses:
-            return {"conclusion": "无法确定", "confidence": 0}
+            return {"conclusion": "Cannot determine", "confidence": 0}
         
         # Sort by Confidence
         sorted_responses = sorted(
@@ -651,7 +651,7 @@ class ConflictResolver:
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                         API Gateway                               │
-│                    (认证、限流、路由)                               │
+│                    (Authentication, throttling, routing)                               │
 └────────────────────────────┬─────────────────────────────────────┘
                               │
 ┌────────────────────────────▼─────────────────────────────────────┐
@@ -671,13 +671,13 @@ class ConflictResolver:
 │   └────────────┘  └────────────┘  └────────────┘  └──────────┘   │
 │         │               │               │               │         │
 │   ┌─────▼───────────────▼───────────────▼───────────────▼──────┐ │
-│   │              Shared Tool Registry (工具注册中心)              │ │
+│   │              Shared Tool Registry (tool registry)              │ │
 │   └───────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼────────────────────────────────────┐
 │                      Observability Stack                           │
-│      LangSmith / Langfuse + Prometheus + Grafana + 告警            │
+│      LangSmith / Langfuse + Prometheus + Grafana + Alerting            │
 └──────────────────────────────────────────────────────────────────┘
 ```
 

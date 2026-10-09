@@ -1,7 +1,8 @@
----title: Agent 评测体系与可观测性 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 工程质量专题 | **最后更新**: 2026-03 | **关键词**: Agent
-  评测, LLM-as-Judge,'
-summary: 'description: ''**文档类型**: 工程质量专题 | **最后更新**: 2026-03 | **关键词**: Agent 评测,
+---
+title: Agent Evaluation System and Observability (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Quality Engineering Topic | **Last Updated**: 2026-03 | **Keywords**: Agent
+  evaluation, LLM-as-Judge,
+summary: 'description: ''**Document Type**: Quality Engineering Topic | **Last Updated**: 2026-03 | **Keywords**: Agent evaluation,
   LLM-as-Judge,'
 category: general
 tags:
@@ -21,15 +22,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- Agent 评测体系与可观测性 是什么
-- 如何 Agent 评测体系与可观测性
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent Evaluation System and Observability
+- How is Agent Evaluation System and Observability
+- Best Practices for Kubernetes 14 ai ml infra
 trigger_keywords:
 - Agent
-- 评测体系与可观测性
+- What is Agent Evaluation System and Observability
 - ai
 - ml
 - infra
@@ -43,18 +44,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/08-agent-evaluation-observability.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained within this document are executable and should be run only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands are annotated: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: Agent 评测体系与可观测性
-description: '**文档类型**: 工程质量专题 | **最后更新**: 2026-03 | **关键词**: Agent 评测, LLM-as-Judge,
-  RAGAS, Langfuse, LangSmith, Phoenix, 轨迹评估, [[OpenTelemetry|OpenTelemetry]], 可观测性, Agent 指标'
+title: Agent Evaluation Framework and Observability
+description: '**Document Type**: Engineering Quality Series | **Last Updated**: 2026-03 | **Keywords**: Agent Evaluation, LLM-as-Judge,
+  RAGAS, Langfuse, LangSmith, Phoenix, Track Assessment, [[OpenTelemetry|OpenTelemetry]], Observability, Agent Metrics'
 category: ai-agent
 tags:
 - ai
@@ -71,16 +74,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent 评测体系与可观测性 是什么
-- 如何 Agent 评测体系与可观测性
+- What is the Agent Evaluation Framework and Observability?
+- How does the Agent Evaluation Framework and Observability work?
 trigger_keywords:
 - Agent
-- 评测体系与可观测性
+- What is the Agent Evaluation Framework and Observability?
 - ai
 - agent
 authors:
@@ -94,56 +97,56 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent 评测体系与可观测性
+# Agent Evaluation System and Observability
 
-> **文档类型**: 工程质量专题 | **最后更新**: 2026-03 | **关键词**: Agent 评测, LLM-as-Judge, RAGAS, Langfuse, LangSmith, Phoenix, 轨迹评估, OpenTelemetry, 可观测性, Agent 指标
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-没有评测的 Agent 是黑盒。评测体系解决"Agent 质量是否达标"的问题，可观测性解决"Agent 为什么这么做"的问题。本文覆盖从单轮问答到多步轨迹的全面评测框架、RAGAS/LLM-as-Judge 实施方法、LangSmith/[[domain-14-ai-ml-infra/03-agent-runtime/13-agent-observability-langfuse.md|Langfuse]]/Phoenix 的配置与使用，以及生产 Agent 的关键监控指标体系。
+> **Document Type**: Engineering Quality Series | **Last Updated**: 2026-03 | **Keywords**: Agent Evaluation, LLM-as-Judge, RAGAS, Langfuse, LangSmith, Phoenix, Track Assessment, OpenTelemetry, Observability, Agent Metrics
 
 ---
 
-<!-- chunk: 1. Agent 评测体系全景 -->## 1. Agent 评测体系全景
+## 1. Overview
 
-## 1.1 评测维度
+Unrated Agents are black-box. The evaluation framework addresses the question "Is the Agent quality up to standard," while observability tackles "Why did the Agent do that." This document covers a comprehensive evaluation framework from single-turn Q&A to multi-step trajectories, implementation methods for RAGAS/LLM-as-Judge, configurations and usage of LangSmith/[[domain-14-ai-ml-infra/03-agent-runtime/13-agent-observability-langfuse.md|Langfuse]]/Phoenix, and key monitoring metrics for production Agents.
+
+---
+
+## 1.1 Evaluation Panorama
+
+## 1.1.1 Evaluation Dimensions
 
 ```
-Agent 评测四维度
+Agent Evaluation Four Dimensions
 │
-├── 1. 准确性（Correctness）
-│      答案是否正确、事实是否准确
-│      指标: 准确率、召回率、F1
+├── 1. Accuracy (Correctness)
+│      Is the answer correct, are the facts accurate
+│      Metrics: Accuracy Rate, Recall Rate, F1
 │
-├── 2. 效率（Efficiency）
-│      工具调用数量、Token 消耗、完成时间
-│      指标: 平均步骤数、Token/任务、延迟 P50/P95
+├── 2. Efficiency (Efficiency)
+│      Number of tool calls, Token consumption, completion time
+│      Metrics: Average Steps, Token/Task, Delay P50/P95
 │
-├── 3. 可靠性（Reliability）
-│      成功率、错误率、幻觉率
-│      指标: 任务完成率、工具调用成功率、重试率
+├── 3. Reliability (Reliability)
+│      Success rate, error rate, hallucination rate
+│      Metrics: Task Completion Rate, Tool Call Success Rate, Retry Rate
 │
-└── 4. 安全性（Safety）
-       有害输出率、提示注入抵抗、合规遵守
-       指标: 安全拦截率、PII 泄露率
+└── 4. Safety (Safety)
+       Harmful output rate, prompt injection resistance, compliance adherence
+       Metrics: Safety Intercept Rate, PII Leakage Rate
 ```
 
-## 1.2 评测粒度层次
+## 1.2 Granularity Level
 
-| 层次 | 评测对象 | 方法 | 工具 |
+| Level | Evaluation Object | Method | Tool |
 |------|---------|------|------|
-| **单轮问答** | 单次 LLM 调用的质量 | 人工/自动评分 | RAGAS |
-| **工具调用** | 单次工具选择和参数的准确性 | 对比预期工具调用 | 自定义测试集 |
-| **轨迹评估** | 整个 Agent 执行路径 | 轨迹 vs 最优路径 | LangSmith |
-| **端到端** | 用户目标是否最终达成 | 任务完成率 | 人工标注 + 自动化 |
+| **Single Turn Q&A** | Quality of a single LLM call | Manual/Auto Scoring | RAGAS |
+| **Tool Invocation** | Accuracy of a single tool selection and parameterization | Comparison against expected tool calls | Custom Test Set |
+| **Trajectory Evaluation** | Entire Agent execution path | Trajectory vs Optimal Path | LangSmith |
+| **End-to-End** | Whether the user's goal was ultimately achieved | Task Completion Rate | Manual Annotation + Automation |
 
 ---
 
-<!-- chunk: 2. RAGAS 评估框架 -->## 2. RAGAS 评估框架
+## 2. RAGAS Evaluation Framework
 
-## 2.1 核心指标详解
+## 2.1 Core Metrics Detailed
 
 ```python
 from ragas import evaluate
@@ -157,7 +160,7 @@ from ragas.metrics import (
 )
 from ragas.metrics.critique import harmfulness  # 有害性检测
 
-# 各指标含义：
+# Meaning of each metric:
 METRIC_EXPLANATIONS = {
     "faithfulness": """
         答案中的每个声明是否都能在检索到的上下文中找到支撑。
@@ -171,7 +174,7 @@ METRIC_EXPLANATIONS = {
     """,
     "context_precision": """
         检索到的上下文中，有多少比例是真正有用的。
-        衡量检索的"噪声"程度
+        measure the "noise" level of retrieval
         目标值：> 0.75
     """,
     "context_recall": """
@@ -181,7 +184,7 @@ METRIC_EXPLANATIONS = {
 }
 ```
 
-## 2.2 完整 RAGAS 评估 Pipeline
+## 2.2 Complete RAGAS Evaluation Pipeline
 
 ```python
 from datasets import Dataset
@@ -193,7 +196,7 @@ import pandas as pd
 
 class RAGASEvaluator:
     def __init__(self, eval_llm_model: str = "gpt-4o"):
-        # 评估用 LLM（建议用强模型）
+        # Evaluation using LLM (suggested to use strong models)
         self.eval_llm = LangchainLLMWrapper(
             ChatOpenAI(model=eval_llm_model, temperature=0)
         )
@@ -210,13 +213,13 @@ class RAGASEvaluator:
         test_cases 格式:
         [
           {
-            "question": "Pod Pending 最常见的原因？",
-            "ground_truth": "常见原因：1. 资源不足 2. 节点亲和性...",
+            "question": "Pod Pending most common reason?",
+            "ground_truth": "Common reasons: 1. Resource shortage 2. Node affinity...",
           },
           ...
         ]
         """
-        # 运行 RAG Pipeline 生成答案
+        # Generate answers using RAG Pipeline
         results = []
         for case in test_cases:
             rag_result = rag_pipeline.query(case["question"])
@@ -227,15 +230,15 @@ class RAGASEvaluator:
                 "ground_truth": case.get("ground_truth", ""),
             })
         
-        # 构建评估数据集
+        # Build evaluation dataset
         dataset = Dataset.from_list(results)
         
-        # 选择适用的指标
+        # Choose applicable metrics
         metrics = [faithfulness, answer_relevancy, context_precision]
         if any(r.get("ground_truth") for r in results):
             metrics.extend([context_recall, answer_correctness])
         
-        # 执行评估
+        # Execute evaluation
         eval_result = evaluate(
             dataset=dataset,
             metrics=metrics,
@@ -243,18 +246,18 @@ class RAGASEvaluator:
             embeddings=self.eval_embeddings,
         )
         
-        # 生成报告
+        # Generate report
         df = eval_result.to_pandas()
         
-        print("\n=== RAG 评估报告 ===")
+        print("\n=== RAG Evaluation Report ===")
         print(f"Faithfulness:       {eval_result['faithfulness']:.3f}")
         print(f"Answer Relevancy:   {eval_result['answer_relevancy']:.3f}")
         print(f"Context Precision:  {eval_result['context_precision']:.3f}")
         
-        # 找出表现差的用例（分数低于 0.7）
+        # Find poor performing cases (scores below 0.7)
         poor_cases = df[df["faithfulness"] < 0.7]
         if len(poor_cases) > 0:
-            print(f"\n警告：{len(poor_cases)} 个用例 faithfulness < 0.7，需要重点检查：")
+            print(f"\nWarning: {len(poor_cases)} cases have faithfulness < 0.7, need focused review:")
             print(poor_cases"question", "faithfulness".to_string())
         
         return df
@@ -262,11 +265,11 @@ class RAGASEvaluator:
 
 ---
 
-<!-- chunk: 3. LLM-as-Judge：自动化评测 -->## 3. LLM-as-Judge：自动化评测
+## 3. LLM-as-Judge: Automated Evaluation
 
-## 3.1 基本原理
+## 3.1 Basic Principle
 
-使用 LLM 作为评估者（Judge），对 Agent 的输出质量进行打分：
+Utilize an LLM as the evaluator (Judge) to score the quality of an Agent's output:
 
 ```python
 from enum import Enum
@@ -279,7 +282,7 @@ class JudgeScore(Enum):
     FAILING = 1    # 不合格，需要完全重写
 
 class LLMJudge:
-    """LLM-as-Judge 评测器"""
+    """LLM-as-Judge Evaluator"""
     
     JUDGE_PROMPT_TEMPLATE = """
     你是 Kubernetes 运维领域的专家评委。请评估以下 AI Agent 回答的质量。
@@ -307,9 +310,9 @@ class LLMJudge:
         "actionability": <1-5>,
         "safety": <1-5>,
         "overall_score": <1-5>,
-        "reasoning": "<评分理由，100字以内>",
-        "critical_issues": ["<严重问题1>", "<严重问题2>"],
-        "improvement_suggestions": ["<建议1>", "<建议2>"]
+        "reasoning": "<rationale, 100 words or less>",
+        "critical_issues": ["<critical issue 1>", "<critical issue 2>"],
+        "improvement_suggestions": ["<improvement suggestion 1>", "<improvement suggestion 2>"]
     }}
     """
     
@@ -322,10 +325,10 @@ class LLMJudge:
         agent_answer: str,
         ground_truth: str = "",
     ) -> dict:
-        """评估单个回答"""
+        """Evaluate single response"""
         prompt = self.JUDGE_PROMPT_TEMPLATE.format(
             question=question,
-            ground_truth=ground_truth or "（无参考答案）",
+            ground_truth=ground_truth or "(no reference answer)",
             agent_answer=agent_answer,
         )
         
@@ -334,7 +337,7 @@ class LLMJudge:
         try:
             scores = json.loads(response.content)
         except json.JSONDecodeError:
-            # 解析失败时的降级处理
+            # Degradation handling on failure
             scores = self._parse_scores_fallback(response.content)
         
         return scores
@@ -344,7 +347,7 @@ class LLMJudge:
         test_cases: list[dict],
         batch_size: int = 5,
     ) -> pd.DataFrame:
-        """批量评估"""
+        """Batch evaluation"""
         results = []
         
         for i in range(0, len(test_cases), batch_size):
@@ -363,21 +366,21 @@ class LLMJudge:
         
         df = pd.DataFrame(results)
         
-        print(f"\n=== LLM-as-Judge 评估结果 ===")
-        print(f"平均分：{df['overall_score'].mean():.2f} / 5.0")
-        print(f"达标率（>=3分）：{(df['overall_score'] >= 3).mean():.1%}")
+        print(f"\n=== LLM-as-Judge Evaluation Results ===")
+        print(f"Average score: {df['overall_score'].mean():.2f} / 5.0")
+        print(f"Pass rate (>=3 points): {(df['overall_score'] >= 3).mean():.1%}")
         
         return df
 ```
 
-## 3.2 轨迹评估（Trajectory Evaluation）
+## 3.2 Trajectory Evaluation (Trajectory Evaluation)
 
-评估 Agent 的**执行路径**，而非仅最终答案：
+Evaluate the Agent's **execution path** rather than just its final answer:
 
 ```python
 @dataclass
 class AgentTrajectory:
-    """Agent 执行轨迹"""
+    """Agent Execution Trajectory"""
     task: str
     steps: list[dict]  # [{"thought": "...", "action": "...", "observation": "..."}]
     final_answer: str
@@ -386,37 +389,37 @@ class AgentTrajectory:
     success: bool
 
 class TrajectoryEvaluator:
-    """评估 Agent 执行轨迹的质量"""
+    """Evaluate quality of Agent execution trajectory"""
     
     def evaluate_trajectory(
         self,
         trajectory: AgentTrajectory,
         optimal_step_count: int = None,
     ) -> dict:
-        """多维度评估轨迹"""
+        """Multi-dimensional evaluation of trajectory"""
         
         scores = {}
         
-        # 1. 效率评分（步骤数）
+        # 1. Efficiency score (steps)
         if optimal_step_count:
             efficiency = min(optimal_step_count / trajectory.total_steps, 1.0)
             scores["efficiency"] = efficiency
         
-        # 2. 工具调用质量
+        # 2. Quality of tool calls
         tool_calls = [s for s in trajectory.steps if s.get("action")]
         scores["tool_selection_accuracy"] = self._evaluate_tool_selection(tool_calls)
         
-        # 3. 推理连贯性
+        # 3. Consistency of reasoning
         scores["reasoning_coherence"] = self._evaluate_reasoning_chain(trajectory.steps)
         
-        # 4. 错误恢复能力
+        # 4. Error recovery capability
         errors = [s for s in trajectory.steps if "error" in str(s.get("observation", "")).lower()]
         scores["error_recovery"] = 1.0 if not errors else self._evaluate_recovery(errors, trajectory)
         
-        # 5. 任务完成
+        # 5. Task completion
         scores["task_completion"] = 1.0 if trajectory.success else 0.0
         
-        # 综合得分
+        # Overall Score
         weights = {
             "efficiency": 0.2,
             "tool_selection_accuracy": 0.3,
@@ -432,7 +435,7 @@ class TrajectoryEvaluator:
         return scores
     
     def _evaluate_tool_selection(self, tool_calls: list) -> float:
-        """评估工具选择是否合理"""
+        """Evaluate whether tool selection is reasonable"""
         if not tool_calls:
             return 1.0
         
@@ -441,49 +444,49 @@ class TrajectoryEvaluator:
             action = call.get("action", "")
             observation = str(call.get("observation", ""))
             
-            # 检查是否重复调用了相同工具（浪费）
+            # Check if the same tool was called repeatedly (waste)
             if i > 0 and action == tool_calls[i-1].get("action"):
                 issues += 1
             
-            # 检查工具调用是否返回了明显不相关的结果
-            # （简化：实际需要 LLM 评估）
+            # Check if the tool call returned clearly unrelated results
+            # (Simplified: actual need for LLM evaluation)
         
         return max(0.0, 1.0 - issues * 0.2)
 ```
 
 ---
 
-<!-- chunk: 4. 可观测性平台 -->## 4. 可观测性平台
+## 4. Observability Platform
 
-## 4.1 Langfuse（推荐：开源可自托管）
+## 4.1 Langfuse (Recommended: Open Source Self-Hosted)
 
 ```python
 from langfuse import Langfuse
 from langfuse.decorators import observe, langfuse_context
 
-# 初始化
+# Initialization
 langfuse = Langfuse(
     public_key="pk-lf-...",
     secret_key="sk-lf-...",
     host="http://langfuse.your-domain.com",  # 自托管实例
 )
 
-# 方式1：使用装饰器（最简单）
+# Method 1: Using Decorator (simplest)
 @observe(name="k8s_diagnosis_agent")
 def run_diagnosis_agent(problem: str) -> str:
-    """整个函数的执行会被追踪"""
+    """The execution of the entire function will be traced"""
     
-    # 更新 span 元数据
+    # Update span metadata
     langfuse_context.update_current_trace(
-        name=f"诊断: {problem[:50]}",
+        name=f"diagnosis: {problem[:50]}"
         tags=["production", "k8s-ops"],
         user_id="ops-engineer-001",
     )
     
-    # 执行 Agent
+    # Execute Agent
     result = agent_executor.invoke({"input": problem})
     
-    # 记录评估分数
+    # Record evaluation score
     langfuse_context.score_current_trace(
         name="task_completion",
         value=1 if result["success"] else 0,
@@ -491,7 +494,7 @@ def run_diagnosis_agent(problem: str) -> str:
     
     return result["output"]
 
-# 方式2：手动追踪（更细粒度控制）
+# Method 2: Manual Tracing (more fine-grained control)
 def traced_tool_call(tool_name: str, args: dict, trace_id: str) -> str:
     span = langfuse.span(
         trace_id=trace_id,
@@ -507,15 +510,15 @@ def traced_tool_call(tool_name: str, args: dict, trace_id: str) -> str:
         span.end(
             output=str(e),
             level="ERROR",
-            status_message=f"工具调用失败: {type(e).__name__}"
+            status_message=f"tool invocation failed: {type(e).__name__}"
         )
         raise
 ```
 
-## 4.2 Langfuse K8s 自托管部署
+## 4.2 Langfuse K8s Self-Hosted Deployment
 
 ```yaml
-# Langfuse Helm 部署
+# Langfuse Helm Deployment
 helm repo add langfuse https://langfuse.github.io/langfuse-k8s
 helm install langfuse langfuse/langfuse \
   --namespace ai-observability \
@@ -553,22 +556,22 @@ resources:
     cpu: "1"
 ```
 
-## 4.3 LangSmith（OpenAI 生态最完整）
+## 4.3 LangSmith (Most Comprehensive in the OpenAI Ecosystem)
 
 ```python
 from langchain.callbacks.tracers import LangChainTracer
 from langsmith import Client
 
-# 配置 LangSmith
+# Configure LangSmith
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "ls__..."
 os.environ["LANGCHAIN_PROJECT"] = "kudig-k8s-agent"
 
-# LangChain 会自动追踪（无需额外代码）
-result = agent_executor.invoke({"input": "诊断 Pod Pending 问题"})
+# LangChain will automatically trace (no additional code needed)
+result = agent_executor.invoke({"input": "diagnosis Pod Pending issue"})
 
-# 手动提交评估
+# Manually submit evaluation
 client = Client()
 
 def submit_evaluation(run_id: str, score: float, comment: str):
@@ -581,77 +584,77 @@ def submit_evaluation(run_id: str, score: float, comment: str):
     )
 ```
 
-## 4.4 Phoenix（Arize）：本地可观测性
+## 4.4 Phoenix (Arize): Local Observability
 
 ```python
 import phoenix as px
 from phoenix.trace.langchain import LangChainInstrumentor
 
-# 启动本地 Phoenix 服务
+# Start local Phoenix service
 px.launch_app()
 
-# 自动追踪 LangChain 调用
+# Automatically trace LangChain calls
 LangChainInstrumentor().instrument()
 
-# 执行后在 http://localhost:6006 查看追踪
-result = agent_executor.invoke({"input": "问题描述"})
+# View tracing after execution at http://localhost:6006
+result = agent_executor.invoke({"input": "issue description"})
 ```
 
 ---
 
-<!-- chunk: 5. 生产监控指标体系 -->## 5. 生产监控指标体系
+## 5. Production Monitoring Metric System
 
-## 5.1 Prometheus 指标定义
+## 5.1 Prometheus Metric Definitions
 
 ```python
 from prometheus_client import Counter, Histogram, Gauge, Summary
 
-# Agent 业务指标
+# Agent Business Metrics
 agent_requests_total = Counter(
     'agent_requests_total',
-    'Agent 处理的总请求数',
+    'Number of total requests processed by Agent',
     ['agent_type', 'status', 'problem_type']
 )
 
 agent_task_duration_seconds = Histogram(
     'agent_task_duration_seconds',
-    'Agent 任务执行时间（秒）',
+    'Total execution time of Agent tasks (seconds)',
     ['agent_type'],
     buckets=[0.5, 1, 2, 5, 10, 30, 60, 120]
 )
 
 agent_tool_calls_total = Counter(
     'agent_tool_calls_total',
-    'Agent 工具调用总次数',
+    'Total number of tool invocations by Agent',
     ['tool_name', 'status']
 )
 
 agent_llm_tokens_total = Counter(
     'agent_llm_tokens_total',
-    'LLM Token 总消耗',
+    'Total LLM tokens consumed'
     ['model', 'token_type']  # token_type: input/output
 )
 
 agent_iteration_count = Histogram(
     'agent_iteration_count',
-    'Agent 单次任务的迭代次数',
+    'Agent single task iteration count',
     ['agent_type'],
     buckets=[1, 2, 3, 5, 8, 10, 15, 20]
 )
 
 agent_hallucination_rate = Gauge(
     'agent_hallucination_rate',
-    'Agent 幻觉率（滑动窗口）',
+    'Agent hallucination rate (sliding window)',
     ['agent_type']
 )
 
 agent_task_success_rate = Gauge(
     'agent_task_success_rate',
-    '任务成功率（最近 100 次）',
+    'Task success rate (last 100 times)',
     ['agent_type']
 )
 
-# 在 Agent 执行中埋点
+# In-agent instrumentation
 class InstrumentedAgent:
     def run(self, task: str, agent_type: str = "general") -> dict:
         start_time = time.time()
@@ -663,7 +666,7 @@ class InstrumentedAgent:
             status = "error"
             raise
         finally:
-            # 记录指标
+            # Record metrics
             duration = time.time() - start_time
             problem_type = classify_problem(task)
             
@@ -678,25 +681,25 @@ class InstrumentedAgent:
         return result
 ```
 
-## 5.2 关键告警规则
+## 5.2 Key Alert Rules
 
 ```yaml
-# Prometheus AlertManager 规则
+# Prometheus AlertManager rules
 groups:
   - name: agent_alerts
     rules:
     
-    # 任务成功率过低
+    # Task success rate is too low
     - alert: AgentTaskSuccessRateLow
       expr: agent_task_success_rate < 0.7
       for: 10m
       labels:
         severity: critical
       annotations:
-        summary: "Agent 任务成功率过低（{{ $value | humanizePercentage }}）"
-        description: "{{ $labels.agent_type }} 的成功率已低于 70%，需要立即检查"
+        summary: "Agent task success rate is too low ({{ $value | humanizePercentage }})",
+        description: "{{ $labels.agent_type }}'s success rate has dropped below 70%, immediate inspection is required",
     
-    # LLM 响应延迟高
+    # LLM response latency is high
     - alert: LLMHighLatency
       expr: |
         histogram_quantile(0.95, 
@@ -706,9 +709,9 @@ groups:
       labels:
         severity: warning
       annotations:
-        summary: "Agent 响应 P95 延迟超过 30 秒"
+        summary: "Agent response P95 latency exceeds 30 seconds",
     
-    # Token 消耗异常
+    # Token consumption is abnormal
     - alert: TokenConsumptionSpike
       expr: |
         rate(agent_llm_tokens_total[5m]) > 
@@ -717,10 +720,10 @@ groups:
       labels:
         severity: warning
       annotations:
-        summary: "Token 消耗异常增长（超过历史基线 3 倍）"
-        description: "可能存在无限循环或异常大量请求"
+        summary: "Token consumption abnormally increases (more than 3 times the historical baseline)",
+        description: "There may be an infinite loop or excessive requests",
     
-    # 工具调用失败率高
+    # High failure rate of tool calls
     - alert: ToolCallFailureRateHigh
       expr: |
         rate(agent_tool_calls_total{status="error"}[5m]) /
@@ -729,39 +732,39 @@ groups:
       labels:
         severity: warning
       annotations:
-        summary: "工具调用失败率超过 30%"
+        summary: "Tool invocation failure rate exceeds 30%"
 ```
 
-## 5.3 Grafana Dashboard 关键面板
+## 5.3 Critical Panels in Grafana Dashboard
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-Agent 监控 Dashboard 推荐面板:
+# 🟢 Low-risk: read-only/information collection, usually with no side effects
+Agent Monitoring Dashboard Recommendation Panel:
 
 ┌─────────────────────────────────────────┐
-│  任务成功率  │  平均延迟  │  Token/小时  │
+│  Task Success Rate  │  Average Delay  │  Tokens/Hour  │
 │   96.3%    │  4.2s     │  125K/h     │
 ├─────────────────────────────────────────┤
-│      任务完成时间分布（P50/P95/P99）       │
+│      Distribution of task completion times (P50/P95/P99)       │
 │  P50: 2.1s  P95: 8.3s  P99: 24s       │
 ├─────────────────────────────────────────┤
-│  工具调用统计      │  按问题类型分布        │
-│  - kubectl: 45%   │  - 网络: 32%          │
-│  - rag_query: 30% │  - 存储: 18%          │
-│  - search: 25%    │  - 调度: 28%          │
+│  Statistics of tool calls      │  Distribution by problem type        │
+│  - kubectl: 45%   │  - Network: 32%          │
+│  - rag_query: 30% │  - Storage: 18%          │
+│  - search: 25%    │  - Scheduling: 28%          │
 ├─────────────────────────────────────────┤
-│         按时间的 Token 消耗趋势           │
-│  [成本监控图表]                           │
+│         The Token consumption trend over time           │
+│  [Cost monitoring chart]                           │
 ├─────────────────────────────────────────┤
-│     最近失败任务列表（点击查看 Trace）      │
+│     A list of recently failed tasks (click to view Trace)      │
 └─────────────────────────────────────────┘
 ```
 ---
 
-<!-- chunk: 6. 自动化评估 CI/CD 集成 -->## 6. 自动化评估 CI/CD 集成
+## 6. Automated Evaluation of CI/CD Integration
 
 ```yaml
-# GitHub Actions：Agent 质量门禁
+# GitHub Actions: Agent quality gateways
 name: Agent Quality Gate
 
 on:
@@ -849,54 +852,54 @@ if __name__ == "__main__":
 
 ---
 
-<!-- chunk: 7. 最佳实践与反模式 -->## 7. 最佳实践与反模式
+## 7. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **评测集要真实**：从生产日志中采样真实问题，而非人工构造理想化用例
-- **持续评估**：每次代码/提示词变更后自动运行评估，防止质量回退
-- **分层监控**：同时监控系统级指标（延迟/成本）和业务级指标（准确性/完成率）
-- **可观测性从第一天开始**：生产上线时就接入追踪，而非出问题后再补
-- **用 LLM-as-Judge 节省人力**：人工评分 10% 作为标定集，其余用 LLM Judge
+- **Evaluation Sets must be realistic**: Sample real problems from production logs rather than crafting idealized use cases.
+- **continuous evaluation**: automatically run evaluations after each code/prompt change to prevent quality regression
+- **multi-layer monitoring**: monitor system-level metrics (latency/cost) and business-level metrics (accuracy/completeness) simultaneously
+- **observability from day one**: integrate tracing upon production launch, not after issues arise
+- **use LLM-as-Judge to save manpower**: use manual scoring as a calibration set, the rest use LLM for judging
 
-## 反模式
+## Anti-patterns
 
-- **只评估 Happy Path**：测试集全是简单问题，上线后遇到边缘情况崩溃
-- **Faithfulness 忽略**：只看最终准确率，不检查是否有幻觉——在 K8s 运维场景幻觉会造成真实问题
-- **无基线对比**：没有记录历史评估分数，无法判断版本升级是进步还是退步
-- **评估用同一个模型**：用 GPT-4o 生成答案又用 GPT-4o 评估，存在同质偏见
+- **only evaluate the happy path**: test sets are simple problems, but the system crashes on edge cases after deployment
+- **ignore faithfulness**: focus solely on final accuracy without checking hallucinations—hallucinations can cause real issues in Kubernetes ops scenarios
+- **no baseline comparison**: no historical assessment scores recorded, unable to determine if version upgrades are progress or regressions
+- **evaluate with the same model**: generate answers with GPT-4o and assess them with GPT-4o, leading to homogenization bias
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| document | related content |
 |------|---------|
-| [04 - RAG 检索](./04-rag-knowledge-retrieval.md) | RAGAS 评估 RAG 管道质量 |
-| [09 - 生产部署](./09-production-deployment-guide.md) | Prometheus/Grafana 在 K8s 的配置 |
-| [domain-20-enterprise-monitoring-alerting](../domain-06-observability/) | 企业级监控告警系统 |
-| [domain-06-observability](../domain-06-observability/) | 可观测性基础设施 |
+| [04 - RAG to search](./04-rag-knowledge-retrieval.md) | RAGAS evaluates the quality of the RAG pipeline |
+| [09 - Production Deployment](./09-production-deployment-guide.md) | Prometheus/Grafana in K8s Configuration |
+| [domain-20-enterprise-monitoring-alerting](../domain-06-observability/) | Enterprise-grade monitoring and alerting system |
+| [domain-06-observability](../domain-06-observability/) | Observability infrastructure |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content for the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian-related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
-- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|成本与延迟优化策略]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval Enhancement Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
+- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|Cost and Latency Optimization Strategies]]
 
 ## Related
 

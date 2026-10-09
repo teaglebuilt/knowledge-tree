@@ -1001,9 +1001,13 @@ def _segments(line: str) -> list[tuple[int, int]]:
     spans: list[list[int]] = [[hits[0], hits[0] + 1]]
     for i in hits[1:]:
         gap = line[spans[-1][1] : i]
-        # Keep a phrase whole across CJK punctuation, spaces and digits.
+        # Keep a phrase whole across CJK/ASCII punctuation, spaces and digits
+        # (`问题: 集群网络不通` must stay one phrase, not two).
         if len(gap) <= 6 and all(
-            c.isspace() or c.isdigit() or c in "\u3001\u3002\uff0c\uff1a\uff1b\uff08\uff09()\u00b7-\u2014/." for c in gap
+            c.isspace()
+            or c.isdigit()
+            or c in "\u3001\u3002\uff0c\uff1a\uff1b\uff08\uff09()\u00b7-\u2014/.:;,"
+            for c in gap
         ):
             spans[-1][1] = i + 1
         else:
@@ -1015,37 +1019,93 @@ def _non_latin_count(text: str) -> int:
     return len(_BLOCK_SCRIPT_RE.findall(text))
 
 
+def _peel_residual_cjk(client: VllmClient, prompts: PromptBank, text: str) -> str | None:
+    """
+    Given a mostly-English hybrid (`cluster network不通`), translate leftover
+    CJK spans and splice them back. One extra hop for stubborn short fragments.
+    """
+    spans = _segments(text)
+    if not spans:
+        return text if not _BLOCK_SCRIPT_RE.search(text) else None
+    phrases = [text[a:b] for a, b in spans]
+    system = prompts.phrase()
+    got: dict[int, str] = {}
+    for i, phrase in enumerate(phrases, 1):
+        payload = (
+            f"{i}\t{phrase}\n"
+            "# Translate every character to English. Output zero non-Latin characters."
+        )
+        try:
+            reply = client.complete(system, payload)
+        except GatewayError:
+            return None
+        cand = _parse_reply(reply, {i}).get(i)
+        if cand is None:
+            return None
+        cleaned = fold_fullwidth_punctuation(cand.strip().strip("\\\"'`"))
+        if not cleaned or _BLOCK_SCRIPT_RE.search(cleaned):
+            return None
+        got[i] = cleaned
+    out: list[str] = []
+    prev = 0
+    for i, (a, b) in enumerate(spans):
+        gap = text[prev:a]
+        piece = got[i + 1]
+        if gap and piece and gap[-1].isalnum() and piece[0].isalnum():
+            piece = " " + piece
+        out.append(gap)
+        out.append(piece)
+        prev = b
+    out.append(text[prev:])
+    merged = "".join(out)
+    if _BLOCK_SCRIPT_RE.search(merged):
+        return None
+    return merged
+
+
 def _translate_phrases(
     client: VllmClient,
     phrases: list[str],
     prompts: PromptBank,
 ) -> dict[int, str]:
-    """Translate phrases; drop dirty replies and retry misses one at a time."""
+    """Translate phrases; peel hybrid replies; retry misses one at a time."""
     if not phrases:
         return {}
     wanted = list(range(1, len(phrases) + 1))
     got: dict[int, str] = {}
     system = prompts.phrase()
 
-    def ask(indices: list[int]) -> None:
+    def ask(indices: list[int], *, strict: bool = False) -> None:
         if not indices:
             return
         payload = "\n".join(f"{i}\t{phrases[i - 1]}" for i in indices)
+        if strict:
+            payload += (
+                "\n# IMPORTANT: every phrase must be pure English "
+                "(no CJK/hiragana/hangul/cyrillic)."
+            )
         try:
             reply = client.complete(system, payload)
         except GatewayError:
             return
         for i, text in _parse_reply(reply, set(indices)).items():
-            # Small models occasionally glue escapes (`\dedicated`) or wrap quotes.
-            cleaned = text.strip().strip("\\\"'`")
-            if not cleaned or _BLOCK_SCRIPT_RE.search(cleaned):
+            cleaned = fold_fullwidth_punctuation(text.strip().strip("\\\"'`"))
+            if not cleaned:
                 continue
+            if _BLOCK_SCRIPT_RE.search(cleaned):
+                peeled = _peel_residual_cjk(client, prompts, cleaned)
+                if peeled is None:
+                    continue
+                cleaned = peeled
             got[i] = cleaned
 
     ask(wanted)
+    missing = [i for i in wanted if i not in got]
+    if missing:
+        ask(missing, strict=True)
     for i in wanted:
         if i not in got:
-            ask([i])
+            ask([i], strict=True)
     return got
 
 
@@ -1067,6 +1127,12 @@ def _repair_by_segment(
     phrases = [line[a:b] for a, b in spans]
     got = _translate_phrases(client, phrases, prompts)
     if len(got) != len(phrases):
+        # Diagram / bracket labels: try the whole human-readable run as one phrase.
+        m = re.match(r"^(\s*[\[\(]?)(.*?)([\]\)]?\s*)$", line)
+        if m and _SEGMENT_SCRIPT_RE.search(m.group(2)):
+            whole = _translate_phrases(client, [m.group(2).strip()], prompts).get(1)
+            if whole is not None:
+                return _clean_translated(f"{m.group(1)}{whole}{m.group(3)}")
         return None
     out: list[str] = []
     prev = 0

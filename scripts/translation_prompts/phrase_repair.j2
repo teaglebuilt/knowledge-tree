@@ -8,6 +8,13 @@ Rules (must follow):
   to the phrase (bad: `3专线_access`; good: `3\tdedicated line`).
 - Output nothing else: no preamble, no commentary, no quotes, no code fences.
 - Translate every non-English word, including short fragments next to Latin
-  acronyms (e.g. `专线` -> `dedicated line`). Never leave source-language characters.
+  acronyms (e.g. `专线` -> `dedicated line`, `不通` -> `unreachable`).
+  Never leave source-language characters — not even two-character leftovers.
 - These are fragments pulled out of technical documentation. Keep product names,
   versions, and identifiers as they are, and add no punctuation that was not there.
+
+Examples:
+  in   1\t集群网络不通
+  out  1\tcluster network unreachable
+  in   2\t问题: 集群网络不通
+  out  2\tproblem: cluster network unreachable
