@@ -935,7 +935,9 @@ def _line_problem(
         return "missing from reply"
     # Link destinations (`](#中文-slug)`) are repaired in postprocess — do not
     # fail a line that only has source-language text inside `(...)` after `]`.
-    script_probe = _strip_link_destinations(translated)
+    # Fold fullwidth punct before the residual check so `（…）` alone cannot fail
+    # a line whose Chinese words were already translated.
+    script_probe = fold_fullwidth_punctuation(_strip_link_destinations(translated))
     if _BLOCK_SCRIPT_RE.search(script_probe):
         return "still contains source-language text"
     if role == "fence_diagram":
@@ -993,26 +995,57 @@ _SEGMENT_SCRIPT_RE = re.compile(
 )
 
 
+_SEGMENT_GAP_PUNCT = (
+    "\u3001\u3002\uff0c\uff1a\uff1b\uff08\uff09()\u00b7-\u2014/.:;,"
+)
+
+
+def _segment_gap_ok(gap: str) -> bool:
+    """True when a gap between CJK runs should keep them as one phrase."""
+    if len(gap) > 12:
+        return False
+    if all(c.isspace() or c.isdigit() or c in _SEGMENT_GAP_PUNCT for c in gap):
+        return True
+    # Short Latin islands are common inside Chinese asides: `，LLM ` / `（API）`.
+    return bool(
+        re.fullmatch(
+            r"[\s\d" + re.escape(_SEGMENT_GAP_PUNCT) + r"]*"
+            r"[A-Za-z][A-Za-z0-9_+/.-]{0,10}"
+            r"[\s\d" + re.escape(_SEGMENT_GAP_PUNCT) + r"]*",
+            gap,
+        )
+    )
+
+
 def _segments(line: str) -> list[tuple[int, int]]:
     """Maximal spans of source-language text, merging the punctuation between them."""
-    hits = [m.start() for m in _SEGMENT_SCRIPT_RE.finditer(line)]
+    # Fold fullwidth punct first so `（…）` doesn't confuse gap logic / leftovers.
+    line_for_hits = fold_fullwidth_punctuation(line)
+    hits = [m.start() for m in _SEGMENT_SCRIPT_RE.finditer(line_for_hits)]
     if not hits:
         return []
+    # Map hits back to the original line only when lengths match (fold is 1:1
+    # for the fullwidth ASCII range we convert).
+    if len(line_for_hits) != len(line):
+        line_for_hits = line
+        hits = [m.start() for m in _SEGMENT_SCRIPT_RE.finditer(line)]
     spans: list[list[int]] = [[hits[0], hits[0] + 1]]
     for i in hits[1:]:
-        gap = line[spans[-1][1] : i]
-        # Keep a phrase whole across CJK/ASCII punctuation, spaces and digits
-        # (`问题: 集群网络不通` must stay one phrase, not two).
-        if len(gap) <= 6 and all(
-            c.isspace()
-            or c.isdigit()
-            or c in "\u3001\u3002\uff0c\uff1a\uff1b\uff08\uff09()\u00b7-\u2014/.:;,"
-            for c in gap
-        ):
+        gap = line_for_hits[spans[-1][1] : i]
+        # Keep a phrase whole across punct/spaces/short Latin (`，LLM `).
+        if _segment_gap_ok(gap):
             spans[-1][1] = i + 1
         else:
             spans.append([i, i + 1])
-    return [(a, b) for a, b in spans]
+    # Expand each span to absorb adjacent fullwidth/ASCII parens wrapped around it.
+    expanded: list[tuple[int, int]] = []
+    for a, b in spans:
+        while a > 0 and line[a - 1] in "（(【[":
+            a -= 1
+        while b < len(line) and line[b] in "）)】]":
+            b += 1
+        expanded.append((a, b))
+    return expanded
 
 
 def _non_latin_count(text: str) -> int:
@@ -1121,18 +1154,32 @@ def _repair_by_segment(
     residual CJK next to Latin acronyms, or text trapped inside link syntax.
     Prefer calling this on a best-effort partial translation when one exists.
     """
+    # Normalize fullwidth punct up front so leftovers cannot fail verify as Fullwidth.
+    line = fold_fullwidth_punctuation(line)
     spans = _segments(line)
     if not spans:
-        return None
+        return _clean_translated(line) if not _SEGMENT_SCRIPT_RE.search(line) else None
     phrases = [line[a:b] for a, b in spans]
     got = _translate_phrases(client, phrases, prompts)
     if len(got) != len(phrases):
-        # Diagram / bracket labels: try the whole human-readable run as one phrase.
-        m = re.match(r"^(\s*[\[\(]?)(.*?)([\]\)]?\s*)$", line)
-        if m and _SEGMENT_SCRIPT_RE.search(m.group(2)):
-            whole = _translate_phrases(client, [m.group(2).strip()], prompts).get(1)
+        # One-shot: translate the whole aside from first CJK/fullwidth paren to last.
+        m = re.search(
+            r"([\u3400-\u9fff\uf900-\ufaff（(【[].*[\u3400-\u9fff\uf900-\ufaff）)】\]])",
+            line,
+        )
+        if m:
+            whole = _translate_phrases(client, [m.group(1)], prompts).get(1)
             if whole is not None:
-                return _clean_translated(f"{m.group(1)}{whole}{m.group(3)}")
+                return _clean_translated(line[: m.start()] + whole + line[m.end() :])
+        # Keep leading markers/identifiers (`❌ get_all_info`) and translate the rest.
+        m2 = re.match(
+            r"^(\s*(?:[\u2705\u274c\u26a0\ufe0f]\s*)?(?:[A-Za-z_][\w./+-]*\s*)*)(.*)$",
+            line,
+        )
+        if m2 and m2.group(2) and _SEGMENT_SCRIPT_RE.search(m2.group(2)):
+            whole = _translate_phrases(client, [m2.group(2).strip()], prompts).get(1)
+            if whole is not None:
+                return _clean_translated(m2.group(1) + whole)
         return None
     out: list[str] = []
     prev = 0

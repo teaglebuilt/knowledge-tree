@@ -154,7 +154,7 @@ Assessment Dimension          Existing Coverage    Agent Usability    Priority
 | `intent_queries` | Possible user query phrasings | Intent recognition → document matching | `"What to do when Pod is Pending"` |
 | `requires` | Prerequisite knowledge | Knowledge graph navigation | `[D4-01, D4-19]` |
 | `related` | Related documents | Recommend further reading | `[D12-06, D12-07]` |
-| `chunk_markers` | Intra-document chunking markers | Fine-grained retrieval granularity | `<!-- chunk: diagnosis-step-3 -->` |
+| `chunk_markers` | Intra-document chunking markers | Fine-grained retrieval granularity | `` |
 **Suggested Completion Plan — Complete Front Matter Specification**:
 
 ```yaml
@@ -169,9 +169,9 @@ target_roles: [sre, ops-engineer, developer]
 k8s_versions: [1.25, 1.26, 1.27, 1.28, 1.29, 1.30, 1.31, 1.32]
 severity_context: P0-P2  # Severity level range covered by this document
 intent_queries:
-  - "Pod 一直 Pending 怎么办"
+  - "A Pod is always Pending what do I do"
   - "Pod stuck in Pending state"
-  - "调度失败怎么排查"
+  - "How to troubleshoot scheduling failure"
   - "Insufficient cpu/memory"
   - "no nodes available to schedule"
 requires: [D4-01, D4-19, D1-01]  # Workload overview, scheduler config, architecture overview

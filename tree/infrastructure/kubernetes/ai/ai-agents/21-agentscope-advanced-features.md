@@ -1,7 +1,8 @@
----title: AgentScope 高级特性与扩展开发 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 高级特性专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
+---
+title: Advanced Features and Extension Development (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Advanced Feature Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
   Hooks, Middleware,'
-summary: 'description: ''**文档类型**: 高级特性专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
+summary: 'description: ''**Document Type**: Advanced Feature Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
   Hooks, Middleware,'
 category: general
 tags:
@@ -18,15 +19,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- AgentScope 高级特性与扩展开发 是什么
-- 如何 AgentScope 高级特性与扩展开发
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AgentScope Advanced Features and Extension Development
+- How to do AgentScope Advanced Features and Extension Development
+- Kubernetes 14 ai ml infra Best Practices
 trigger_keywords:
 - AgentScope
-- 高级特性与扩展开发
+- What are Advanced Features and Extension Development
 - ai
 - ml
 - infra
@@ -37,18 +38,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/21-agentscope-advanced-features.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that these commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: AgentScope 高级特性与扩展开发
-description: '**文档类型**: 高级特性专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, Hooks, Middleware,
-  RAG, A2A, Agent-to-Agent, 实时语音, Realtime Steering, 结构化输出, Agentic RL, 强化学习微调, 评测,
+title: AgentScope Advanced Features and Extension Development
+description: '**Document Type**: Advanced Features Special Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Hooks, Middleware, RAG, A2A, Agent-to-Agent, Realtime Voice, Realtime Steering, Structured Output, Agentic RL, Reinforcement Learning Fine-tuning, Evaluation,
+  RAG, A2A, Agent-to-Agent, Real-time Voice, Realtime Steering, Structured Output, Agentic RL, Reinforcement Learning Fine-tuning, Evaluation,
   ACEBench, Embedding'
 category: ai-agent
 tags:
@@ -63,16 +66,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AgentScope 高级特性与扩展开发 是什么
-- 如何 AgentScope 高级特性与扩展开发
+- What is AgentScope Advanced Features and Extension Development
+- How to use AgentScope Advanced Features and Extension Development
 trigger_keywords:
 - AgentScope
-- 高级特性与扩展开发
+- Advanced Features and Extension Development
 - ai
 - agent
 authors:
@@ -86,38 +89,38 @@ k8s_versions:
 - '1.32'
 ---
 
-# AgentScope 高级特性与扩展开发
+# AgentScope Advanced Features and Extension Development
 
-> **文档类型**: 高级特性专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, Hooks, Middleware, RAG, A2A, Agent-to-Agent, 实时语音, Realtime Steering, 结构化输出, Agentic RL, 强化学习微调, 评测, ACEBench, Embedding
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-AgentScope 除了核心的 Agent/Tool/Memory/Pipeline 之外，还提供了丰富的高级特性：Agent Hooks 和 Middleware 实现行为增强，RAG 支持知识增强，A2A 协议实现跨框架 Agent 通信，实时语音支持语音交互，Agentic RL 支持强化学习微调，以及完整的评测体系。
-
-本文系统讲解这些高级特性的设计原理、使用方法和生产实践。
+> **Document Type**: Advanced Features Special Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Hooks, Middleware, RAG, A2A, Agent-to-Agent, Realtime Voice, Realtime Steering, Structured Output, Agentic RL, Reinforcement Learning Fine-tuning, Evaluation, ACEBench, Embedding
 
 ---
 
-<!-- chunk: 1. Agent Hooks — 钩子函数 -->## 1. Agent Hooks — 钩子函数
+## Overview
 
-## 1.1 概念
+AgentScope offers a range of advanced features beyond its core components: Agent Hooks and Middleware for behavior enhancement, RAG for knowledge enhancement, A2A protocol for cross-framework Agent communication, real-time voice support for voice interaction, Agentic RL for reinforcement learning fine-tuning, and a comprehensive evaluation system.
 
-Hooks 允许在 Agent 核心函数（reply、observe、print、_reasoning、_acting）的**前后**插入自定义逻辑，无需修改 Agent 源码。
+This document systematically explains the design principles, usage methods, and production practices of these advanced features.
+
+---
+
+## 1. Agent Hooks — Hooks Function
+
+## 1.1 Concept
+
+Hooks allow custom logic to be inserted before or after the core functions of an Agent (reply, observe, print, _reasoning, _acting) without modifying the Agent's source code.
 
 ```
-Agent Hooks 执行流程
+Agent Hooks Execution Flow
 │
-├── before_reply_hook(msg)      ← 消息预处理、日志记录
-├── agent.reply(msg)            ← Agent 核心逻辑
-│   ├── before_reasoning_hook() ← 推理前钩子（ReActAgent）
-│   ├── agent._reasoning()      ← 推理
-│   ├── after_reasoning_hook()  ← 推理后钩子
-│   ├── before_acting_hook()    ← 行动前钩子
-│   ├── agent._acting()         ← 行动（执行工具）
-│   └── after_acting_hook()     ← 行动后钩子
-├── after_reply_hook(response)  ← 响应后处理、指标采集
+├── before_reply_hook(msg)      ← Message preprocessing, logging
+├── agent.reply(msg)            ← Core logic of Agent
+│   ├── before_reasoning_hook() ← Reasoning pre-hook (ReActAgent)
+│   ├── agent._reasoning()      ← Reasoning
+│   ├── after_reasoning_hook()  ← Reasoning post-hook
+│   ├── before_acting_hook()    ← Acting pre-hook
+│   ├── agent._acting()         ← Acting (executing tool)
+│   └── after_acting_hook()     ← Acting post-hook
+├── after_reply_hook(response)  ← Post-reply processing, metric collection
 │
 ├── before_observe_hook(msg)
 ├── agent.observe(msg)
@@ -128,104 +131,104 @@ Agent Hooks 执行流程
 └── after_print_hook()
 ```
 
-## 1.2 Hook 注册 API
+## 1.2 Hook Registration API
 
-AgentScope 提供两种 Hook 注册方式：
+AgentScope provides two ways to register Hooks:
 
-| 注册方式 | 作用范围 | 用途 |
+| Registration Method | Scope | Purpose |
 |---------|---------|------|
-| `register_instance_hook(agent, hook_fn)` | 单个 Agent 实例 | 特定 Agent 的调试/监控 |
-| `register_class_hook(AgentClass, hook_fn)` | 某类 Agent 的所有实例 | 全局级别的日志/审计 |
+| `register_instance_hook(agent, hook_fn)` | Single Agent Instance | Debugging/Monitoring specific Agent |
+| `register_class_hook(AgentClass, hook_fn)` | All Instances of a Class | Global-level Logging/Auditing |
 
-**统一的 Hook 签名**：
+**Unified Hook Signature**:
 
 ```python
 from agentscope.agent import ReActAgent
 from agentscope.hook import register_instance_hook, register_class_hook
 
 
-# Hook 函数统一签名: async def hook(agent, *args)
+# Hook function unified signature: async def hook(agent, *args)
 async def log_before_reply(agent, msg):
-    """reply 前的钩子：接收 agent 和输入消息"""
-    print(f"[{agent.name}] 收到消息: {msg.get_text_content()[:80]}")
+    """pre-reply hook: receives agent and input message"""
+    print(f"[{agent.name}] received message: {msg.get_text_content()[:80]}")
 
 
 async def log_after_reply(agent, response):
-    """响应后的钩子：接收 agent 和响应消息"""
-    print(f"[{agent.name}] 响应长度: {len(response.get_text_content())}")
+    """post-response hook: receives agent and response message"""
+    print(f"[{agent.name}] response length: {len(response.get_text_content())}")
 
 
-# 实例级别注册（仅影响单个 Agent）
+# Instance-level registration (only affects a single Agent)
 agent = ReActAgent(name="K8s-Expert", ...)
 register_instance_hook(agent, "before_reply", log_before_reply)
 register_instance_hook(agent, "after_reply", log_after_reply)
 
-# 类级别注册（影响 ReActAgent 的所有实例）
+# Class-level registration (affects all instances of ReActAgent)
 register_class_hook(ReActAgent, "before_reply", log_before_reply)
 ```
 
-## 1.3 常用 Hook 场景
+## 1.3 Common Hook Scenarios
 
-| Hook 位置 | 典型用途 |
+| Hook Location | Typical Use Case |
 |-----------|---------|
-| `before_reply` | 输入验证、敏感信息脱敏、请求限流 |
-| `after_reply` | 响应审计、延迟监控、Token 统计 |
-| `before_reasoning` | 注入额外上下文（如当前时间、环境信息） |
-| `after_reasoning` | 检查推理结果合理性 |
-| `before_acting` | 工具调用权限检查、风险评估 |
-| `after_acting` | 工具执行结果验证、错误处理增强 |
-| `before_observe` | 消息过滤（屏蔽无关信息） |
-| `before_print` | 输出格式化、多语言翻译 |
+| `before_reply` | Input validation, sensitive information de-identification, request rate limiting |
+| `after_reply` | Response auditing, delay monitoring, Token statistics |
+| `before_reasoning` | Inject additional context (such as current time, environment information) |
+| `after_reasoning` | Check the rationality of the reasoning results |
+| `before_acting` | Permission check for tool calls, risk assessment |
+| `after_acting` | Validate the execution result of the tool, enhance error handling |
+| `before_observe` | Message filtering (filter irrelevant information) |
+| `before_print` | Format output, multi-language translation |
 
 ---
 
-<!-- chunk: 3. Middleware — 中间件 -->## 3. Middleware — 中间件
+## 3. Middleware — Middleware
 
-> **重要**：AgentScope 的 Middleware 注册在 **Toolkit**（而非 Agent）上，采用洋葱模型。详细用法见 [18 - 工具系统第 9 节](./18-agentscope-tool-system.md)。
+> **Important**: The Middleware of **AgentScope** is registered on the **Toolkit** (rather than the Agent), using an onion model. Detailed usage can be found in [Section 9 of the Toolkit System](./18-agentscope-tool-system.md).
 
 ```
-Hooks vs Middleware 职责划分
+Hooks vs Middleware Responsibilities
 │
-├── Hooks    → 作用于 Agent 级别
-│   ├── register_instance_hook   → 单个 Agent
-│   └── register_class_hook      → 某类 Agent 的所有实例
-│   用途: 日志、审计、监控、上下文注入
+├── Hooks    → Applied at the Agent level
+│   ├── register_instance_hook   → Single Agent
+│   └── register_class_hook      → All instances of a certain class of Agent
+│   purpose: Logging, auditing, monitoring, context injection
 │
-└── Middleware → 作用于 Toolkit 级别
+└── Middleware → Applied at the Toolkit level
     └── toolkit.register_middleware(fn)
-    用途: 权限控制、输出截断、结果转换
+    purpose: Permission control, output truncation, result transformation
 ```
 
 ---
 
-<!-- chunk: 2. RAG — 检索增强生成 -->## 2. RAG — 检索增强生成
+## 2. RAG — Retrieval-Augmented Generation
 
-## 2.1 AgentScope RAG 架构
+## 2.1 AgentScope RAG Architecture
 
-AgentScope 的 RAG 模块采用 **Reader → Knowledge → Store** 三层架构：
+AgentScope's RAG module adopts a three-layer architecture: **Reader → Knowledge → Store**:
 
 ```
-AgentScope RAG 架构
+AgentScope RAG Architecture
 │
-├── Reader（文档读取器）
-│   ├── TextReader       → 纯文本文件
-│   ├── PDFReader        → PDF 文档
-│   ├── ImageReader      → 图片文件（多模态）
-│   └── 自定义 Reader    → 继承 ReaderBase 扩展
+├── Reader(Document Reader)
+│   ├── TextReader       → Pure text files
+│   ├── PDFReader        → PDF Document
+│   ├── ImageReader      → Image File (Multimodal)
+│   └── Custom Reader    → Inherits ReaderBase for extension
 │
-├── Knowledge（知识库管理）
-│   └── SimpleKnowledge  → 包含 Reader + Store，统一管理
-│       ├── load()       → 加载文档
-│       ├── retrieve()   → 检索相关片段
-│       └── delete()     → 删除文档
+├── Knowledge(Knowledge Management)
+│   └── SimpleKnowledge  → Includes Reader + Store, unified management
+│       ├── load()       → Load document
+│       ├── retrieve()   → Retrieve relevant fragments
+│       └── delete()     → Delete document
 │
-└── Store（向量存储）
-    └── QdrantStore      → 基于 Qdrant 的向量存储
-        ├── 云端: Qdrant Cloud
-        └── 本地: Qdrant 容器
+└── Store(Vector Storage)
+    └── QdrantStore      → Vector storage based on Qdrant
+        ├── Cloud: Qdrant Cloud
+        └── Local: Qdrant Container
 ```
 
-## 2.2 使用 AgentScope RAG
+## 2.2 Using AgentScope RAG
 
 ```python
 from agentscope.rag import SimpleKnowledge, QdrantStore, TextReader
@@ -233,7 +236,7 @@ from agentscope.agent import ReActAgent
 
 
 async def rag_agent_example():
-    # 1. 创建知识库
+    # 1. Create knowledge base
     knowledge = SimpleKnowledge(
         name="k8s-troubleshooting",
         reader=TextReader(),           # 文本读取器
@@ -244,32 +247,32 @@ async def rag_agent_example():
         embedding_model=embedding_model,
     )
 
-    # 2. 加载文档
+    # 2. Load documents
     await knowledge.load(
         paths=["./domain-10-troubleshooting-diagnostics/"],
         file_types=[".md"],
     )
 
-    # 3. 检索相关内容
+    # 3. Retrieve relevant content
     results = await knowledge.retrieve(
-        query="Pod Pending 排查步骤",
+        query="Pod Pending Troubleshooting Steps"
         top_k=5,
     )
 ```
 
-## 2.3 RAG 集成方式
+## 2.3 RAG Integration Methods
 
-AgentScope 支持两种 RAG 集成模式：
+AgentScope supports two modes of RAG integration:
 
-| 集成模式 | 说明 | 适用场景 |
+| Integration Mode | Description | Applicable Scenarios |
 |---------|------|--------|
-| **Agentic 集成** | RAG 作为工具注册到 Toolkit，Agent 自主决定何时检索 | 复杂场景，Agent 需要判断是否需要检索 |
-| **Generic 集成** | 在 Agent 的 sys_prompt 中自动注入检索结果 | 简单场景，每次都需要检索 |
+| **Agentic Integration** | RAG registers as a tool to the Toolkit, and the Agent decides autonomously when to retrieve | Complex scenarios where the Agent needs to determine whether to retrieve |
+| **Generic Integration** | Automatically injects retrieval results into the Agent's sys_prompt | Simple scenarios where retrieval is required each time |
 
 ```python
-# Agentic 集成（推荐）：把检索函数作为工具注册
+# Agentic integration (recommended): register search function as a tool
 async def search_knowledge(query: str) -> str:
-    """搜索 K8s 知识库。
+    """search K8s knowledge base."""
 
     Args:
         query: 搜索关键词或问题描述
@@ -284,144 +287,144 @@ toolkit = Toolkit()
 toolkit.register_tool_function(search_knowledge)
 ```
 
-## 2.4 RAG 最佳实践
+## 2.4 RAG Best Practices
 
-| 环节 | 最佳实践 | 反模式 |
+| Phase | Best Practice | Anti-pattern |
 |------|---------|--------|
-| 文档读取 | 使用对应 Reader（TextReader/PDFReader） | 统一用纯文本处理所有格式 |
-| 分块 | 按语义段落切分，保持上下文完整 | 固定长度切分导致语义断裂 |
-| 嵌入 | 使用多语言模型（BGE-M3） | 英文模型处理中文文档 |
-| 检索 | Top-K=5 + Re-ranking | Top-K=1 导致信息不足 |
-| 集成 | Agentic 集成（RAG 作为工具） | 每次都全量注入检索结果 |
-| 注入 | 明确标注"来自知识库" | 直接拼接导致 LLM 混淆来源 |
+| Document Reading | Use the corresponding Reader (TextReader/PDFReader) | Treat all formats uniformly as plain text |
+| Chunking | Segment by semantic paragraphs to maintain contextual integrity | Fixed-length segmentation leads to semantic breaks |
+| Embedding | Use multilingual models (BGE-M3) | English models process Chinese documents |
+| Retrieval | Top-K=5 + Re-ranking | Top-K=1 results in insufficient information |
+| Integration | Agentic Integration (RAG as a tool) | Always full-scale injection of retrieval results |
+| Injection | Clearly mark "from knowledge base" | Direct concatenation leads to LLMS confusing sources |
 
 ---
 
-<!-- chunk: 4. A2A 协议 — Agent-to-Agent -->## 4. A2A 协议 — Agent-to-Agent
+## 4. A2A Protocol — Agent-to-Agent
 
-## 4.1 什么是 A2A
+## 4.1 What is A2A
 
-A2A（Agent-to-Agent）是 Google 提出的开放协议，用于不同框架的 Agent 之间进行标准化通信。AgentScope 内置 A2A 支持。
+A2A (Agent-to-Agent) is an open protocol proposed by Google, used for standardized communication between agents from different frameworks. AgentScope includes built-in support for A2A.
 
 ```
-A2A vs MCP 的区别
+A2A vs MCP's Difference
 │
-├── MCP（Model Context Protocol）
-│   Agent ↔ 工具/数据
-│   "Agent 如何调用外部工具"
+├── MCP(Model Context Protocol)
+│   Agent ↔ Tool/Data
+│   "How does an Agent call external tools"
 │
-└── A2A（Agent-to-Agent Protocol）
+└── A2A(Agent-to-Agent Protocol)
     Agent ↔ Agent
-    "不同 Agent（甚至不同框架）如何协作"
+    "How different Agents (even different frameworks) collaborate"
 ```
 
-## 4.2 A2A Agent 示例
+## 4.2 A2A Agent Example
 
 ```python
-# AgentScope 的 A2A Agent 可以与其他框架的 Agent 通信
+# AgentScope's A2A Agent can communicate with Agents from other frameworks
 from agentscope.agent import ReActAgent
 
-# 创建支持 A2A 协议的 Agent
+# Create an Agent supporting A2A protocol
 a2a_agent = ReActAgent(
     name="K8s-Expert-A2A",
-    sys_prompt="你是 K8s 运维专家，通过 A2A 协议接收和响应请求",
+    sys_prompt="You are a Kubernetes operations expert, receiving and responding to requests via A2A protocol",
     ...
 )
 
-# 通过 AgentScope Runtime 部署后，
-# 其他框架的 Agent 可以通过 A2A 协议与之通信
+# After deployment by AgentScope Runtime,
+# Agents from other frameworks can communicate with it via A2A protocol
 ```
 
-## 4.3 A2A 在生产中的价值
+## 4.3 Value of A2A in Production
 
 ```
-A2A 生产应用场景
+A2A Production Use Cases
 │
-├── 跨团队 Agent 协作
-│   团队A 的 LangGraph Agent ←A2A→ 团队B 的 AgentScope Agent
+├── Collaborative Agents Across Teams
+│   Team A's LangGraph Agent ←A2A→ Team B's AgentScope Agent
 │
-├── 渐进式迁移
-│   逐步将旧框架 Agent 替换为 AgentScope Agent
-│   两者通过 A2A 无缝协作
+├── Incremental migration
+│   Gradually replace old framework Agents with AgentScope Agents
+│   They collaborate seamlessly through A2A
 │
-└── 微服务化 Agent
-    每个领域部署独立的 Agent 服务
-    通过 A2A 协议组成 Agent 网格
+└── Microservices Agent
+    Deploy independent Agent services for each domain
+    Compose Agent grid through A2A protocol
 ```
 
 ---
 
-<!-- chunk: 5. 实时语音 Agent -->## 5. 实时语音 Agent
+## 5. Real-time Voice Agent
 
-## 5.1 语音 Agent 架构
+## 5.1 Voice Agent Architecture
 
 ```
-语音 Agent 架构
+Voice Agent Architecture
 │
-├── 语音输入
-│   ├── 麦克风采集
-│   ├── ASR（语音识别）
-│   └── 文本消息
+├── Voice Input
+│   ├── Microphone Capture
+│   ├── ASR (Speech Recognition)
+│   └── Text Message
 │
-├── Agent 处理
-│   └── ReActAgent（标准推理和工具调用）
+├── Agent Processing
+│   └── ReActAgent (standard inference and tool invocation)
 │
-├── 语音输出
-│   ├── TTS（文本转语音）
-│   └── 音频播放
+├── Voice Output
+│   ├── TTS (Text-to-Speech)
+│   └── Audio Playback
 │
-└── Web 界面
-    └── 实时双向语音交互
+└── Web Interface
+    └── Real-time bi-directional voice interaction
 ```
 
-## 5.2 创建语音 Agent
+## 5.2 Creating a Voice Agent
 
 ```python
 from agentscope.agent import ReActAgent
 from agentscope.tts import TTSModel
 
-# 创建带 TTS 的 Agent
+# Create an Agent with TTS
 voice_agent = ReActAgent(
     name="Voice-Assistant",
-    sys_prompt="你是一个语音助手，请用简洁自然的语言回答。",
+    sys_prompt="you are a voice assistant, reply in simple natural language.",
     model=model,
     formatter=formatter,
     memory=memory,
-    # TTS 配置
+    # TTS configuration
     tts_model=TTSModel(
         model_name="cosyvoice",  # 阿里 CosyVoice
-        # 或其他 TTS 服务
+        # or other TTS services
     ),
 )
 ```
 
 ---
 
-<!-- chunk: 6. 实时介入（Realtime Steering） -->## 6. 实时介入（Realtime Steering）
+## 6. Real-time Intervention (Realtime Steering)
 
-## 6.1 概念
+## 6.1 Concepts
 
-实时介入允许用户在 Agent 执行过程中**实时中断**并调整方向，AgentScope 通过 `handle_interrupt` 机制实现优雅中断：
+real-time intervention allows users to **intercept** and adjust directions during Agent execution, which AgentScope implements through the `handle_interrupt` mechanism:
 
 ```
-实时介入流程
+Real-time Intervention Workflow
 │
-├── Agent 正在执行（推理 + 工具调用）
+├── Agent is executing (inference + tool calls)
 │
-├── 用户发送中断信号
+├── User sends interrupt signal
 │
-├── Agent 收到中断
-│   ├── 暂停当前执行
-│   ├── 保存已完成的状态
-│   └── 调用 handle_interrupt()
+├── Agent receives interrupt
+│   ├── Pause current execution
+│   ├── Save completed state
+│   └── Call handle_interrupt()
 │
-└── 用户可以:
-    ├── 修改指令，Agent 继续
-    ├── 取消当前任务
-    └── 切换到其他任务
+└── User can:
+    ├── Modify instruction, Agent continues
+    ├── Cancel current task
+    └── Switch to other task
 ```
 
-## 6.2 自定义中断处理
+## 6.2 Custom Interrupt Handling
 
 ```python
 from agentscope.agent import AgentBase
@@ -429,11 +432,11 @@ from agentscope.message import Msg
 
 
 class InterruptibleAgent(AgentBase):
-    """支持优雅中断的 Agent"""
+    """Agent supporting graceful interruption"""
 
     async def handle_interrupt(self) -> Msg:
-        """处理用户中断"""
-        # 保存当前进度
+        """handle user interruption"""
+        # Save current progress
         progress = await self._save_progress()
 
         return Msg(
@@ -451,22 +454,22 @@ class InterruptibleAgent(AgentBase):
         )
 
     async def _save_progress(self) -> str:
-        """保存中断时的进度"""
+        """save the progress at the time of interruption"""
         state = await self.state_dict()
-        # 持久化状态...
-        return f"已完成 {len(state.get('tool_calls', []))} 次工具调用"
+        # persist the state...
+        return f"completed {len(state.get('tool_calls', []))} tool calls"
 ```
 
 ---
 
-<!-- chunk: 7. 结构化输出 -->## 7. 结构化输出
+## 7. Structured Output
 
-## 7.1 让 Agent 输出结构化数据
+## 7.1 Make Agent Output Structured Data
 
 ```python
 from agentscope.agent import ReActAgent
 
-# 通过系统提示引导结构化输出
+# Guide structured output through system prompts
 agent = ReActAgent(
     name="Structured-Expert",
     sys_prompt="""你是 K8s 诊断专家。
@@ -474,13 +477,13 @@ agent = ReActAgent(
 输出格式要求（严格 JSON）:
 {
     "severity": "critical|high|medium|low",
-    "root_cause": "问题根因描述",
-    "affected_resources": ["受影响的资源列表"],
+    "root_cause": "problem root cause description",
+    "affected_resources": ["affected resources list"],
     "fix_steps": [
-        {"step": 1, "action": "操作描述", "command": "具体命令", "risk": "风险等级"}
+        {"step": 1, "action": "operation description", "command": "specific command", "risk": "risk level"}
     ],
-    "verification": "验证步骤",
-    "rollback": "回滚方案"
+    "verification": "verification steps",
+    "rollback": "rollback plan"
 }""",
     ...
 )
@@ -488,179 +491,179 @@ agent = ReActAgent(
 
 ---
 
-<!-- chunk: 8. Tracing — 全链路追踪 -->## 8. Tracing — 全链路追踪
+## 8. Tracing — Full-Link Tracing
 
-## 8.1 通过 agentscope.init 启用追踪
+## 8.1 Enable Tracing via agentscope.init
 
-AgentScope 通过 `agentscope.init()` 统一初始化追踪：
+AgentScope initializes tracing uniformly using `agentscope.init()`.
 
 ```python
 import agentscope
 
-# 启用 AgentScope Studio 追踪
+# Enable AgentScope Studio Tracing
 agentscope.init(
     studio_url="http://studio:3000",
     tracing_url="http://otel-collector:4317",
 )
 ```
 
-## 8.2 内置追踪装饰器
+## 8.2 Built-in Tracing Decorators
 
-AgentScope 提供内置装饰器自动追踪关键操作：
+AgentScope provides built-in decorators to automatically trace critical operations:
 
-| 装饰器 | 追踪内容 |
+| Decorator | Tracked Content |
 |---------|--------|
-| `@trace_llm` | LLM 调用（Token、延迟、模型名） |
-| `@trace_reply` | Agent reply 全过程 |
-| `@trace_format` | Formatter 格式化过程 |
-| `@trace` | 通用追踪装饰器 |
+| `@trace_llm` | LLM calls (Tokens, delay, model name) |
+| `@trace_reply` | Entire process of Agent reply |
+| `@trace_format` | Formatting process of the Formatter |
+| `@trace` | General tracing decorator |
 
-## 8.3 第三方 Tracing 集成
+## 8.3 Third-party Tracing Integrations
 
-AgentScope 支持将追踪数据导出到多种后端：
+AgentScope supports exporting tracing data to multiple backends:
 
-| 后端 | 类型 | 说明 |
+| Backend | Type | Description |
 |------|------|------|
-| AgentScope Studio | 内置 | 官方可视化工具，包含追踪 + 评测 |
-| Alibaba Cloud CloudMonitor | 云服务 | 阿里云原生监控 |
-| Arize-Phoenix | 开源 | 专注 LLM 可观测性 |
-| Langfuse | 开源/云 | LLM 工程平台 |
-| Jaeger / Zipkin | 开源 | 通用分布式追踪 |
+| AgentScope Studio | Built-in | Officially visualizable tool, including tracing + evaluation |
+| Alibaba Cloud CloudMonitor | Cloud service | Native monitoring provided by Alibaba Cloud |
+| Arize-Phoenix | Open-source | Focuses on LLM observability |
+| Langfuse | Open-source/Cloud | LLM engineering platform |
+| Jaeger / Zipkin | Open-source | General distributed tracing |
 
 ---
 
-<!-- chunk: 9. Agentic RL — 强化学习微调 -->## 9. Agentic RL — 强化学习微调
+## 9. Agentic RL — Reinforcement Learning Fine-tuning
 
-## 8.1 概念
+## 8.1 Concepts
 
-AgentScope 内置 Agentic RL 支持，允许通过强化学习直接微调 Agent 的行为，而非仅优化 prompt：
+AgentScope includes built-in support for Agentic RL, allowing direct fine-tuning of Agent behavior via reinforcement learning rather than just optimizing prompts:
 
 ```
-Agentic RL 工作流
+Agentic RL workflow
 │
-├── 1. Agent 执行任务
-│      使用当前策略（LLM + prompt）
+├── 1. Agent executes task
+│      Using current strategy (LLM + prompt)
 │
-├── 2. 获取反馈
-│      ├── 环境反馈（任务成功/失败）
-│      ├── LLM-as-Judge 评估
-│      └── 人工评分
+├── 2. Obtain feedback
+│      ├── Environment feedback (task success/failure)
+│      ├── Judge (LLM-as-Judge) evaluation
+│      └── Manual scoring
 │
-├── 3. 策略更新
-│      通过 RL 算法更新 LLM 权重
+├── 3. Strategy update
+│      Through RL algorithm update LLM weights
 │
-└── 4. 迭代优化
-       重复 1-3，持续提升 Agent 能力
+└── 4. Iterative optimization
+       Repeat steps 1-3, continuously enhance Agent capabilities
 ```
 
-## 8.2 AgentScope Agentic RL 示例
+## 8.2 AgentScope Agentic RL Example
 
-AgentScope 提供了多个开箱即用的 Agentic RL 训练场景：
+AgentScope offers multiple ready-to-use Agentic RL training scenarios:
 
-| 示例 | 描述 | 基础模型 | 训练效果 |
+| Example | Description | Base Model | Training Effect |
 |------|------|---------|---------|
-| Math Agent | 多步数学推理 | Qwen3-0.6B | 准确率 75% → 85% |
-| Frozen Lake | 环境导航 | Qwen2.5-3B-Instruct | 成功率 15% → 86% |
-| Learn to Ask | LLM-as-Judge 反馈 | Qwen2.5-7B-Instruct | 准确率 47% → 92% |
-| Email Search | 工具使用优化 | Qwen3-4B-Instruct | 准确率 60% |
-| Werewolf Game | 多 Agent 博弈 | Qwen2.5-7B-Instruct | 狼人胜率 50% → 80% |
-| Data Augment | 合成数据增强 | Qwen3-0.6B | AIME-24 准确率 20% → 60% |
+| Math Agent | Multi-step Mathematical Reasoning | Qwen3-0.6B | Accuracy 75% → 85% |
+| Frozen Lake | Environment Navigation | Qwen2.5-3B-Instruct | Success Rate 15% → 86% |
+| Learn to Ask | LLM-as-Judge Feedback | Qwen2.5-7B-Instruct | Accuracy 47% → 92% |
+| Email Search | Tool Usage Optimization | Qwen3-4B-Instruct | Accuracy 60% |
+| Werewolf Game | Multi-Agent Game | Qwen2.5-7B-Instruct | Wolf Win Rate 50% → 80% |
+| Data Augment | Synthetic Data Augmentation | Qwen3-0.6B | AIME-24 Accuracy 20% → 60% |
 
-## 8.3 K8s 运维 Agent 微调思路
+## 8.3 K8s Operational Agent Fine-tuning Approach
 
 ```
-K8s 诊断 Agent 微调方案
+K8s Diagnostic Agent Fine-tuning Solution
 │
-├── 训练数据
-│   ├── 历史故障诊断记录（问题→诊断步骤→根因）
-│   ├── kudig-database 知识库（结构化 SOP）
-│   └── 合成数据（问题模拟 + 诊断轨迹）
+├── Training Data
+│   ├── Historical Fault Diagnosis Records (Problem → Diagnostic Steps → Root Cause)
+│   ├── kudig-database Knowledge Base (Structured SOP)
+│   └── Synthetic Data (Problem Simulation + Diagnostic Trajectory)
 │
-├── 奖励函数
-│   ├── 诊断准确性（根因是否正确）
-│   ├── 诊断效率（步骤数是否最优）
-│   ├── 工具使用合理性（是否调用了正确的工具）
-│   └── 安全性（是否避免了危险操作）
+├── Reward Functions
+│   ├── Diagnostic Accuracy (Is the root cause correct)
+│   ├── Diagnostic Efficiency (Are the steps optimal)
+│   ├── Tool Usage Rationality (Did the correct tools get used)
+│   └── Security (Did dangerous operations avoid)
 │
-├── 基础模型
-│   └── Qwen2.5-7B-Instruct（或更大模型）
+├── Baseline Model
+│   └── Qwen2.5-7B-Instruct (or larger model)
 │
-└── 预期效果
-    ├── 诊断准确率提升 20-30%
-    ├── 平均诊断步骤减少 40%
-    └── 误操作率降低到 <1%
+└── Expected Outcomes
+    ├── Diagnostic Accuracy Improvement 20-30%
+    ├── Average Diagnostic Steps Reduced by 40%
+    └── False Operation Rate Reduced to <1%
 ```
 
 ---
 
-<!-- chunk: 10. 评测体系 -->## 10. 评测体系
+## 10. Evaluation System
 
-## 9.1 AgentScope 评测框架
+## 9.1 AgentScope Evaluation Framework
 
-AgentScope 提供了完整的 Agent 评测能力：
+AgentScope provides comprehensive Agent evaluation capabilities:
 
 ```
-评测体系
+Evaluation System
 │
-├── ACEBench（内置基准测试）
-│   ├── 工具使用准确性评估
-│   ├── 多步推理能力评估
-│   └── 标准化评分指标
+├── ACEBench (Built-in Benchmarking)
+│   ├── Tool Usage Accuracy Evaluation
+│   ├── Evaluation of multi-step reasoning capability
+│   └── Standardized scoring metrics
 │
-├── OpenJudge（LLM-as-Judge）
-│   ├── 使用 LLM 评估 Agent 输出质量
-│   ├── 支持多维度评分
-│   └── 可自定义评分标准
+├── OpenJudge(LLM-as-Judge)
+│   ├── Use LLM to evaluate the quality of Agent's output
+│   ├── Supports multi-dimensional scoring
+│   └── Customizable scoring standards
 │
-└── AgentScope Studio（可视化评测）
-    ├── 评测结果可视化
-    ├── Agent 轨迹回放
-    └── 对比不同 Agent 版本
+└── AgentScope Studio (visual evaluation)
+    ├── Visualization of evaluation results
+    ├── Playback of Agent trajectories
+    └── Comparison of different versions of Agents
 ```
 
-## 9.2 评测维度
+## 9.2 Evaluation Dimensions
 
-| 维度 | 评估指标 | 方法 |
+| Dimension | Evaluation Metric | Method |
 |------|---------|------|
-| **准确性** | 诊断根因正确率 | Ground Truth 对比 |
-| **效率** | 平均推理步骤数 | 轨迹分析 |
-| **工具使用** | 工具选择准确率、调用成功率 | 工具调用日志分析 |
-| **安全性** | 危险操作检测率 | 安全护栏命中率 |
-| **一致性** | 同一问题多次回答一致性 | 多次采样对比 |
-| **延迟** | 端到端响应时间 | P50/P95/P99 延迟 |
-| **成本** | 每次诊断的 Token 消耗 | Token 计数 |
+| **Accuracy** | Root Cause Diagnosis Accuracy | Ground Truth Comparison |
+| **Efficiency** | Average Inference Steps | Trajectory Analysis |
+| **Tool Usage** | Tool Selection Accuracy, Call Success Rate | Tool Call Log Analysis |
+| **Safety** | Detection Rate of Dangerous Operations | Hit Rate of Safety Barriers |
+| **Consistency** | Consistency of Answers to the Same Question | Multiple Sampling Comparison |
+| **Latency** | End-to-End Response Time | P50/P95/P99 Latency |
+| **Cost** | Token Consumption per Diagnosis | Token Counting |
 
-## 9.3 评测实践
+## 9.3 Evaluation Practices
 
 ```python
-# 评测 K8s 诊断 Agent 的准确性
+# Evaluate the accuracy of the K8s diagnostic Agent
 test_cases = [
     {
-        "input": "Pod 处于 Pending 状态",
-        "expected_root_cause": "资源不足或调度约束",
+        "input": "Pod is in Pending state",
+        "expected_root_cause": "insufficient resources or scheduling constraints",
         "expected_tools": ["kubectl_get_pods", "kubectl_describe_resource"],
     },
     {
-        "input": "Service 无法访问",
-        "expected_root_cause": "Endpoint 为空或 Selector 不匹配",
+        "input": "Service cannot be accessed",
+        "expected_root_cause": "Endpoint is empty or Selector does not match",
         "expected_tools": ["kubectl_get_pods", "kubectl_describe_resource"],
     },
     {
         "input": "Node NotReady",
-        "expected_root_cause": "kubelet 异常或资源压力",
+        "expected_root_cause": "kubelet anomaly or resource pressure",
         "expected_tools": ["kubectl_describe_resource", "kubectl_get_events"],
     },
 ]
 
 
 async def evaluate_agent(agent, test_cases):
-    """评测 Agent"""
+    """evaluate the Agent"""
     results = []
     for case in test_cases:
         msg = Msg("user", case["input"], "user")
         response = await agent(msg)
 
-        # 使用 LLM-as-Judge 评分
+        # Score using LLM-as-Judge
         score = await llm_judge(
             question=case["input"],
             expected=case["expected_root_cause"],
@@ -673,15 +676,15 @@ async def evaluate_agent(agent, test_cases):
         })
 
     avg_score = sum(r["score"] for r in results) / len(results)
-    print(f"平均评分: {avg_score:.2f}")
+    print(f"average score: {avg_score:.2f}")
     return results
 ```
 
 ---
 
-<!-- chunk: 11. Embedding 模块 -->## 11. Embedding 模块
+## 11. Embedding Module
 
-AgentScope 提供 Embedding 接口用于文本向量化，支持 RAG 和语义搜索：
+AgentScope provides an Embedding interface for text vectorization, supporting RAG and semantic search:
 
 ```python
 from agentscope.embedding import EmbeddingModel
@@ -692,68 +695,68 @@ embedding = EmbeddingModel(
     api_key=os.environ["DASHSCOPE_API_KEY"],
 )
 
-# 生成向量
-vector = await embedding.embed("Kubernetes Pod Pending 排查")
+# generate vector
+vector = await embedding.embed("Kubernetes Pod Pending Debug")
 # vector: [0.023, -0.114, 0.089, ...]
 ```
 
 ---
 
-<!-- chunk: 12. 最佳实践与反模式 -->## 12. 最佳实践与反模式
+## 12. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **Hooks 用于 Agent 级别的横切关注点**：日志、监控、审计等通用逻辑用 Hooks，工具执行的横切逻辑用 Toolkit Middleware
-- **`register_instance_hook` vs `register_class_hook`**：单个 Agent 调试用实例级别，全局日志用类级别
-- **RAG 用 Agentic 集成**：RAG 作为工具之一注册到 Toolkit，让 Agent 自主决定何时检索
-- **agentscope.init 启用追踪**：生产环境通过 `agentscope.init(studio_url=..., tracing_url=...)` 启用全链路追踪
-- **A2A 实现松耦合**：不同团队的 Agent 通过 A2A 通信，避免框架耦合
-- **评测驱动开发**：先定义评测指标，再优化 Agent
-- **Agentic RL 从小模型开始**：先在 0.6B-3B 模型上验证方法，再扩展到大模型
+- **Hooks are used for cross-cutting concerns at the Agent level**: Logging, monitoring, auditing, etc., use Hooks, tool execution uses Toolkit Middleware
+- **`register_instance_hook` vs `register_class_hook`**: Debugging for a single Agent uses instance-level, global logs use class-level
+- **RAG integrates with Agentic**: RAG is registered as a tool and the Agent decides autonomously when to retrieve data
+- **agentscope.init enables tracing**: Production environments enable full-chain tracing through `agentscope.init(studio_url=..., tracing_url=...)`
+- **A2A Achieve Loose Coupling**: different teams' Agents communicate via A2A to avoid framework coupling
+- **Test-Driven Development**: define evaluation metrics first, then optimize the Agent
+- **Agentic RL Start with Smaller Models**: validate methods on 0.6B-3B models before scaling up to larger models
 
-## 反模式
+## Anti-patterns
 
-- **过度使用 Hooks**：Hooks 链过长（>5 个）增加调试难度
-- **混淆 Hooks 和 Middleware**：Agent 级逻辑用 Hooks，工具级逻辑用 Toolkit Middleware
-- **RAG 全量注入**：检索结果不经筛选直接全部注入上下文
-- **不启用 Tracing**：生产环境无追踪时，性能问题和错误几乎无法定位
-- **忽视结构化输出验证**：Agent 输出的 JSON 不一定合法，需要验证和重试
-- **Agentic RL 无安全约束**：微调后的模型可能产生更激进的操作策略
-- **评测数据集过小**：少于 50 个测试用例的评测结果不具备统计意义
+- **Overuse of Hooks**: long hooks chains (>5) increase debugging difficulty
+- **Confuse Hooks with Middleware**: Agent-level logic uses Hooks, tool-level logic uses Toolkit Middleware
+- **Full Rag Injection**: search results are directly injected into context without filtering
+- **Disable Tracing**: performance issues and errors are nearly impossible to locate in production without tracing
+- **Ignore Structured Output Validation**: Agent's JSON output may not be valid, requiring validation and retries
+- **Agentic RL Without Security Constraints**: fine-tuned models might generate more aggressive operational strategies
+- **Insufficient Test Data Sets**: evaluation results with less than 50 test cases lack statistical significance
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Associated Documents
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|---------|
-| [17 - 核心概念](./17-agentscope-core-concepts.md) | Agent 基类与扩展点 |
-| [18 - 工具系统](./18-agentscope-tool-system.md) | MCP 集成与工具注册 |
-| [20 - 多 Agent 编排](./20-agentscope-multi-agent-orchestration.md) | A2A 在多 Agent 场景的应用 |
-| [22 - 生产部署](./deployment.md|22-agentscope-production-deployment]].md) | Runtime 部署与可观测性 |
-| [04 - RAG 检索增强](./04-rag-knowledge-retrieval.md) | 通用 RAG 架构与策略 |
-| [08 - 评测与可观测性](./08-agent-evaluation-observability.md) | 通用评测体系 |
+| [17 - Core Concepts](./17-agentscope-core-concepts.md) | Base class and extension points for Agents |
+| [18 - Tool System](./18-agentscope-tool-system.md) | MCP Integration and Tool Registration |
+| [20 - Multi-Agent Orchestration](./20-agentscope-multi-agent-orchestration.md) | Application of A2A in multi-Agent scenarios |
+| [22 - Production Deployment](./deployment.md|22-agentscope-production-deployment]].md) | Runtime Deployment and Observability |
+| [04 - RAG Knowledge Retrieval](./04-rag-knowledge-retrieval.md) | General RAG Architecture and Strategies |
+| [08 - Evaluation and Observability](./08-agent-evaluation-observability.md) | General Evaluation Framework |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian-related Documents
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Basics and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage and Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Mult-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation System and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
 
 ## See Also
 

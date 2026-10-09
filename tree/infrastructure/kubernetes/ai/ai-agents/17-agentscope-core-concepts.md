@@ -1,8 +1,9 @@
----title: AgentScope 核心概念与基础操作 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 核心概念专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
-  核心概念, State,'
-summary: 'description: ''**文档类型**: 核心概念专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
-  核心概念, State,'
+---
+title: AgentScope Core Concepts and Fundamental Operations (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Core Concepts Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
+  Core Concepts, State,'
+summary: 'description: ''**Document Type**: Core Concepts Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
+  Core Concepts, State,'
 category: general
 tags:
 - ai
@@ -20,15 +21,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- AgentScope 核心概念与基础操作 是什么
-- 如何 AgentScope 核心概念与基础操作
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AgentScope Core Concepts and Fundamental Operations
+- How to do AgentScope Core Concepts and Fundamental Operations
+- Best Practices for AgentScope 14 ai ml infra
 trigger_keywords:
 - AgentScope
-- 核心概念与基础操作
+- Core Concepts and Fundamental Operations
 - ai
 - ml
 - infra
@@ -40,18 +41,20 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/17-agentscope-core-concepts.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify the cluster state but can usually be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: AgentScope 核心概念与基础操作
-description: '**文档类型**: 核心概念专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, 核心概念, State,
-  Message, Agent, Model, Formatter, Memory, ReActAgent, AgentBase, 自定义智能体'
+title: AgentScope Core Concepts and Basic Operations
+description: '**Document Type**: Core Concepts Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Core Concepts, State, Message, Agent, Model, Formatter, Memory, ReActAgent, AgentBase, Custom Agent'
+  Message, Agent, Model, Formatter, Memory, ReActAgent, AgentBase, Custom Agent'
 category: ai-agent
 tags:
 - ai
@@ -67,16 +70,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AgentScope 核心概念与基础操作 是什么
-- 如何 AgentScope 核心概念与基础操作
+- What is AgentScope Core Concepts and Basic Operations
+- How to do AgentScope Core Concepts and Basic Operations
 trigger_keywords:
 - AgentScope
-- 核心概念与基础操作
+- Core Concepts and Basic Operations
 - ai
 - agent
 authors:
@@ -90,75 +93,75 @@ k8s_versions:
 - '1.32'
 ---
 
-# AgentScope 核心概念与基础操作
+# AgentScope Core Concepts and Basic Operations
 
-> **文档类型**: 核心概念专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, 核心概念, State, Message, Agent, Model, Formatter, Memory, ReActAgent, AgentBase, 自定义智能体
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-AgentScope 将构建 Agent 应用所需的组件抽象为**四大核心模块**：消息（Message）、模型（Model）、记忆（Memory）和工具（Tool），并通过统一的状态管理机制将它们串联。本文深入解析每个核心概念的设计原理与使用方法，为后续的工具系统、记忆管理和多 Agent 编排打下基础。
+> **Document Type**: Core Concepts Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Core Concepts, State, Message, Agent, Model, Formatter, Memory, ReActAgent, AgentBase, Custom Agent
 
 ---
 
-<!-- chunk: 1. 六大核心抽象 -->## 1. 六大核心抽象
+## Overview
+
+AgentScope abstracts the components required to build an Agent application into **four core modules**: message (Message), model (Model), memory (Memory), and tool (Tool). It unifies their management through a common state mechanism to facilitate subsequent tool systems, memory management, and multi-Agent orchestration.
+
+---
+
+## 1. Six Major Core Abstractions
 
 ```
-AgentScope 核心抽象
+AgentScope core abstraction
 │
-├── State（状态）      → 所有对象的运行时快照，支持导出/恢复
-├── Message（消息）    → 智能体间通信的统一数据结构
-├── Model（模型）      → LLM API 的统一接口封装
-├── Formatter（格式化）→ 消息到 LLM API 格式的转换层
-├── Memory（记忆）     → 对话历史与知识的存储管理
-└── Tool（工具）       → 智能体可调用的 Python 可调用对象
+├── State(status)      → The runtime snapshot of all objects, supporting export/import
+├── Message(message)    → Communication structure for intelligent bodies
+├── Model(model)      → Model (LLM API unified interface encapsulation)
+├── Formatter (formatting) → Message to LLM API format conversion layer
+├── Memory (memory)     → Dialogue history and knowledge management
+└── Tool(ool)       → Agent can call Python callable object
 ```
 
-这六个概念的关系：
+The relationships between these six concepts:
 
 ```
                     ┌─────────────┐
                     │    Agent    │
-                    │  (智能体)   │
+                    │  (Agent)   │
                     └──────┬──────┘
-                           │ 组合使用
+                           │ Combine usage
           ┌────────┬───────┼───────┬────────┐
           ▼        ▼       ▼       ▼        ▼
      ┌────────┐┌───────┐┌──────┐┌───────┐┌──────┐
      │ Model  ││Memory ││ Tool ││Format ││ State│
-     │ 模型   ││ 记忆  ││ 工具 ││ 格式化││ 状态 │
+     │ model ││ memory ││ tool ││ formatting ││ status │
      └────────┘└───────┘└──────┘└───────┘└──────┘
           │        │       │       │        │
           └────────┴───────┴───────┴────────┘
-                    通过 Message 交互
+                    Through Message interaction
 ```
 
 ---
 
-<!-- chunk: 2. State — 状态管理 -->## 2. State — 状态管理
+## 2. State — State Management
 
-## 2.1 设计理念
+## 2.1 Design Philosophy
 
-AgentScope 将对象的**初始化**与**状态管理**分离。所有有状态的模块都继承自 `StateModule` 基类，通过 `state_dict` 和 `load_state_dict` 方法可以：
+AgentScope separates the initialization of objects from their state management. All stateful modules inherit from the `StateModule` base class, allowing:
 
-- 导出当前状态快照
-- 恢复到任意保存的状态
-- 实现跨会话的状态持久化
+- Exporting a snapshot of the current state
+- Restoring to any saved state
+- Implementing cross-session state persistence
 
-## 2.2 StateModule 基类
+## 2.2 StateModule Base Class
 
-`StateModule` 是 AgentScope 状态管理的基础，提供三个核心方法：
+`StateModule` forms the foundation of AgentScope's state management, offering three key methods:
 
-| 方法 | 参数 | 说明 |
+| Method | Parameters | Description |
 |------|------|------|
-| `register_state` | attr_name, custom_to_json, custom_from_json | 将属性注册为状态，支持自定义序列化 |
-| `state_dict` | — | 获取当前对象的状态字典（同步方法） |
-| `load_state_dict` | state_dict, strict | 将状态字典加载到当前对象 |
+| `register_state` | attr_name, custom_to_json, custom_from_json | Register attributes as states with support for custom serialization |
+| `state_dict` | — | Get the current object's state dictionary (synchronous method) |
+| `load_state_dict` | state_dict, strict | Load the state dictionary into the current object |
 
-在 `StateModule` 对象中，以下属性自动成为状态的一部分：
-- **继承自 StateModule 的属性**（自动注册）
-- **通过 `register_state` 手动注册的属性**
+In the `StateModule` object, the following properties are automatically part of the state:
+- **Inherited properties from `StateModule`** (automatically registered)
+- **Properties manually registered with `register_state`**
 
 ```python
 from agentscope.module import StateModule
@@ -166,7 +169,7 @@ import json
 
 
 class K8sConfig(StateModule):
-    """K8s 集群配置（有状态对象）"""
+    """K8s cluster configuration (stateful objects)"""
 
     def __init__(self, cluster_name: str) -> None:
         super().__init__()
@@ -175,148 +178,148 @@ class K8sConfig(StateModule):
 
 
 class DiagnosisContext(StateModule):
-    """诊断上下文（嵌套状态管理）"""
+    """Diagnostic context (nested state management)"""
 
     def __init__(self) -> None:
         super().__init__()
-        # config 继承自 StateModule → 自动成为状态的一部分
+        # config inherits from StateModule → automatically becomes part of state
         self.config = K8sConfig("production-cluster")
-        self.findings = "尚无发现"
+        self.findings = "No findings"
         self.register_state("findings")  # 手动注册
 
 
-# 嵌套式状态导出
+# Nested state export
 ctx = DiagnosisContext()
 state = ctx.state_dict()
 print(json.dumps(state, indent=2, ensure_ascii=False))
 # {
 #   "config": { "cluster_name": "production-cluster" },
-#   "findings": "尚无发现"
+#   "findings": "No findings"
 # }
 ```
 
-> **关键**：`AgentBase`、`MemoryBase`、`LongTermMemoryBase` 和 `Toolkit` 都继承自 `StateModule`，因此支持自动嵌套状态管理。
+> **Key**: `AgentBase`, `MemoryBase`, `LongTermMemoryBase`, and `Toolkit` all inherit from `StateModule`, thus supporting nested state management.
 
-## 2.3 Agent 状态管理实践
+## 2.3 Agent State Management Practices
 
 ```python
 agent = ReActAgent(name="Friday", ...)
 
-# 导出状态（state_dict 是同步方法）
+# Export state (state_dict is a synchronous method)
 state = agent.state_dict()
-# state 包含: name, _sys_prompt, memory 内容, toolkit 状态
+# State includes: name, _sys_prompt, memory content, toolkit status
 
-# 对话后状态发生变化
-await agent(Msg("user", "你好", "user"))
+# State changes after conversation
+await agent(Msg("user", "aken from source text done", "user"))
 new_state = agent.state_dict()
-# memory.content 现在包含对话消息
+# memory.content now contains conversation messages
 
-# 恢复到初始状态
+# Restore to initial state
 agent.load_state_dict(state)
-# agent 的记忆被清空，恢复到初始状态
+# Agent's memory is cleared, restored to initial state
 ```
 
-## 2.4 有状态对象一览
+## 2.4 Overview of Stateful Objects
 
-AgentScope 中以下对象都是有状态的（继承 `StateModule`）：
+In the `AgentScope` scope, the following objects are stateful (inherit `StateModule`):
 
-| 对象 | 状态内容 | 应用场景 |
+| Object | State Content | Use Cases |
 |------|---------|----------|
-| Agent（智能体） | name, sys_prompt, memory, toolkit | 会话恢复、Agent 迁移 |
-| Memory（记忆） | 对话历史消息、压缩摘要 | 持久化对话 |
-| Long-term Memory | 检索索引、跨会话知识 | 跨会话知识积累 |
-| Toolkit（工具模块） | active_groups、工具状态 | 动态工具管理 |
-| PlanNotebook | 计划和子任务状态 | 任务计划持久化 |
+| Agent (Agent) | name, sys_prompt, memory, toolkit | Session recovery, Agent migration |
+| Memory (Memory) | conversation history messages, compressed summaries | Persistent dialogue |
+| Long-term Memory | retrieval index, cross-session knowledge | Accumulation of cross-session knowledge |
+| Toolkit (Tool Module) | active_groups, tool state | Dynamic tool management |
+| PlanNotebook | plan and subtask states | Persistent task planning |
 
 ---
 
-<!-- chunk: 3. Message — 消息系统 -->## 3. Message — 消息系统
+## 3. Message — Messaging System
 
-## 3.1 Msg 类
+## 3.1 Msg Class
 
-`Msg` 是 AgentScope 中最核心的数据结构，承担四大职责：
+The `Msg` is the most core data structure in `AgentScope`, bearing four responsibilities:
 
 ```
-Message 的四大职责
+Message's four roles
 │
-├── 1. 智能体间信息交换    → agent_a(msg) → agent_b(response)
-├── 2. 用户界面信息展示    → agent.print(msg) → 终端/Web UI
-├── 3. 记忆存储            → memory.add(msg)
-└── 4. LLM API 统一媒介    → formatter.format([msg1, msg2, ...]) → API 请求
+├── 1. Information exchange between intelligent bodies    → agent_a(msg) → agent_b(response)
+├── 2. User Interface Information Display    → agent.print(msg) → Terminal/Web UI
+├── 3. Memory Storage        → memory.add(msg)
+└── 4. LLM API Unified Medium    → formatter.format([msg1, msg2, ...])    → API Request
 ```
 
-## 3.2 创建消息
+## 3.2 Creating Messages
 
 ```python
 from agentscope.message import Msg
 
-# 基础文本消息
+# Base text message
 user_msg = Msg(
     name="user",
-    content="请分析 Pod CrashLoopBackOff 的原因",
+    content="Please analyze the reason for Pod CrashLoopBackOff",
     role="user",
 )
 
-# 系统消息
+# System message
 system_msg = Msg(
     name="system",
-    content="你是一个 Kubernetes 运维专家",
+    content="You are a Kubernetes operations expert",
     role="system",
 )
 
-# 助手消息
+# Assistant message
 assistant_msg = Msg(
     name="Friday",
-    content="我来帮你分析 Pod 的问题...",
+    content="I will help you analyze the problem...",
     role="assistant",
 )
 ```
 
-## 3.3 消息的核心字段
+## 3.3 Core Fields of Messages
 
-| 字段 | 类型 | 说明 |
+| Field | Type | Description |
 |------|------|------|
-| `name` | str | 消息发送者名称 |
-| `content` | str / list | 消息内容（支持多模态） |
-| `role` | str | 角色标识：`"user"`, `"assistant"`, `"system"` |
-| `metadata` | dict | 元数据（可选） |
+| `name` | str | Sender's name of the message |
+| `content` | str / list | Message content (supports multimodal) |
+| `role` | str | Role identifier: `"user"`, `"assistant"`, `"system"` |
+| `metadata` | dict | Metadata (optional) |
 
-## 3.4 多模态消息
+## 3.4 Multimodal Messages
 
 ```python
-# 包含图片的消息
+# Messages containing images
 multimodal_msg = Msg(
     name="user",
     content=[
-        {"type": "text", "text": "这个架构图有什么问题？"},
+        {"type": "text", "text": "What problems does this architecture diagram have?"},
         {"type": "image_url", "image_url": {"url": "https://example.com/arch.png"}},
     ],
     role="user",
 )
 
-# 获取纯文本内容
+# Get pure text content
 text = multimodal_msg.get_text_content()
 ```
 
 ---
 
-<!-- chunk: 4. Model — 模型接口 -->## 4. Model — 模型接口
+## 4. Model — Model Interface
 
-## 4.1 支持的模型提供商
+## 4.1 Supported Model Providers
 
-AgentScope 通过模型包装器（Model Wrapper）提供统一的 LLM 接口：
+`AgentScope` provides a unified LLM interface through the model wrapper (Model Wrapper).
 
-| 模型类 | 提供商 | 典型模型 |
+| Model Class | Provider | Typical Model |
 |--------|--------|---------|
-| `DashScopeChatModel` | 阿里云百炼 | qwen-max, qwen-plus, qwen-turbo |
+| `DashScopeChatModel` | Alibaba Cloud Baileys | qwen-max, qwen-plus, qwen-turbo |
 | `OpenAIChatModel` | OpenAI | gpt-4o, gpt-4o-mini |
-| `OllamaChatModel` | Ollama（本地） | qwen2.5, llama3, mistral |
+| `OllamaChatModel` | Ollama (Local) | qwen2.5, llama3, mistral |
 | `AnthropicChatModel` | Anthropic | claude-3.5-sonnet |
 | `GeminiChatModel` | Google | gemini-1.5-pro |
 
-## 4.2 模型配置详解
+## 4.2 Detailed Model Configuration
 
-**DashScope（推荐，与 AgentScope 集成最深）**：
+**DashScope (Recommended, Integrated Deepest with AgentScope)**:
 
 ```python
 from agentscope.model import DashScopeChatModel
@@ -331,7 +334,7 @@ model = DashScopeChatModel(
 )
 ```
 
-**OpenAI**：
+**OpenAI**:
 
 ```python
 from agentscope.model import OpenAIChatModel
@@ -341,12 +344,12 @@ model = OpenAIChatModel(
     api_key=os.environ["OPENAI_API_KEY"],
     stream=True,
     temperature=0,
-    # 可选：自定义 API 端点（适用于 Azure OpenAI 或代理）
+    # Optional: Custom API endpoint (for Azure OpenAI or proxy)
     # base_url="https://your-proxy.com/v1",
 )
 ```
 
-**本地模型（Ollama）**：
+**Local Models (Ollama)**:
 
 ```python
 from agentscope.model import OllamaChatModel
@@ -358,60 +361,60 @@ model = OllamaChatModel(
 )
 ```
 
-## 4.3 模型调用流程
+## 4.3 Model Call Flow
 
 ```
-应用代码                AgentScope 内部
+Agent code                AgentScope Internal
   │                         │
   │  agent(msg)             │
   │──────────────────►      │
   │                    formatter.format(messages)
-  │                         │ → 转换为 API 格式
+  │                         │ → Convert to API format
   │                    model(prompt)
-  │                         │ → 调用 LLM API
-  │                    解析响应 → Msg
+  │                         │ → Call LLM API
+  │                    Parse response → Msg
   │  ◄──────────────────    │
   │  response               │
 ```
 
 ---
 
-<!-- chunk: 5. Formatter — 提示词格式化 -->## 5. Formatter — 提示词格式化
+## 5. Formatter — Prompt Formatting
 
-## 5.1 为什么需要 Formatter
+## 5.1 Why Need Formatter
 
-不同 LLM API 对消息格式的要求不同。Formatter 负责将 AgentScope 的 `Msg` 对象转换为具体 API 所需的格式，同时处理提示工程、截断和消息验证。
+Different LLM APIs have different requirements for message formats. The Formatter is responsible for converting AgentScope's `Msg` object to the format required by specific APIs, while also handling prompt engineering, truncation, and message validation.
 
-## 5.2 内置 Formatter
+## 5.2 Built-in Formatter
 
-| Formatter | 适用模型 | 特点 |
+| Formatter | Applicable Model | Features |
 |-----------|---------|------|
-| `DashScopeChatFormatter` | DashScope 系列 | 支持 Qwen 特有的工具调用格式 |
-| `OpenAIChatFormatter` | OpenAI / Azure | 标准 OpenAI Chat Completions 格式 |
-| `OllamaChatFormatter` | Ollama 本地模型 | 适配 Ollama API 格式 |
-| `AnthropicChatFormatter` | Claude 系列 | Anthropic Messages API 格式 |
-| `MultiAgentFormatter` | 多智能体场景 | 处理消息中包含多个身份实体的场景 |
+| `DashScopeChatFormatter` | DashScope series | Supports the tool calling format unique to Qwen |
+| `OpenAIChatFormatter` | OpenAI / Azure | Standard OpenAI Chat Completions format |
+| `OllamaChatFormatter` | Local Ollama models | Adapts to Ollama API format |
+| `AnthropicChatFormatter` | Claude series | Anthropic Messages API format |
+| `MultiAgentFormatter` | Multi-Agent Scenarios | Handles scenarios where messages contain multiple identity entities |
 
-## 5.3 使用规则
+## 5.3 Using Rules
 
-**关键原则：Formatter 必须与 Model 匹配**。
+**Key Principle: The Formatter must match the Model**.
 
 ```python
-# 正确 ✅ - DashScope 模型 + DashScope 格式化器
+# Correct ✅ - DashScope model + DashScope formatter
 agent = ReActAgent(
     model=DashScopeChatModel(model_name="qwen-max", ...),
     formatter=DashScopeChatFormatter(),
     ...
 )
 
-# 正确 ✅ - OpenAI 模型 + OpenAI 格式化器
+# Correct ✅ - OpenAI model + OpenAI formatter
 agent = ReActAgent(
     model=OpenAIChatModel(model_name="gpt-4o", ...),
     formatter=OpenAIChatFormatter(),
     ...
 )
 
-# 错误 ❌ - 混用会导致格式错误
+# Incorrect ❌ - Mixing will result in formatting errors
 agent = ReActAgent(
     model=DashScopeChatModel(model_name="qwen-max", ...),
     formatter=OpenAIChatFormatter(),  # 格式不兼容!
@@ -419,59 +422,59 @@ agent = ReActAgent(
 )
 ```
 
-## 5.4 多智能体格式化
+## 5.4 Multi-Agent Formatting
 
-当消息中包含多个身份实体时（如多人聊天、游戏），标准的 `role` 字段（user/assistant/system）无法区分不同发言者。此时需要使用 `MultiAgentFormatter`（如 `DashScopeMultiAgentFormatter`）：
+When messages contain multiple identity entities (e.g., multi-party chat, games), the standard `role` field (user/assistant/system) cannot distinguish between different speakers. In such cases, the `MultiAgentFormatter` (such as `DashScopeMultiAgentFormatter`) is needed:
 
 ```python
 from agentscope.formatter import DashScopeMultiAgentFormatter
 
-# 适用于多人聊天、游戏、社交仿真等场景
+# Suitable for scenarios such as group chat, games, and social simulations
 formatter = DashScopeMultiAgentFormatter()
 ```
 
-> **关键区分**：多智能体工作流 ≠ 格式化器中的多智能体。
+> **Key Distinction**: Multi-Agent Workflow ≠ Multi-Agent within Formatters.
 >
-> 例如，即使以下代码涉及多个智能体（tool_agent 和调用者），但输入被包装为 role="user" 的消息，标准 Formatter 即可区分：
+> For example, even if the following code involves multiple agents (tool_agent and caller), the input is wrapped as a role="user" message, and the standard Formatter can distinguish:
 >
 > ```python
 > async def tool_function(query: str) -> str:
->     """调用另一个智能体的工具函数"""
+>     """Call a tool function of another agent"""
 >     msg = Msg("user", query, role="user")
 >     tool_agent = ReActAgent(name="Programmer", ...)
 >     return await tool_agent(msg)
 > ```
 >
-> 只有当单次 LLM 调用的输入消息中包含多个不同身份的发言者（如 Alice、Bob、Charlie 同时对话），才需要 `MultiAgentFormatter`。
+> Only when a single LLM call's input message contains multiple different speakers (such as Alice, Bob, Charlie having a conversation) does `MultiAgentFormatter` need to be used.
 
 ---
 
-<!-- chunk: 6. Agent — 智能体体系 -->## 6. Agent — 智能体体系
+## 6. Agent — Agent System
 
-## 6.1 核心基类
+## 6.1 Core Base Class
 
 ```
-AgentScope 智能体继承体系
+AgentScope intelligent agent inheritance system
 │
-├── AgentBase（所有智能体基类）
-│   ├── reply(msg)           → 处理消息并生成响应
-│   ├── observe(msg)         → 接收消息但不返回响应
-│   ├── print(msg)           → 输出消息到终端/Web
-│   └── handle_interrupt()   → 处理用户中断
+├── AgentBase (all agent base classes)
+│   ├── reply(msg)           \→ process message and generate response
+│   ├── observe(msg)         \→ receive message without returning response
+│   ├── print(msg)           \→ output message to terminal/Web
+│   └── handle_interrupt()   \→ handle user interruption
 │
-├── ReActAgentBase（ReAct 智能体基类）
-│   ├── 继承 AgentBase 全部方法
-│   ├── _reasoning()         → 推理阶段（LLM 生成工具调用）
-│   └── _acting()            → 行动阶段（执行工具函数）
+├── ReActAgentBase (ReAct intelligent agent base class)
+│   ├── inherit all methods from AgentBase
+│   ├── _reasoning()         \→ reasoning phase (LLM tool call)
+│   └── _acting()            \→ action phase (execute utility function)
 │
-├── ReActAgent（开箱即用的 ReAct 智能体）
-│   └── 继承 ReActAgentBase，提供完整实现
+├── ReActAgent (out-of-the-box ReAct intelligent agent)
+│   └── inherit ReActAgentBase, provide complete implementation
 │
-└── UserAgent（用户代理智能体）
-    └── 从终端接收用户输入
+└── UserAgent (user agent intelligent agent)
+    └── receive user input from terminal
 ```
 
-## 6.2 AgentBase 三大核心函数
+## 6.2 Three Core Functions of ReActAgent
 
 ```python
 from agentscope.agent import AgentBase
@@ -479,7 +482,7 @@ from agentscope.message import Msg
 
 
 class MyAgent(AgentBase):
-    """自定义智能体示例"""
+    """Example of custom agent"""
 
     async def reply(self, msg: Msg | list[Msg] | None) -> Msg:
         """
@@ -508,26 +511,26 @@ class MyAgent(AgentBase):
         pass
 ```
 
-## 6.3 ReActAgent 完整参数
+## 6.3 Complete Parameters of ReActAgent
 
 ```python
 from agentscope.agent import ReActAgent
 
 agent = ReActAgent(
-    # === 必需参数 ===
+    # === Required Parameters ===
     name="K8s-Expert",                  # 智能体名称
-    sys_prompt="你是一个 Kubernetes 运维专家...",  # 系统提示
+    sys_prompt="You are a Kubernetes operations expert...",  # system prompt
     model=model,                         # LLM 模型实例
     formatter=formatter,                 # 提示词格式化器
 
-    # === 可选参数 ===
+    # === Optional Parameters ===
     toolkit=toolkit,                     # 工具模块
     memory=InMemoryMemory(),             # 短期记忆
     long_term_memory=None,               # 长期记忆
     long_term_memory_mode="agent_control",  # 长期记忆管理模式
-    # "agent_control": 智能体自主管理
-    # "static_control": 开发者管理
-    # "both": 两者同时激活
+    # "agent_control": Autonomous management of the agent
+    # "static_control": Developer management
+    # "both": Both activated simultaneously
 
     enable_meta_tool=False,              # 是否允许智能体自主管理工具
     parallel_tool_calls=True,            # 是否允许并行工具调用
@@ -537,7 +540,7 @@ agent = ReActAgent(
 )
 ```
 
-## 6.4 从零自定义 Agent
+## 6.4 Customizing Agent from Scratch
 
 ```python
 from agentscope.agent import AgentBase
@@ -549,7 +552,7 @@ import os
 
 
 class K8sDiagnosisAgent(AgentBase):
-    """K8s 诊断智能体 — 从 AgentBase 自定义"""
+    """K8s Diagnostic Agent — Customized from AgentBase"""
 
     def __init__(self) -> None:
         super().__init__()
@@ -570,11 +573,11 @@ class K8sDiagnosisAgent(AgentBase):
         self.memory = InMemoryMemory()
 
     async def reply(self, msg: Msg | list[Msg] | None) -> Msg:
-        """处理诊断请求"""
-        # 存储输入消息到记忆
+        """Handle diagnostic requests"""
+        # Store input message to memory
         await self.memory.add(msg)
 
-        # 构建提示词
+        # Build prompt
         prompt = await self.formatter.format(
             [
                 Msg("system", self.sys_prompt, "system"),
@@ -582,52 +585,52 @@ class K8sDiagnosisAgent(AgentBase):
             ],
         )
 
-        # 调用模型
+        # Call model
         response = await self.model(prompt)
 
-        # 创建响应消息
+        # Create response message
         reply_msg = Msg(
             name=self.name,
             content=response.content,
             role="assistant",
         )
 
-        # 存储响应到记忆
+        # Store response to memory
         await self.memory.add(reply_msg)
 
-        # 打印消息
+        # Print message
         await self.print(reply_msg)
 
         return reply_msg
 
     async def observe(self, msg: Msg | list[Msg] | None) -> None:
-        """观察消息（旁听模式）"""
+        """Observe messages (eavesdropping mode)"""
         await self.memory.add(msg)
 
     async def handle_interrupt(self) -> Msg:
-        """处理中断"""
+        """Handle interruptions"""
         return Msg(
             name=self.name,
-            content="诊断已中断。如需继续，请重新描述问题。",
+            content="Diagnosis has been interrupted. Please re-describe the problem to continue.",
             role="assistant",
         )
 ```
 
 ---
 
-<!-- chunk: 7. Memory — 记忆基础 -->## 7. Memory — 记忆基础
+## 7. Memory — Memory Foundation
 
-## 7.1 内置记忆类型
+## 7.1 Built-in Memory Types
 
-AgentScope 提供三种记忆存储实现：
+AgentScope provides three implementations for memory storage:
 
-| 类 | 存储方式 | 适用场景 |
+| class | storage mode | applicable scenarios |
 |----|---------|----------|
-| `InMemoryMemory` | 内存 | 开发调试、短会话 |
-| `AsyncSQLAlchemyMemory` | 关系数据库（SQLite/PostgreSQL/MySQL） | 生产环境，支持连接池 |
-| `RedisMemory` | Redis | 高性能分布式场景 |
+| `InMemoryMemory` | memory | development debugging, short sessions |
+| `AsyncSQLAlchemyMemory` | relational database (SQLite/PostgreSQL/MySQL) | production environment, supports connection pooling |
+| `RedisMemory` | Redis | high-performance distributed scenarios |
 
-## 7.2 InMemoryMemory 基础使用
+## 7.2 Basic Usage of InMemoryMemory
 
 ```python
 from agentscope.memory import InMemoryMemory
@@ -635,61 +638,61 @@ from agentscope.message import Msg
 
 memory = InMemoryMemory()
 
-# 添加消息
-await memory.add(Msg("user", "Pod 处于 Pending 状态", "user"))
-await memory.add(Msg("assistant", "我来帮你诊断...", "assistant"))
+# Add message
+await memory.add(Msg("user", "Pod is in Pending state", "user"))
+await memory.add(Msg("assistant", "I will help you diagnose...", "assistant"))
 
-# 添加带标记(mark)的消息
+# Add a message marked (mark)
 await memory.add(
-    Msg("system", "<system-hint>先检查资源配额</system-hint>", "system"),
+    Msg("system", "<system-hint>Check resource quotas first</system-hint>", "system"),
     marks="hint",  # 标记为 hint 类型
 )
 
-# 按标记检索消息
+# Retrieve messages by mark
 hint_msgs = await memory.get_memory(mark="hint")
 
-# 按标记删除消息
+# Delete messages by tag
 deleted = await memory.delete_by_mark("hint")
 
-# 获取所有记忆
+# Get all memories
 messages = await memory.get_memory()
 ```
 
-## 7.3 Mark（标记）系统
+## 7.3 Mark (Marking) System
 
-**标记**是 AgentScope 记忆管理的重要特性，用于对消息进行分类、过滤和检索：
+**Mark** is an important feature of AgentScope memory management, used for categorizing, filtering, and retrieving messages:
 
 ```
-Mark 标记系统
+Mark marking system
 │
-├── 消息分类    → 区分提示消息、工具结果、用户对话
-├── 选择性检索  → get_memory(mark="hint") 只获取特定类型
-├── 批量管理    → delete_by_mark("hint") 清理一次性提示
-└── 内部使用    → ReActAgent 用 "hint" 标记管理一次性提示
+├── message classification    \→ distinguish prompt messages, tool results, user dialogue
+├── selective retrieval  \→ get_memory(mark="hint") only retrieve specific types
+├── batch management    \→ delete_by_mark("hint") clean up one-time prompts
+└── internal use    \→ ReActAgent use "hint" mark management for one-time prompts
 ```
 
-## 7.4 状态管理
+## 7.4 State Management
 
 ```python
 memory = InMemoryMemory()
 await memory.add(Msg("user", "hello", "user"))
 
-# 导出状态（state_dict 是同步方法）
+# Export state (state_dict is a synchronous method)
 state = memory.state_dict()
-# state 包含 _compressed_summary 和所有消息（含标记）
+# State contains _compressed_summary and all messages (with tags)
 
-# 恢复状态
+# Restore state
 new_memory = InMemoryMemory()
 new_memory.load_state_dict(state)
 ```
 
-> **注意**：InMemoryMemory 在进程退出后数据丢失。生产环境应使用 `AsyncSQLAlchemyMemory`（关系数据库）或 `RedisMemory`（Redis），详见 [19 - 记忆管理与上下文工程](./19-agentscope-memory-context.md)。
+> **Note**: `InMemoryMemory` loses data upon process exit. Production environments should use `AsyncSQLAlchemyMemory` (relational database) or `RedisMemory` (Redis), see [19 - Memory Management and Context Engineering](./19-agentscope-memory-context.md).
 
 ---
 
-<!-- chunk: 8. 完整示例：K8s 问答 Agent -->## 8. 完整示例：K8s 问答 Agent
+## 8. Full Example: K8s Questioning Agent
 
-将上述概念组合，构建一个完整的 K8s 知识问答 Agent：
+Combine these concepts to build a complete Kubernetes knowledge Q&A Agent:
 
 ```python
 import asyncio
@@ -703,7 +706,7 @@ from agentscope.message import Msg
 
 
 async def k8s_qa_agent():
-    """K8s 知识问答 Agent"""
+    """K8s Knowledge Q&A Agent"""
 
     agent = ReActAgent(
         name="K8s-Expert",
@@ -727,16 +730,16 @@ async def k8s_qa_agent():
         max_iters=5,
     )
 
-    # 模拟多轮对话
+    # Simulate multi-round dialogue
     questions = [
-        "Pod 一直处于 Pending 状态，可能是什么原因？",
-        "如果是资源不足导致的，如何快速解决？",
-        "如何配置 HPA 来自动处理这类问题？",
+        "Pod remains in Pending state, what could be the reasons?",
+        "If it's due to insufficient resources, how can we solve it quickly?",
+        "How do we configure HPA to automatically handle such issues?",
     ]
 
     for q in questions:
         print(f"\n{'='*60}")
-        print(f"用户: {q}")
+        print(f"User: {q}")
         print(f"{'='*60}")
 
         msg = Msg(name="user", content=q, role="user")
@@ -750,60 +753,60 @@ asyncio.run(k8s_qa_agent())
 
 ---
 
-<!-- chunk: 9. 最佳实践 -->## 9. 最佳实践
+## 9. Best Practices
 
-## 设计原则
+## Design Principles
 
-- **系统提示要具体**：sys_prompt 中明确智能体的专长、行为边界和输出格式要求
-- **Formatter 与 Model 严格匹配**：这是 AgentScope 中最常见的配置错误
-- **利用 observe 实现旁听**：监控类智能体用 observe 而非 reply，避免不必要的响应
-- **状态管理贯穿始终**：利用 state_dict/load_state_dict 实现会话恢复和智能体迁移
-- **max_iters 设置合理上限**：防止推理循环，建议 5-15 次
+- **Make the system prompt specific**: specify the agent's expertise, behavior boundaries, and output format requirements in `sys_prompt`
+- **Ensure Formatter and Model match strictly**: this is the most common configuration error in AgentScope
+- **Use observe for eavesdropping**: monitor-type agents use `observe` instead of `reply`, to avoid unnecessary responses
+- **Maintain state management throughout**: implement session recovery and agent migration using `state_dict/load_state_dict`
+- **Set a reasonable max_iters limit**: prevent infinite inference loops, suggest 5-15 iterations
 
-## 命名规范
+## Naming Conventions
 
 ```python
-# 推荐: 清晰的角色命名
+# Recommendation: Clear role naming
 agent = ReActAgent(name="K8s-Diagnosis-Expert", ...)
 agent = ReActAgent(name="Network-Analyzer", ...)
 agent = ReActAgent(name="Cost-Advisor", ...)
 
-# 避免: 模糊的命名
+# Avoid: Ambiguous naming
 agent = ReActAgent(name="agent1", ...)
 agent = ReActAgent(name="bot", ...)
 ```
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| document | associated content |
 |------|---------|
-| [16 - 概述与安装](./16-agentscope-overview-installation.md) | 安装配置与 Hello World |
-| [18 - 工具系统与 MCP](./18-agentscope-tool-system.md) | Tool 详解与 MCP 集成 |
-| [19 - 记忆管理](./19-agentscope-memory-context.md) | Memory 深度使用与生产方案 |
-| [01 - Agent 基础](./01-ai-agent-fundamentals.md) | 通用 Agent 概念与推理框架 |
+| [16 - Overview and Installation](./16-agentscope-overview-installation.md) | installation configuration and Hello World |
+| [18 - Tool System and MCP](./18-agentscope-tool-system.md) | Tool details and MCP integration |
+| [19 - Memory Management](./19-agentscope-memory-context.md) | Deep use of Memory and Production Solutions |
+| [01 - Agent Basics](./01-ai-agent-fundamentals.md) | General Agent Concepts and Inference Framework |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project 02-ai-agents topic series.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent 基础与核心架构|AI Agent 基础与核心架构]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM 基座模型选型与评估|LLM 基座模型选型与评估]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic Series|AI Agent Engineering Topic Series]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent Basics and Core Architecture|AI Agent Basics and Core Architecture]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM Foundation Models|LLM Foundation Models]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval Enhanced Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multy-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation System and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

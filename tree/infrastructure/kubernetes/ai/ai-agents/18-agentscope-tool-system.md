@@ -1,7 +1,8 @@
----title: AgentScope 工具系统与 MCP 集成 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 工具开发专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
+---
+title: AgentScope Tool System Integration with MCP (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Tool Development Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
   Toolkit,'
-summary: 'description: ''**文档类型**: 工具开发专题 | **最后更新**: 2026-03 | **关键词**: AgentScope,
+summary: 'description: ''**Document Type**: Tool Development Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope,
   Toolkit,'
 category: general
 tags:
@@ -18,17 +19,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- AgentScope 工具系统与 MCP 集成 是什么
-- 如何 AgentScope 工具系统与 MCP 集成
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AgentScope Tool System Integration with MCP
+- How to integrate AgentScope Tool System with MCP
+- Best Practices for Kubernetes 14 AI ML Infra
 trigger_keywords:
 - AgentScope
-- 工具系统与
+- What is integration
 - MCP
-- 集成
+- Integration with
 - ai
 - ml
 - infra
@@ -39,19 +40,21 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/18-agentscope-tool-system.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/ReadOnly (information gathering with no side effects).
 
 
 
 
-title: AgentScope 工具系统与 MCP 集成
-description: '**文档类型**: 工具开发专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, Toolkit,
-  工具注册, MCP, Model Context Protocol, Function Calling, 并行工具调用, Agent [[SKILL|Skill]], Meta Tool,
-  自定义工具'
+title: AgentScope Tool System and MCP Integration
+description: '**Document Type**: Tool Development Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Toolkit,
+  Tool Registration, MCP, Model Context Protocol, Function Calling, Parallel Tool Invocation, Agent [[SKILL|Skill]], Meta Tool,
+  Custom Tool'
 category: ai-agent
 tags:
 - ai
@@ -65,18 +68,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AgentScope 工具系统与 MCP 集成 是什么
-- 如何 AgentScope 工具系统与 MCP 集成
+- What is AgentScope Tool System and MCP Integration
+- How to integrate AgentScope Tool System and MCP
 trigger_keywords:
 - AgentScope
-- 工具系统与
+- System integration
 - MCP
-- 集成
+- Integration
 - ai
 - agent
 authors:
@@ -90,82 +93,82 @@ k8s_versions:
 - '1.32'
 ---
 
-# AgentScope 工具系统与 MCP 集成
+# AgentScope Tool System and MCP Integration
 
-> **文档类型**: 工具开发专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, Toolkit, 工具注册, MCP, Model Context Protocol, Function Calling, 并行工具调用, Agent Skill, Meta Tool, 自定义工具
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-工具系统是 Agent 从"对话助手"升级为"自主执行者"的关键。AgentScope 的工具系统设计极其灵活——**任何 Python 可调用对象都可以作为工具**，无需特定装饰器或 Schema 定义。同时原生支持 MCP（Model Context Protocol）协议，可无缝接入外部工具服务。
-
-本文详解 AgentScope 工具系统的注册机制、内置工具、MCP 集成、并行调用、Meta Tool，以及面向 K8s 运维的自定义工具开发实践。
+> **Document Type**: Tool Development Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Toolkit, Tool Registration, MCP, Model Context Protocol, Function Calling, Parallel Tool Invocation, Agent Skill, Meta Tool, Custom Tool
 
 ---
 
-<!-- chunk: 1. 工具系统设计哲学 -->## 1. 工具系统设计哲学
+## Overview
 
-## 1.1 "一切可调用对象皆工具"
+The AgentScope tool system is crucial for transitioning an agent from a "conversation assistant" to an "autonomous executor." The design of the AgentScope tool system is extremely flexible—**any callable Python object can be used as a tool**, without requiring specific decorators or Schema definitions. It also natively supports the MCP (Model Context Protocol) protocol, allowing seamless integration with external tool services.
 
-AgentScope 中的"工具"定义非常宽泛：
+This document delves into the registration mechanism of the AgentScope tool system, its built-in tools, MCP integration, parallel invocation, Meta Tool, and practices for custom tool development tailored for Kubernetes operations.
+
+---
+
+## 1. Tool System Design Philosophy
+
+## 1.1 "All Callable Objects Are Tools"
+
+In AgentScope, a "tool" is defined very broadly:
 
 ```
-AgentScope 支持的工具类型
+AgentScope supported tool types
 │
-├── 函数（function）
-├── 偏函数（functools.partial）
-├── 实例方法（instance method）
-├── 类方法（classmethod）
-├── 静态方法（staticmethod）
-└── 带 __call__ 方法的可调用实例
+├── Function (function)
+├── Partial function (functools.partial)
+├── Instance method (instance method)
+├── Class method (classmethod)
+├── Static method (staticmethod)
+└── Callable instance with __call__ method
 ```
 
-并且每种工具都可以是：
+And each tool can be:
 
 ```
-调用模式
-├── 同步 (sync)   或 异步 (async)
-├── 流式 (stream) 或 非流式 (non-stream)
-└── 有状态 或 无状态
+Call mode
+├── Synchronous (sync)   or Asynchronous (async)
+├── Stream or Non-stream
+└── Stateful or Stateless
 ```
 
-## 1.2 与其他框架的工具定义对比
+## 1.2 Comparison with Other Frameworks' Tool Definitions
 
-| 框架 | 工具定义方式 | 复杂度 |
+| Framework | Definition Method | Complexity |
 |------|------------|--------|
-| LangChain | 需要 `@tool` 装饰器或 `StructuredTool` + Pydantic Schema | 中等 |
-| AutoGen | 通过函数注册或 `register_for_execution` | 中等 |
-| CrewAI | 继承 `BaseTool` 或 `@tool` 装饰器 | 中等 |
-| **AgentScope** | **直接注册任意可调用对象，无需装饰器** | **最简** |
+| LangChain | Requires `@tool` decorator or `StructuredTool` + Pydantic Schema | Moderate |
+| AutoGen | Registered through functions or `register_for_execution` | Moderate |
+| CrewAI | inherit from `BaseTool` or `@tool` decorator | Medium |
+| **AgentScope** | **register any callable object directly without a decorator** | **most concise** |
 
 ---
 
-<!-- chunk: 2. Toolkit — 工具注册中心 -->## 2. Toolkit — 工具注册中心
+## 2. Toolkit — Tool Registration Center
 
-## 2.1 基础使用
+## 2.1 Basic Usage
 
 ```python
 from agentscope.tool import Toolkit, ToolResponse
 import os
 
 
-# 定义工具函数 — 返回值推荐使用 ToolResponse
+# Define utility functions - prefer ToolResponse as return value
 def get_weather(city: str) -> ToolResponse:
-    """获取指定城市的天气信息。
+    """Get weather information for a specified city.
 
     Args:
-        city: 城市名称，如 "北京"、"上海"
+        city: city name, such as "Beijing", "Shanghai"
 
     Returns:
         天气信息
     """
-    # 实际实现：调用天气 API
-    return ToolResponse(text=f"{city}今日天气：晴，温度 25°C")
+    # Actual implementation: call weather API
+    return ToolResponse(text=f"{city} Today's weather: sunny, temperature 25°C")
 
 
 def calculate(expression: str) -> str:
-    """计算数学表达式。
+    """Calculate mathematical expressions.
 
     Args:
         expression: 数学表达式，如 "2 + 3 * 4"
@@ -177,21 +180,21 @@ def calculate(expression: str) -> str:
         result = eval(expression)
         return str(result)
     except Exception as e:
-        return f"计算错误: {e}"
+        return f"Calculation error: {e}"
 
 
-# 注册工具
+# Register tool
 toolkit = Toolkit()
 toolkit.register_tool_function(get_weather)
 toolkit.register_tool_function(calculate)
 
-# 使用 preset_kwargs 隐藏敏感参数（如 API Key），LLM 不可见这些参数
+# Use preset_kwargs to hide sensitive parameters (e.g., API Key), LLM unaware of these parameters
 toolkit.register_tool_function(
     get_weather,
     preset_kwargs={"api_key": os.environ["WEATHER_API_KEY"]},
 )
 
-# 传递给 Agent
+# Pass to Agent
 agent = ReActAgent(
     name="Assistant",
     toolkit=toolkit,
@@ -199,19 +202,19 @@ agent = ReActAgent(
 )
 ```
 
-> **关键点**：
-> - AgentScope 通过函数的 **docstring** 和 **type hints** 自动生成工具描述（JSON Schema），供 LLM 理解工具用途和参数。因此务必为工具函数编写清晰的文档字符串。
-> - 工具函数推荐返回 `ToolResponse` 而非 `str`。`ToolResponse` 支持 `text`、`image_url` 等多种内容类型。
-> - 使用 `preset_kwargs` 可将 API Key 等敏感参数预设进工具，不暴露给 LLM 的 JSON Schema。
+> **Key Points**:
+> - AgentScope generates tool descriptions (JSON Schema) by inspecting the **docstring** and **type hints** of the tool function, which should be clear to the LLM.
+> - Tool functions are recommended to return `ToolResponse` instead of `str`. `ToolResponse` supports multiple content types like `text`, `image_url`, etc.
+> - Using `preset_kwargs` can pre-set sensitive parameters like API keys into the tool, avoiding them from being exposed in the JSON Schema.
 
-## 2.2 异步工具
+## 2.2 Asynchronous Tools
 
 ```python
 import aiohttp
 
 
 async def async_fetch_url(url: str) -> str:
-    """异步获取 URL 内容。
+    """Asynchronously get URL content.
 
     Args:
         url: 要获取的 URL 地址
@@ -228,7 +231,7 @@ toolkit = Toolkit()
 toolkit.register_tool_function(async_fetch_url)
 ```
 
-## 2.3 流式工具
+## 2.3 Stream Tools
 
 ```python
 from typing import AsyncGenerator
@@ -239,7 +242,7 @@ async def stream_log_tail(
     namespace: str = "default",
     lines: int = 100,
 ) -> AsyncGenerator[str, None]:
-    """流式获取 Pod 日志。
+    """Streamline getting Pod logs.
 
     Args:
         pod_name: Pod 名称
@@ -263,21 +266,21 @@ toolkit = Toolkit()
 toolkit.register_tool_function(stream_log_tail)
 ```
 
-## 2.4 偏函数与可调用对象
+## 2.4 Partial Functions and Callable Objects
 
 ```python
 from functools import partial
 
 
 def kubectl_command(verb: str, resource: str, name: str, namespace: str = "default") -> str:
-    """执行 kubectl 命令"""
+    """Execute kubectl command"""
     import subprocess
     cmd = ["kubectl", verb, resource, name, "-n", namespace]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     return result.stdout if result.returncode == 0 else f"Error: {result.stderr}"
 
 
-# 使用偏函数创建特定工具
+# Use partial function to create specific tools
 kubectl_get = partial(kubectl_command, verb="get")
 kubectl_describe = partial(kubectl_command, verb="describe")
 
@@ -287,15 +290,15 @@ toolkit.register_tool_function(kubectl_describe)
 ```
 
 ```python
-# 可调用对象作为工具
+# Callable objects as tools
 class DatabaseQuery:
-    """数据库查询工具"""
+    """Database query tool"""
 
     def __init__(self, connection_string: str):
         self.conn_str = connection_string
 
     async def __call__(self, sql: str) -> str:
-        """执行 SQL 查询。
+        """Execute SQL queries.
 
         Args:
             sql: SQL 查询语句（只读）
@@ -303,7 +306,7 @@ class DatabaseQuery:
         Returns:
             查询结果
         """
-        # 实际实现：执行 SQL 查询
+        # Actual implementation: execute SQL queries
         return f"Query result for: {sql}"
 
 
@@ -314,21 +317,21 @@ toolkit.register_tool_function(db_query)
 
 ---
 
-<!-- chunk: 3. 内置工具 -->## 3. 内置工具
+## 3. Built-in Tools
 
-AgentScope 提供多类内置工具函数，开箱即用：
+AgentScope provides various built-in tool functions out of the box:
 
-| 工具函数 | 用途 | 注意事项 |
+| Tool Function | Purpose | Notes |
 |---------|------|--------|
-| `execute_python_code` | 执行 Python 代码 | 生产环境必须在沙箱中运行 |
-| `execute_shell_command` | 执行 Shell 命令 | 生产环境必须在沙箱中运行 |
-| `view_text_file` | 查看文本文件内容 | 只读操作 |
-| `write_text_file` | 写入文本文件 | 需文件系统权限 |
-| `insert_text_file` | 在文件指定位置插入内容 | 精确编辑场景 |
-| `dashscope_text_to_image` | 通义万相文生图 | 需 DashScope API Key |
-| `openai_text_to_image` | DALL-E 文生图 | 需 OpenAI API Key |
+| `execute_python_code` | Execute Python code | Must run in a sandbox in production environments |
+| `execute_shell_command` | Execute shell commands | Must run in a sandbox in production environments |
+| `view_text_file` | View contents of a text file | Read-only operation |
+| `write_text_file` | Write to a text file | Requires file system permissions |
+| `insert_text_file` | Insert content at a specific position in a file | Precise editing scenarios |
+| `dashscope_text_to_image` | Text-to-image generation using DAWNSOUL | Requires a DashScope API key |
+| `openai_text_to_image` | Text-to-image generation using DALL-E | Requires an OpenAI API key |
 
-## 3.1 代码执行
+## 3.1 Code Execution
 
 ```python
 from agentscope.tool import (
@@ -346,29 +349,29 @@ toolkit.register_tool_function(view_text_file)
 toolkit.register_tool_function(write_text_file)
 ```
 
-**execute_python_code**：
+**execute_python_code**:
 
 ```python
-# Agent 调用示例
+# Example of Agent invocation
 # Input: {"code": "import math; print(math.pi)", "timeout": 300}
 # Output: "<returncode>0</returncode><stdout>3.141592653589793\n</stdout>"
 ```
 
-**execute_shell_command**：
+**execute_shell_command**:
 
 ```python
-# Agent 调用示例
+# Example of Agent invocation
 # Input: {"command": "kubectl get pods -n production"}
-# Output: 命令执行结果
+# Output: Result of command execution
 ```
 
-> **安全警告**：在生产环境中，代码执行工具应在**沙箱**中运行。AgentScope Runtime 提供了安全沙箱环境，详见 [22 - 生产部署](./deployment.md|22-agentscope-production-deployment]].md)。
+> **Security Warning**: In production environments, code execution tools should run in a **sandbox**. AgentScope Runtime provides a secure sandbox environment, see [22 - Production Deployment](./deployment.md|22-agentscope-production-deployment)].
 
 ---
 
-<!-- chunk: 4. 动态 JSON Schema 扩展 -->## 4. 动态 JSON Schema 扩展
+## 4. Dynamic JSON Schema Extension
 
-AgentScope 支持通过 Pydantic 模型动态扩展工具的 JSON Schema，典型用例是在工具调用中添加 **Chain-of-Thought 思考字段**：
+AgentScope supports dynamically extending the JSON Schema of tools using Pydantic models, such as adding a **Chain-of-Thought** field during tool invocation:
 
 ```python
 from pydantic import BaseModel, Field
@@ -376,38 +379,38 @@ from agentscope.tool import Toolkit
 
 
 class CoTThinking(BaseModel):
-    """链式思考扩展——让 LLM 在调用工具前先输出推理过程"""
-    thinking: str = Field(description="工具调用前的推理过程")
+    """Chain-of-thought extension - have LLM output reasoning steps before calling tools"""
+    thinking: str = Field(description="Thinking process before tool invocation")
 
 
 toolkit = Toolkit()
 toolkit.register_tool_function(kubectl_get_pods)
 
-# 将 CoT 思考字段动态注入到所有工具的 JSON Schema 中
+# Dynamically inject CoT thinking field into JSON Schema of all tools
 toolkit.set_extended_model(CoTThinking)
 ```
 
-加入后，LLM 生成的工具调用会包含额外的 `thinking` 字段：
+After this, the generated tool call by the LLM will include an additional `thinking` field:
 
 ```json
 {
   "type": "tool_use",
   "name": "kubectl_get_pods",
   "input": {
-    "thinking": "Pod Pending 问题需要先查看 Pod 列表确认状态...",
+    "thinking": "Pod Pending issue needs to first check the Pod list for status...",
     "namespace": "production",
     "label_selector": "app=nginx"
   }
 }
 ```
 
-> **适用场景**：调试 Agent 的推理过程、可解释性要求高的生产场景、收集 Agentic RL 训练数据。
+> **Applicable Scenarios**: Debugging the inference process of the agent, production scenarios requiring explainability, collecting training data for Agentic RL.
 
 ---
 
-<!-- chunk: 5. 工具中断支持 -->## 5. 工具中断支持
+## 5. Tool Interruption Support
 
-当用户发送实时中断时，正在执行的工具会收到 `asyncio.CancelledError`。工具可以优雅地处理中断：
+When a user sends a real-time interruption, the tool currently executing receives an `asyncio.CancelledError`. The tool can gracefully handle the interruption:
 
 ```python
 import asyncio
@@ -418,7 +421,7 @@ async def long_running_analysis(
     namespace: str,
     depth: str = "full",
 ) -> ToolResponse:
-    """执行深度集群分析（可能耗时较长）。
+    """Execute deep cluster analysis (may take a long time).
 
     Args:
         namespace: 目标命名空间
@@ -426,34 +429,34 @@ async def long_running_analysis(
     """
     results = []
     try:
-        # 步骤 1: 收集 Pod 信息
+        # Step 1: Collect Pod information
         pod_info = await collect_pod_info(namespace)
         results.append(pod_info)
 
-        # 步骤 2: 收集节点信息
+        # Step 2: Collect node information
         node_info = await collect_node_info()
         results.append(node_info)
 
-        # 步骤 3: 资源分析...
+        # Step 3: Resource analysis...
         analysis = await run_analysis(results)
         return ToolResponse(text=analysis)
 
     except asyncio.CancelledError:
-        # 优雅处理中断——返回已完成的部分结果
-        partial = "\n".join(results) if results else "分析未开始"
+        # Gracefully handle interruptions — return partially completed results
+        partial = "\n".join(results) if results else "Analysis not started"
         return ToolResponse(
-            text=f"分析已中断。已完成的结果:\n{partial}",
+            text=f"Analysis interrupted. Completed results:\n{partial}",
             is_interrupted=True,  # 标记为中断状态
         )
 ```
 
-> **注意**：工具函数内必须显式捕获 `asyncio.CancelledError`。如果不捕获，工具会被强制取消，返回空结果。设置 `is_interrupted=True` 后，Agent 会知道工具被中断，可继续处理用户的新指令。
+> **Note**: Tools functions must explicitly capture `asyncio.CancelledError`. Failure to do so will force the tool to be canceled, returning an empty result. Setting `is_interrupted=True` informs the Agent that the tool has been interrupted, allowing it to continue processing new user instructions.
 
 ---
 
-<!-- chunk: 6. 并行工具调用 -->## 6. 并行工具调用
+## 6. Parallel Tool Invocation
 
-## 4.1 启用并行调用
+## 4.1 Enabling Parallel Invocation
 
 ```python
 agent = ReActAgent(
@@ -464,61 +467,61 @@ agent = ReActAgent(
 )
 ```
 
-当 LLM 在一次推理中生成多个工具调用时，AgentScope 会并行执行它们：
+When the LLM generates multiple tool calls during a single inference, AgentScope executes them concurrently:
 
 ```
-顺序执行 (parallel_tool_calls=False):
+Sequential execution (parallel_tool_calls=False):
   get_pods() ──► describe_pod() ──► get_events()
-  总耗时: t1 + t2 + t3
+  Total duration: t1 + t2 + t3
 
-并行执行 (parallel_tool_calls=True):
+Parallel execution (parallel_tool_calls=True):
   get_pods()     ──►
-  describe_pod() ──►  （并行执行，取最长耗时）
+  describe_pod() ──►  (parallel execution, take longest duration)
   get_events()   ──►
-  总耗时: max(t1, t2, t3)
+  Total time: max(t1, t2, t3)
 ```
 
-## 4.2 适用场景
+## 4.2 Applicable Scenarios
 
-| 场景 | 是否适合并行 | 原因 |
+| Scenario | Parallel Suitable | Reason |
 |------|------------|------|
-| 同时查询多个资源状态 | 适合 | 各查询独立无依赖 |
-| 先获取 Pod 列表再 describe | 不适合 | 后者依赖前者结果 |
-| 同时检查 CPU + 内存 + 磁盘 | 适合 | 监控指标采集独立 |
-| 执行修复操作 | 不适合 | 需要顺序验证每步结果 |
+| Simultaneous resource status queries | Suitable | Each query is independent and has no dependencies |
+| Get Pod list first then describe | Unsuitable | The latter depends on the result of the former |
+| Simultaneous CPU + Memory + Disk checks | Suitable | Monitoring metrics collection is independent |
+| Execute repair operations | Unsuitable | Sequential validation of each step's results is required |
 
 ---
 
-<!-- chunk: 7. MCP 集成 -->## 7. MCP 集成
+## 7. MCP Integration
 
-## 7.1 什么是 MCP
+## 7.1 What is MCP
 
-MCP（Model Context Protocol）是由 Anthropic 提出的标准化工具协议，允许 Agent 通过统一接口调用外部工具服务。AgentScope 原生支持 MCP。
+MCP (Model Context Protocol) is a standardized tool protocol proposed by Anthropic, enabling the Agent to call external tool services via a unified interface. AgentScope natively supports MCP.
 
 ```
-MCP 架构
+MCP Architecture
 │
-├── MCP Server（工具提供者）
-│   提供标准化的工具描述和调用接口
-│   例: 高德地图 MCP、GitHub MCP、Slack MCP
+├── MCP Server (tool provider)
+│   Provide standardized tool description and call interface
+│   Example: Gaode Map MCP, GitHub MCP, Slack MCP
 │
-└── MCP Client（AgentScope 内置）
-    ├── HttpStatelessClient  → 无状态 HTTP 连接（最常用）
-    ├── HttpStatefulClient   → 有状态 HTTP 连接（持久会话）
-    └── StdIOStatefulClient  → 本地进程通信（stdio）
+└── MCP Client (AgentScope builtin)
+    ├── HttpStatelessClient  → Stateless HTTP connection (most common)
+    ├── HttpStatefulClient   → Stateful HTTP connection (persistent session)
+    └── StdIOStatefulClient  → Local process communication (stdio)
 ```
 
-## 7.2 MCP 客户端类型
+## 7.2 Types of MCP Clients
 
-| 客户端类型 | 传输方式 | 适用场景 |
+| Client Type | Transmission Method | Applicable Scenario |
 |-----------|---------|--------|
-| `HttpStatelessClient` | `streamable_http` | 远程 MCP Server（无状态，最常用） |
-| `HttpStatefulClient` | `streamable_http` | 远程 MCP Server（有状态，持久会话） |
-| `StdIOStatefulClient` | `stdio` | 本地进程 MCP Server（通过 stdin/stdout） |
+| `HttpStatelessClient` | `streamable_http` | Remote MCP Server (stateless, most common) |
+| `HttpStatefulClient` | `streamable_http` | Remote MCP Server (stateful, persistent session) |
+| `StdIOStatefulClient` | `stdio` | Local MCP Server (via stdin/stdout) |
 
-## 7.3 使用 MCP 工具
+## 7.3 Using MCP Tool
 
-**方式一：获取单个 MCP 工具作为本地函数**
+**Method One: Obtain a single MCP tool as a local function**
 
 ```python
 from agentscope.mcp import HttpStatelessClient
@@ -527,30 +530,30 @@ import os
 
 
 async def use_mcp_tool():
-    # 初始化 MCP 客户端
+    # Initialize MCP client
     client = HttpStatelessClient(
         name="gaode_mcp",
         transport="streamable_http",
         url=f"https://mcp.amap.com/mcp?key={os.environ['GAODE_API_KEY']}",
     )
 
-    # 获取 MCP 工具作为本地可调用函数
-    # wrap_tool_result=True 让返回值自动包装为 ToolResponse
+    # Get MCP tool as a local callable function
+    # wrap_tool_result=True makes the returned value automatically wrapped as ToolResponse
     geo_func = await client.get_callable_function(
         func_name="maps_geo",
         wrap_tool_result=True,
     )
 
-    # 直接调用
-    result = await geo_func(address="天安门广场", city="北京")
+    # Directly call
+    result = await geo_func(address="Tian'anmen Square", city="Beijing")
     print(result)
 
-    # 注册到 Toolkit 供 Agent 使用
+    # Register to Toolkit for use by Agent
     toolkit = Toolkit()
     toolkit.register_tool_function(geo_func)
 ```
 
-**方式二：使用 `register_mcp_client` 一键注册整个 MCP Server**
+**Method Two: Register the entire MCP Server with `register_mcp_client` in one go**
 
 ```python
 async def register_all_mcp_tools():
@@ -562,22 +565,22 @@ async def register_all_mcp_tools():
 
     toolkit = Toolkit()
 
-    # 一键注册——自动发现并注册 MCP Server 上的所有工具
+    # One-click registration — automatically discover and register all tools on the MCP Server
     await toolkit.register_mcp_client(client)
 
-    # 动态移除 MCP 客户端（并取消注册其工具）
+    # Dynamically remove MCP client (and unregister its tools)
     # toolkit.remove_mcp_clients("github_mcp")
 
     return toolkit
 ```
 
-**方式三：本地 stdio MCP Server**
+**Method Three: Local stdio MCP Server**
 
 ```python
 from agentscope.mcp import StdIOStatefulClient
 
 async def use_local_mcp():
-    # 启动本地 MCP Server 进程（通过 stdio 通信）
+    # Start local MCP Server process (via stdio communication)
     client = StdIOStatefulClient(
         name="local_tools",
         command="python",
@@ -589,24 +592,24 @@ async def use_local_mcp():
     return toolkit
 ```
 
-**方式四：组合 MCP 工具与本地工具**
+**Method Four: Combine MCP tools with local tools**
 
 ```python
 async def composite_toolkit():
-    # MCP 工具
+    # MCP tool
     mcp_client = HttpStatelessClient(
         name="maps",
         transport="streamable_http",
         url=f"https://mcp.amap.com/mcp?key={os.environ['GAODE_API_KEY']}",
     )
 
-    # 本地工具
+    # Local tool
     def get_current_time() -> str:
-        """获取当前时间"""
+        """Get current time"""
         from datetime import datetime
         return datetime.now().isoformat()
 
-    # 组合注册
+    # Composite registration
     toolkit = Toolkit()
     await toolkit.register_mcp_client(mcp_client)       # MCP 工具（一键注册）
     toolkit.register_tool_function(get_current_time)     # 本地工具
@@ -617,11 +620,11 @@ async def composite_toolkit():
 
 ---
 
-<!-- chunk: 8. Meta Tool — 智能体自主管理工具 -->## 8. Meta Tool — 智能体自主管理工具
+## 8. Meta Tool — Autonomous Management Tool for Agents
 
-## 6.1 概念
+## 6.1 Concepts
 
-启用 Meta Tool 后，智能体可以在运行时**动态管理自己的工具集**——添加、移除、查询可用工具。
+Enabling the Meta Tool allows the agent to dynamically manage its toolkit during runtime — adding, removing, and querying available tools.
 
 ```python
 agent = ReActAgent(
@@ -632,36 +635,36 @@ agent = ReActAgent(
 )
 ```
 
-## 6.2 适用场景
+## 6.2 Use Cases
 
 ```
-Meta Tool 适用场景
+Meta Tool Use Cases
 │
-├── 工具集过大（>20 个）时，智能体按需加载
-├── 运行时发现新工具并注册
-├── 根据任务阶段动态切换工具集
-└── 多 Agent 场景中共享/传递工具
+├── When the toolkit set is too large (>20 tools), agents load on demand
+├── Discover new tools at runtime and register them
+├── Dynamically switch toolsets based on task stages
+└── Share/tools transfer in multi-Agent scenarios
 ```
 
 ---
 
-<!-- chunk: 9. Toolkit 中间件（Middleware） -->## 9. Toolkit 中间件（Middleware）
+## 9. Toolkit Middleware (Middleware)
 
-AgentScope 的中间件机制注册在 **Toolkit**（而非 Agent）上，采用洋葱模型（Onion Model），可在工具执行前后插入自定义逻辑。
+The middleware mechanism of AgentScope is registered on the **Toolkit** (not the Agent), using an onion model (Onion Model), allowing custom logic to be inserted before and after tool execution.
 
-## 9.1 洋葱模型
+## 9.1 Onion Model
 
 ```
-Toolkit 中间件执行顺序（洋葱模型）
+Toolkit Middleware Execution Order (Olive Model)
 │
-│  → AuthorizationMiddleware.pre  （最外层）
+│  → AuthorizationMiddleware.pre  (outermost layer)
 │    → LoggingMiddleware.pre
-│      → 实际工具执行         （核心）
+│      → Actual tool execution         (core)
 │    ← LoggingMiddleware.post
-│  ← AuthorizationMiddleware.post （最外层）
+│  ← AuthorizationMiddleware.post  (outermost layer)
 ```
 
-## 9.2 中间件签名
+## 9.2 Middleware Signature
 
 ```python
 from typing import AsyncGenerator
@@ -672,28 +675,28 @@ async def my_middleware(
     kwargs: dict,           # 工具调用参数
     next_handler,           # 下一个中间件或实际工具
 ) -> AsyncGenerator[ToolResponse, None]:
-    # === 前置逻辑（工具执行前） ===
-    print(f"工具参数: {kwargs}")
+    # === Pre-execution logic (before tool execution) ===
+    print(f"Tool parameters: {kwargs}")
 
-    # 调用下一层
+    # Call the next layer
     async for response in next_handler(kwargs):
-        # === 后置逻辑（工具执行后，可修改返回值） ===
+        # === Post-execution logic (after tool execution, can modify the return value) ===
         yield response
 ```
 
-## 9.3 实践示例
+## 9.3 Practice Examples
 
-**权限控制中间件**：
+**Permission Control Middleware**:
 
 ```python
 async def authorization_middleware(kwargs, next_handler):
-    """工具执行权限控制——禁止危险操作"""
+    """Tool permission control — prohibit dangerous operations"""
     tool_name = kwargs.get("_tool_name", "")
     dangerous_tools = {"execute_shell_command", "write_text_file"}
 
     if tool_name in dangerous_tools:
         yield ToolResponse(
-            text=f"权限拒绝: {tool_name} 不允许在当前环境执行"
+            text=f"Permission denied: {tool_name} does not allow execution in the current environment"
         )
         return  # 不调用实际工具
 
@@ -701,24 +704,24 @@ async def authorization_middleware(kwargs, next_handler):
         yield response
 
 
-# 注册中间件到 Toolkit
+# Register middleware to Toolkit
 toolkit = Toolkit()
 toolkit.register_tool_function(execute_shell_command)
 toolkit.register_middleware(authorization_middleware)
 ```
 
-**输出转换中间件**：
+**Output Conversion Middleware**:
 
 ```python
 async def output_transform_middleware(kwargs, next_handler):
-    """统一截断过长的工具输出，防止上下文爆炸"""
+    """Unified truncation of long tool outputs to prevent context explosion"""
     MAX_OUTPUT_LENGTH = 5000
 
     async for response in next_handler(kwargs):
         if response.text and len(response.text) > MAX_OUTPUT_LENGTH:
             truncated = response.text[:MAX_OUTPUT_LENGTH]
             yield ToolResponse(
-                text=f"{truncated}\n\n[输出已截断，原始长度: {len(response.text)} 字符]"
+                text=f"{truncated}\n\n[Output truncated, original length: {len(response.text)} characters]"
             )
         else:
             yield response
@@ -727,15 +730,15 @@ async def output_transform_middleware(kwargs, next_handler):
 toolkit.register_middleware(output_transform_middleware)
 ```
 
-> **Hooks vs Middleware**：
-> - **Hooks** 作用于 **Agent** 级别（reply/observe/print 的前后）
-> - **Middleware** 作用于 **Toolkit** 级别（工具执行的前后）
+> **Hooks vs Middleware**:
+> - **Hooks** acts on 2 rank 3 before and after **Agent** level(reply/observe/print doing do down)
+> - **Middleware** acts at the **Toolkit** level (before and after tool execution)
 
 ---
 
-<!-- chunk: 10. K8s 运维工具集成实践 -->## 10. K8s 运维工具集成实践
+## 10. Integration Practices for Kubernetes Maintenance Tools
 
-## 7.1 kubectl 工具集
+## 7.1 kubectl Toolset
 
 ```python
 import subprocess
@@ -743,7 +746,7 @@ from agentscope.tool import Toolkit
 
 
 def kubectl_get_pods(namespace: str = "default", label_selector: str = "") -> str:
-    """获取指定命名空间的 Pod 列表。
+    """Get the list of Pods in a specified namespace."""
 
     Args:
         namespace: Kubernetes 命名空间
@@ -764,7 +767,7 @@ def kubectl_describe_resource(
     name: str,
     namespace: str = "default",
 ) -> str:
-    """获取 Kubernetes 资源的详细信息和事件。
+    """Get detailed information and events of Kubernetes resources."""
 
     Args:
         resource_type: 资源类型，如 "pod", "node", "service", "deployment"
@@ -783,7 +786,7 @@ def kubectl_get_events(
     namespace: str = "default",
     field_selector: str = "",
 ) -> str:
-    """获取 Kubernetes 事件。
+    """Get Kubernetes events."""
 
     Args:
         namespace: 命名空间
@@ -806,7 +809,7 @@ def kubectl_get_logs(
     tail_lines: int = 100,
     previous: bool = False,
 ) -> str:
-    """获取 Pod 容器日志。
+    """Get Pod container logs."""
 
     Args:
         pod_name: Pod 名称
@@ -828,7 +831,7 @@ def kubectl_get_logs(
 
 
 def kubectl_top_nodes() -> str:
-    """获取集群节点资源使用情况。
+    """Get cluster node resource usage."""
 
     Returns:
         节点 CPU/内存使用量
@@ -840,9 +843,9 @@ def kubectl_top_nodes() -> str:
     return result.stdout if result.returncode == 0 else f"Error: {result.stderr}"
 
 
-# 注册 K8s 工具集
+# Register K8s toolkit set
 def create_k8s_toolkit() -> Toolkit:
-    """创建 K8s 运维工具集"""
+    """Create a K8s maintenance operations toolkit set"""
     toolkit = Toolkit()
     toolkit.register_tool_function(kubectl_get_pods)
     toolkit.register_tool_function(kubectl_describe_resource)
@@ -852,7 +855,7 @@ def create_k8s_toolkit() -> Toolkit:
     return toolkit
 ```
 
-## 7.2 完整 K8s 诊断 Agent
+## 7.2 Complete K8s Diagnostic Agent
 
 ```python
 import asyncio
@@ -896,12 +899,12 @@ async def k8s_diagnosis_agent():
 
     msg = Msg(
         name="user",
-        content="production 命名空间的 nginx-deploy Pod 一直处于 Pending 状态，请诊断",
+        content="production" namespace's nginx-deploy Pod is still in Pending state, please diagnose,
         role="user",
     )
 
     response = await agent(msg)
-    print(f"\n诊断结果:\n{response.get_text_content()}")
+    print(f"\nDiagnosis result:\n{response.get_text_content()}")
 
 
 asyncio.run(k8s_diagnosis_agent())
@@ -909,12 +912,12 @@ asyncio.run(k8s_diagnosis_agent())
 
 ---
 
-<!-- chunk: 11. 工具开发最佳实践 -->## 11. 工具开发最佳实践
+## 11. Best Practices for Tool Development
 
-## 8.1 编写高质量工具函数
+## 8.1 Writing High-Quality Tool Functions
 
 ```python
-# 最佳实践: 清晰的 docstring + type hints + 错误处理
+# Best practice: clear docstrings + type hints + error handling
 
 def query_prometheus_metric(
     metric_name: str,
@@ -922,7 +925,7 @@ def query_prometheus_metric(
     duration: str = "5m",
     step: str = "15s",
 ) -> str:
-    """查询 Prometheus 监控指标。
+    """Query Prometheus monitoring metrics."""
 
     适用场景: 查询集群或 Pod 级别的 CPU、内存、网络等监控数据。
 
@@ -962,81 +965,81 @@ def query_prometheus_metric(
         response.raise_for_status()
         return response.json()
     except requests.Timeout:
-        return "Error: Prometheus 查询超时（10s）"
+        return "Error: Prometheus query timeout (10s)"
     except requests.ConnectionError:
-        return "Error: 无法连接 Prometheus（检查服务地址和网络）"
+        return "Error: Unable to connect to Prometheus (check service address and network)"
     except Exception as e:
         return f"Error: {type(e).__name__}: {e}"
 
 ```
 
-## 8.2 工具设计原则
+## 8.2 Principles of Tool Design
 
-| 原则 | 说明 | 反模式 |
+| Principle | Explanation | Anti-pattern |
 |------|------|--------|
-| **单一职责** | 每个工具做一件事 | 一个工具同时查询+修改+验证 |
-| **清晰描述** | docstring 说明用途、参数、返回值 | 无文档或描述模糊 |
-| **类型标注** | 所有参数和返回值使用 type hints | `def tool(x, y)` 无类型 |
-| **错误处理** | 捕获异常返回错误信息 | 异常直接抛出导致 Agent 循环中断 |
-| **超时控制** | 网络调用设置 timeout | 无超时导致 Agent 挂起 |
-| **只读优先** | 诊断类工具只读，修改类工具分离 | 查询工具附带副作用 |
-| **工具数量** | 单 Agent 工具 ≤20 个 | 注册 50+ 工具导致选择准确率下降 |
+| **Single Responsibility** | Each tool does one thing | A tool simultaneously queries, modifies, and validates |
+| **Clear Description** | Docstring explains purpose, parameters, return values | No documentation or unclear description |
+| **Type Annotations** | All parameters and returns use type hints | `def tool(x, y)` without types |
+| **Error Handling** | Capture exceptions to return error messages | Exceptions are directly thrown causing Agent loops to interrupt |
+| **Timeout Control** | Network calls set timeouts | No timeouts leading to Agent suspensions |
+| **Read-Only Priority** | Diagnostic tools are read-only, while modification tools are separated | Querying tools have side effects |
+| **Tool Quantity** | ≤20 tools per Agent | Registering over 50 tools leads to a decrease in selection accuracy |
 
 ---
 
-<!-- chunk: 12. 最佳实践与反模式 -->## 12. 最佳实践与反模式
+## 12. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **返回 `ToolResponse`**：统一使用 `ToolResponse(text=...)` 而非纯字符串，支持多模态返回
-- **`preset_kwargs` 隐藏敏感参数**：API Key、数据库密码等通过 `preset_kwargs` 传入，不暴露给 LLM
-- **Docstring 决定工具质量**：LLM 通过 docstring 理解工具，描述越精准，调用越准确
-- **type hints 必不可少**：AgentScope 依赖类型标注生成工具 Schema
-- **利用偏函数简化工具**：`partial(kubectl, verb="get")` 比注册一个通用 kubectl 更清晰
-- **`register_mcp_client` 优于手动遍历**：一键注册比手动 list_tools 遍历更简洁
-- **Middleware 实现横切关注点**：权限控制、输出截断、日志记录用中间件而非写在工具内部
-- **并行调用加速诊断**：独立的信息收集任务开启 `parallel_tool_calls=True`
+- **Return `ToolResponse`**: Use `ToolResponse(text=...)` instead of pure strings for unified multi-modal responses
+- **`preset_kwargs` hides sensitive parameters**: API Keys, database passwords are passed through `preset_kwargs` and not exposed to LLM
+- **Docstring Determines Tool Quality**: LLM understands tools better with more precise descriptions
+- **Type Hints Are Essential**: AgentScope relies on type annotations to generate tool schemas
+- **Use Partial Functions to Simplify Tools**: `partial(kubectl, verb="get")` is clearer than registering a generic kubectl
+- **`register_mcp_client` is Better Than Manual Traversal**: One-click registration is more concise than manual traversal of `list_tools`
+- **Middleware Implements Cross-cutting Concerns**: Permissions control, output truncation, logging use middleware rather than being written within tools
+- **Parallel Call Acceleration Diagnosis**: Independent information collection tasks enable `parallel_tool_calls=True`
 
-## 反模式
+## Anti-patterns
 
-- **无 docstring 的工具**：LLM 无法理解工具用途，随机调用
-- **工具返回过大数据**：返回完整 YAML（10000+行）会占满上下文窗口——用 Middleware 截断
-- **不处理错误**：工具异常导致 Agent Loop 中断
-- **生产环境直接执行代码**：`execute_python_code` 必须在沙箱中运行
-- **混合读写工具**：诊断 Agent 不应有 `kubectl delete` 权限——用 Middleware 拦截
-- **忽略工具中断处理**：不捕获 `CancelledError` 导致用户中断时丢失已完成的部分结果
+- **Tools Without Docstrings**: LLM cannot understand tool purposes, randomly calling them
+- **Tool Returns Large Data**: Returning full YAML (over 10000 lines) occupies the context window — use Middleware to truncate
+- **No Error Handling**: Tool exceptions cause Agent Loop to be interrupted
+- **Direct Execution of Code in Production Environment**:`execute_python_code` must run in a sandbox
+- **Mixed Read-Write Tools**: Agent diagnosis should not have `kubectl delete` permissions — use Middleware to intercept
+- **Ignoring Tool Interruption Handling**: Not catching `CancelledError` causes lost partial results when users interrupt
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Associated Content |
 |------|---------|
-| [17 - 核心概念](./17-agentscope-core-concepts.md) | Tool 在核心抽象中的位置 |
-| [19 - 记忆管理](./19-agentscope-memory-context.md) | 工具输出的记忆存储与上下文管理 |
-| [22 - 生产部署](./22-agentscope-production-deployment.md) | Sandbox 安全执行环境 |
-| [05 - Tool Use & Function Calling](./05-tool-use-function-calling.md) | 通用工具调用设计规范 |
+| [17 - Core Concepts](./17-agentscope-core-concepts.md) | Position of tools in core abstractions |
+| [19 - Memory Management](./19-agentscope-memory-context.md) | Storage and context management of tool outputs |
+| [22 - Production Deployment](./22-agentscope-production-deployment.md) | Safe execution environment for Sandboxes |
+| [05 - Tool Use & Function Calling](./05-tool-use-function-calling.md) | Design guidelines for general tool calling |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic series.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Documentation for Obsidian
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic Series]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide on Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use & Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation Framework and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

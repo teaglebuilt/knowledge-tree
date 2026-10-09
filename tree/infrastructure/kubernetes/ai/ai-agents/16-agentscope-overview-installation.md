@@ -1,6 +1,7 @@
----title: AgentScope 概述与安装入门 (domain-14-ai-ml-infra)
-description: 'title: AgentScope 概述与安装入门'
-summary: 'title: AgentScope 概述与安装入门'
+---
+title: AgentScope Overview and Installation Introduction (domain-14-ai-ml-infra)
+description: 'title: AgentScope Overview and Installation Introduction'
+summary: 'title: AgentScope Overview and Installation Introduction'
 category: general
 tags:
 - ai
@@ -19,15 +20,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- AgentScope 概述与安装入门 是什么
-- 如何 AgentScope 概述与安装入门
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AgentScope Overview and Installation Introduction
+- How to do AgentScope Overview and Installation Introduction
+- Kubernetes 14 ai ml infra Best Practices
 trigger_keywords:
 - AgentScope
-- 概述与安装入门
+- Overview and Installation Introduction
 - ai
 - ml
 - infra
@@ -39,17 +40,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/16-agentscope-overview-installation.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: AgentScope 概述与安装入门
-description: '# AgentScope 概述与安装入门'
+title: AgentScope Overview and Installation Basics
+description: '# AgentScope Overview and Installation Basics'
 category: ai-agent
 tags:
 - ai
@@ -65,16 +68,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 10min
 intent_queries:
-- AgentScope 概述与安装入门 是什么
-- 如何 AgentScope 概述与安装入门
+- What is AgentScope Overview and Installation Basics
+- How to do AgentScope Overview and Installation Basics
 trigger_keywords:
 - AgentScope
-- 概述与安装入门
+- Overview and Installation Basics
 - ai
 - agent
 authors:
@@ -88,169 +91,169 @@ k8s_versions:
 - '1.32'
 ---
 
-# AgentScope 概述与安装入门
+# AgentScope Overview and Installation Primer
 
-> **文档类型**: 框架入门专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, 安装, 入门, ReAct Agent, 多 Agent 框架, 阿里巴巴, ModelScope, DashScope, 异步架构
+> **Document Type**: Framework Introduction Series | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Installation, Basics, ReAct Agent, Multi-Agent Framework, Alibaba, ModelScope, DashScope, Asynchronous Architecture
 
 ---
 
-<!-- chunk: 概述 -->## 概述
+## Overview
 
-AgentScope 是阿里巴巴推出的**生产级、开发者友好**的多 Agent 框架，核心设计哲学是**面向日益增强的模型能力**——利用模型自身的推理和工具调用能力，而非用严格的提示词和固定编排来约束模型。
+AgentScope is an **production-level, developer-friendly** multi-agent framework launched by Alibaba, with its core design philosophy being **facing the increasing model capabilities** — leveraging the inference and tool invocation capabilities of models rather than strict prompts and fixed orchestration.
 
-本文是 AgentScope 系列的第一篇，系统介绍框架定位、核心特性、安装配置，以及第一个 Hello World 示例，帮助读者在 5 分钟内完成环境搭建并运行首个 Agent。
+This article is the first in the AgentScope series, systematically introducing the framework positioning, core features, installation configuration, and a first Hello World example, helping readers set up their environment and run their first agent within five minutes.
 
-> **官方资源**：
+> **Official Resources**:
 > - GitHub: https://github.com/agentscope-ai/agentscope
-> - 文档: https://doc.agentscope.io/
+> - Documentation: <https://doc.agentscope.io/>
 > - Runtime: https://github.com/agentscope-ai/agentscope-runtime
 > - Studio: https://github.com/agentscope-ai/agentscope-studio
 
 ---
 
-<!-- chunk: 1. AgentScope 是什么 -->## 1. AgentScope 是什么
+## 1. What is AgentScope
 
-## 1.1 核心定位
+## 1.1 Core Positioning
 
 ```
-AgentScope 定位
+AgentScope Positioning
 │
-├── 面向开发者的 Agent 框架（Developer-Centric）
-│   不是低代码平台，强调代码控制力和灵活性
+├── Developer-Centric Agent Framework (Developer-Centric)
+│   Not a low-code platform, emphasizing control and flexibility over code
 │
-├── 生产就绪（Production-Ready）
-│   内置 OTel 追踪、Runtime 部署、状态管理、沙箱执行
+├── Production-Ready
+│   Built-in OTel tracing, runtime deployment, state management, sandbox execution
 │
-├── 面向日益增强的模型能力设计
-│   利用模型推理 + 工具调用能力，而非固定编排约束
+├── Designed for increasingly enhanced model capabilities
+│   Leveraging model inference and tool invocation capabilities, rather than fixed orchestration constraints
 │
-└── 内置微调支持（Agentic RL）
-    支持通过强化学习直接微调 Agent 行为
+└── Built-in Micro-Tuning Support (Agentic RL)
+    Supports direct micro-tuning of Agent behavior through reinforcement learning
 ```
 
-## 1.2 设计哲学
+## 1.2 Design Philosophy
 
-AgentScope 1.0 的设计哲学与 LangChain 等框架有本质区别：
+AgentScope's design philosophy differs fundamentally from frameworks like LangChain:
 
-| 设计维度 | 传统框架（LangChain 等） | AgentScope |
+| Design Dimension | Traditional Frameworks (like LangChain) | AgentScope |
 |---------|------------------------|------------|
-| **编排理念** | 严格的 Chain/Graph 编排，开发者定义每个步骤 | 信赖模型推理能力，ReAct 范式让模型自主决策 |
-| **异步支持** | 部分支持，需显式处理 | 全面异步架构（async/await 原生） |
-| **状态管理** | 各组件独立管理 | 统一状态接口（state_dict/load_state_dict） |
-| **工具定义** | 需要特定装饰器/Schema | 任何 Python 可调用对象都是工具 |
-| **生产部署** | 需额外框架（如 FastAPI） | 内置 Runtime（AgentApp + FastAPI 继承） |
-| **微调能力** | 无内置支持 | 内置 Agentic RL 微调 |
+| **Orchestration Concept** | Strict Chain/Graph orchestration, developers define each step | Trusting model inference capabilities, ReAct paradigm allows models to make autonomous decisions |
+| **Asynchronous Support** | Partial support, requires explicit handling | Complete asynchronous architecture (native async/await) |
+| **State Management** | Each component manages independently | Unified state interface (state_dict/load_state_dict) |
+| **Tool Definition** | Requires specific decorators/Schemas | Any Python callable object is a tool |
+| **Production Deployment** | Additional framework (e.g., FastAPI) | Built-in Runtime (AgentApp + FastAPI inheritance) |
+| **Fine-tuning Capability** | No built-in support | Built-in Agentic RL fine-tuning |
 
-## 1.3 在 Agent 框架生态中的位置
+## 1.3 Position within the Agent Framework Ecosystem
 
 ```
-Agent 框架生态（2026）
+Agent Framework Ecosystem (2026)
 │
-├── 通用编排框架
-│   ├── LangChain / LangGraph    - 生态最丰富，抽象层多
-│   ├── LlamaIndex               - RAG 能力最强
-│   └── Semantic Kernel           - 微软 .NET/Python 企业级
+├── General Orchestration Framework
+│   ├── LangChain / LangGraph    - Most rich ecosystem, multi-level abstraction
+│   ├── LlamaIndex               - Strongest RAG capabilities
+│   └── Semantic Kernel           - Enterprise-grade, Microsoft .NET/Python
 │
-├── 多 Agent 协作框架
-│   ├── AutoGen (微软)            - Group Chat 对话编排
-│   ├── CrewAI                    - 角色扮演式，上手简单
-│   └── AgentScope (阿里巴巴)     - 异步原生，生产级，内置微调 ◄─ 本系列
+├── Multi-Agent Collaboration Framework
+│   ├── AutoGen (Microsoft)        - Conversational workflow orchestration in Group Chat
+│   ├── CrewAI                    - Role-playing, easy to use
+│   └── AgentScope (Alibaba)     - Asynchronous native, production-grade, built-in fine-tuning ◄─ This series
 │
-├── 低代码平台
-│   ├── Dify                      - 可视化工作流
-│   └── Coze / 扣子               - 面向非技术用户
+├── Low-Code Platform
+│   ├── Dify                      - Visual workflow
+│   └── Coze / Coze - For non-technical users
 │
-└── 垂直领域
-    └── MetaGPT                   - 软件开发模拟
+└── Vertical Domain
+    └── MetaGPT - Software development simulation
 ```
 
 ---
 
-<!-- chunk: 2. 核心特性全景 -->## 2. 核心特性全景
+## 2. Core Features Overview
 
-## 2.1 特性矩阵
+## 2.1 Feature Matrix
 
 ```
-AgentScope 核心特性
+AgentScope Core Features
 │
-├── 基础能力（5 分钟上手）
-│   ├── ReAct Agent           - 开箱即用的推理+行动智能体
-│   ├── 工具系统              - 任意 Python 可调用对象作为工具 + 7 个内置工具
-│   ├── Human-in-the-Loop     - 实时介入、中断、恢复
-│   ├── 记忆管理              - 短期（InMemory/AsyncSQLAlchemy/Redis）+ 长期记忆
-│   ├── 计划模块              - 子任务分解与管理
-│   ├── 实时语音              - 语音输入/输出 + TTS
-│   ├── 评测框架              - ACEBench + OpenJudge
-│   └── 模型微调              - Agentic RL 强化学习
+├── Foundation Capabilities (5-Minute Setup)
+│   ├── ReAct Agent - Out-of-the-box reasoning and action agent
+│   ├── Tool System - Any Python callable object as a tool + 7 built-in tools
+│   ├── Human-in-the-Loop - Real-time intervention, interruption, recovery
+│   ├── Memory Management - Short-term (InMemory/AsyncSQLAlchemy/Redis) + Long-term memory
+│   ├── Planning Module - Subtask decomposition and management
+│   ├── Real-time Speech - Voice input/output + TTS
+│   ├── Evaluation Framework - ACEBench + OpenJudge
+│   └── Model Fine-tuning - Agentic RL reinforcement learning
 │
-├── 可扩展性
-│   ├── 生态集成              - 大量工具、记忆、可观测性集成
-│   ├── MCP 支持              - Model Context Protocol 原生集成
-│   ├── A2A 支持              - Agent-to-Agent 协议
-│   ├── MsgHub               - 灵活的多 Agent 消息编排
-│   └── Pipeline             - 顺序/并行/路由/交接工作流
+├── Scalability
+│   ├── Ecosystem Integration - Large number of tools, memory, observability integration
+│   ├── MCP Support - Native integration with Model Context Protocol
+│   ├── A2A Support - Agent-to-Agent protocol
+│   ├── MsgHub - Flexible multi-agent message orchestration
+│   └── Pipeline - Sequential/parallel/routing/pass-through workflow
 │
-└── 生产就绪
-    ├── 本地/云端/K8s 部署     - 多种部署模式
-    ├── Serverless 弹性伸缩   - 按需扩展
-    ├── OTel 可观测性          - OpenTelemetry 原生追踪
-    ├── 沙箱执行              - 安全隔离的工具执行环境
-    └── AgentScope Studio     - 可视化开发与追踪工具
+└── Production Ready
+    ├── Local/Cloud/K8s Deployment     - Multiple deployment modes
+    ├── Serverless Scalability   - On-demand scaling
+    ├── OTel Observability          - Native tracing with OpenTelemetry
+    ├── Sandbox Execution              - Secure isolated tool execution environment
+    └── AgentScope Studio     - Visualization development and tracking tool
 ```
 
-## 2.2 核心模块四层架构
+## 2.2 Four-Layer Core Module Architecture
 
-AgentScope 1.0 将 Agent 应用所需的组件抽象为四大模块：
+AgentScope 1.0 abstracts the components required by the Agent application into four modules:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    Agent 应用层                           │
-│   ReActAgent / 自定义 Agent / Voice Agent / A2A Agent    │
+│                    Agent Application Layer                           │
+│   ReActAgent / Custom Agent / Voice Agent / A2A Agent    │
 ├──────────────────────────────────────────────────────────┤
-│              Agent 基础设施层                              │
+│              Agent Infrastructure Layer                              │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐    │
 │  │ Message  │ │  Model   │ │  Memory  │ │   Tool   │    │
-│  │ 消息系统  │ │ 模型接口  │ │ 记忆管理  │ │ 工具系统  │    │
+│  │ Message System  │ │ Model Interface  │ │ Memory Management  │ │ Toolkit System  │    │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘    │
 ├──────────────────────────────────────────────────────────┤
-│              工作流与编排层                                │
+│              Workflow and Orchestration Layer                                │
 │  MsgHub / Pipeline / Routing / Handoffs / Plan           │
 ├──────────────────────────────────────────────────────────┤
-│              工程支撑层                                    │
+│              Engineering Support Layer                                    │
 │  Runtime / Studio / Tracing / Evaluation / Sandbox       │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-<!-- chunk: 3. 安装与环境准备 -->## 3. 安装与环境准备
+## 3. Installation and Environment Setup
 
-## 3.1 系统要求
+## 3.1 System Requirements
 
-| 要求 | 说明 |
+| Requirement | Description |
 |------|------|
-| **Python** | 3.10 或更高版本（推荐 3.11+，已验证 3.13） |
-| **操作系统** | macOS / Linux / Windows |
-| **包管理器** | pip 或 uv |
-| **Node.js** | 20.0.0+（仅 AgentScope Studio 可视化工具需要） |
-| **可选** | Docker / Podman（用于沙箱执行和生产部署） |
+| **Python** | Version 3.10 or higher (recommended 3.11+, verified on 3.13) |
+| **Operating System** | macOS / Linux / Windows |
+| **Package Manager** | pip or uv |
+| **Node.js** | Version 20.0.0+ (only needed for the AgentScope Studio visualization tool) |
+| **Optional** | Docker / Podman (for sandbox execution and production deployment) |
 
-## 3.2 安装方式
+## 3.2 Installation Methods
 
-**方式一：从 PyPI 安装（推荐）**
+**Method One: Install from PyPI (recommended)**
 
 ```bash
-# 基础安装
+# Base Installation
 pip install agentscope
 
-# 或使用 uv（更快）
+# Or use uv (faster)
 uv pip install agentscope
 ```
 
-**方式二：安装完整依赖**
+**Method Two: Install Complete Dependencies**
 
 ```bash
-# 包含所有模型 API 和工具函数的额外依赖
+# Additional dependencies that include all model APIs and utility functions
 # macOS / Linux
 pip install agentscope\[full\]
 
@@ -258,187 +261,187 @@ pip install agentscope\[full\]
 pip install agentscope[full]
 ```
 
-**方式三：从源码安装（开发者模式）**
+**Method Three: Install from Source Code (developer mode)**
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone -b main https://github.com/agentscope-ai/agentscope.git
 cd agentscope
 
-# 可编辑模式安装
+# Install in editable mode
 pip install -e .
 
-# 或安装开发依赖
+# Or install development dependencies
 pip install -e .[dev]
 ```
 
-**方式四：安装 AgentScope Runtime（生产部署）**
+**Method Four: Install AgentScope Runtime (production deployment)**
 
 ```bash
-# Runtime 核心
+# Runtime core
 pip install agentscope-runtime
 
-# Runtime + 扩展
+# Runtime + Extension
 pip install "agentscope-runtime[ext]"
 ```
 
-## 3.3 `agentscope[full]` 核心依赖清单
+## 3.3 Full `agentscope` Core Dependency List
 
-以下为 `agentscope[full]` v1.0.17 实际安装的核心依赖（基于 Python 3.13 / Linux x86_64 验证）：
+Following are the actual core dependencies installed for `agentscope[full]` v1.0.17 (based on Python 3.13 / Linux x86_64 verification):
 
-| 分类 | 依赖包 | 版本 | 用途 |
+| Category | Dependency Package | Version | Purpose |
 |------|--------|------|------|
-| **LLM 提供商** | `openai` | 2.28.0 | OpenAI API 客户端 |
-| | `anthropic` | 0.85.0 | Anthropic Claude API 客户端 |
-| | `dashscope` | 1.25.14 | 阿里云 DashScope（通义千问）API |
-| **MCP 协议** | `mcp` | 1.26.0 | Model Context Protocol 支持 |
-| **可观测性** | `opentelemetry-api` | 1.40.0 | OTel API |
+| **LLM Providers** | `openai` | 2.28.0 | OpenAI API client |
+| | `anthropic` | 0.85.0 | Anthropic Claude API client |
+| | `dashscope` | 1.25.14 | Alibaba Cloud DashScope (Qwen) API |
+| **MCP Protocol** | `mcp` | 1.26.0 | MCP Protocol support |
+| **Observability** | `opentelemetry-api` | 1.40.0 | OTel API |
 | | `opentelemetry-sdk` | 1.40.0 | OTel SDK |
-| | `opentelemetry-exporter-otlp` | 1.40.0 | OTel OTLP 导出器 |
-| **数据处理** | `numpy` | 2.4.3 | 数值计算 |
-| | `tiktoken` | 0.12.0 | Token 计数（OpenAI tokenizer） |
-| | `sqlalchemy` | 2.0.48 | 数据库 ORM（记忆持久化） |
-| **异步/IO** | `aiofiles` | 25.1.0 | 异步文件操作 |
-| | `aioitertools` | 0.13.0 | 异步迭代工具 |
-| | `python-socketio` | 5.16.1 | WebSocket 通信 |
-| **工具** | `json5` / `json_repair` | 0.13.0 / 0.58.6 | 宽松 JSON 解析 + 自动修复 |
-| | `docstring_parser` | 0.17.0 | 工具函数签名自动提取 |
-| | `shortuuid` | 1.0.13 | 短 UUID 生成 |
-| **音频** | `sounddevice` | 0.5.5 | 语音 Agent 音频输入输出 |
+| | `opentelemetry-exporter-otlp` | 1.40.0 | OTel OTLP Exporter |
+| **Data Processing** | `numpy` | 2.4.3 | Numerical Computing |
+| | `tiktoken` | 0.12.0 | Token Counting (OpenAI tokenizer) |
+| | `sqlalchemy` | 2.0.48 | Object-Relational Mapping (ORM) |
+| **Asynchronous/IO** | `aiofiles` | 25.1.0 | Asynchronous File Operations |
+| | `aioitertools` | 0.13.0 | Asynchronous Iteration Tools |
+| | `python-socketio` | 5.16.1 | WebSocket Communication |
+| **Tools** | `json5` / `json_repair` | 0.13.0 / 0.58.6 | Loose JSON Parsing + Auto Repair |
+| | `docstring_parser` | 0.17.0 | Automatic Extraction of Tool Function Signatures |
+| | `shortuuid` | 1.0.13 | Generation of Short UUIDs |
+| **Audio** | `sounddevice` | 0.5.5 | Audio Input and Output for Voice Agents |
 
-> 完整依赖树包含约 **242 个包**，以上仅列出核心直接依赖。
+> The complete dependency tree includes approximately **242 packages**, listed here are only the core direct dependencies.
 
-## 3.4 验证安装
+## 3.4 Verification of Installation
 
 ```python
 import agentscope
 print(agentscope.__version__)
-# 输出: 1.0.17（或更高版本）
+# Output: 1.0.17 (or higher version)
 ```
 
-## 3.5 API Key 配置
+## 3.5 Configuration of API Key
 
-AgentScope 支持多种 LLM 提供商，需要配置相应的 API Key：
+AgentScope supports multiple LLM providers and requires configuration of corresponding API Keys:
 
-**DashScope（阿里云百炼/通义千问）**：
+**DashScope (Alibaba Cloud Baileys/Tongyi Qianwen)**:
 
 ```bash
-# 方式一: 环境变量
+# Method 1: Environment variables
 export DASHSCOPE_API_KEY="sk-your-dashscope-api-key"
 
-# 方式二: 在代码中直接传递
+# Method 2: Passing directly in code
 # DashScopeChatModel(model_name="qwen-max", api_key="sk-xxx")
 ```
 
-> 获取 DashScope API Key: https://dashscope.console.aliyun.com/
+> Obtain DashScope API Key: <https://dashscope.console.aliyun.com/>
 
-**OpenAI**：
+**OpenAI**:
 
 ```bash
 export OPENAI_API_KEY="sk-your-openai-api-key"
 ```
 
-**本地模型（Ollama）**：
+**Local Models (Ollama)**:
 
 ```bash
-# 无需 API Key，确保 Ollama 服务运行
+# No API Key required, ensure Ollama service is running
 ollama serve
 ollama pull qwen2.5:7b
 ```
 
-## 3.6 AgentScope Studio 安装（可视化工具）
+## 3.6 Installation of AgentScope Studio (Visual Tool)
 
-AgentScope Studio 是**独立的可视化开发工具**，基于 Node.js，需要单独安装。它提供 Trace 可视化、Agent 实时交互、评测分析等功能。
+AgentScope Studio is a **standalone visual development tool**, based on Node.js, which needs to be installed separately. It provides features such as Trace visualization, real-time interaction with Agents, and evaluation analysis.
 
-> 官方仓库: https://github.com/agentscope-ai/agentscope-studio
+> Official Repository: <https://github.com/agentscope-ai/agentscope-studio>
 
-**前置条件**：
+**Prerequisites:**
 
 ```bash
-# 确认 Node.js 版本（需 >= 20.0.0）
+# Confirm Node.js version (must >= 20.0.0)
 node --version   # 应显示 v20.x.x 或更高
 npm --version    # 应显示 10.x.x 或更高
 ```
 
-**RHEL / CentOS / Alibaba Cloud Linux 安装 Node.js**：
+**RHEL / CentOS / Alibaba Cloud Linux Install Node.js**:
 
 ```bash
-# 方式一: NodeSource 官方源（推荐）
+# Method 1: Official NodeSource source (recommended)
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
 yum install -y nodejs
 
-# 方式二: 二进制包（离线/加速）
+# Method 2: Binary package (offline/accelerated)
 cd /usr/local
 curl -O https://nodejs.org/dist/v20.18.3/node-v20.18.3-linux-x64.tar.xz
 tar xf node-v20.18.3-linux-x64.tar.xz
 ln -sf /usr/local/node-v20.18.3-linux-x64/bin/{node,npm,npx} /usr/local/bin/
 ```
 
-> **注意**: `yum install node` 会报 "No match"，正确包名是 `nodejs`；但默认仓库版本通常过旧，建议使用 NodeSource 源。
+> **Note**: `yum install node` will return "No match", the correct package name is `nodejs`; but the default repository version is usually outdated, it is recommended to use the NodeSource source.
 
-**安装 C++ 编译工具链**（原生模块 `better-sqlite3` 需要）：
+**Install C++ Compiler Toolchain** (native module `better-sqlite3` requires):
 
 ```bash
-# 必须安装，否则 npm install 会报 "g++: Command not found"
+# Must be installed, otherwise npm install will report "g++: Command not found"
 yum install -y gcc-c++ make
 ```
 
-**安装 Studio**：
+**Install Studio**:
 
 ```bash
-# 国内环境建议使用淘宝镜像
+# Domestic environment suggests using the Taobao mirror
 npm config set registry https://registry.npmmirror.com
 
-# 全局安装
+# Global installation
 npm install -g @agentscope/studio
 ```
 
-**启动 Studio**：
+**Start Studio**:
 
 ```bash
-# 前台启动（默认监听 http://localhost:3000）
+# Frontend start (default listens on http://localhost:3000)
 as_studio
 
-# 后台运行
+# Backend run
 nohup as_studio > /tmp/as_studio.log 2>&1 &
 ```
 
-**连接 AgentScope 应用**：
+**Connect AgentScope App**:
 
-在 Python 代码中配置 `studio_url`，Agent 运行数据将实时上报到 Studio：
+In Python code, configure `studio_url`, Agent runtime data will be reported in real time to Studio:
 
 ```python
 import agentscope
 
 agentscope.init(
-    # ...其他配置...
+    # ...other configurations...
     studio_url="http://localhost:3000"
 )
 ```
 
-**Docker 方式部署 Studio**（替代方案）：
+**Deploy Studio via Docker** (alternative solution):
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 国内环境需要配置镜像加速，Docker Hub 直连可能超时
-# Podman 用户编辑 /etc/containers/registries.conf 添加 mirror
+# 🟢 Low-risk: read-only/information gathering, typically with no side effects
+# Domestic environments require configuration for image acceleration, direct connection to Docker Hub may timeout
+# Podman users edit /etc/containers/registries.conf to add mirror
 docker run -p 3000:3000 agentscope/studio:latest
 ```
-**云服务器（ECS）远程访问排查**：
+**Troubleshoot Remote Access to Cloud Server (ECS)**:
 
-如果在阿里云 ECS 上部署后浏览器无法访问，需检查三个层面：
+If deployed on an Alibaba Cloud ECS, and the browser cannot access, check three levels:
 
-| 排查层 | 检查命令 / 操作 | 说明 |
+| Troubleshooting Level | Check Command / Operation | Explanation |
 |--------|----------------|------|
-| **① 服务绑定地址** | `ss -tlnp | grep 3000` | 如果显示 `127.0.0.1:3000`，需改为 `as_studio --host 0.0.0.0` 或 `HOST=0.0.0.0 as_studio` |
-| **② 阿里云安全组** | ECS 控制台 → 安全组 → 入方向添加 TCP/3000 | 这是云平台级别防火墙，**必须在控制台配置** |
-| **③ OS 防火墙** | `firewall-cmd --add-port=3000/tcp --permanent && firewall-cmd --reload` | 操作系统级别防火墙 |
+| **① Service Binding Address** | `ss -tlnp | grep 3000` | If shows `127.0.0.1:3000`, need to change to `as_studio --host 0.0.0.0` or `HOST=0.0.0.0 as_studio` |
+| **② Alibaba Cloud Security Group** | ECS Console → Security Group → Add TCP/3000 inbound rule | This is the cloud platform-level firewall, **must be configured in the console** |
+| **③ Operating System Firewall** | `firewall-cmd --add-port=3000/tcp --permanent && firewall-cmd --reload` | Operating system-level firewall |
 
 ---
 
-<!-- chunk: 4. Hello World：第一个 Agent -->## 4. Hello World：第一个 Agent
+## 4. Hello World: First Agent
 
-## 4.1 最简示例 — ReAct Agent 对话
+## 4.1 Simplest Example — ReAct Agent Dialogue
 
 ```python
 from agentscope.agent import ReActAgent, UserAgent
@@ -451,12 +454,12 @@ import asyncio
 
 
 async def main():
-    # 1. 准备工具
+    # 1. Prepare tools
     toolkit = Toolkit()
     toolkit.register_tool_function(execute_python_code)
     toolkit.register_tool_function(execute_shell_command)
 
-    # 2. 创建 ReAct Agent
+    # 2. Create ReAct Agent
     agent = ReActAgent(
         name="Friday",
         sys_prompt="You're a helpful assistant named Friday.",
@@ -470,10 +473,10 @@ async def main():
         toolkit=toolkit,
     )
 
-    # 3. 创建用户 Agent（接收终端输入）
+    # 3. Create User Agent (for terminal input reception)
     user = UserAgent(name="user")
 
-    # 4. 对话循环
+    # 4. Dialogue loop
     msg = None
     while True:
         msg = await agent(msg)
@@ -485,10 +488,10 @@ async def main():
 asyncio.run(main())
 ```
 
-**运行效果**：
+**Run Effect**:
 
 ```
-user: 用 Python 计算 1+1
+user: Use Python to calculate 1+1
 Friday: {
   "type": "tool_use",
   "name": "execute_python_code",
@@ -499,11 +502,11 @@ system: {
   "name": "execute_python_code",
   "output": [{"type": "text", "text": "<returncode>0</returncode><stdout>2\n</stdout>"}]
 }
-Friday: 1+1 的结果是 2。
+Friday: The result of 1+1 is 2.
 user: exit
 ```
 
-## 4.2 使用 OpenAI 模型
+## 4.2 Using OpenAI Models
 
 ```python
 from agentscope.model import OpenAIChatModel
@@ -523,7 +526,7 @@ agent = ReActAgent(
 )
 ```
 
-## 4.3 使用本地模型（Ollama）
+## 4.3 Using Local Models (Ollama)
 
 ```python
 from agentscope.model import OllamaChatModel
@@ -534,7 +537,7 @@ agent = ReActAgent(
     sys_prompt="You're a helpful assistant named Friday.",
     model=OllamaChatModel(
         model_name="qwen2.5:7b",
-        # Ollama 默认地址
+        # Ollama default address
         base_url="http://localhost:11434",
         stream=True,
     ),
@@ -544,7 +547,7 @@ agent = ReActAgent(
 )
 ```
 
-## 4.4 无工具的简单对话 Agent
+## 4.4 No-tool Simple Dialogue Agent
 
 ```python
 from agentscope.agent import ReActAgent
@@ -558,8 +561,8 @@ import os
 
 async def simple_chat():
     agent = ReActAgent(
-        name="小助手",
-        sys_prompt="你是一个友善的中文助手，擅长回答各种问题。",
+        name="assistant"
+        sys_prompt="you are a friendly chinese helper, skilled at answering various questions.",
         model=DashScopeChatModel(
             model_name="qwen-max",
             api_key=os.environ["DASHSCOPE_API_KEY"],
@@ -569,15 +572,15 @@ async def simple_chat():
         formatter=DashScopeChatFormatter(),
     )
 
-    # 直接发送消息（非交互式）
+    # Direct message sending (non-interactively)
     msg = Msg(
         name="user",
-        content="请简要介绍 Kubernetes 的核心组件",
+        content="Please provide a brief introduction to the core components of Kubernetes",
         role="user",
     )
 
     response = await agent(msg)
-    print(f"Agent 回复: {response.get_text_content()}")
+    print(f"Agent reply: {response.get_text_content()}")
 
 
 asyncio.run(simple_chat())
@@ -585,165 +588,165 @@ asyncio.run(simple_chat())
 
 ---
 
-<!-- chunk: 5. 项目结构与生态 -->## 5. 项目结构与生态
+## 5. Project Structure and Ecosystem
 
-## 5.1 AgentScope 项目矩阵
+## 5.1 AgentScope Project Matrix
 
 ```
-AgentScope 生态
+AgentScope Ecosystem
 │
-├── agentscope (核心框架)
-│   ├── agentscope.agent      - 智能体模块（ReActAgent, UserAgent, AgentBase...）
-│   ├── agentscope.model      - 模型接口（DashScope, OpenAI, Ollama...）
-│   ├── agentscope.memory     - 记忆管理（InMemoryMemory, AsyncSQLAlchemyMemory, RedisMemory）
-│   ├── agentscope.tool       - 工具系统（Toolkit, ToolResponse, 7 个内置工具）
-│   ├── agentscope.message    - 消息系统（Msg）
-│   ├── agentscope.formatter  - 提示词格式化器
-│   ├── agentscope.pipeline   - 编排管道（sequential/fanout_pipeline, stream_printing_messages）
-│   ├── agentscope.mcp        - MCP 协议客户端（Http/StdIO）
-│   └── agentscope.session    - 会话管理（JSONSession）
+├── agentscope (core framework)
+│   ├── agentscope.agent      - Intelligent Body module (ReActAgent, UserAgent, AgentBase...)
+│   ├── agentscope.model      - Model interface (DashScope, OpenAI, Ollama...)
+│   ├── agentscope.memory     - Memory management (InMemoryMemory, AsyncSQLAlchemyMemory, RedisMemory)
+│   ├── agentscope.tool       - Toolkit system (Toolkit, ToolResponse, 7 built-in tools)
+│   ├── agentscope.message    - Message system (Msg)
+│   ├── agentscope.formatter  - prompt formatter
+│   ├── agentscope.pipeline   - orchestration pipeline (sequential/fanout_pipeline, stream_printing_messages)
+│   ├── agentscope.mcp        - MCP protocol client (Http/StdIO)
+│   └── agentscope.session    - session management (JSONSession)
 │
-├── agentscope-runtime (生产运行时)
-│   ├── AgentApp              - FastAPI 继承的 Agent 服务
-│   ├── Sandbox               - 安全沙箱执行环境
-│   ├── DeployManager         - 部署管理器
-│   └── Adapters              - 多框架适配器
+├── agentscope-runtime (production runtime)
+│   ├── AgentApp              - FastAPI-inherited Agent service
+│   ├── Sandbox               - sandbox execution environment
+│   ├── DeployManager         - deployment manager
+│   └── Adapters              - multi-framework adapters
 │
-├── agentscope-studio (可视化工具)
-│   ├── 追踪可视化             - OpenTelemetry Trace 展示
-│   ├── 项目管理              - 运行管理与配置
-│   └── 评测界面              - Agent 评测可视化
+├── agentscope-studio (visualization tool)
+│   ├── Tracing Visualization  - OpenTelemetry Trace visualization
+│   ├── Project Management    - run management and configuration
+│   └── Evaluation Interface  - Agent evaluation visualization
 │
-└── agentscope-samples (示例项目)
-    ├── ReAct Agent 示例
-    ├── 狼人杀多 Agent 游戏
-    ├── 深度研究 Agent
-    ├── 浏览器自动化 Agent
-    └── Agentic RL 微调示例
+└── agentscope-samples (sample projects)
+    ├── ReAct Agent Sample
+    ├── Multi-Agent Werewolf Game
+    ├── Deep Research Agent
+    ├── Browser Automation Agent
+    └── Agentic RL Fine-tuning Sample
 ```
 
-## 5.2 与现有专题的关系
+## 5.2 Relationship with Existing Topics
 
-| 本系列文档 | 对应专题现有内容 | 关系说明 |
+| Series Document | Corresponding Topic Existing Content | Relationship Explanation |
 |-----------|----------------|---------|
-| 16 - 概述与安装 | [03 - 框架对比](./03-agent-frameworks-comparison.md) | AgentScope 在框架对比中的深度展开 |
-| 17 - 核心概念 | [01 - Agent 基础](./01-ai-agent-fundamentals.md) | AgentScope 对通用 Agent 概念的具体实现 |
-| 18 - 工具系统 | [05 - Tool Use](./05-tool-use-function-calling.md) | AgentScope 的工具调用实现与 MCP 集成 |
-| 19 - 记忆管理 | [07 - 记忆管理](./07-memory-context-management.md) | AgentScope 的记忆/上下文具体方案 |
-| 20 - 多 Agent | [06 - 多 Agent 编排](./06-multi-agent-orchestration.md) | AgentScope MsgHub/Pipeline 编排实践 |
-| 21 - 高级特性 | [04 - RAG](./04-rag-knowledge-retrieval.md) | AgentScope RAG、评测、RL 微调等进阶 |
-| 22 - 生产部署 | [09 - 生产部署](./09-production-deployment-guide.md) | AgentScope Runtime 的 K8s 部署实践 |
+| 16 - Overview and Installation | [03 - Framework Comparison](./03-agent-frameworks-comparison.md) | Deep exploration of AgentScope in framework comparison |
+| 17 - Core Concepts | [01 - Agent Basics](./01-ai-agent-fundamentals.md) | Specific implementation of general Agent concepts by AgentScope |
+| 18 - Toolkit System | [05 - Tool Usage](./05-tool-use-function-calling.md) | Implementation of tool calling by AgentScope and integration with MCP |
+| 19 - Memory Management | [07 - Memory Context Management](./07-memory-context-management.md) | Specific scheme of memory/contexts by AgentScope |
+| 20 - Multi-Agent | [06 - Multi-Agent Orchestration](./06-multi-agent-orchestration.md) | AgentScope MsgHub/Pipeline Orchestration Practice |
+| 21 - Advanced Features | [04 - RAG](./04-rag-knowledge-retrieval.md) | AgentScope RAG, Evaluation, RL Tuning, etc. Advanced |
+| 22 - Production Deployment | [09 - Production Deployment Guide](./09-production-deployment-guide.md) | AgentScope Runtime's K8s Deployment Practice |
 
 ---
 
-<!-- chunk: 6. 内置工具列表 -->## 6. 内置工具列表
+## 6. List of Built-in Tools
 
-AgentScope 内置了实用工具函数，通过 `toolkit.register_tool_function()` 即可注册：
+AgentScope includes utility functions, which can be registered via `toolkit.register_tool_function()`:
 
-| 工具函数 | 模块 | 功能 |
+| Tool Function | Module | Functionality |
 |---------|------|------|
-| `execute_python_code` | `agentscope.tool` | 执行 Python 代码 |
-| `execute_shell_command` | `agentscope.tool` | 执行 Shell 命令 |
-| `view_text_file` | `agentscope.tool` | 查看文本文件内容 |
-| `write_text_file` | `agentscope.tool` | 写入文本文件 |
-| `insert_text_file` | `agentscope.tool` | 向文本文件指定位置插入内容 |
-| `dashscope_text_to_image` | `agentscope.tool` | DashScope 文生图 |
-| `openai_text_to_image` | `agentscope.tool` | OpenAI DALL·E 文生图 |
+| `execute_python_code` | `agentscope.tool` | Execute Python Code |
+| `execute_shell_command` | `agentscope.tool` | Execute Shell Command |
+| `view_text_file` | `agentscope.tool` | View Text File Content |
+| `write_text_file` | `agentscope.tool` | Write to Text File |
+| `insert_text_file` | `agentscope.tool` | Insert Content at a Specific Position in a Text File |
+| `dashscope_text_to_image` | `agentscope.tool` | DashScope Text-to-Image |
+| `openai_text_to_image` | `agentscope.tool` | OpenAI DALL·E Text-to-Image |
 
-> 详见 [18 - 工具系统与 MCP 集成](./18-agentscope-tool-system.md)。
+> See [18 - Tool System and MCP Integration](./18-agentscope-tool-system.md).
 
 ---
 
-<!-- chunk: 7. 快速排错 -->## 7. 快速排错
+## 7. Quick Troubleshooting
 
-## 7.1 常见安装问题
+## 7.1 Common Installation Issues
 
-**AgentScope 核心安装问题**：
+**Core Installation Issues for AgentScope**:
 
-| 问题 | 原因 | 解决方案 |
+| Issue | Reason | Solution |
 |------|------|--------|
-| `ModuleNotFoundError: No module named 'agentscope'` | 未正确安装 | `pip install agentscope` |
-| `Python version < 3.10` | 版本不满足要求 | 升级 Python 至 3.10+，推荐使用 pyenv 管理 |
-| `ImportError: cannot import name 'ReActAgent'` | 版本过旧 | `pip install --upgrade agentscope` |
-| DashScope API 认证失败 | API Key 未设置或无效 | 检查 `DASHSCOPE_API_KEY` 环境变量 |
-| OpenAI API 连接超时 | 网络问题 | 配置代理或使用 `base_url` 指定中转地址 |
-| `extras` 安装失败（macOS） | shell 转义问题 | 使用 `pip install agentscope\[full\]`（反斜杠转义） |
+| `ModuleNotFoundError: No module named 'agentscope'` | Incorrect installation | Run `pip install agentscope` |
+| `Python version < 3.10` | Version requirements not met | Upgrade Python to 3.10+; recommended with pyenv management |
+| `ImportError: cannot import name 'ReActAgent'` | Outdated version | Run `pip install --upgrade agentscope` |
+| Authentication failure for DashScope API | Invalid or missing API key | Check the `DASHSCOPE_API_KEY` environment variable |
+| Connection timeout for OpenAI API | Network issues | Configure proxies or use `base_url` for transit addresses |
+| `extras` installation fails (macOS) | shell escaping issue | Use `pip install agentscope\[full\]` (backslash escaping) |
 
-**AgentScope Studio 安装问题**：
+**AgentScope Studio Installation Issues**:
 
-| 问题 | 原因 | 解决方案 |
+| Issue | Reason | Solution |
 |------|------|--------|
-| `yum install node` → No match | 包名错误 | 正确包名为 `nodejs`，但建议用 NodeSource 源安装 v20+ |
-| `npm install` → `g++: Command not found` | 缺少 C++ 编译器 | `yum install -y gcc-c++ make`（原生模块 better-sqlite3 需要编译） |
-| `docker pull` → `dial tcp ... i/o timeout` | Docker Hub 国内无法访问 | 配置镜像加速或改用 `npm install -g @agentscope/studio` |
-| Studio 启动后外网无法访问 | 默认绑定 127.0.0.1 | `as_studio --host 0.0.0.0` + 安全组放行 + 防火墙放行 |
-| ECS 公网 IP 无法访问 3000 端口 | 阿里云安全组未配置 | ECS 控制台 → 安全组 → 入方向 → 添加 TCP/3000 规则 |
+| `yum install node` → No match | Package name error | Correct package name is `nodejs`, but it's recommended to install v20+ using NodeSource repository |
+| `npm install` → `g++: Command not found` | Missing C++ compiler | `yum install -y gcc-c++ make` (better-sqlite3 requires compilation) |
+| `docker pull` → `dial tcp ... i/o timeout` | Docker Hub cannot be accessed from China | Configure mirror acceleration or use `npm install -g @agentscope/studio` |
+| Studio starts but cannot access the internet from outside | Default binds to `127.0.0.1` | `as_studio --host 0.0.0.0` + Security group rule + Firewall rule |
+| ECS public IP cannot access port 3000 | Alibaba Cloud Security Group not configured | ECS console → Security Group → Inbound Rules → Add TCP/3000 rule |
 
-## 7.2 推荐开发环境
+## 7.2 Recommended Development Environment
 
 ```bash
-# 推荐使用 pyenv + virtualenv
+# Recommended to use pyenv + virtualenv
 pyenv install 3.11.9
 pyenv virtualenv 3.11.9 agentscope-env
 pyenv activate agentscope-env
 
-# 安装 AgentScope
+# Install AgentScope
 pip install agentscope\[full\]
 
-# 验证
+# Verify
 python -c "import agentscope; print(agentscope.__version__)"
 ```
 
 ---
 
-<!-- chunk: 8. 最佳实践与反模式 -->## 8. 最佳实践与反模式
+## 8. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **从 ReActAgent 开始**：AgentScope 的 ReAct Agent 是最核心的组件，先熟练使用再扩展
-- **API Key 用环境变量管理**：避免在代码中硬编码密钥，使用 `os.environ` 或 `.env` 文件
-- **优先使用 DashScope**：AgentScope 与阿里云 DashScope 集成最深，Qwen 系列模型兼容性最佳
-- **使用 stream=True**：生产环境始终开启流式输出，提升用户体验和响应速度
-- **安装 full 依赖**：开发阶段建议安装 `agentscope[full]`，避免缺少依赖导致的功能缺失
+- **Start with ReActAgent**: The core component of AgentScope, ReActAgent, should be mastered before expanding
+- **Manage API Keys via Environment Variables**: Avoid hardcoding keys in code; use `os.environ` or `.env` files
+- **Prioritize DashScope**: AgentScope integrates most deeply with Alibaba Cloud DashScope, and Qwen series models have the best compatibility
+- **Use stream=True**: Always enable streaming output in production environments for better user experience and response speed
+- **Install full dependencies**: During development, it's recommended to install `agentscope[full]` to avoid missing dependencies causing functionality gaps
 
-## 反模式
+## Anti-patterns
 
-- **忽视异步设计**：AgentScope 原生异步，不要用 `sync` 包装器绕过 `async/await`
-- **跳过环境验证**：安装后不验证版本，可能导致 API 不兼容
-- **混用 Formatter 和 Model**：DashScopeChatModel 必须配合 DashScopeChatFormatter，混用会导致格式错误
-- **在生产环境用 InMemoryMemory**：内存记忆不持久化，重启丢失，生产应使用 `AsyncSQLAlchemyMemory`（PostgreSQL/SQLite）或 `RedisMemory`
+- **Ignore asynchronous design**: AgentScope natively supports async, don't wrap with `sync` wrapper to bypass `async/await`
+- **Skip version validation**: Don't skip version validation after installation, which can lead to incompatible APIs
+- **Mix Formatter and Model**: DashScopeChatModel must be paired with DashScopeChatFormatter; mixing them will result in format errors
+- **Use InMemoryMemory in production**: In-memory memory doesn't persist across restarts; use `AsyncSQLAlchemyMemory` (PostgreSQL/SQLite) or `RedisMemory` in production
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|---------|
-| [17 - 核心概念与基础操作](./17-agentscope-core-concepts.md) | Agent、Message、Model、Formatter 详解 |
-| [18 - 工具系统与 MCP 集成](./18-agentscope-tool-system.md) | Toolkit、MCP、自定义工具 |
-| [03 - 主流 Agent 框架对比](./03-agent-frameworks-comparison.md) | AgentScope 与 LangChain/AutoGen/CrewAI 对比 |
-| [01 - AI Agent 基础与核心架构](./01-ai-agent-fundamentals.md) | Agent 通用概念和推理框架 |
+| [17 - Core Concepts and Basic Operations](./17-agentscope-core-concepts.md) | Detailed explanations of Agent, Message, Model, and Formatter |
+| [18 - Tool System and MCP Integration](./18-agentscope-tool-system.md) | Toolkit, MCP, custom tools |
+| [03 - Mainstream Agent Framework Comparison](./03-agent-frameworks-comparison.md) | AgentScope vs LangChain/AutoGen/CrewAI |
+| [01 - AI Agent Basics and Core Architecture](./01-ai-agent-fundamentals.md) | General Concepts and Inference Framework for Agents |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content for the kudig-database project's 02-ai-agents topic. *
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Topic Overview]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Basics and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Dive into Mainstream Agent Framework Comparisons]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Knowledge Retrieval Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Usage and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architectures]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation System and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

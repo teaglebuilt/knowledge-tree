@@ -1,6 +1,7 @@
----title: Agent CLI 基础概念与架构模式 (domain-14-ai-ml-infra)
-description: 'title: Agent CLI 基础概念与架构模式'
-summary: 'title: Agent CLI 基础概念与架构模式'
+---
+title: Agent CLI Foundation Concepts and Architecture Patterns (domain-14-ai-ml-infra)
+description: 'title: Agent CLI Foundation Concepts and Architecture Patterns'
+summary: 'title: Agent CLI Foundation Concepts and Architecture Patterns'
 category: general
 tags:
 - ai
@@ -15,16 +16,16 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- Agent CLI 基础概念与架构模式 是什么
-- 如何 Agent CLI 基础概念与架构模式
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent CLI Foundation Concepts and Architecture Patterns
+- How to understand Agent CLI Foundation Concepts and Architecture Patterns
+- Best Practices for Agent CLI Foundation Concepts and Architecture Patterns in Kubernetes 14 ai ml infra
 trigger_keywords:
 - Agent
 - CLI
-- 基础概念与架构模式
+- Foundation Concepts and Architecture Patterns
 - ai
 - ml
 - infra
@@ -34,17 +35,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/23-agent-cli-fundamentals.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands contained in this document are executable directly. Please confirm before execution: that the target cluster and namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: Agent CLI 基础概念与架构模式
-description: '# Agent CLI 基础概念与架构模式'
+title: Agent CLI Basics and Architectural Patterns
+description: '# Agent CLI Basics and Architectural Patterns'
 category: ai-agent
 tags:
 - ai
@@ -57,17 +60,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent CLI 基础概念与架构模式 是什么
-- 如何 Agent CLI 基础概念与架构模式
+- What is Agent CLI Basics and Architectural Patterns
+- How to understand Agent CLI Basics and Architectural Patterns
 trigger_keywords:
 - Agent
 - CLI
-- 基础概念与架构模式
+- Agent CLI Basics and Architectural Patterns
 - ai
 - agent
 authors:
@@ -81,122 +84,122 @@ k8s_versions:
 - '1.32'
 ---
 
-# Agent CLI 基础概念与架构模式
+# Agent CLI Foundation Concepts and Architectural Patterns
 
-> **文档类型**: 基础概念专题 | **最后更新**: 2026-03 | **关键词**: Agent CLI, Terminal Agent, REPL Loop, MCP, Agentic Coding, CLI Architecture
-
----
-
-## 概述
-
-**Agent CLI（命令行智能体）** 是 2025–2026 年 AI 工程领域最具影响力的范式转变之一。它将 LLM 的推理能力与终端的执行能力深度融合，使开发者能够在命令行环境中以自然语言驱动代码生成、项目重构、故障排查和系统运维等复杂任务。
-
-与 GUI 形态的 AI 助手相比，Agent CLI 具备更强的**自动化集成能力**（CI/CD、脚本调度）、更灵活的**工具链扩展性**（MCP 协议、自定义工具）以及更低的**环境依赖**（无需 IDE，SSH 可达即可用）。本文系统梳理 Agent CLI 的核心概念、架构模式和关键技术。
+> **Document Type**: Basics Topic | **Last Updated**: 2026-03 | **Keywords**: Agent CLI, Terminal Agent, REPL Loop, MCP, Agentic Coding, CLI Architecture
 
 ---
 
-## 1. Agent CLI 的定义与分类
+## Overview
 
-### 1.1 什么是 Agent CLI
+**Agent CLI (Command Line Intelligent Agent)** is one of the most influential paradigm shifts in the AI engineering field from 2025 to 2026. It integrates the reasoning capabilities of LLMs with the execution capabilities of terminals, enabling developers to drive code generation, project refactoring, fault diagnosis, and system operations through natural language commands in the terminal environment.
 
-Agent CLI 是运行在终端（Terminal）环境中的 AI 智能体，具备以下核心能力：
+Compared to GUI forms of AI assistants, Agent CLI has stronger **automation integration capabilities** (CI/CD, script scheduling), greater **toolchain extensibility** (MCP protocol, custom tools), and lower **environmental dependencies** (no need for an IDE, SSH connectivity is sufficient). This article systematically reviews the core concepts, architectural patterns, and key technologies of Agent CLI.
 
-- **自然语言交互**：接受自然语言指令，理解开发者意图
-- **代码读写**：自主读取项目文件、生成和修改代码
-- **工具调用**：执行 shell 命令、调用 API、操作文件系统
-- **规划与推理**：将复杂任务分解为步骤序列，迭代执行并自我校验
-- **上下文感知**：理解项目结构、代码依赖关系和运行时状态
+---
+
+## 1. Definition and Classification of Agent CLI
+
+### 1.1 What is Agent CLI
+
+Agent CLI is an AI agent running in the terminal (Terminal) environment, possessing the following core capabilities:
+
+- **Natural Language Interaction**: Accepts natural language instructions and understands developer intentions
+- **Code Reading/Writing**: Reads and writes project files autonomously, generates, and modifies code
+- **Tool Invocation**: Executes shell commands, calls APIs, and manipulates the file system
+- **Planning and Reasoning**: Breaks down complex tasks into step sequences, iterates, and self-verifies
+- **Context Awareness**: Understands project structure, code dependencies, and runtime states
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Agent CLI 系统                      │
+│                  Agent CLI System                  │
 │                                                     │
 │  ┌─────────┐   ┌──────────┐   ┌─────────────────┐  │
-│  │ 用户输入 │──▶│ LLM 推理 │──▶│ Tool Execution  │  │
-│  │ (NL/指令)│   │ (规划/生成)│   │ (文件/Shell/API)│  │
+│  │ user input │──▶│ LLM inference │──▶│ Tool Execution  │  │
+│  │ (NL/Command)│   │ (Planning/Generation)│   │ (File/Shell/API)│  │
 │  └─────────┘   └──────────┘   └─────────────────┘  │
 │       ▲              │                   │          │
 │       │              ▼                   ▼          │
 │  ┌─────────┐   ┌──────────┐   ┌─────────────────┐  │
-│  │ 交互反馈 │◀──│ 结果评估 │◀──│ Context Manager │  │
-│  │ (确认/修正)│  │ (成功/失败)│  │ (项目/文件/历史)│  │
+│  │ Interactivity Feedback │◀──│ Result Evaluation │◀──│ Context Manager │  │
+│  │ (Confirmation/Correction)│  │ (Success/Failure)│  │ (Project/File/History)│  │
 │  └─────────┘   └──────────┘   └─────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Agent CLI 分类体系
+### 1.2 Classification System of Agent CLI
 
-| 分类维度 | 类型 | 典型代表 | 特征 |
+| Dimension | Type | Representative | Features |
 |---------|------|---------|------|
-| **交互模式** | 交互式 (Interactive) | Claude Code, Aider | 人在回路，实时确认 |
-| | 无头模式 (Headless) | Codex CLI `--quiet` | 全自动，CI/CD 集成 |
-| **功能定位** | 编码助手 (Coding Agent) | Claude Code, Codex CLI, Aider | 聚焦代码生成与修改 |
-| | 通用终端 Agent | Goose, Warp AI | 覆盖运维、部署等全场景 |
-| | 领域专用 Agent | Amazon Q Developer CLI | 绑定特定云平台生态 |
-| **模型绑定** | 单模型绑定 | Claude Code (Claude) | 与特定模型深度优化 |
-| | 多模型支持 | Aider, Goose | 支持任意 LLM 后端 |
-| **协议支持** | MCP 原生 | Claude Code, Goose | 原生支持 MCP 工具协议 |
-| | API 集成 | Aider | 通过自定义适配集成 |
+| **Interaction Mode** | Interactive (Interactive) | Claude Code, Aider | Human-in-the-loop, real-time confirmation |
+| | Headless Mode | Codex CLI `--quiet` | Fully automated, CI/CD integration |
+| **Function Positioning** | Coding Assistant | Claude Code, Codex CLI, Aider | Focus on code generation and modification |
+| | Universal Terminal Agent | Goose, Warp AI | Cover all scenarios from operations to deployment |
+| | Domain-specific Agent | Amazon Q Developer CLI | Bind to specific cloud platform ecosystem |
+| **Model Binding** | Single model binding | Claude Code (Claude) | Deeply optimized with a specific model |
+| | Multi-model support | Aider, Goose | Support any LLM backend |
+| **Protocol Support** | MCP native | Claude Code, Goose | Native support for MCP tool protocol |
+| | API Integration | Aider | Integrate through custom adapters |
 
 ### 1.3 Agent CLI vs IDE Agent vs Web Agent
 
-| 对比维度 | Agent CLI | IDE Agent (Copilot/Cursor) | Web Agent (ChatGPT/Dify) |
+| Comparison Dimensions | Agent CLI | IDE Agent (Copilot/Cursor) | Web Agent (ChatGPT/Dify) |
 |---------|-----------|--------------------------|-------------------------|
-| **运行环境** | Terminal / SSH | IDE 内嵌 | 浏览器 |
-| **自动化能力** | ★★★★★ (CI/CD 原生) | ★★★☆☆ | ★★☆☆☆ |
-| **工具扩展** | MCP / 自定义工具 | 插件体系 | Function Calling |
-| **离线/SSH** | ✅ 支持 | ❌ 需要 GUI | ❌ 需要浏览器 |
-| **多文件操作** | ★★★★★ | ★★★★☆ | ★★☆☆☆ |
-| **交互形态** | 纯文本 | 图形 + 文本 | 图形 |
-| **团队协作** | Git-native | IDE 依赖 | 平台依赖 |
+| **Run Environment** | Terminal / SSH | IDE embedded | Browser |
+| **Automation Capability** | ★★★★★ (CI/CD native) | ★★★☆☆ | ★★☆☆☆ |
+| **Tool Extension** | MCP / Custom tools | Plugin ecosystem | Function Calling |
+| **Offline/SSH** | ✅ Supported | ❌ Requires GUI | ❌ Requires browser |
+| **Multi-file Operations** | ★★★★★ | ★★★★☆ | ★★☆☆☆ |
+| **Interaction Form** | Pure text | Graphical + Text | Graphical |
+| **Team Collaboration** | Git-native | IDE dependency | Platform dependency |
 
 ---
 
-## 2. 核心架构模式
+## 2. Core Architectural Patterns
 
-### 2.1 Agent Loop（智能体循环）
+### 2.1 Agent Loop (Agent Loop)
 
-Agent CLI 的核心运行机制是 **Agent Loop**——一个持续的「感知→推理→行动→观察」循环：
+Agent CLI's core operational mechanism is **Agent Loop** — a continuous cycle of "perception → inference → action → observation":
 
 ```mermaid
 graph TB
-    A["用户输入<br/>自然语言指令"] --> B["上下文构建<br/>系统提示 + 项目信息 + 历史"]
-    B --> C["LLM 推理<br/>规划 + 工具选择"]
-    C --> D{"需要执行工具?"}
-    D -- 是 --> E["工具执行<br/>文件读写 / Shell / API"]
-    E --> F["结果观察<br/>收集执行输出"]
+    A["User Input\nNatural Language Instruction"] --> B["Context Building\nSystem Prompt + Project Info + History"]
+    B --> C["LLM Inference\nPlanning + Tool Selection"]
+    C --> D{"Need to Execute Tool?"}
+    D -- Is --> E["Tool Execution\nFile Read/Write / Shell / API"]
+    E --> F["Result Observation\nCollect Execution Output"]
     F --> C
-    D -- 否 --> G["生成响应<br/>向用户报告结果"]
-    G --> H{"任务完成?"}
-    H -- 否 --> A
-    H -- 是 --> I["结束"]
+    D -- No --> G["Generate Response\nReport Results to User"]
+    G --> H{"Task Complete?"}
+    H -- No --> A
+    H -- Is --> I["End"]
 ```
 
-**关键设计要素**：
+**Key Design Elements**:
 
-| 要素 | 说明 | 最佳实践 |
+| Element | Description | Best Practices |
 |------|------|---------|
-| **迭代深度** | 单次任务最大循环次数 | 设置上限（如 50 轮），防止无限循环 |
-| **工具权限** | 哪些工具可自动执行 | 读操作自动批准，写操作需确认 |
-| **上下文窗口** | 累积上下文的 Token 管理 | 滑动窗口 + 摘要压缩 |
-| **错误恢复** | 工具执行失败的处理 | 自动重试 + 替代方案 + 用户求助 |
+| **Iteration Depth** | Maximum number of loop cycles for a single task | Set an upper limit (e.g., 50 iterations) to prevent infinite loops |
+| **Tool Permissions** | Which tools can be executed automatically | Automatic approval for read operations, confirmation required for write operations |
+| **Context Window** | Managing Tokens for Cumulative Context | Sliding window + compression summary |
+| **Error Recovery** | Handling tool execution failures | Automatic retries + alternative solutions + user assistance |
 
-### 2.2 工具系统架构
+### 2.2 Tool System Architecture
 
-Agent CLI 的工具系统是其区别于普通聊天机器人的核心能力层：
+Agent CLI's tool system is its core capability layer that distinguishes it from ordinary chatbots:
 
 ```
 ┌──────────────────────────────────────────────────┐
 │                 Agent CLI Tool System             │
 │                                                  │
 │  ┌──────────────────────────────────────────┐    │
-│  │          Built-in Tools (内置工具)         │    │
+│  │          Built-in Tools (Built-in Tools)         │    │
 │  │  file_read │ file_write │ shell_exec     │    │
 │  │  search    │ grep       │ list_dir       │    │
 │  └──────────────────────────────────────────┘    │
 │                                                  │
 │  ┌──────────────────────────────────────────┐    │
-│  │          MCP Tools (MCP 协议工具)         │    │
+│  │          MCP Tools (MCP Protocol Tools)         │    │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ │    │
 │  │  │ MCP      │ │ MCP      │ │ MCP      │ │    │
 │  │  │ Server A │ │ Server B │ │ Server C │ │    │
@@ -205,249 +208,249 @@ Agent CLI 的工具系统是其区别于普通聊天机器人的核心能力层�
 │  └──────────────────────────────────────────┘    │
 │                                                  │
 │  ┌──────────────────────────────────────────┐    │
-│  │      Custom Tools (自定义 / Hooks)        │    │
+│  │      Custom Tools (Custom / Hooks)        │    │
 │  │  pre_commit_check │ lint │ test_runner   │    │
 │  └──────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────┘
 ```
 
-### 2.3 上下文管理架构
+### 2.3 Context Management Architecture
 
-Agent CLI 面临的核心挑战之一是**有限的上下文窗口**与**海量项目信息**之间的矛盾：
+Agent CLI faces a core challenge between the **limited context window** and the **massive amount of project information**:
 
-**分层上下文策略**：
+**Hierarchical Context Strategy**:
 
-| 层级 | 内容 | 生命周期 | 管理策略 |
+| Level | Content | Lifecycle | Management Strategy |
 |------|------|---------|---------|
-| **L0 — 系统提示** | 角色定义、安全规则、工具描述 | 永久 | 固定前缀 |
-| **L1 — 项目上下文** | 项目结构、README、配置文件 | 会话级 | 启动时加载 |
-| **L2 — 任务上下文** | 当前任务相关文件、代码片段 | 任务级 | 按需检索（语义搜索） |
-| **L3 — 对话上下文** | 历史对话、工具调用结果 | 对话级 | 滑动窗口 + 摘要 |
-| **L4 — 持久记忆** | 用户偏好、项目约定、过往决策 | 跨会话 | 向量存储 + 关键词索引 |
+| **L0 — System Prompt** | Role definitions, security rules, tool descriptions | Permanent | Fixed prefix |
+| **L1 — Project Context** | Project structure, README, configuration files | Session-level | Loaded at startup |
+| **L2 — Task Context** | Relevant files and code snippets for the current task | Task-level | On-demand retrieval (semantic search) |
+| **L3 — Dialogue Context** | Historical dialogues, results of tool calls | Conversation-level | Sliding window + compression summary |
+| **L4 — Persistent Memory** | User preferences, project conventions, past decisions | Across sessions | Vector storage + keyword indexing |
 
 ```mermaid
 graph LR
-    subgraph Context["上下文管理"]
-        L0["L0 系统提示<br/>~2K tokens"] --> WINDOW["Context Window<br/>128K-200K tokens"]
-        L1["L1 项目上下文<br/>~5K tokens"] --> WINDOW
-        L2["L2 任务上下文<br/>动态检索"] --> WINDOW
-        L3["L3 对话上下文<br/>滑动窗口"] --> WINDOW
-        L4["L4 持久记忆<br/>跨会话"] --> WINDOW
+    subgraph Context["Context Management"]
+        L0["L0 System Prompt\n~2K tokens"] --> WINDOW["Context Window\n128K-200K tokens"]
+        L1["L1 Project Context\n~5K tokens"] --> WINDOW
+        L2["L2 Task Context\nDynamic Retrieval"] --> WINDOW
+        L3["L3 Dialog Context\nSliding Window"] --> WINDOW
+        L4["L4 Persistent Memory\nCross Sessions"] --> WINDOW
     end
 ```
 
 ---
 
-## 3. 关键协议与标准
+## 3. Key Protocols and Standards
 
-### 3.1 MCP（Model Context Protocol）
+### 3.1 MCP (Model Context Protocol)
 
-MCP 是 Anthropic 于 2024 年底开源的协议，2025–2026 年已成为 Agent CLI 工具扩展的**事实标准**：
+MCP is the protocol released by Anthropic in late 2024, becoming the **de facto standard** for Agent CLI tool extensions in 2025–2026:
 
-| 特性 | 说明 |
+| Feature | Description |
 |------|------|
-| **协议架构** | Client ↔ Server，基于 JSON-RPC 2.0 |
-| **传输方式** | stdio（本地进程）/ SSE（远程 HTTP）/ Streamable HTTP |
-| **核心能力** | Tools（工具调用）、Resources（资源读取）、Prompts（提示模板） |
-| **认证方式** | OAuth 2.1（远程 MCP Server） |
-| **发现机制** | 服务端声明能力列表，客户端动态注册 |
+| **Protocol Architecture** | Client ↔ Server, based on JSON-RPC 2.0 |
+| **Transmission Method** | stdio (local process) / SSE (remote HTTP) / Streamable HTTP |
+| **Core Capabilities** | Tools (tool invocation), Resources (resource reading), Prompts (prompt templates) |
+| **Authentication Method** | OAuth 2.1 (remote MCP Server) |
+| **Discovery Mechanism** | Server declares capability list, client dynamically registers |
 
-**MCP 工作流**：
+**MCP Workflow**:
 
 ```
-开发者 ──▶ Agent CLI (MCP Client)
+Developer ──▶ Agent CLI (MCP Client)
                 │
-                ├──stdio──▶ MCP Server (本地文件系统)
-                ├──stdio──▶ MCP Server (Git 操作)
+                ├──stdio──▶ MCP Server (Local Filesystem)
+                ├──stdio──▶ MCP Server (Git Operations)
                 ├──HTTP──▶  MCP Server (Kubernetes API)
-                └──HTTP──▶  MCP Server (企业内部 API)
+                └──HTTP──▶  MCP Server (Enterprise Internal API)
 ```
 
-### 3.2 A2A（Agent-to-Agent Protocol）
+### 3.2 A2A (Agent-to-Agent Protocol)
 
-Google 主导的 A2A 协议定义了 Agent 之间的互操作标准，使不同 Agent CLI 实例可以协作：
+Google-led A2A protocol defined interoperability standards between Agents, allowing different Agent CLI instances to collaborate:
 
-| 组件 | 作用 |
+| Component | Role |
 |------|------|
-| **Agent Card** | 描述 Agent 能力的 JSON 元数据（/.well-known/agent.json） |
-| **Task** | Agent 之间的协作单元，包含状态机（submitted → working → completed） |
-| **Message/Part** | 结构化通信载体（TextPart, FilePart, DataPart） |
-| **Streaming** | 基于 SSE 的实时进度推送 |
+| **Agent Card** | Description of the agent's capabilities in JSON metadata (/.well-known/agent.json) |
+| **Agent Card** | JSON metadata describing an Agent's capabilities (/.well-known/agent.json) |
+| **Task** | Unit of collaboration between Agents, containing a state machine (submitted → working → completed) |
+| **Message/Part** | Structured carrier for communication (TextPart, FilePart, DataPart) |
 
-### 3.3 工具调用标准对比
+### 3.3 Comparison of Call Standards for Tools
 
-| 标准 | 发起方 | 适用场景 | Agent CLI 支持度 |
+| **MCP** | Anthropic | Tool extension, resource access | ★★★★★ Broad support |
 |------|--------|---------|-----------------|
-| **MCP** | Anthropic | CLI 工具扩展、资源访问 | ★★★★★ 广泛支持 |
-| **A2A** | Google | Agent 间协作 | ★★★☆☆ 逐步采用 |
-| **OpenAPI Function Calling** | OpenAI | LLM 原生工具调用 | ★★★★☆ 基础支持 |
-| **Tool Use (Anthropic API)** | Anthropic | Claude 原生工具调用 | ★★★★★ 原生支持 |
+| **OpenAPI Function Calling** | OpenAI | Native tool invocation for LLMs | ★★★★☆ Basic support |
+| **Tool Use (Anthropic API)** | Anthropic | Native tool invocation for Claude | ★★★★★ Native support |
+| **OpenAPI Function Calling** | OpenAI | LLM Native Tool Invocation | ★★★★☆ Foundation Support |
+| **Tool Use (Anthropic API)** | Anthropic | Claude Tool Usage | ★★★★★ Native Support |
 
 ---
 
-## 4. 运行模式详解
+## 4. Detailed Explanation of Operational Modes
 
-### 4.1 交互模式（Interactive Mode）
+### 4.1 Interactive Mode (Interactive Mode)
 
-最常见的使用模式，开发者与 Agent 实时对话：
+Most common usage pattern involves real-time dialogue between developers and Agents:
 
 ```bash
-# Claude Code 交互模式
+# Claude Code Interacting Mode
 $ claude
 > 帮我重构 src/auth/ 目录下的认证模块，使用 JWT 替换 Session
 
-# Codex CLI 交互模式
+# Codex CLI Interacting Mode
 $ codex
 > 查看当前项目的测试覆盖率，找出缺失测试的模块
 
-# Aider 交互模式
+# Aider Interacting Mode
 $ aider --model claude-3.5-sonnet
 > /add src/api/*.py
 > 为所有 API endpoint 添加输入校验
 ```
 
-**交互模式特征**：
-- 人在回路（Human-in-the-Loop），写操作需确认
-- 实时查看 Agent 推理过程和工具调用
-- 支持中途修正和追加指令
+**Characteristics of Interactive Mode**:
+- Human-in-the-loop (HITL), write operations require confirmation
+- Real-time viewing of Agent's reasoning process and tool invocations
+- Support for mid-task corrections and additional instructions
 
-### 4.2 无头模式（Headless Mode）
+### 4.2 Headless Mode (Headless Mode)
 
-适用于 CI/CD 和自动化场景，Agent 独立完成任务：
+Applicable to CI/CD and automation scenarios, where Agents independently complete tasks:
 
 ```bash
-# Claude Code 无头模式
-$ claude -p "修复所有 ESLint 错误" --allowedTools "Edit,Write,Bash" --output-format json
+# Claude Code Headless Mode
+$ claude -p "Fix all ESLint errors" --allowedTools "Edit,Write,Bash" --output-format json
 
-# Codex CLI 无头模式
-$ codex --quiet --approval-mode full-auto "为所有公开函数添加文档注释"
+# Codex CLI Headless Mode
+$ codex --quiet --approval-mode full-auto "Add doc comments to all public functions"
 
-# Aider 无头模式
-$ echo "添加 retry 逻辑到所有 HTTP 客户端调用" | aider --yes --model gpt-4o
+# Aider Headless Mode
+$ echo "Add retry logic to all HTTP client calls" | aider --yes --model gpt-4o
 ```
 
-**无头模式特征**：
-- 全自动执行，无需人工确认
-- 输出结构化结果（JSON/diff）
-- 适合批量操作和流水线集成
+**Characteristics of Headless Mode**:
+- Fully automated execution, no need for manual confirmation
+- Generation of structured results (JSON/diff)
+- Suitable for batch operations and pipeline integration
 
-### 4.3 管道模式（Pipe Mode）
+### 4.3 Pipe Mode (Pipe Mode)
 
-将 Agent CLI 嵌入 Unix 管道，实现与其他工具的组合：
+Embed Agent CLI into Unix pipelines to achieve combination with other tools:
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 分析 Git diff 并生成 commit message
-$ git diff --staged | claude -p "根据这些变更生成规范的 commit message"
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+# Analyze Git diff and generate commit message
+$ git diff --staged | claude -p "Generate a formatted commit message based on these changes"
 
-# 分析日志并给出诊断
-$ kubectl logs deployment/api-server --tail=200 | claude -p "分析这些日志，找出错误根因"
+# Analyze logs and provide diagnosis
+$ kubectl logs deployment/api-server --tail=200 | claude -p "Analyze these logs to find the root cause of the errors"
 
-# 批量处理文件
+# Batch process files
 $ find . -name "*.go" -exec grep -l "deprecated" {} \; | \
-    claude -p "列出这些文件中已废弃的 API 调用并建议替代方案"
+    claude -p "List the deprecated API calls in these files and suggest alternatives"
 ```
 ---
 
-## 5. 核心技术栈
+## 5. Core Technology Stack
 
-### 5.1 Agent CLI 技术栈全景
+### 5.1 Panorama of Agent CLI Technology Stack
 
 ```
 ┌────────────────────────────────────────────────────┐
-│                    用户交互层                        │
+│                    User Interaction Layer                        │
 │   Terminal UI │ Rich Output │ Diff View │ Progress  │
 ├────────────────────────────────────────────────────┤
-│                    推理引擎层                        │
+│                    Reasoning Engine Layer                        │
 │   LLM API │ Prompt Engineering │ Agent Loop │ CoT   │
 ├────────────────────────────────────────────────────┤
-│                    工具执行层                        │
+│                    Tool Execution Layer                        │
 │   File I/O │ Shell │ MCP Client │ LSP │ Tree-sitter│
 ├────────────────────────────────────────────────────┤
-│                    上下文管理层                      │
+│                    Context Management Layer                      │
 │   Embeddings │ Vector Store │ AST Parser │ Indexer  │
 ├────────────────────────────────────────────────────┤
-│                    安全与权限层                      │
+│                    Security and Permission Layer                      │
 │   Sandbox │ Permission Model │ Audit Log │ Secrets  │
 └────────────────────────────────────────────────────┘
 ```
 
-### 5.2 关键依赖技术
+### 5.2 Key Dependent Technologies
 
-| 技术 | 作用 | 典型实现 |
+| Technology | Role | Typical Implementation |
 |------|------|---------|
-| **Tree-sitter** | AST 解析，精确代码理解 | 被 Claude Code、Aider 广泛采用 |
-| **LSP** | 语言服务器协议，提供补全/跳转/诊断 | 增强代码上下文理解 |
-| **ripgrep** | 高性能代码搜索 | 作为 Agent 内置搜索工具 |
-| **diff/patch** | 结构化代码变更表示 | unified diff, search-replace blocks |
-| **Git** | 版本控制集成 | 自动 commit、分支管理、diff 分析 |
-| **Vector DB** | 代码语义搜索 | 项目级代码索引与检索 |
-| **Sandbox** | 安全执行环境 | macOS Seatbelt, Linux seccomp, Docker |
+| **Tree-sitter** | Abstract Syntax Tree parsing, precise code understanding | Widely adopted by Claude Code, Aider |
+| **LSP** | Language Server Protocol, providing completion, jumping, diagnostics | Enhancing code context understanding |
+| **ripgrep** | High-performance code search | Used as the built-in search tool within Agent |
+| **diff/patch** | Structured representation of code changes | unified diff, search-replace blocks |
+| **Git** | Version control integration | Automatic commit, branch management, diff analysis |
+| **Vector DB** | Semantic code search | Project-level code indexing and retrieval |
+| **Sandbox** | Secure execution environment | macOS Seatbelt, Linux seccomp, Docker |
 
 ---
 
-## 6. 2026 年 Agent CLI 发展趋势
+## 6. 2026 Year Agent CLI Development Trends
 
-### 6.1 关键趋势
+### 6.1 Key Trends
 
-| 趋势 | 现状 (2026 Q1) | 影响 |
+| Trend | Current (Q1 2026) | Impact |
 |------|----------------|------|
-| **MCP 生态爆发** | 10,000+ MCP Server 可用 | Agent CLI 能力边界大幅扩展 |
-| **多模型路由** | Agent CLI 支持动态切换模型 | 简单任务用小模型，复杂任务用大模型，成本降低 60%+ |
-| **团队协作模式** | 多人共享 Agent 会话、配置和记忆 | 从个人工具进化为团队基础设施 |
-| **领域专用 Agent CLI** | K8s Agent CLI、DB Agent CLI 涌现 | 垂直场景体验大幅提升 |
-| **自主编码能力** | 长任务自主执行，精度 >90% | 开发者角色从写代码转向审代码 |
-| **合规与审计** | 企业级 SSO、审计日志、策略引擎 | 大型企业开始规模化部署 |
+| **MCP Ecosystem Booms** | Over 10,000 MCP Servers available | Extends the capability boundary of Agent CLI significantly |
+| **Dynamic Model Routing** | Agent CLI supports dynamic model switching | Simple tasks use small models, complex tasks use large models, cost reduction of over 60% |
+| **Collaborative Mode** | Shared Agent sessions, configurations, and memories among teams | Evolves from personal tools to team infrastructure |
+| **Domain-Specific Agent CLI** | K8s Agent CLI, DB Agent CLI emerge | Significantly improves vertical scene experiences |
+| **Autonomous Coding Ability** | Autonomous execution of long tasks, precision >90% | Developers shift from writing code to reviewing code |
+| **Compliance and Auditing** | Enterprise SSO, audit logs, policy engine | Large enterprises begin to scale deployment |
 
-### 6.2 技术成熟度评估
+### 6.2 Technical Maturity Assessment
 
-| 能力 | 成熟度 | 生产可用性 |
+| Capability | Maturity | Production Availability |
 |------|--------|-----------|
-| 单文件代码生成 | ★★★★★ | ✅ 已大规模使用 |
-| 多文件重构 | ★★★★☆ | ✅ 可生产使用 |
-| 自动化测试生成 | ★★★★☆ | ✅ 可生产使用 |
-| CI/CD 集成 | ★★★★☆ | ✅ 可生产使用 |
-| 自主 Bug 修复 | ★★★☆☆ | ⚠️ 需人工审查 |
-| 架构级重构 | ★★☆☆☆ | ⚠️ 需深度监督 |
-| 全自动运维 | ★★☆☆☆ | ❌ 实验阶段 |
+| Single-file code generation | ★★★★★ | ✅ Already widely used in production |
+| Multi-file refactoring | ★★★★☆ | ✅ Production usable |
+| Automated Testing Generation | ★★★★☆ | ✅ Production Ready |
+| CI/CD Integration | ★★★★☆ | ✅ Production Ready |
+| Autonomous Bug Fixing | ★★★☆☆ | ⚠️ Requires Manual Review |
+| Architecture-Level Refactoring | ★★☆☆☆ | ⚠️ Requires Deep Supervision |
+| Fully Automated Operations | ★★☆☆☆ | ❌ In Development Phase |
 
 ---
 
-## 7. 小结与导航
+## 7. Conclusion and Navigation
 
-Agent CLI 是 LLM 能力与开发者工作流深度融合的产物。其核心价值在于：
+Agent CLI is the product of deep integration between LLM capabilities and developer workflows. Its core value lies in:
 
-1. **降低认知负荷**：自然语言驱动，无需记忆复杂命令和 API
-2. **提升自动化水平**：无头模式 + CI/CD 集成，实现端到端自动化
-3. **扩展能力边界**：MCP 协议使 Agent 能力可无限扩展
-4. **保持开发者控制**：Git-native 工作流，所有变更可审查、可回滚
+1. **Reducing Cognitive Load**: Natural language-driven, no need to remember complex commands and APIs
+2. **Enhancing Automation Level**: Headless mode + CI/CD integration, achieving end-to-end automation
+3. **Expanding Capability Boundaries**: MCP protocol enables infinite expansion of Agent capabilities
+4. **Maintaining Developer Control**: Git-native workflow, all changes can be reviewed and rolled back
 
-**后续阅读**：
-- [24 - 主流 Agent CLI 工具全景对比](./24-agent-cli-tools-comparison.md)：深入对比各工具特性
-- [25 - Agent CLI 与 MCP 协议深度集成](./25-agent-cli-mcp-integration.md)：MCP 工具开发实战
-- [05 - Tool Use & Function Calling](./05-tool-use-function-calling.md)：工具调用设计规范
-- [09 - 生产部署指南](./09-production-deployment-guide.md)：K8s 上的 Agent 服务部署
-
----
-
-*本文档为 kudig-database 项目原创内容，基于 2026 年 Q1 最新生态整理。*
+**Further Reading**:
+- [24 - Panoramic Comparison of Mainstream Agent CLI Tools](./24-agent-cli-tools-comparison.md): Deep comparison of tool features
+- [25 - Deep Integration of Agent CLI and MCP Protocol](./25-agent-cli-mcp-integration.md): MCP tool development practice
+- [05 - Design Guidelines for Tool Usage and Function Calling](./05-tool-use-function-calling.md): Design guidelines for tool usage
+- [09 - Deployment Guide for K8s-based Agents](./09-production-deployment-guide.md): Deployment of Agent services on K8s
 
 ---
 
-## Obsidian 相关文档
+*This document is original content from the kudig-database project, compiled based on the latest ecosystem in Q1 2026.*
+
+---
+
+## Obsidian Related Documentation
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Special Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability Framework]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

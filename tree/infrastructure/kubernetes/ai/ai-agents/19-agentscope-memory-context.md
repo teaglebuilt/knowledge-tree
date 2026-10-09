@@ -1,6 +1,7 @@
----title: AgentScope 记忆管理与上下文工程 (domain-14-ai-ml-infra)
-description: 'title: AgentScope 记忆管理与上下文工程'
-summary: 'title: AgentScope 记忆管理与上下文工程'
+---
+title: AgentScope Memory Management and Context Engineering (domain-14-ai-ml-infra)
+description: 'title: AgentScope Memory Management and Context Engineering'
+summary: 'title: AgentScope Memory Management and Context Engineering'
 category: general
 tags:
 - ai
@@ -19,15 +20,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- AgentScope 记忆管理与上下文工程 是什么
-- 如何 AgentScope 记忆管理与上下文工程
-- Kubernetes 14 ai ml infra 最佳实践
+- What is AgentScope Memory Management and Context Engineering
+- How does AgentScope Memory Management and Context Engineering work
+- Best practices for AgentScope Memory Management and Context Engineering in Kubernetes 14 ai ml infra
 trigger_keywords:
 - AgentScope
-- 记忆管理与上下文工程
+- What is Memory Management and Context Engineering
 - ai
 - ml
 - infra
@@ -40,17 +41,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/19-agentscope-memory-context.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: AgentScope 记忆管理与上下文工程
-description: '# AgentScope 记忆管理与上下文工程'
+title: AgentScope Memory Management and Context Engineering
+description: '# AgentScope Memory Management and Context Engineering'
 category: ai-agent
 tags:
 - ai
@@ -67,16 +70,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineer
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AgentScope 记忆管理与上下文工程 是什么
-- 如何 AgentScope 记忆管理与上下文工程
+- What is AgentScope Memory Management and Context Engineering
+- How does AgentScope Memory Management and Context Engineering work
 trigger_keywords:
 - AgentScope
-- 记忆管理与上下文工程
+- Memory Management and Context Engineering
 - ai
 - agent
 authors:
@@ -90,129 +93,129 @@ k8s_versions:
 - '1.32'
 ---
 
-# AgentScope 记忆管理与上下文工程
+# AgentScope Memory Management and Context Engineering
 
-> **文档类型**: 记忆管理专题 | **最后更新**: 2026-03 | **关键词**: AgentScope, Memory, 记忆管理, InMemoryMemory, AsyncSQLAlchemyMemory, RedisMemory, 长期记忆, Mem0, ReMe, Session, JSONSession, 状态持久化, Token 管理, 上下文窗口, 记忆压缩, CompressionConfig, marks
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-记忆是 Agent 实现**多轮对话连贯性**和**跨会话知识积累**的基础。AgentScope 提供了灵活的记忆管理体系：三种内置记忆后端（InMemoryMemory、AsyncSQLAlchemyMemory、RedisMemory）用于当前会话的对话历史，长期记忆（Mem0、ReMe）用于跨会话的知识积累，JSONSession 用于生产环境的状态持久化。
-
-本文系统讲解 AgentScope 记忆管理的完整方案，从基础的 InMemoryMemory 到生产级的持久化和长期记忆。
+> **Document Type**: Memory Management Topic | **Last Updated**: 2026-03 | **Keywords**: AgentScope, Memory, Memory Management, InMemoryMemory, AsyncSQLAlchemyMemory, RedisMemory, Long-Term Memory, Mem0, ReMe, Session, JSONSession, State Persistence, Token Management, Context Window, Memory Compression, CompressionConfig, marks
 
 ---
 
-<!-- chunk: 1. 记忆架构全景 -->## 1. 记忆架构全景
+## Overview
+
+Memories are the foundation for Agent to achieve **consistent multi-turn dialogues** and **cross-session knowledge accumulation**. AgentScope provides a flexible memory management system: three built-in memory backends (InMemoryMemory, AsyncSQLAlchemyMemory, RedisMemory) for dialogue history within a session, long-term memory (Mem0, ReMe) for cross-session knowledge accumulation, and JSONSession for state persistence in production environments.
+
+This document comprehensively explains the complete solution for AgentScope's memory management, starting from the basic InMemoryMemory to production-level persistence and long-term memory.
+
+---
+
+## 1. Memory Architecture Overview
 
 ```
-AgentScope 记忆架构
+AgentScope Memory Architecture
 │
-├── 短期记忆 (Short-term Memory)
-│   ├── InMemoryMemory       → 纯内存，进程退出后丢失，开发调试用
-│   ├── AsyncSQLAlchemyMemory→ SQL 持久化（SQLite/PostgreSQL/MySQL）
-│   └── RedisMemory          → Redis 持久化，分布式场景
+├── Short-Term Memory
+│   ├── InMemoryMemory       → Memory stored in memory, lost when process exits, used for development and debugging
+│   ├── AsyncSQLAlchemyMemory→ Persistent storage using SQL (SQLite/PostgreSQL/MySQL)
+│   └── RedisMemory          → Persistent storage using Redis, suitable for distributed scenarios
 │
-├── 长期记忆 (Long-term Memory)
+├── Long-Term Memory
 │   ├── Mem0LongTermMemory
-│   │   └── 基于 Mem0 的向量检索长期记忆
+│   │   └── Vector-based long-term memory based on Mem0
 │   └── ReMePersonalLongTermMemory
-│       └── 基于 ReMe 的个人化长期记忆
+│       └── Personalized long-term memory based on ReMe
 │
-│   模式:
-│   ├── agent_control  → 智能体通过工具自主管理
-│   ├── static_control → 框架在 reply 前后自动读写
-│   └── both           → 同时激活以上两种
+│   Pattern:
+│   ├── agent_control  → The intelligent body manages itself through tools
+│   ├── static_control → The framework automatically reads and writes before and after replies
+│   └── both           → Activates both above modes simultaneously
 │
-├── 消息标记 (Marks)
-│   └── 字符串标签系统，用于消息分类/过滤/删除
+├── Message Markers
+│   └── String tag system, used for message classification/filtering/deletion
 │
-├── 记忆压缩 (CompressionConfig)
-│   └── 内置于 ReActAgent，自动 LLM 摘要压缩
+├── Memory Compression
+│   └── Built into ReActAgent, automatically compresses LLM summaries
 │
-├── Session 管理
-│   └── JSONSession → 文件持久化
+├── Session Management
+│   └── JSONSession → File persistence
 │
-└── 状态管理 (State)
-    ├── state_dict()        → 导出状态快照（同步）
-    └── load_state_dict()   → 恢复状态（同步）
+└── State Management
+    ├── state_dict()        → Export state snapshot (synchronous)
+    └── load_state_dict()   → recover state (synchronous)
 ```
 
 ---
 
-<!-- chunk: 2. 三种记忆后端 -->## 2. 三种记忆后端
+## 2. Three Memory Backends
 
-AgentScope 提供三种内置记忆实现，均实现相同的 `Memory` 接口：
+AgentScope provides three built-in memory implementations, all implementing the same `Memory` interface:
 
-| 记忆类型 | 存储后端 | 持久化 | 适用场景 |
+| Memory Type | Storage Backend | Persistence | Applicable Scenarios |
 |---------|---------|--------|--------|
-| `InMemoryMemory` | Python 内存 | 否（进程退出后丢失） | 开发调试、短对话 |
-| `AsyncSQLAlchemyMemory` | SQLite/PostgreSQL/MySQL | 是 | 生产环境单机/单数据库 |
-| `RedisMemory` | Redis | 是 | 生产环境分布式、高性能 |
+| `InMemoryMemory` | Python Memory | No (lost upon process restart) | Development debugging, short dialogues |
+| `AsyncSQLAlchemyMemory` | SQLite/PostgreSQL/MySQL | Yes | Production single-machine/single-database |
+| `RedisMemory` | Redis | Yes | Production distributed/high-performance |
 
-## 2.1 InMemoryMemory——基础使用
+## 2.1 InMemoryMemory —— Basic Usage
 
 ```python
 from agentscope.memory import InMemoryMemory
 from agentscope.message import Msg
 
-# 创建记忆实例
+# Create a memory instance
 memory = InMemoryMemory()
 
-# 添加消息
-await memory.add(Msg("user", "Pod 处于 CrashLoopBackOff", "user"))
-await memory.add(Msg("assistant", "我来检查日志...", "assistant"))
-await memory.add(Msg("user", "容器启动失败是什么原因？", "user"))
+# Add a message
+await memory.add(Msg("user", "user", "user"))
+await memory.add(Msg("assistant", "I will check the logs...", "assistant"))
+await memory.add(Msg("user", "What is the reason for container startup failure?", "user"))
 
-# 获取全部记忆
+# Get all memories
 messages = await memory.get_memory()
-# 返回: [Msg("user", ...), Msg("assistant", ...), Msg("user", ...)]
+# Return: [Msg("user", ...), Msg("assistant", ...), Msg("user", ...)]
 
-# 获取记忆数量
+# Get the number of memories
 count = len(messages)
 ```
 
-## 2.2 AsyncSQLAlchemyMemory——SQL 持久化
+## 2.2 AsyncSQLAlchemyMemory —— SQL Persistence
 
 ```python
 from agentscope.memory import AsyncSQLAlchemyMemory
 
-# SQLite 后端（单机，零配置）
+# SQLite backend (single machine, zero configuration)
 memory = AsyncSQLAlchemyMemory(
     url="sqlite+aiosqlite:///./agent_memory.db",
 )
 
-# PostgreSQL 后端（生产推荐）
+# PostgreSQL backend (production recommendation)
 memory = AsyncSQLAlchemyMemory(
     url="postgresql+asyncpg://user:pass@db-host:5432/agent_db",
-    # 连接池配置（生产环境必须）
+    # Connection pool configuration (required for production environments)
     pool_size=10,
     max_overflow=20,
 )
 
-# 使用方式与 InMemoryMemory 完全相同
-await memory.add(Msg("user", "Pod Pending 怎么办？", "user"))
+# Usage is identical to InMemoryMemory
+await memory.add(Msg("user", "How do I handle Pod Pending?", "user"))
 messages = await memory.get_memory()
 ```
 
-> **优势**：进程重启后记忆不丢失；支持连接池；适合 FastAPI 等 Web 服务。
+> **Advantages**: Process restarts do not affect memory; support connection pooling; suitable for FastAPI etc. web services.
 
-## 2.3 RedisMemory——分布式
+## 2.3 RedisMemory —— Distributed
 
 ```python
 from agentscope.memory import RedisMemory
 
-# 适合 K8s 多副本场景，多个 Agent 实例共享状态
+# Suitable for K8s multi-replica scenarios, multiple Agent instances share state
 memory = RedisMemory(
     url="redis://redis-host:6379/0",
 )
 
-# 使用方式与 InMemoryMemory 完全相同
-await memory.add(Msg("user", "etcd leader 频繁切换", "user"))
+# Usage is identical to InMemoryMemory
+await memory.add(Msg("user", "etcd leader frequently switches", "user"))
 ```
 
-## 2.4 在 Agent 中使用
+## 2.4 Using in Agent
 
 ```python
 from agentscope.agent import ReActAgent
@@ -220,19 +223,19 @@ from agentscope.memory import InMemoryMemory
 
 agent = ReActAgent(
     name="Expert",
-    memory=InMemoryMemory(),  # 注入短期记忆
+    memory=InMemoryMemory(),  # inject short-term memory
     ...
 )
 
-# Agent 自动管理记忆:
-# 1. 收到消息 → memory.add(input_msg)
-# 2. 生成响应 → memory.add(response_msg)
-# 3. 下次推理时 → memory.get_memory() 获取历史作为上下文
+# Agent automatically manages memories:
+# 1. Receive a message → memory.add(input_msg)
+# 2. Generate a response → memory.add(response_msg)
+# 3. For inference next time → memory.get_memory() to get history as context
 ```
 
-## 2.5 消息标记系统（Marks）
+## 2.5 Message Marking System (Marks)
 
-AgentScope 的记忆支持 **marks**（字符串标签），用于消息的分类、过滤和批量删除：
+AgentScope's memory supports **marks** (string tags) to categorize, filter, and batch delete messages:
 
 ```python
 from agentscope.memory import InMemoryMemory
@@ -240,69 +243,69 @@ from agentscope.message import Msg
 
 memory = InMemoryMemory()
 
-# 添加带标记的消息
-await memory.add(Msg("user", "集群状态如何？", "user"), marks="diagnosis")
-await memory.add(Msg("system", "提示：检查日志", "system"), marks="hint")
-await memory.add(Msg("assistant", "已完成检查", "assistant"), marks="diagnosis")
+# Add a message with a tag
+await memory.add(Msg("user", "What is the cluster status?", "user"), marks="diagnosis")
+await memory.add(Msg("system", "Hint: Check the logs", "system"), marks="hint")
+await memory.add(Msg("assistant", "Check completed", "assistant"), marks="diagnosis")
 
-# 按标记检索消息
+# Search messages by tag
 diag_msgs = await memory.get_memory(marks="diagnosis")
-# 返回: [用户问题, 助手回复]
+# Return: [User question, Assistant reply]
 
-# 按标记删除消息
+# Delete messages by tag
 await memory.delete(marks="hint")
-# 所有带 "hint" 标记的消息被删除
+# All messages tagged "hint" are deleted
 ```
 
 ```
-Marks 常见用法
+Marks common usage
 │
-├── "hint"         → 临时提示信息，用完即删
-├── "diagnosis"    → 诊断过程消息，可按任务检索
-├── "tool_result"  → 工具执行结果，压缩时可优先删除
-└── "summary"      → 压缩生成的摘要消息
+├── "hint"         → temporary hint, delete after use
+├── "diagnosis"    → diagnostic process message, can be retrieved by task
+├── "tool_result"  → tool execution result, can be deleted preferentially when compressed
+└── "summary"      → summary message generated during compression
 ```
 
-## 2.6 状态管理
+## 2.6 State Management
 
 ```python
 memory = InMemoryMemory()
 await memory.add(Msg("user", "hello", "user"))
 
-# 导出状态（同步 API，可序列化为 JSON）
+# Export State (Synchronous API, serializable as JSON)
 state = memory.state_dict()
-# state 包含所有存储的消息
+# state contains all stored messages
 
-# 创建新实例并恢复状态
+# Create a new instance and restore state
 new_memory = InMemoryMemory()
 new_memory.load_state_dict(state)
 
-# new_memory 现在拥有相同的对话历史
+# new_memory now has the same conversation history
 messages = await new_memory.get_memory()
 ```
 
 ---
 
-<!-- chunk: 3. 长期记忆 -->## 3. 长期记忆
+## 3. Long-Term Memory
 
-## 3.1 设计理念
+## 3.1 Design Philosophy
 
-AgentScope 不严格区分短期和长期记忆的作用——一切以**需求驱动**。长期记忆提供两种实现和三种运行模式：
+AgentScope does not strictly differentiate between short-term and long-term memory functions—everything is driven by demand. Long-term memory offers two implementations and three operational modes:
 
-**实现方案**：
+**Implementation**:
 
-| 实现 | 说明 | 适用场景 |
+| Implementation | Description | Applicable Scenarios |
 |------|------|--------|
-| `Mem0LongTermMemory` | 基于 Mem0 的向量检索长期记忆 | 通用知识积累、事实检索 |
-| `ReMePersonalLongTermMemory` | 基于 ReMe 的个人化长期记忆 | 用户偶好、个性化服务 |
+| `Mem0LongTermMemory` | Vector-based long-term memory leveraging Mem0 | General knowledge accumulation, fact retrieval |
+| `ReMePersonalLongTermMemory` | Personalized long-term memory using ReMe | User preferences, personalized services |
 
-**运行模式**：
+**Running Mode**:
 
-| 模式 | 管理者 | 适用场景 |
+| Mode | Manager | Applicable Scenarios |
 |------|--------|--------|
-| `agent_control` | 智能体自主决定何时读写 | 复杂推理场景，Agent 按需检索 |
-| `static_control` | 框架在 reply 前后自动读写 | 简单场景，自动化知识增强 |
-| `both` | 两者同时激活 | 最大灵活性 |
+| `agent_control` | Autonomous decision-making by the agent for reading and writing | Complex reasoning scenarios, agent-driven retrieval |
+| `static_control` | Automatic reading and writing by the framework before and after `reply` | Simple scenarios, automated knowledge enhancement |
+| `both` | Both modes activated simultaneously | Maximum flexibility |
 
 ## 3.2 Mem0LongTermMemory
 
@@ -310,10 +313,10 @@ AgentScope 不严格区分短期和长期记忆的作用——一切以**需求�
 from agentscope.memory import Mem0LongTermMemory
 from agentscope.agent import ReActAgent
 
-# 创建 Mem0 长期记忆
+# Create Mem0 Long-Term Memory
 long_term = Mem0LongTermMemory(
     user_id="ops-engineer-001",
-    # Mem0 配置（向量存储、LLM 提取等）
+    # Mem0 configuration (vector storage, LLM extraction, etc.)
     mem0_config={
         "llm": {
             "provider": "openai",
@@ -330,9 +333,9 @@ agent = ReActAgent(
 )
 ```
 
-## 3.3 agent_control 模式
+## 3.3 agent_control Mode
 
-智能体通过工具函数自主管理长期记忆——决定何时保存重要信息、何时检索历史知识。
+Agents manage their long-term memory through utility functions—deciding when to save important information and when to retrieve historical knowledge.
 
 ```python
 from agentscope.agent import ReActAgent
@@ -341,43 +344,43 @@ agent = ReActAgent(
     name="K8s-Expert",
     long_term_memory=long_term_memory_instance,
     long_term_memory_mode="agent_control",
-    # 智能体会自动获得记忆管理相关的工具:
-    # - 保存信息到长期记忆
-    # - 从长期记忆中检索信息
+    # Intelligent experience automatically acquires tools for memory management:
+    # - Save information to long-term memory
+    # - Retrieve information from long-term memory
     ...
 )
 ```
 
-**工作流程**：
+**Workflow**:
 
 ```
-用户: "之前你帮我诊断过 etcd 的问题，当时是什么原因？"
+You: "Previously you helped me diagnose the issue with etcd, what was the reason?"
                     │
-Agent 推理: 需要检索长期记忆中关于 etcd 诊断的历史
+Agent inference: Need to retrieve long-term memory about etcd diagnosis history
                     │
-Agent 调用: recall_from_long_term_memory("etcd 诊断")
+Agent call: recall_from_long_term_memory("etcd diagnosis")
                     │
-长期记忆返回: "2026-03-10 诊断: etcd 集群 leader 频繁切换，
-              根因是磁盘 IOPS 不足，建议使用 SSD"
+long-term memory return: "2026-03-10 Diagnosis: frequent leader switch of etcd cluster"
+              Root cause is insufficient disk IOPS, recommend using SSD
                     │
-Agent 回复: "上次 etcd 的问题是磁盘 IOPS 不足导致 leader 频繁切换..."
+Agent reply: "Last etcd's problem was insufficient disk IOPS causing frequent leader switching..."
 ```
 
-## 3.4 static_control 模式
+## 3.4 static_control Mode
 
-框架在每次 `reply` 调用的开始/结束时自动处理长期记忆：
+At the beginning/end of each `reply` call, the framework automatically handles long-term memory:
 
 ```
-static_control 工作流程:
+static_control workflow:
 │
-├── reply 开始前
-│   └── 自动从长期记忆中检索与当前消息相关的历史信息
-│       → 注入到 Agent 的上下文中
+├── reply Begin before
+│   └── automatically retrieve relevant historical information from long-term memory for current message
+│       → inject into context of Agent
 │
-├── Agent 推理和行动
+├── Agent inference and action
 │
-└── reply 结束后
-    └── 自动将本次对话的关键信息保存到长期记忆
+└── reply End after
+    └── automatically save key information of this conversation into long-term memory
 ```
 
 ```python
@@ -391,24 +394,24 @@ agent = ReActAgent(
 
 ---
 
-<!-- chunk: 4. 记忆压缩 -->## 4. 记忆压缩
+## 4. Memory Compression
 
-## 4.1 为什么需要压缩
+## 4.1 Why Compression is Needed
 
-随着对话增长，记忆内容膨胀会导致：
+As conversations grow, the content of the memory expands leading to:
 
 ```
-记忆膨胀问题
+Memory inflation problem
 │
-├── 1. Token 超限    → 超出模型上下文窗口
-├── 2. 成本增加      → 每次 LLM 调用消耗更多 Token
-├── 3. 推理质量下降  → 过多无关信息干扰推理
-└── 4. 延迟增加      → 更长的 prompt 导致更慢的响应
+├── 1. Token limit exceeded    → exceed model context window
+├── 2. Cost increases      → each LLM call consumes more tokens
+├── 3. Reasoning quality drops → too much irrelevant information interferes with reasoning
+└── 4. Delay increases      → longer prompts lead to slower responses
 ```
 
-## 4.2 AgentScope 内置 CompressionConfig
+## 4.2 AgentScope Built-in CompressionConfig
 
-AgentScope 的 `ReActAgent` 内置了记忆压缩功能，通过 `CompressionConfig` 配置：
+AgentScope's `ReActAgent` includes built-in memory compression functionality, configured via `CompressionConfig`:
 
 ```python
 from agentscope.agent import ReActAgent
@@ -420,62 +423,62 @@ agent = ReActAgent(
     compression_config=CompressionConfig(
         trigger_threshold=50,    # 消息数超过 50 时触发压缩
         keep_recent=10,          # 保留最近 10 条原始消息
-        # 可自定义摘要 Schema（可选）
+        # Customizable summary Schema (optional)
         # summary_schema=MySummarySchema,
     ),
     ...
 )
 ```
 
-**压缩流程**：
+**Compression Process**:
 
 ```
-CompressionConfig 工作流程
+CompressionConfig workflow
 │
-├── 1. 检测触发条件
-│      当前消息数 > trigger_threshold (50)
+├── 1. Trigger conditions detected
+│      Current message count > trigger_threshold (50)
 │
-├── 2. 分离消息
-│      旧消息 = messages[:-keep_recent]  → 待压缩
-│      新消息 = messages[-keep_recent:]   → 保留
+├── 2. Messages separated
+│      Old messages = messages[:-keep_recent]  → to compress
+│      New messages = messages[-keep_recent:]   → to keep
 │
-├── 3. LLM 摘要
-│      将旧消息通过 LLM 压缩为简洁摘要
+├── 3. LLM summary
+│      Compress old messages into concise summaries through LLM
 │
-└── 4. 替换记忆
-       记忆 = [摘要消息] + 新消息
+└── 4. Replace memory
+       Memory = [summary messages] + new messages
 ```
 
-**压缩策略**：
+**Compression Strategy**:
 
 ```
-记忆压缩策略
+Compression strategy for memory
 │
-├── 窗口截断（最简单）
-│   保留系统消息 + 最近 N 条消息
-│   优点: 简单快速，零成本
-│   缺点: 丢失早期上下文
+├── Truncation by window (simplest)
+│   Keep system messages + recent N messages
+│   Pros: Simple and fast, zero cost
+│   Cons: Lose early context
 │
-├── LLM 摘要压缩（CompressionConfig）
-│   将旧消息用 LLM 压缩为摘要
-│   优点: 保留关键信息
-│   缺点: 额外 LLM 调用成本
+├── LLM Compression (CompressionConfig)
+│   Compress old messages using LLM to create a summary
+│   advantages: retain key information
+│   Shortcoming: additional LLM call cost
 │
-└── 混合策略（推荐）
-    保留系统消息 + 旧消息摘要 + 最近 N 条原始消息
-    优点: 平衡信息保留和 Token 消耗
+└── Hybrid Strategy (Recommended)
+    retain system messages + old message summary + last N raw messages
+    Advantages: balance information retention and Token consumption
 ```
 
-> **注意**：`CompressionConfig` 是 AgentScope 内置的压缩方案，无需自定义压缩类。如果需要更精细的控制，可通过 `summary_schema` 参数自定义摘要格式。
+> **Note**:`CompressionConfig` is a built-in compression scheme within AgentScope, no custom compression class required. For more granular control, use the `summary_schema` parameter to customize the summary format.
 
-## 4.3 手动实现压缩策略
+## 4.3 Manual Implementation of Compression Strategies
 
 ```python
 from agentscope.message import Msg
 
 
 class CompressedMemory:
-    """带压缩功能的记忆管理器"""
+    """Memory manager with compression features"""
 
     def __init__(
         self,
@@ -492,16 +495,16 @@ class CompressedMemory:
     async def add(self, msg: Msg) -> None:
         self.messages.append(msg)
 
-        # 超过阈值时触发压缩
+        # Trigger compression when threshold is exceeded
         if len(self.messages) > self.max_messages:
             await self._compress()
 
     async def _compress(self) -> None:
-        """将旧消息压缩为摘要"""
+        """Compress old messages into a summary"""
         old_messages = self.messages[:-self.keep_recent]
         recent_messages = self.messages[-self.keep_recent:]
 
-        # 用 LLM 生成摘要
+        # Generate a summary using an LLM
         compress_prompt = f"""请将以下对话历史压缩为简洁的摘要，保留关键信息和决策:
 
 {self._format_messages(old_messages)}
@@ -513,16 +516,16 @@ class CompressedMemory:
         response = await self.model(compress_prompt)
         self.summary = response.content
 
-        # 保留最近消息
+        # Retain recent messages
         self.messages = recent_messages
 
     async def get_context(self) -> list[Msg]:
-        """获取完整上下文（摘要 + 最近消息）"""
+        """Retrieve full context (summary + recent messages)"""
         context = []
         if self.summary:
             context.append(Msg(
                 "system",
-                f"[对话历史摘要]: {self.summary}",
+                f"[Conversation Summary]: {self.summary}",
                 "system",
             ))
         context.extend(self.messages)
@@ -536,39 +539,39 @@ class CompressedMemory:
 
 ---
 
-<!-- chunk: 5. Session 管理 -->## 5. Session 管理
+## 5. Session Management
 
-## 5.1 为什么需要 Session
+## 5.1 Why Session Management Is Needed
 
 ```
-无 Session（开发阶段）:
-  Agent 启动 → 对话 → 进程退出 → 记忆全部丢失
+No Session (development stage):
+  Agent starts → conversation → process exits → all memory lost
 
-有 Session（生产环境）:
-  Agent 启动 → 对话 → 状态自动保存
+With Session (production environment):
+  Agent starts → conversation → automatic state saving
        ↓
-  Agent 重启 → 从持久化存储恢复状态 → 继续对话
+  Agent restarts → restore state from persistent storage → continue conversation
 ```
 
-## 5.2 JSONSession（文件持久化）
+## 5.2 JSONSession(File Persistence)
 
-AgentScope 提供 `JSONSession` 作为内置 Session 方案，基于文件系统持久化：
+AgentScope provides `JSONSession` as a built-in session solution, based on file system persistence:
 
 ```python
 from agentscope.session import JSONSession
 from agentscope.agent import ReActAgent
 
-# 创建文件持久化 Session
+# Create file-persistent Session
 session = JSONSession(save_dir="./agent_sessions")
 
-# 保存 Agent 状态
+# Save Agent state
 session.save_session_state(
     session_id="session-001",
     user_id="user-alice",
     agent=agent,
 )
 
-# 恢复 Agent 状态
+# Restore Agent state
 session.load_session_state(
     session_id="session-001",
     user_id="user-alice",
@@ -576,44 +579,44 @@ session.load_session_state(
 )
 ```
 
-## 5.3 生产环境 Session 选型
+## 5.3 Production Environment Session Selection
 
-对于生产环境的分布式部署，推荐结合 `AsyncSQLAlchemyMemory` 作为记忆后端 + `JSONSession` 作为状态持久化：
+For distributed deployment in production environments, it is recommended to combine `AsyncSQLAlchemyMemory` as the memory backend with `JSONSession` for state persistence:
 
-| 组件 | 开发环境 | 生产环境（单机） | 生产环境（分布式） |
+| Component | Development Environment | Production Environment (Single Machine) | Production Environment (Distributed) |
 |------|---------|-------------|---------------|
-| **记忆** | InMemoryMemory | AsyncSQLAlchemyMemory | RedisMemory |
-| **Session** | 无需 | JSONSession | JSONSession + 共享存储 |
-| **长期记忆** | 无需 | Mem0LongTermMemory | Mem0LongTermMemory |
+| **Memory** | InMemoryMemory | AsyncSQLAlchemyMemory | RedisMemory |
+| **Session** | None | JSONSession | JSONSession + Shared Storage |
+| **Long-Term Memory** | None | Mem0LongTermMemory | Mem0LongTermMemory |
 
 ---
 
-<!-- chunk: 6. Token 管理与上下文窗口 -->## 6. Token 管理与上下文窗口
+## 6. Token Management and Context Window
 
-## 6.1 Token 计算
+## 6.1 Token Calculation
 
-AgentScope 提供 Token 计算工具，用于监控和管理上下文窗口使用：
+AgentScope provides a Token calculation tool, used for monitoring and managing context window usage:
 
 ```python
 from agentscope.token import count_tokens
 
-# 计算消息的 Token 数
+# Calculate the number of Tokens in a message
 token_count = count_tokens(
     messages=[
-        {"role": "system", "content": "你是 K8s 专家"},
-        {"role": "user", "content": "Pod Pending 怎么办？"},
+        {"role": "system", "content": "you are a K8s expert"},
+        {"role": "user", "content": "How do I handle Pod Pending?"},
     ],
     model_name="qwen-max",
 )
-print(f"当前上下文: {token_count} tokens")
+print(f"Current context: {token_count} tokens")
 ```
 
-## 6.2 上下文窗口管理策略
+## 6.2 Context Window Management Strategy
 
 ```
-上下文窗口管理
+Context Window Management
 │
-├── 主流模型上下文窗口
+├── Mainstream Model Context Window
 │   ├── qwen-max          128K tokens
 │   ├── qwen-plus          32K tokens
 │   ├── qwen-turbo        128K tokens
@@ -621,24 +624,24 @@ print(f"当前上下文: {token_count} tokens")
 │   ├── gpt-4o-mini       128K tokens
 │   └── claude-3.5-sonnet  200K tokens
 │
-├── 窗口分配建议
-│   ├── 系统提示:     5-10%
-│   ├── 历史摘要:     10-20%
-│   ├── 最近对话:     30-40%
-│   ├── 工具描述:     10-15%
-│   └── 输出预留:     20-30%
+├── Window Allocation Suggestions
+│   ├── System Prompt:     5-10%
+│   ├── Historical Summary: 10-20%
+│   ├── Recent Conversation: 30-40%
+│   ├── Tool Description:  10-15%
+│   └── Output Reserve:     20-30%
 │
-└── 超限处理
-    ├── 自动截断最旧消息
-    ├── 触发记忆压缩
-    └── 降级到更短的 prompt
+└── Handle overflow
+    ├── Truncate oldest message automatically
+    ├── Trigger memory compression
+    └── Downgrade to shorter prompt
 ```
 
-## 6.3 实践：上下文窗口管理器
+## 6.3 Practice: Context Window Manager
 
 ```python
 class ContextWindowManager:
-    """上下文窗口管理器"""
+    """Context manager for window management"""
 
     def __init__(
         self,
@@ -652,20 +655,20 @@ class ContextWindowManager:
         self.available_tokens = max_tokens - self.output_reserve
 
     def should_compress(self, messages: list[dict]) -> bool:
-        """判断是否需要压缩"""
+        """Determine if compression is needed"""
         current = count_tokens(messages, self.model_name)
         return current > self.available_tokens * 0.8  # 80% 阈值
 
     def trim_messages(self, messages: list[dict]) -> list[dict]:
-        """截断超限消息"""
-        # 保留系统消息
+        """Truncate messages over the limit"""
+        # Retain system messages
         system_msgs = [m for m in messages if m.get("role") == "system"]
         other_msgs = [m for m in messages if m.get("role") != "system"]
 
         system_tokens = count_tokens(system_msgs, self.model_name)
         budget = self.available_tokens - system_tokens
 
-        # 从最近的消息开始保留
+        # Retain from the most recent message
         kept = []
         used = 0
         for msg in reversed(other_msgs):
@@ -681,28 +684,28 @@ class ContextWindowManager:
 
 ---
 
-<!-- chunk: 7. 状态持久化深度解析 -->## 7. 状态持久化深度解析
+## 7. State Persistence Deep Dive
 
-## 7.1 AgentScope 的嵌套式状态管理
+## 7.1 Nested State Management in AgentScope
 
 ```
 Agent.state_dict()
 │
-├── agent 自身状态
+├── agent itself status
 │   ├── name
-│   └── 其他自定义字段
+│   └── Other custom fields
 │
 ├── memory.state_dict()
-│   └── 所有存储的消息
+│   └── All stored messages
 │
 ├── toolkit.state_dict()
-│   └── 已注册工具列表及其状态
+│   └── Long-term memory content and index
 │
 └── long_term_memory.state_dict()
-    └── 长期记忆内容和索引
+    └── Long-term memory content and index
 ```
 
-## 7.2 完整的状态管理流程
+## 7.2 Complete State Management Workflow
 
 ```python
 import json
@@ -710,70 +713,70 @@ from agentscope.agent import ReActAgent
 
 
 async def save_agent_state(agent: ReActAgent, filepath: str) -> None:
-    """保存 Agent 完整状态到文件"""
+    """Save the complete agent state to a file"""
     state = agent.state_dict()  # 同步 API
     with open(filepath, "w") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
-    print(f"Agent 状态已保存到 {filepath}")
+    print(f"Agent state saved to {filepath}")
 
 
 async def load_agent_state(agent: ReActAgent, filepath: str) -> None:
-    """从文件恢复 Agent 状态"""
+    """Restore the agent state from a file"""
     with open(filepath, "r") as f:
         state = json.load(f)
     agent.load_state_dict(state)  # 同步 API
-    print(f"Agent 状态已从 {filepath} 恢复")
+    print(f"Agent state restored from {filepath}")
 
 
-# 使用示例
+# Usage Example
 agent = ReActAgent(name="K8s-Expert", ...)
 
-# ... 对话若干轮 ...
+# ... several rounds of conversation ...
 
-# 保存状态
+# Save state
 await save_agent_state(agent, "/tmp/agent_state.json")
 
-# 创建新 Agent 并恢复状态
+# Create a new Agent and restore the state
 new_agent = ReActAgent(name="K8s-Expert", ...)
 await load_agent_state(new_agent, "/tmp/agent_state.json")
 
-# new_agent 现在拥有之前的对话记忆和工具状态
+# The new_agent now has the previous conversation memory and tool state
 ```
 
-> **注意**：`state_dict()` 和 `load_state_dict()` 是**同步** API，不需要 `await`。这与 Memory 的 `add()`、`get_memory()` 等异步方法不同。
+> **Note**: `state_dict()` and `load_state_dict()` are **synchronous** APIs that do not require `await`. This differs from the asynchronous methods like `add()` and `get_memory()` provided by Memory.
 
 ---
 
-<!-- chunk: 8. 生产环境记忆架构设计 -->## 8. 生产环境记忆架构设计
+## 8. Production Environment Memory Architecture Design
 
-## 8.1 推荐架构
+## 8.1 Recommended Architecture
 
 ```
-生产环境记忆架构
+Production environment memory architecture
 │
-├── 请求进入
+├── Request entry
 │   └── API Gateway → AgentApp
 │
-├── 状态恢复
+├── State recovery
 │   └── JSONSession.load_session_state(session_id, user_id, agent)
 │
-├── Agent 处理
-│   ├── 短期记忆 (AsyncSQLAlchemyMemory) — 当前会话
-│   └── 长期记忆 (Mem0LongTermMemory) — 跨会话知识
+├── Agent processing
+│   ├── Short-term memory (AsyncSQLAlchemyMemory) — Current session
+│   └── Long-term memory (Mem0LongTermMemory) — Cross-session knowledge
 │
-├── 状态保存
+├── State saving
 │   └── JSONSession.save_session_state(session_id, user_id, agent)
 │
-└── 存储层
-    ├── PostgreSQL/Redis（记忆持久化）
-    │   ├── AsyncSQLAlchemyMemory 连接池
-    │   └── 支持多副本共享
-    └── 向量数据库（长期记忆检索）
-        ├── 语义相似度检索
-        └── 知识图谱索引
+└── Storage layer
+    ├── PostgreSQL/Redis (memory persistence)
+    │   ├── AsyncSQLAlchemyMemory connection pool
+    │   └── Supports multi-replica sharing
+    └── Vector database (long-term memory retrieval)
+        ├── Semantic similarity retrieval
+        └── Knowledge graph indexing
 ```
 
-## 8.2 FastAPI + AsyncSQLAlchemyMemory 生产示例
+## 8.2 FastAPI + AsyncSQLAlchemyMemory Production Example
 
 ```python
 from contextlib import asynccontextmanager
@@ -786,11 +789,11 @@ import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动：初始化连接池
+    # Start: Initialize the connection pool
     app.state.session = JSONSession(save_dir="./sessions")
-    print("Agent 服务启动")
+    print("Agent service started")
     yield
-    print("Agent 服务关闭")
+    print("Agent service stopped")
 
 
 app = FastAPI(lifespan=lifespan)
@@ -798,7 +801,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/chat")
 async def chat(session_id: str, user_id: str, message: str):
-    # 使用 AsyncSQLAlchemyMemory 作为持久化记忆
+    # Use AsyncSQLAlchemyMemory as persistent memory
     memory = AsyncSQLAlchemyMemory(
         url=os.getenv("DB_URL", "sqlite+aiosqlite:///./memory.db"),
         pool_size=10,
@@ -814,18 +817,18 @@ async def chat(session_id: str, user_id: str, message: str):
         ...
     )
 
-    # 恢复会话状态
+    # Restore session state
     app.state.session.load_session_state(
         session_id=session_id,
         user_id=user_id,
         agent=agent,
     )
 
-    # 处理请求
+    # Handle request
     msg = Msg("user", message, "user")
     response = await agent(msg)
 
-    # 保存会话状态
+    # Save session state
     app.state.session.save_session_state(
         session_id=session_id,
         user_id=user_id,
@@ -837,55 +840,55 @@ async def chat(session_id: str, user_id: str, message: str):
 
 ---
 
-<!-- chunk: 9. 最佳实践与反模式 -->## 9. 最佳实践与反模式
+## 9. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **开发用 InMemoryMemory，生产用 AsyncSQLAlchemyMemory/RedisMemory**：开发调试时 InMemoryMemory 足够，上线前切换到持久化记忆
-- **使用 CompressionConfig**：长对话场景（>30 轮）必须启用内置压缩，无需自定义压缩类
-- **善用 marks 标记系统**：对消息分类标记，方便按任务检索和压缩时优先删除
-- **Agent 状态定期持久化**：在每次 reply 完成后保存状态，防止异常丢失
-- **长期记忆用 agent_control**：让智能体自主决定何时保存/检索，比 static_control 更灵活
+- **Use InMemoryMemory for development and AsyncSQLAlchemyMemory/RedisMemory in production**: Use InMemoryMemory during development for debugging, switch to persistent memory before deployment.
+- **Use CompressionConfig**: For long dialogue scenarios (>30 turns), enable built-in compression without custom compression classes.
+- **Utilize the Marking System**: Categorize messages for easier task retrieval and compression prioritization.
+- **Persist Agent State Periodically**: Save state after each reply to prevent loss in case of anomalies.
+- **Use agent_control for Long-Term Memory**: Let agents decide when to save/retrieve, more flexible than static control.
 
-## 反模式
+## Anti-patterns
 
-- **InMemoryMemory 用于生产**：进程重启后所有对话丢失——生产应用 AsyncSQLAlchemyMemory 或 RedisMemory
-- **不管理上下文窗口**：随对话增长 Token 超限，LLM 返回截断或错误——用 CompressionConfig
-- **每条消息都存长期记忆**：过多噪音降低检索质量
-- **忽略 state_dict 的序列化**：包含不可序列化对象导致保存失败
-- **state_dict/load_state_dict 使用 await**：这两个方法是同步 API，不需要 await
+- **Use AsyncSQLAlchemyMemory/RedisMemory in Production**: All conversations lost on process restart — use AsyncSQLAlchemyMemory or RedisMemory in production.
+- **Do not manage context windows**: Exceeding token limits due to growing conversation — use CompressionConfig.
+- **Store messages in long-term memory**: Too much noise reduces retrieval quality.
+- **Ignore serialization of state_dict**: Includes non-serializable objects causing save failures.
+- **Use await with state_dict/load_state_dict**: These methods are synchronous and do not require `await`.
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Related Content |
 |------|---------|
-| [17 - 核心概念](./17-agentscope-core-concepts.md) | Memory 在核心抽象中的位置 |
-| [20 - 多 Agent 编排](./20-agentscope-multi-agent-orchestration.md) | 多 Agent 场景的共享记忆 |
-| [22 - 生产部署](./deployment.md|22-agentscope-production-deployment]].md) | Session + Runtime 的生产部署 |
-| [07 - 记忆管理与上下文窗口](./07-memory-context-management.md) | 通用记忆管理理论与策略 |
+| [17 - Core Concepts](./17-agentscope-core-concepts.md) | The position of Memory in core abstractions |
+| [20 - Multi-Agent Orchestration](./20-agentscope-multi-agent-orchestration.md) | Shared memory in multi-agent scenarios |
+| [22 - Production Deployment](./deployment.md|22-agentscope-production-deployment]].md) | Production deployment of Session + Runtime |
+| [07 - Memory Management and Context Windows](./07-memory-context-management.md) | General theories and strategies for memory management |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content for the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Main Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Usage and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Deep Architecture for Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Engineering Memory Management and Context Window]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Deep Architecture for Agent Evaluation and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## Related
 
