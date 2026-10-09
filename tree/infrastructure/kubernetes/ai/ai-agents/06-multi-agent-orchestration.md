@@ -1,6 +1,10 @@
----title: 多 Agent 编排与协作架构 (domain-14-ai-ml-infra)
-description: 'title: 多 Agent 编排与协作架构'
-summary: 'title: 多 Agent 编排与协作架构'
+---
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/06-multi-agent-orchestration.md
+---
+title: Multi-Agent Orchestration and Collaboration Architecture (domain-14-ai-ml-infra)
+description: 'title: Multi-Agent Orchestration and Collaboration Architecture'
+summary: 'title: Multi-Agent Orchestration and Collaboration Architecture'
 category: general
 tags:
 - ai
@@ -19,15 +23,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 多 Agent 编排与协作架构 是什么
-- 如何 多 Agent 编排与协作架构
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Multi-Agent Orchestration and Collaboration Architecture
+- How to use Multi-Agent Orchestration and Collaboration Architecture
+- Kubernetes 14 AI ML Infrastructure Best Practices
 trigger_keywords:
 - Agent
-- 编排与协作架构
+- Orchestration and Collaboration Architecture
 - ai
 - ml
 - infra
@@ -43,15 +47,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute at your own risk: confirm that the target cluster and Namespace are correct; ensure you have sufficient RBAC permissions; verify these commands in a non-production environment first. Risk level annotations: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 多 Agent 编排与协作架构
-description: '# 多 Agent 编排与协作架构'
+title: Multi-Agent Orchestration and Collaboration Architecture
+description: '# Multi-Agent Orchestration and Collaboration Architecture'
 category: ai-agent
 tags:
 - ai
@@ -68,16 +72,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 多 Agent 编排与协作架构 是什么
-- 如何 多 Agent 编排与协作架构
+- What is Multi-Agent Orchestration and Collaboration Architecture
+- How to use Multi-Agent Orchestration and Collaboration Architecture
 trigger_keywords:
 - Agent
-- 编排与协作架构
+- Orchestration and Collaboration Architecture
 - ai
 - agent
 authors:
@@ -91,21 +95,21 @@ k8s_versions:
 - '1.32'
 ---
 
-# 多 Agent 编排与协作架构
+# Multi-Agent Orchestration and Collaboration Architecture
 
-> **文档类型**: 架构设计专题 | **最后更新**: 2026-03 | **关键词**: 多 Agent, Supervisor-Worker, 事件驱动, Agent 编排, LangGraph, AutoGen, 分布式 Agent, 冲突解决, Agent 通信协议
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-单 Agent 系统在复杂、需要多领域专业知识的任务中能力受限。多 Agent 系统通过专业分工和协作，能够处理更复杂的任务、提高并行效率并降低单点问题风险。本文覆盖多 Agent 的核心设计模式、LangGraph/AutoGen 实现、[[domain-14-ai-ml-infra/03-agent-runtime/11-agent-communication-protocols.md|通信协议]]、冲突解决策略，以及生产级多 Agent 平台的架构设计。
+> **Document Type**: Architecture Design Special Topic | **Last Updated**: 2026-03 | **Keywords**: Multi-Agent, Supervisor-Worker, Event-driven, Agent Orchestration, LangGraph, AutoGen, Distributed Agent, Conflict Resolution, Agent Communication Protocol
 
 ---
 
-<!-- chunk: 1. 多 Agent 架构模式 -->## 1. 多 Agent 架构模式
+## Overview
 
-## 1.1 六大核心模式
+Single-Agent systems are limited in handling complex tasks that require expertise from multiple domains. Multi-Agent systems leverage professional specialization and collaboration to handle more complex tasks, improve parallel efficiency, and reduce risks associated with single points of failure. This article covers core design patterns for multi-agent systems, the implementation of LangGraph/AutoGen, [[domain-14-ai-ml-infra/03-agent-runtime/11-agent-communication-protocols.md|communication protocols]], conflict resolution strategies, and the architecture design of a production-grade multi-agent platform.
+
+---
+
+## 1. Multi-Agent Architectural Patterns
+
+## 1.1 Six Core Patterns
 
 ```
 多 Agent 架构模式
@@ -137,9 +141,9 @@ k8s_versions:
 
 ---
 
-<!-- chunk: 2. Supervisor-Worker 模式（生产最常用） -->## 2. Supervisor-Worker 模式（生产最常用）
+## 2. Supervisor-Worker Pattern (Most Commonly Used in Production)
 
-## 2.1 架构设计
+## 2.1 Architecture Design
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -164,7 +168,7 @@ k8s_versions:
                      └──────────────┘
 ```
 
-## 2.2 LangGraph 实现
+## 2.2 LangGraph Implementation
 
 ```python
 from langgraph.graph import StateGraph, END
@@ -173,7 +177,7 @@ from langchain_openai import ChatOpenAI
 from typing import TypedDict, Annotated, Literal
 import operator
 
-# 定义共享状态
+# Define Shared State
 class OrchestratorState(TypedDict):
     original_task: str
     subtasks: list[dict]
@@ -182,13 +186,13 @@ class OrchestratorState(TypedDict):
     current_stage: str
     error_count: int
 
-# 初始化模型
+# Initialize Model
 orchestrator_llm = ChatOpenAI(model="gpt-4o", temperature=0)
 worker_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)  # Worker 用便宜模型
 
-# Orchestrator：任务分解
+# Orchestrator: Task Decomposition
 def orchestrator_node(state: OrchestratorState) -> OrchestratorState:
-    """将复杂任务分解为专业子任务"""
+    """Decompose complex tasks into specialized sub-tasks"""
     response = orchestrator_llm.invoke(f"""
     你是运维任务调度专家。将以下复杂任务分解为专业子任务：
     
@@ -206,14 +210,14 @@ def orchestrator_node(state: OrchestratorState) -> OrchestratorState:
     subtasks = parse_subtasks(response.content)
     return {"subtasks": subtasks, "current_stage": "dispatched"}
 
-# 网络诊断 Worker
+# Network Diagnostics Worker
 def network_worker_node(state: OrchestratorState) -> OrchestratorState:
-    """网络专项诊断"""
+    """Specialized Network Diagnosis"""
     network_tasks = [t for t in state["subtasks"] if t["worker"] == "network_worker"]
     if not network_tasks:
         return {"worker_results": {}}
     
-    # 网络 Worker 有特定工具集
+    # Network Workers have specific toolsets
     network_tools = [test_connectivity_tool, get_dns_tool, get_networkpolicy_tool]
     network_agent = create_react_agent(worker_llm, network_tools)
     
@@ -224,9 +228,9 @@ def network_worker_node(state: OrchestratorState) -> OrchestratorState:
     
     return {"worker_results": results}
 
-# 结果聚合
+# Result Aggregation
 def aggregator_node(state: OrchestratorState) -> OrchestratorState:
-    """聚合所有 Worker 的结果，生成综合报告"""
+    """Aggregate results from all workers to generate a comprehensive report"""
     report = orchestrator_llm.invoke(f"""
     原始任务：{state['original_task']}
     
@@ -242,13 +246,13 @@ def aggregator_node(state: OrchestratorState) -> OrchestratorState:
     
     return {"final_report": report.content, "current_stage": "complete"}
 
-# 路由：决定运行哪些 Worker（并行）
+# Routing: Decide which Workers to Execute (Parallel Execution)
 def route_to_workers(state: OrchestratorState) -> list[str]:
-    """并行调度所有需要的 Worker"""
+    """Parallelly dispatch all necessary workers"""
     workers_needed = set(t["worker"] for t in state["subtasks"])
     return list(workers_needed)  # LangGraph 支持返回列表实现并行
 
-# 构建图
+# Build Graph
 workflow = StateGraph(OrchestratorState)
 
 workflow.add_node("orchestrator", orchestrator_node)
@@ -260,7 +264,7 @@ workflow.add_node("aggregator", aggregator_node)
 
 workflow.set_entry_point("orchestrator")
 
-# 并行分发到多个 Worker
+# Parallel Dispatch to Multiple Workers
 workflow.add_conditional_edges(
     "orchestrator",
     route_to_workers,
@@ -272,31 +276,31 @@ workflow.add_conditional_edges(
     }
 )
 
-# 所有 Worker 完成后聚合
+# Aggregate Results After All Workers Complete
 for worker in ["network_worker", "storage_worker", "app_worker", "security_worker"]:
     workflow.add_edge(worker, "aggregator")
 
 workflow.add_edge("aggregator", END)
 
-# 编译
+# Compilation
 multi_agent_app = workflow.compile()
 ```
 
 ---
 
-<!-- chunk: 3. Debate（辩论）模式：高风险决策 -->## 3. Debate（辩论）模式：高风险决策
+## 3. Debate (Debate) Mode: High-Risk Decisions
 
-适用于生产变更等高风险场景，通过多个 Agent 从不同视角评审方案：
+Applies to high-risk scenarios such as production changes, where multiple Agents review proposals from different perspectives:
 
 ```python
 class DebateOrchestrator:
-    """辩论模式：多 Agent 对一个决策进行多轮辩论"""
+    """Debate Mode: Multi-Agent Multi-Round Debates"""
     
     def __init__(self, llm, rounds: int = 2):
         self.llm = llm
         self.rounds = rounds
         
-        # 不同角色的 Agent（同一个 LLM，不同系统提示）
+        # Different Roles' Agents (Same LLM, Different System Prompts)
         self.agents = {
             "proposer": "你是变更方案提出者，负责提出并捍卫你的技术方案",
             "critic": "你是技术审查员，专门发现方案中的风险和缺陷，持批评态度",
@@ -305,18 +309,18 @@ class DebateOrchestrator:
         }
     
     def debate(self, proposal: str) -> dict:
-        """执行多轮辩论"""
+        """Execute Multi-Round Debates"""
         debate_history = []
         
-        # 初始提案
+        # Initial Proposal
         proposer_response = self._agent_respond(
             "proposer", f"请详细阐述以下方案的技术实现和优势：\n{proposal}", []
         )
         debate_history.append({"role": "proposer", "content": proposer_response})
         
-        # 多轮辩论
+        # Multiple Rounds of Debate
         for round_num in range(self.rounds):
-            # 审查员提出质疑
+            # Reviewer Raises Questions
             critic_response = self._agent_respond(
                 "critic", 
                 f"针对以下提案，指出3-5个技术风险和潜在缺陷：",
@@ -324,7 +328,7 @@ class DebateOrchestrator:
             )
             debate_history.append({"role": "critic", "content": critic_response})
             
-            # 安全审查
+            # Security Review
             safety_response = self._agent_respond(
                 "safety_reviewer",
                 "从生产稳定性角度评估该方案的风险：",
@@ -332,7 +336,7 @@ class DebateOrchestrator:
             )
             debate_history.append({"role": "safety_reviewer", "content": safety_response})
             
-            # 提案者回应
+            # Proposer Responds
             defense = self._agent_respond(
                 "proposer",
                 "回应以上质疑，必要时修改和完善你的方案：",
@@ -340,7 +344,7 @@ class DebateOrchestrator:
             )
             debate_history.append({"role": "proposer", "content": defense})
         
-        # 主持人总结
+        # Chair Summarizes
         conclusion = self._agent_respond(
             "moderator",
             "综合所有讨论，给出最终决策建议（通过/拒绝/修改后通过），说明理由：",
@@ -370,7 +374,7 @@ class DebateOrchestrator:
 
 ---
 
-<!-- chunk: 4. Blackboard（黑板）模式：异步协作 -->## 4. Blackboard（黑板）模式：异步协作
+## 4. Blackboard (Blackboard) Pattern: Asynchronous Collaboration
 
 ```python
 import asyncio
@@ -387,7 +391,7 @@ class BlackboardEntry:
     confidence: float = 1.0  # 置信度，冲突时用于决策
 
 class Blackboard:
-    """共享知识黑板：多 Agent 异步读写"""
+    """Shared Knowledge Blackboard: Multi-Agent Asynchronous Read-Write"""
     
     def __init__(self):
         self._data: dict[str, list[BlackboardEntry]] = {}
@@ -395,7 +399,7 @@ class Blackboard:
         self._observers: dict[str, list] = {}  # 订阅特定 key 变更的回调
     
     def write(self, key: str, value: any, agent_id: str, confidence: float = 1.0):
-        """Agent 写入发现结果"""
+        """Agents Write Discovery Results"""
         with self._lock:
             entry = BlackboardEntry(
                 key=key, value=value, written_by=agent_id,
@@ -405,12 +409,12 @@ class Blackboard:
                 self._data[key] = []
             self._data[key].append(entry)
             
-            # 通知订阅者
+            # Notify Subscribers
             for callback in self._observers.get(key, []):
                 asyncio.create_task(callback(key, entry))
     
     def read(self, key: str, resolve_conflicts: bool = True) -> Optional[any]:
-        """读取黑板上的信息，自动解决冲突"""
+        """Read Information from the Blackboard, Automatically Resolve Conflicts"""
         with self._lock:
             entries = self._data.get(key, [])
             if not entries:
@@ -419,17 +423,17 @@ class Blackboard:
             if not resolve_conflicts or len(entries) == 1:
                 return entries[-1].value
             
-            # 冲突解决：选择置信度最高的
+            # Conflict Resolution: Choose the Highest Confidence
             return max(entries, key=lambda e: e.confidence).value
     
     def subscribe(self, key: str, callback):
-        """订阅特定 key 的变更事件"""
+        """Subscribe to Specific Key's Change Events"""
         if key not in self._observers:
             self._observers[key] = []
         self._observers[key].append(callback)
 
 class BlackboardAgent:
-    """基于黑板的异步 Agent"""
+    """Asynchronous Agents Based on the Blackboard"""
     
     def __init__(self, agent_id: str, specialization: str, blackboard: Blackboard):
         self.agent_id = agent_id
@@ -437,16 +441,16 @@ class BlackboardAgent:
         self.blackboard = blackboard
     
     async def observe_and_act(self):
-        """持续观察黑板，根据新信息采取行动"""
+        """Continuous monitoring of the blackboard, taking action based on new information"""
         while True:
-            # 检查黑板上是否有本专业相关的新信息
+            # Check for new professional-related information on the blackboard
             task = self.blackboard.read(f"task_{self.specialization}")
             
             if task and not self.blackboard.read(f"result_{self.agent_id}"):
-                # 执行专业分析
+                # Execute professional analysis
                 result = await self._analyze(task)
                 
-                # 写回结果
+                # Write back the result
                 self.blackboard.write(
                     key=f"result_{self.agent_id}",
                     value=result,
@@ -459,9 +463,9 @@ class BlackboardAgent:
 
 ---
 
-<!-- chunk: 5. 多 Agent 通信协议 -->## 5. 多 Agent 通信协议
+## 5. Multi-Agent Communication Protocol
 
-## 5.1 标准化消息格式
+## 5.1 Standardized Message Format
 
 ```python
 from dataclasses import dataclass
@@ -479,7 +483,7 @@ class MessageType(Enum):
 
 @dataclass
 class AgentMessage:
-    """Agent 间通信的标准消息格式"""
+    """Standard message format for communication between agents"""
     message_id: str
     sender_id: str
     receiver_id: str            # 或 "broadcast"
@@ -490,7 +494,7 @@ class AgentMessage:
     ttl_seconds: int = 300      # 消息有效期
     timestamp: str = ""
 
-# 任务分配消息示例
+# Example of task allocation messages
 task_message = AgentMessage(
     message_id="msg-001",
     sender_id="orchestrator",
@@ -512,7 +516,7 @@ task_message = AgentMessage(
     priority=8,
 )
 
-# 结果返回消息示例
+# Example of result return messages
 result_message = AgentMessage(
     message_id="msg-002",
     sender_id="network_worker",
@@ -536,21 +540,21 @@ result_message = AgentMessage(
 )
 ```
 
-## 5.2 消息队列集成
+## 5.2 Queue Integration
 
 ```python
 import asyncio
 from typing import Callable
 
 class AgentMessageBus:
-    """基于 Redis Stream 的 Agent 消息总线（生产级实现）"""
+    """Agent messaging bus based on Redis Stream (production-level implementation)"""
     
     def __init__(self, redis_client):
         self.redis = redis_client
         self.stream_name = "agent_messages"
     
     async def publish(self, message: AgentMessage):
-        """发布消息到消息总线"""
+        """Publish a message to the messaging bus"""
         await self.redis.xadd(
             self.stream_name,
             {
@@ -568,7 +572,7 @@ class AgentMessageBus:
         agent_id: str, 
         handler: Callable[[AgentMessage], None]
     ):
-        """订阅发给特定 Agent 的消息"""
+        """Subscribe to messages sent to a specific agent"""
         last_id = "0"  # 从头读取，生产环境应从断点恢复
         
         while True:
@@ -582,7 +586,7 @@ class AgentMessageBus:
                 for msg_id, fields in stream_messages:
                     last_id = msg_id
                     
-                    # 过滤属于本 Agent 的消息
+                    # Filter messages belonging to this agent
                     if fields["receiver_id"] in [agent_id, "broadcast"]:
                         agent_msg = self._deserialize(fields)
                         await handler(agent_msg)
@@ -590,13 +594,13 @@ class AgentMessageBus:
 
 ---
 
-<!-- chunk: 6. 冲突解决策略 -->## 6. 冲突解决策略
+## 6. Conflict Resolution Strategies
 
-当多个 Agent 对同一问题产生不同结论时：
+When multiple agents arrive at different conclusions about the same issue:
 
 ```python
 class ConflictResolver:
-    """多 Agent 结论冲突解决器"""
+    """Conflict resolver for multiple agent conclusions"""
     
     def resolve(
         self,
@@ -604,7 +608,7 @@ class ConflictResolver:
         agent_responses: list[dict],
         resolution_strategy: str = "weighted_confidence"
     ) -> dict:
-        """解决多个 Agent 的结论冲突"""
+        """Resolver for multiple agents' conclusions"""
         
         if resolution_strategy == "voting":
             return self._majority_vote(agent_responses)
@@ -619,7 +623,7 @@ class ConflictResolver:
             return self._escalate_to_human(question, agent_responses)
     
     def _majority_vote(self, responses: list[dict]) -> dict:
-        """多数投票（适合分类型结论）"""
+        """Majority voting (suitable for categorical conclusions)"""
         from collections import Counter
         
         conclusions = [r["conclusion"] for r in responses]
@@ -634,11 +638,11 @@ class ConflictResolver:
         }
     
     def _weighted_confidence(self, responses: list[dict]) -> dict:
-        """加权置信度（适合有把握度的结论）"""
+        """Weighted confidence (suitable for confident conclusions)"""
         if not responses:
             return {"conclusion": "无法确定", "confidence": 0}
         
-        # 按置信度排序
+        # Sort by Confidence
         sorted_responses = sorted(
             responses, 
             key=lambda r: r.get("confidence", 0.5),
@@ -647,7 +651,7 @@ class ConflictResolver:
         
         best = sorted_responses[0]
         
-        # 如果最高置信度 < 0.7，且存在显著分歧，升级处理
+        # If highest confidence < 0.7, and there's significant disagreement, escalate for handling
         if best.get("confidence", 0) < 0.7:
             return {
                 "conclusion": best["conclusion"],
@@ -666,7 +670,7 @@ class ConflictResolver:
         }
     
     def _llm_arbitrate(self, question: str, responses: list[dict]) -> dict:
-        """用 LLM 作为仲裁者（适合复杂技术判断）"""
+        """Serve as an arbitrator using LLM (suitable for complex technical judgments)"""
         arbitration_prompt = f"""
         多个专业 Agent 对以下问题产生了不同结论，请作为仲裁者给出最终判断：
         
@@ -692,7 +696,7 @@ class ConflictResolver:
 
 ---
 
-<!-- chunk: 7. 生产级多 Agent 平台架构 -->## 7. 生产级多 Agent 平台架构
+## 7. Production-grade Multi-Agent Platform Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -727,10 +731,10 @@ class ConflictResolver:
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-## 7.1 K8s 上的多 Agent 部署
+## 7.1 Kubernetes-based Multi-Agent Deployment
 
 ```yaml
-# Agent Worker Deployment 模板
+# Agent Worker Deployment Template
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -780,13 +784,13 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       
-      # 可选：Sidecar 进行日志收集
+      # Optional: Use Sidecar for logging collection
       - name: log-shipper
         image: fluent/fluent-bit:latest
         # ...
 
 ---
-# HPA：根据任务队列长度自动扩容
+# HPA: Auto-scale based on task queue length
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -814,56 +818,56 @@ spec:
 
 ---
 
-<!-- chunk: 8. 最佳实践与反模式 -->## 8. 最佳实践与反模式
+## 8. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **明确边界**：每个 Agent 的职责范围要清晰，避免越界调用其他 Agent 的工具
-- **异步通信**：Agent 间通过消息队列通信而非直接调用，提高解耦性和弹性
-- **渐进式引入**：从单 Agent 开始，确认有多 Agent 价值后再重构
-- **强模型当 Orchestrator**：任务分解和质量把控用 GPT-4o/Claude，执行用便宜模型
-- **超时防护**：给每个 Worker 设置最大执行时间，避免一个卡住阻塞整体
+- **Clearly Define Boundaries**: Each Agent's responsibilities should be clear-cut, avoiding cross-calling other Agents' tools
+- **Asynchronous Communication**: Agents communicate via message queues rather than direct calls to improve decoupling and elasticity
+- **Gradual Introduction**: Start with a single Agent and only refactor when multi-Agent value is confirmed
+- **Use Expensive Models for Orchestrator**: Break down tasks and ensure quality control with GPT-4o/Claude, while execution uses cheaper models
+- **Timeout Protection**: Set a maximum execution time for each Worker to prevent one from blocking the entire process
 
-## 反模式
+## Anti-patterns
 
-- **过度拆分**：3 步任务拆成 5 个 Agent，沟通成本超过了并行收益
-- **Agent 间直接调用**：点对点依赖导致强耦合，改用消息总线
-- **共享可变状态**：多个 Agent 直接读写同一个数据结构，引入竞争条件
-- **无中心状态管理**：任务状态分散在各 Agent 中，无法追踪整体进度和恢复问题
-- **不设权限边界**：所有 Agent 共享同一个 K8s ServiceAccount，某个 Agent 被攻击后影响全局
+- **Over-Division**: Splitting a 3-step task into 5 Agents results in higher communication costs than parallel benefits
+- **Direct Calls Between Agents**: Point-to-point dependencies lead to strong coupling; use a message bus instead
+- **Shared Mutable State**: Multiple Agents directly read and write the same data structure, introducing race conditions
+- **No Centralized State Management**: Task states are scattered across different Agents, making it difficult to track overall progress and recover from issues
+- **No Permission Boundaries**: All Agents share the same K8s ServiceAccount, and an attack on one Agent affects the entire system
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Document | Relevant Content |
 |------|---------|
-| [01 - Agent 基础](./01-ai-agent-fundamentals.md) | Plan-and-Execute 模式与 Supervisor-Worker 的关系 |
-| [03 - Agent 框架对比](./03-agent-frameworks-comparison.md) | LangGraph/AutoGen/CrewAI 框架实现 |
-| [05 - 工具调用](./05-tool-use-function-calling.md) | 多 Agent 间的工具共享和访问控制 |
-| [09 - 生产部署](./09-production-deployment-guide.md) | 多 Agent 平台的 K8s 部署架构 |
-| [14 - Agent 赋能设计与落地路径](./14-agent-kudig-design-strategy.md) | K8s 运维 Agent 的四大方向 |
+| [01 - Agent Basics](./01-ai-agent-fundamentals.md) | Relationship between Plan-and-Execute mode and Supervisor-Worker |
+| [03 - Agent Framework Comparison](./03-agent-frameworks-comparison.md) | Implementation of LangGraph/AutoGen/CrewAI frameworks |
+| [05 - Tool Usage](./05-tool-use-function-calling.md) | Sharing and Access Control among multiple Agents |
+| [09 - Production Deployment](./09-production-deployment-guide.md) | Deployment architecture for multi-Agent platforms using K8s |
+| [14 - Agent Enablement Design and Deployment Path](./14-agent-kudig-design-strategy.md) | Four directions for Kubernetes-based Agent operations |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian-related Documentation
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent 基础与核心架构|AI Agent 基础与核心架构]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM 基座模型选型与评估|LLM 基座模型选型与评估]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
-- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|成本与延迟优化策略]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent Basics and Core Architecture|AI Agent Basics and Core Architecture]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM Foundation Model Selection and Evaluation|LLM Foundation Model Selection and Evaluation]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Mainstream Agent Framework Deep Comparison]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Enhanced Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation System and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
+- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|Cost and Latency Optimization Strategies]]
 
 ## See Also
 

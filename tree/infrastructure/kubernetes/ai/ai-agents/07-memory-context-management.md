@@ -1,6 +1,10 @@
----title: 记忆管理与上下文窗口工程 (domain-14-ai-ml-infra)
-description: 'title: 记忆管理与上下文窗口工程'
-summary: 'title: 记忆管理与上下文窗口工程'
+---
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/07-memory-context-management.md
+---
+title: Memory Management and Context Window Engineering (domain-14-ai-ml-infra)
+description: 'title: Memory Management and Context Window Engineering'
+summary: 'title: Memory Management and Context Window Engineering'
 category: general
 tags:
 - ai
@@ -16,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- all engineers
 estimated_read_time: 25min
 intent_queries:
-- 记忆管理与上下文窗口工程 是什么
-- 如何 记忆管理与上下文窗口工程
-- Kubernetes 14 ai ml infra 最佳实践
+- What is memory management and contextual window engineering
+- How to do memory management and contextual window engineering
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
-- 记忆管理与上下文窗口工程
+- Memory Management and Contextual Window Engineering
 - ai
 - ml
 - infra
@@ -36,15 +40,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (modifies cluster state but usually rollbackable), 🟢 Low risk/readonly (information gathering, no side effects).
 
 
 
 
-title: 记忆管理与上下文窗口工程
-description: '# 记忆管理与上下文窗口工程'
+title: Memory Management and Contextual Window Engineering
+description: '# Memory Management and Contextual Window Engineering'
 category: ai-agent
 tags:
 - ai
@@ -58,15 +62,15 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 记忆管理与上下文窗口工程 是什么
-- 如何 记忆管理与上下文窗口工程
+- What is memory management and contextual window engineering
+- How to do memory management and contextual window engineering
 trigger_keywords:
-- 记忆管理与上下文窗口工程
+- Memory Management and Contextual Window Engineering
 - ai
 - agent
 authors:
@@ -80,19 +84,19 @@ k8s_versions:
 - '1.32'
 ---
 
-# 记忆管理与上下文窗口工程
+# Memory Management and Contextual Window Engineering
 
-> **文档类型**: 核心技术专题 | **最后更新**: 2026-03 | **关键词**: 记忆管理, 上下文窗口, 短期记忆, 长期记忆, 情节记忆, 语义记忆, 上下文压缩, Token 管理, 会话记忆, 向量记忆
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-记忆是 Agent 实现跨会话连续性、避免重复询问用户、积累经验的核心能力。上下文窗口管理则决定了 Agent 在单次对话中能有效利用多少信息。本文系统覆盖 Agent 的四类记忆（感知、工作、情节、语义）、上下文压缩技术、长期记忆的存储与检索架构，以及生产环境中的记忆系统实现。
+> **Document Type**: Core Technology Topic | **Last Updated**: 2026-03 | **Keywords**: memory management, contextual window, short-term memory, long-term memory, narrative memory, semantic memory, contextual compression, token management, session memory, vector memory
 
 ---
 
-<!-- chunk: 1. Agent 记忆分类体系 -->## 1. Agent 记忆分类体系
+## Overview
+
+Memory is a core capability for Agents to achieve cross-session continuity, avoid repetitive user inquiries, and accumulate experience. Context window management determines how much information an Agent can effectively utilize in a single conversation. This article comprehensively covers the four types of memories (perception, working, plot, semantic) used by Agents, context compression techniques, long-term memory storage and retrieval architectures, and the implementation of memory systems in production environments.
+
+---
+
+## 1. Agent Memory Classification System
 
 ```
 Agent 记忆体系
@@ -122,12 +126,12 @@ Agent 记忆体系
 
 ---
 
-<!-- chunk: 2. 工作记忆：上下文窗口管理 -->## 2. 工作记忆：上下文窗口管理
+## 2. Working Memory: Context Window Management
 
-## 2.1 Token 预算规划
+## 2.1 Token Budget Planning
 
 ```python
-# 各模型上下文窗口和推荐配置
+# Context windows and recommendations for each model
 CONTEXT_BUDGETS = {
     "gpt-4o": {
         "max_tokens": 128_000,
@@ -163,7 +167,7 @@ class TokenBudgetManager:
     def count_messages_tokens(self, messages: list[dict]) -> int:
         total = 0
         for msg in messages:
-            # 每条消息有 4 token 的固定开销
+            # Each message has a fixed overhead of 4 tokens
             total += 4
             total += self.count_tokens(str(msg.get("content", "")))
             if "tool_calls" in msg:
@@ -183,7 +187,7 @@ class TokenBudgetManager:
         return self.budget["max_tokens"] - used
 ```
 
-## 2.2 智能上下文截断
+## 2.2 Smart Context Truncation
 
 ```python
 from enum import Enum
@@ -211,7 +215,7 @@ class ContextWindowManager:
         system_prompt: str,
         tools: list = None,
     ) -> list[dict]:
-        """修剪消息历史，确保不超出 Token 限制"""
+        """Trim historical messages to ensure they do not exceed the token limit"""
         
         available = self.budget_manager.available_tokens_for_history(
             system_prompt, tools or []
@@ -234,12 +238,12 @@ class ContextWindowManager:
     def _sliding_window(
         self, messages: list[dict], available_tokens: int
     ) -> list[dict]:
-        """保留最近的消息，超出时从最旧的开始删除"""
-        # 始终保留 system 消息
+        """Retain recent messages until the token limit is reached, then delete from the oldest"""
+        # Always retain system messages
         system_msgs = [m for m in messages if m["role"] == "system"]
         other_msgs = [m for m in messages if m["role"] != "system"]
         
-        # 从最新消息开始保留，直到 token 用完
+        # Retain the most recent messages until the token limit is reached
         kept = []
         token_count = 0
         
@@ -255,14 +259,14 @@ class ContextWindowManager:
     def _summary_compression(
         self, messages: list[dict], available_tokens: int
     ) -> list[dict]:
-        """将早期对话压缩为摘要"""
+        """Compress early conversations into summaries"""
         if not self.summary_llm:
             return self._sliding_window(messages, available_tokens)
         
         system_msgs = [m for m in messages if m["role"] == "system"]
         other_msgs = [m for m in messages if m["role"] != "system"]
         
-        # 保留最近 1/3 的消息
+        # Retain the most recent 1/3 of messages
         recent_count = max(4, len(other_msgs) // 3)
         recent_msgs = other_msgs[-recent_count:]
         old_msgs = other_msgs[:-recent_count]
@@ -270,7 +274,7 @@ class ContextWindowManager:
         if not old_msgs:
             return messages
         
-        # 压缩旧消息
+        # Compress old messages
         summary_prompt = f"""请将以下对话历史压缩为简洁摘要（200字以内），
         保留：关键决策、已执行的操作、发现的问题、重要配置信息：
         
@@ -288,17 +292,17 @@ class ContextWindowManager:
     def _importance_based(
         self, messages: list[dict], available_tokens: int
     ) -> list[dict]:
-        """基于重要性保留消息"""
+        """Preserve messages based on importance"""
         system_msgs = [m for m in messages if m["role"] == "system"]
         other_msgs = [m for m in messages if m["role"] != "system"]
         
-        # 重要性评分
+        # Importance scoring
         scored_msgs = []
         for i, msg in enumerate(other_msgs):
             score = self._importance_score(msg, i, len(other_msgs))
             scored_msgs.append((score, i, msg))
         
-        # 按重要性排序，但保持时序
+        # Sort by importance but maintain sequence
         scored_msgs.sort(key=lambda x: x[0], reverse=True)
         
         kept_indices = set()
@@ -310,30 +314,30 @@ class ContextWindowManager:
                 kept_indices.add(idx)
                 token_count += msg_tokens
         
-        # 按原始顺序返回（保持时序）
+        # Return in original order (maintain sequence)
         kept = [msg for i, msg in enumerate(other_msgs) if i in kept_indices]
         return system_msgs + kept
     
     def _importance_score(self, msg: dict, idx: int, total: int) -> float:
-        """计算消息重要性分数"""
+        """Calculate message importance scores"""
         score = 0.0
         
-        # 最近的消息更重要
+        # The most recent messages are more important
         recency = idx / total
         score += recency * 0.4
         
         content = str(msg.get("content", ""))
         
-        # 包含错误信息的消息重要
+        # Include error messages that are important
         if any(keyword in content.lower() for keyword in 
                ["error", "failed", "exception", "warning", "错误", "失败"]):
             score += 0.3
         
-        # 工具调用结果重要
+        # Tool call results are important
         if msg.get("role") == "tool":
             score += 0.2
         
-        # 包含关键 K8s 资源的消息重要
+        # Messages containing critical Kubernetes resources are important
         if any(keyword in content for keyword in 
                ["kubectl", "yaml", "apiVersion", "namespace", "Pod"]):
             score += 0.1
@@ -343,9 +347,9 @@ class ContextWindowManager:
 
 ---
 
-<!-- chunk: 3. 情节记忆：跨会话历史 -->## 3. 情节记忆：跨会话历史
+## 3. Story Recall: Cross-session History
 
-## 3.1 情节记忆存储设计
+## 3.1 Design for Story Recall Storage
 
 ```python
 from datetime import datetime, UTC
@@ -353,7 +357,7 @@ from dataclasses import dataclass, asdict
 
 @dataclass
 class EpisodeRecord:
-    """一次对话/操作的完整记录"""
+    """A complete record of a single conversation/action"""
     episode_id: str
     user_id: str
     agent_id: str
@@ -368,7 +372,7 @@ class EpisodeRecord:
     embedding: list[float]    # 向量化后的摘要（用于语义检索）
 
 class EpisodicMemoryStore:
-    """基于 PostgreSQL + pgvector 的情节记忆存储"""
+    """Story Recall storage based on PostgreSQL + pgvector"""
     
     def __init__(self, db_url: str, embedding_model):
         self.db_url = db_url
@@ -376,7 +380,7 @@ class EpisodicMemoryStore:
         self._init_db()
     
     def _init_db(self):
-        """初始化数据库表"""
+        """Initialize database tables"""
         # PostgreSQL with pgvector
         CREATE_TABLE_SQL = """
         CREATE TABLE IF NOT EXISTS episode_memory (
@@ -401,23 +405,23 @@ class EpisodicMemoryStore:
         CREATE INDEX IF NOT EXISTS episode_user_idx 
         ON episode_memory (user_id, timestamp DESC);
         """
-        # 执行建表
+        # Execute table creation
     
     def save_episode(self, episode: EpisodeRecord):
-        """保存一次对话记录"""
-        # 生成 embedding
+        """Save a conversation record"""
+        # Generate embedding
         embedding_text = f"{episode.summary} {episode.lessons_learned}"
         embedding = self.embedding_model.embed_query(embedding_text)
         episode.embedding = embedding
         
-        # 插入数据库
+        # Insert into database
         INSERT_SQL = """
         INSERT INTO episode_memory 
         (episode_id, user_id, agent_id, timestamp, summary, key_entities,
          problem_type, outcome, actions_taken, lessons_learned, embedding)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         """
-        # 执行插入
+        # Execute insertion
     
     def search_relevant_episodes(
         self,
@@ -426,10 +430,10 @@ class EpisodicMemoryStore:
         limit: int = 5,
         problem_type: str = None,
     ) -> list[EpisodeRecord]:
-        """语义检索相关历史经验"""
+        """Semantic search related past experiences"""
         query_embedding = self.embedding_model.embed_query(query)
         
-        # 带过滤的向量相似检索
+        # Filtered vector similarity search
         SEARCH_SQL = """
         SELECT *, 1 - (embedding <=> $1) AS similarity
         FROM episode_memory
@@ -440,14 +444,14 @@ class EpisodicMemoryStore:
         ORDER BY embedding <=> $1
         LIMIT $2
         """
-        # 执行查询并返回结果
+        # Execute query and return results
 ```
 
-## 3.2 情节记忆的自动生成
+## 3.2 Automatic Generation of Story Recalls
 
 ```python
 class EpisodeExtractor:
-    """从对话历史自动提取结构化情节记忆"""
+    """Automatically extract structured story recollections from historical dialogues"""
     
     def __init__(self, llm):
         self.llm = llm
@@ -457,7 +461,7 @@ class EpisodeExtractor:
         messages: list[dict],
         outcome: str
     ) -> EpisodeRecord:
-        """从对话记录提取结构化记忆"""
+        """Extract structured memories from dialogue records"""
         
         transcript = self._format_transcript(messages)
         
@@ -503,9 +507,9 @@ class EpisodeExtractor:
 
 ---
 
-<!-- chunk: 4. 语义记忆：结构化知识库集成 -->## 4. 语义记忆：结构化知识库集成
+## 4. Semantic Memory: Integration of Structured Knowledge Base
 
-## 4.1 语义记忆 vs RAG 的关系
+## 4.1 Semantic Memory vs RAG Relationship
 
 ```
 语义记忆（Semantic Memory）与 RAG 的区别：
@@ -527,18 +531,18 @@ RAG（检索增强生成）:
   - 语义记忆存储 Agent 自己总结的经验规则
 ```
 
-## 4.2 语义记忆实现
+## 4.2 Implementation of Semantic Memory
 
 ```python
 class SemanticMemoryStore:
-    """Agent 的语义记忆（结构化知识）"""
+    """Agent's Semantic Memory (Structured Knowledge)"""
     
     def __init__(self, vector_store, llm):
         self.vector_store = vector_store
         self.llm = llm
     
     def learn_from_episode(self, episode: EpisodeRecord):
-        """从情节中学习，提取可复用的知识点"""
+        """Learn from the plot to extract reusable knowledge points"""
         if episode.outcome != "resolved":
             return  # 只从成功案例中学习
         
@@ -556,7 +560,7 @@ class SemanticMemoryStore:
         - 置信度：0-1（基于案例的充分程度）
         """)
         
-        # 解析并存储知识点
+        # Parse and Store Knowledge Points
         knowledge_points = self._parse_knowledge(knowledge_extraction.content)
         for kp in knowledge_points:
             self.vector_store.add_texts(
@@ -571,7 +575,7 @@ class SemanticMemoryStore:
             )
     
     def recall(self, situation: str, limit: int = 3) -> list[str]:
-        """根据当前情况召回相关知识点"""
+        """Recall relevant knowledge points based on current context"""
         results = self.vector_store.similarity_search(
             situation,
             k=limit,
@@ -582,11 +586,11 @@ class SemanticMemoryStore:
 
 ---
 
-<!-- chunk: 5. 完整记忆系统集成 -->## 5. 完整记忆系统集成
+## 5. Integration of Complete Memory System
 
 ```python
 class AgentMemorySystem:
-    """完整的 Agent 记忆系统（整合四类记忆）"""
+    """Complete Agent Memory System (Integrating Four Types of Memories)"""
     
     def __init__(
         self,
@@ -608,7 +612,7 @@ class AgentMemorySystem:
         self.episode_extractor = EpisodeExtractor(summary_llm) if summary_llm else None
     
     def add_message(self, message: dict):
-        """添加新消息到工作记忆"""
+        """Add new messages to working memory"""
         self.working_memory.append(message)
     
     def get_context(
@@ -621,7 +625,7 @@ class AgentMemorySystem:
         组装完整的上下文：
         工作记忆 + 相关情节记忆 + 相关语义知识 + RAG 检索结果
         """
-        # 1. 检索相关历史经验
+        # 1. Retrieve Relevant Historical Experiences
         episodic_context = ""
         if self.episodic_store and current_query:
             relevant_episodes = self.episodic_store.search_relevant_episodes(
@@ -633,7 +637,7 @@ class AgentMemorySystem:
                     for ep in relevant_episodes
                 ])
         
-        # 2. 检索相关语义知识
+        # 2. Retrieve Relevant Semantic Knowledge
         semantic_context = ""
         if self.semantic_store and current_query:
             knowledge_points = self.semantic_store.recall(current_query)
@@ -642,7 +646,7 @@ class AgentMemorySystem:
                     f"- {kp}" for kp in knowledge_points
                 ])
         
-        # 3. RAG 检索
+        # 3. RAG Retrieval
         rag_context = ""
         if self.rag_retriever and current_query:
             rag_docs = self.rag_retriever.get_relevant_documents(current_query)
@@ -651,12 +655,12 @@ class AgentMemorySystem:
                     d.page_content for d in rag_docs[:3]
                 ])
         
-        # 4. 组合增强的系统提示
+        # 4. Combine Enhanced System Prompt
         enhanced_system = system_prompt
         if episodic_context or semantic_context or rag_context:
             enhanced_system += f"\n\n{episodic_context}{semantic_context}{rag_context}"
         
-        # 5. 修剪工作记忆（确保不超出 Token 限制）
+        # 5. Prune Working Memory (Ensure within Token Limit)
         trimmed_messages = self.context_manager.trim(
             messages=self.working_memory,
             system_prompt=enhanced_system,
@@ -666,30 +670,30 @@ class AgentMemorySystem:
         return [{"role": "system", "content": enhanced_system}] + trimmed_messages
     
     def finalize_session(self, outcome: str = "resolved"):
-        """会话结束时，将本次对话转化为情节记忆"""
+        """End a session by converting this conversation to plot memory"""
         if self.episodic_store and self.episode_extractor and self.working_memory:
             episode = self.episode_extractor.extract_episode(
                 self.working_memory, outcome
             )
             self.episodic_store.save_episode(episode)
             
-            # 从情节中学习，更新语义记忆
+            # Learn from the plot to update semantic memory
             if self.semantic_store and outcome == "resolved":
                 self.semantic_store.learn_from_episode(episode)
         
-        # 清空工作记忆（新会话开始）
+        # Clear Working Memory (New session starts)
         self.working_memory = []
 ```
 
 ---
 
-<!-- chunk: 6. 记忆系统的隐私与安全 -->## 6. 记忆系统的隐私与安全
+## 6. Privacy and Security of Memory Systems
 
 ```python
 class PrivacyAwareMemorySystem(AgentMemorySystem):
-    """带隐私保护的记忆系统"""
+    """Privacy-Preserving Memory System"""
     
-    # PII 检测正则
+    # Detection Regular Expressions for PII
     PII_PATTERNS = {
         "ip_address": r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
         "api_key": r'(?i)(api[_-]?key|token|secret)["\s:=]+[a-zA-Z0-9+/=]{20,}',
@@ -698,7 +702,7 @@ class PrivacyAwareMemorySystem(AgentMemorySystem):
     }
     
     def _sanitize_before_storage(self, text: str) -> str:
-        """存储前脱敏处理"""
+        """store data de-identified beforehand"""
         import re
         sanitized = text
         
@@ -708,29 +712,29 @@ class PrivacyAwareMemorySystem(AgentMemorySystem):
         return sanitized
     
     def save_episode(self, episode: EpisodeRecord):
-        """脱敏后再存储"""
+        """de-identify and then store"""
         episode.summary = self._sanitize_before_storage(episode.summary)
         episode.lessons_learned = self._sanitize_before_storage(episode.lessons_learned)
-        # 完整对话记录不存储（含敏感信息）
+        # Store complete dialogue records without storing sensitive information
         episode.raw_transcript = ""
         super().save_episode(episode)
     
     def user_data_deletion(self, user_id: str):
-        """GDPR 合规：用户数据删除权"""
+        """GDPR compliance: right to delete user data"""
         DELETE_SQL = "DELETE FROM episode_memory WHERE user_id = $1"
-        # 执行删除
+        # Execute deletion
         
     def get_user_data_export(self, user_id: str) -> list[dict]:
-        """GDPR 合规：用户数据导出权"""
-        # 返回该用户的所有情节记忆（不含 embedding）
+        """GDPR compliance: right to export user data"""
+        # Return all plot memories for this user (without embeddings)
         pass
 ```
 
 ---
 
-<!-- chunk: 7. 记忆系统性能优化 -->## 7. 记忆系统性能优化
+## 7. Memory System Performance Optimization
 
-## 7.1 Redis 缓存层
+## 7.1 Redis Cache Layer
 
 ```python
 import redis
@@ -738,7 +742,7 @@ import json
 import hashlib
 
 class CachedMemorySystem:
-    """带 Redis 缓存的记忆系统"""
+    """memory system with Redis caching"""
     
     def __init__(self, memory_system: AgentMemorySystem, redis_client: redis.Redis):
         self.memory = memory_system
@@ -751,7 +755,7 @@ class CachedMemorySystem:
         current_query: str,
         tools: list = None,
     ) -> list[dict]:
-        """缓存上下文组装结果（RAG 检索结果变化不频繁）"""
+        """assemble cache context results (RAG retrieval results change infrequently)"""
         
         cache_key = hashlib.md5(
             f"{current_query}:{system_prompt[:100]}".encode()
@@ -763,64 +767,64 @@ class CachedMemorySystem:
         
         context = self.memory.get_context(system_prompt, tools, current_query)
         
-        # 只缓存不含工作记忆的部分（检索结果）
-        # 工作记忆每次都需要实时组装
+        # Cache only parts of the context that do not include working memory (retrieval results)
+        # Working memory needs to be assembled in real time each time
         
         return context
 ```
 
 ---
 
-<!-- chunk: 8. 最佳实践与反模式 -->## 8. 最佳实践与反模式
+## 8. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **层次化记忆**：短期用工作记忆（上下文窗口），中期用情节记忆，长期用语义记忆
-- **按需检索历史**：不要把所有历史都塞入上下文，先检索相关的再注入
-- **摘要压缩早于截断**：先尝试摘要压缩，而不是直接删除消息（信息损失更少）
-- **脱敏后存储**：情节记忆和语义记忆在存储前必须删除 PII 和密钥信息
-- **情节记忆冷启动**：新部署的 Agent 没有历史，应提前导入典型案例作为种子数据
+- **hierarchical memory**: short-term use working memory (context window), medium-term use plot memories, long-term use semantic memories
+- **retrieve historical selectively**: don't stuff all history into the context; first search for relevant ones before injecting
+- **compress summary before truncation**: try summarization compression first rather than directly deleting messages (less information loss)
+- **de-identify before storage**: plot memories and semantic memories must have PII and key information removed before storage
+- **cold start for plot memories**: new deployed agents lack history; should pre-import typical cases as seed data
 
-## 反模式
+## Anti-patterns
 
-- **无限累积历史**：不管理上下文窗口，随着对话加长推理质量下降、成本飙升
-- **丢弃所有历史**：每次新会话完全重置，用户需要重复描述上下文
-- **存储原始对话**：未脱敏的原始对话可能包含密码、密钥、PII 等敏感信息
-- **不区分记忆类型**：把所有信息都塞进系统提示，而非按类型合理分层
-- **情节记忆不过期**：三年前的案例可能已经过时（K8s 版本差异很大），应设置老化机制
+- **Infinite Accumulated History**: No context window management, inference quality declines and costs skyrocket with longer dialogues
+- **Discard All History**: Each new session resets completely, users need to repeat context descriptions
+- **Store Raw Dialogues**: Unredacted raw dialogues may contain passwords, keys, PII, etc., sensitive information
+- **No Distinction Between Memory Types**: All information stuffed into system prompts without reasonable layering by type
+- **Persistent Plot Memory**: Three years ago's case might be outdated (K8s versions differ greatly), aging mechanisms should be set
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documents
 
-| 文档 | 关联内容 |
+| Document | Associated Content |
 |------|---------|
-| [01 - Agent 基础](./01-ai-agent-fundamentals.md) | 上下文窗口在 Agent Loop 中的作用 |
-| [04 - RAG 检索](./04-rag-knowledge-retrieval.md) | 语义记忆与 RAG 的结合 |
-| [06 - 多 Agent 编排](./06-multi-agent-orchestration.md) | 多 Agent 共享记忆的架构 |
-| [11 - 成本优化](./11-cost-latency-optimization.md) | Token 压缩对成本的影响 |
-| [domain-14-ai-ml-infra/20-vector-database-rag.md](../domain-14-ai-ml-infra/20-vector-database-rag.md) | 向量数据库选型 |
+| [01 - Agent Basics](./01-ai-agent-fundamentals.md) | The role of context windows in the Agent Loop |
+| [04 - RAG Retrieval](./04-rag-knowledge-retrieval.md) | Semantic memory integration with RAG |
+| [06 - Multi-Agent Orchestration](./06-multi-agent-orchestration.md) | Architectures for shared memory among multiple agents |
+| [11 - Cost Optimization](./11-cost-latency-optimization.md) | Impact of token compression on cost |
+| [domain-14-ai-ml-infra/20-vector-database-rag.md](../domain-14-ai-ml-infra/20-vector-database-rag.md) | Selection of vector databases |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documents
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent 基础与核心架构|AI Agent 基础与核心架构]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM 基座模型选型与评估|LLM 基座模型选型与评估]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|[[主流 Agent 框架深度对比|主流 Agent 框架深度对比]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
-- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|成本与延迟优化策略]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|[[AI Agent Basics and Core Architecture|AI Agent Basics and Core Architecture]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|[[LLM Foundation Model Selection and Evaluation|LLM Foundation Model Selection and Evaluation]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|[[Deep Comparison of Main Agent Frameworks|Deep Comparison of Main Agent Frameworks]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability Framework]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
+- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|Cost and Latency Optimization Strategies]]
 
 ## See Also
 

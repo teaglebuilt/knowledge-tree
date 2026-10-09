@@ -54,8 +54,9 @@ from mdlang import (  # noqa: E402
     discover,
     load_config,
     paint,
-    plan_chunks,
     read_text,
+    scan_text,
+    severity,
     slugify,
     split_frontmatter,
 )
@@ -75,31 +76,53 @@ DEFAULT_MAX_TOKENS = 8192
 DEFAULT_TEMPERATURE = 0.0
 DEFAULT_TIMEOUT = 600
 DEFAULT_PATHS = ["tree"]
-# Smaller than mdlang's 400 — large chunks are where list/heading drops appear.
-DEFAULT_TRANSLATE_CHUNK_LINES = 200
+# Lines per request. Small batches keep context tight and make one bad line
+# cheap to retry on its own.
+DEFAULT_BATCH_LINES = 20
+# Attempts per line: once inside its batch, then alone.
+DEFAULT_LINE_RETRIES = 2
 
-SYSTEM_PROMPT = """\
-You are a precise technical documentation translator. Translate the markdown \
-chunk into English.
+LINE_SYSTEM_PROMPT = """\
+You translate individual lines of markdown documentation into English.
+
+The user sends numbered lines, one per line, as `<number><TAB><text>`.
 
 Rules (must follow):
-- Translate prose, headings, and human-readable frontmatter values \
-(title, description, summary, abstract, audience, keywords, aliases, notes, \
-intent_queries, trigger_keywords).
-- Translate code comments inside fenced blocks. Leave code, commands, YAML/JSON \
-keys, identifiers, and fence info strings (e.g. ```yaml) untouched.
-- Never translate URLs, paths, wikilink targets, or link destinations. Link \
-display text may be translated.
-- NEVER summarize, improve, reorganize, merge, or omit content. Every heading, \
-numbered/bulleted list item, table row, and code block in the source must \
-appear in the output — same count, same order.
-- For TOC / in-document links like [text](#anchor): translate ONLY the link \
-text; leave the #anchor target as a placeholder (any slug). A post-processor \
-will regenerate anchors from the final English headings.
-- Remove HTML comments of the form <!-- chunk: ... --> entirely (do not keep \
-source-language text inside them).
-- Preserve markdown structure, whitespace intent, and YAML frontmatter keys.
-- Output ONLY the translated markdown chunk — no preamble or commentary.
+- Reply with the SAME line numbers, in order, as `<number><TAB><translated text>`.
+- Output nothing else: no preamble, no commentary, no code fences, no blank lines.
+- Translate every non-English word. Never leave source-language characters behind.
+- Reproduce markdown scaffolding exactly: heading hashes, list markers, checkboxes,
+  blockquote markers, table pipes and cell count, bold/italic markers.
+- Leave untouched: URLs, file paths, wikilink targets, anchor targets after `#`,
+  code identifiers, YAML/JSON keys, command names. Link display text is translated.
+- For frontmatter lines like `title: ...`, translate the value and keep the key.
+- One input line produces exactly one output line. Never merge, split, or omit.
+
+Worked examples (TAB shown as \t):
+  in   12\t## 6. 最佳实践
+  out  12\t## 6. Best Practices
+  in   40\t6. [最佳实践](#6-zui-jia-shi-jian)
+  out  40\t6. [Best Practices](#6-zui-jia-shi-jian)
+  in   7\t| **等保2.0** | 全量日志 | 6 个月 |
+  out  7\t| **MLPS 2.0** | Full logging | 6 months |
+  in   3\tdescription: '氢能源架构设计'
+  out  3\tdescription: 'Hydrogen Energy Architecture Design'
+"""
+
+PHRASE_SYSTEM_PROMPT = """\
+You translate short phrases into English.
+
+The user sends numbered phrases, one per line, as `<number><TAB><phrase>`.
+
+Rules (must follow):
+- Reply with the SAME numbers, in order, as `<number><TAB><English phrase>`.
+- The separator after the number MUST be a tab (or spaces). Never glue the number
+  to the phrase (bad: `3专线_access`; good: `3\\tdedicated line`).
+- Output nothing else: no preamble, no commentary, no quotes, no code fences.
+- Translate every non-English word, including short fragments next to Latin
+  acronyms (e.g. `专线` -> `dedicated line`). Never leave source-language characters.
+- These are fragments pulled out of technical documentation. Keep product names,
+  versions, and identifiers as they are, and add no punctuation that was not there.
 """
 
 _NUM_HEADING_RE = re.compile(r"^\s*(\d+)([.\s]|$)")
@@ -273,7 +296,13 @@ def normalize_source(text: str) -> str:
     mdlang does not count those lines as headings, but the model emits real
     `##` headings — verify then reports "headings added". Strip markers first
     so original and translation share the same outline.
+
+    Also repair a missing newline after the opening `---` fence (`---title:`),
+    which otherwise makes `split_frontmatter` miss the block and causes
+    provenance to prepend a second frontmatter.
     """
+    if text.startswith("---") and len(text) > 3 and text[3] not in "\r\n":
+        text = "---\n" + text[3:]
     return strip_chunk_comments(text)
 
 
@@ -435,32 +464,287 @@ class VllmClient:
         return (choice.get("message") or {}).get("content") or ""
 
 
-def extract_chunk_text(text: str, start_line: int, end_line: int) -> str:
-    """Slice 1-indexed inclusive line range from text."""
-    lines = text.split("\n")
-    return "\n".join(lines[start_line - 1 : end_line])
+_BLOCK_SCRIPT_RE = _NON_LATIN_RE
+_HAS_TEXT_RE = re.compile(r"[0-9A-Za-z]|" + _NON_LATIN_RE.pattern)
+# Small models sometimes omit the tab before CJK (`3专线_access`), or echo the
+# two-char sequence `\t` instead of a real tab. Allow a bare number only when
+# the next char is non-ASCII — not before `.` / `[` / Latin, which would
+# false-match ordinary markdown like `8. [Foo](#bar)`.
+_REPLY_LINE_RE = re.compile(
+    r"^\s*(\d+)(?:\t|\\t| {1,8}|(?=[^\x00-\x7F]))(.*)$"
+)
+# Loose link matcher for cleanup (mdlang's `_LINK_RE` rejects whitespace in URLs).
+_MD_LINK_LOOSE_RE = re.compile(r"(!?)\[([^\]]*)\]\(([^)]+)\)")
 
 
-def translate_chunk(
-    client: VllmClient, chunk_text: str, heading: str, index: int, n: int
-) -> str:
-    user = (
-        f"Translate chunk {index + 1}/{n}"
-        + (f" ({heading})" if heading else "")
-        + " to English.\n\n"
-        + chunk_text
-    )
-    out = client.complete(SYSTEM_PROMPT, user).strip()
-    if not out:
-        raise RuntimeError(f"empty translation for chunk {index}")
-    # Drop accidental markdown fences around the whole response.
-    if out.startswith("```") and out.endswith("```"):
-        inner = out.split("\n", 1)
-        if len(inner) == 2:
-            out = inner[1]
-            if out.endswith("```"):
-                out = out[: -3].rstrip()
+def blocking_lines(text: str, config: dict) -> list[int]:
+    """1-indexed line numbers the scanner flags as must-translate."""
+    findings, _ = scan_text(text, config)
+    return sorted({f.line for f in findings if severity(f.category, config) == "BLOCK"})
+
+
+def _scaffold(line: str) -> tuple[tuple, str]:
+    """Split a line into its markdown scaffolding signature and its prose."""
+    rest = line.strip()
+    quote = 0
+    while rest.startswith(">"):
+        quote += 1
+        rest = rest[1:].lstrip()
+    heading = 0
+    m = re.match(r"(#{1,6})\s+", rest)
+    if m:
+        heading = len(m.group(1))
+        rest = rest[m.end() :]
+    bullet = bool(re.match(r"[-*+]\s+", rest))
+    ordered = bool(re.match(r"\d+[.)]\s+", rest))
+    if bullet or ordered:
+        rest = re.sub(r"^(?:[-*+]|\d+[.)])\s+", "", rest)
+    checkbox = bool(re.match(r"\[[ xX]\]", rest))
+    if checkbox:
+        rest = rest[3:].lstrip()
+    # Cell count matters only for table rows; a stray pipe in prose does not.
+    pipes = rest.count("|") if rest.startswith("|") else 0
+    return (quote, heading, bullet, ordered, checkbox, pipes), rest
+
+
+def _clean_translated(text: str) -> str:
+    """
+    Strip protocol artifacts small models echo into translations.
+
+    The request format is `<n>\\t<text>`; Qwen sometimes re-emits that tab
+    inside markdown (especially `#anchors`), which makes `_LINK_RE` miss the
+    link because its URL class is `[^)\\s]*`. Collapse whitespace inside link
+    destinations so the link still parses; `repair_internal_anchors` rewrites
+    the target from the heading label afterwards.
+    """
+    text = text.replace("\\t", " ").replace("\t", " ")
+
+    def _fix_dest(m: re.Match[str]) -> str:
+        bang, label, dest = m.group(1), m.group(2), m.group(3).strip()
+        title = ""
+        tm = re.match(r'^(.*?)(\s+"[^"]*")$', dest)
+        if tm:
+            dest, title = tm.group(1).strip(), tm.group(2)
+        if dest.startswith("#"):
+            slug = re.sub(r"[\s]+", "-", dest[1:])
+            slug = re.sub(r"-{2,}", "-", slug).strip("-")
+            dest = f"#{slug}"
+        return f"{bang}[{label}]({dest}{title})"
+
+    return _MD_LINK_LOOSE_RE.sub(_fix_dest, text)
+
+
+def _line_problem(original: str, translated: str | None) -> str | None:
+    """Why this translated line is unusable, or None when it is fine."""
+    if translated is None:
+        return "missing from reply"
+    if _BLOCK_SCRIPT_RE.search(translated):
+        return "still contains source-language text"
+    o_sig, o_rest = _scaffold(original)
+    t_sig, t_rest = _scaffold(translated)
+    if o_sig != t_sig:
+        return f"markdown scaffolding changed {o_sig} -> {t_sig}"
+    if _HAS_TEXT_RE.search(o_rest) and not _HAS_TEXT_RE.search(t_rest):
+        return "content dropped"
+    if len(_LINK_RE.findall(original)) != len(_LINK_RE.findall(translated)):
+        return "link count changed"
+    return None
+
+
+def _parse_reply(reply: str, wanted: set[int]) -> dict[int, str]:
+    """Pull `<number><TAB><text>` pairs out of a reply, ignoring anything else."""
+    body = reply.strip()
+    if body.startswith("```"):
+        parts = body.split("\n", 1)
+        body = parts[1] if len(parts) == 2 else ""
+        if body.rstrip().endswith("```"):
+            body = body.rstrip()[:-3].rstrip()
+    out: dict[int, str] = {}
+    for raw in body.split("\n"):
+        m = _REPLY_LINE_RE.match(raw)
+        if not m:
+            continue
+        n = int(m.group(1))
+        # Membership is the guard that makes the loose separator safe.
+        if n in wanted and n not in out:
+            out[n] = _clean_translated(m.group(2))
     return out
+
+
+def _segments(line: str) -> list[tuple[int, int]]:
+    """Maximal spans of source-language text, merging the punctuation between them."""
+    hits = [m.start() for m in _NON_LATIN_RE.finditer(line)]
+    if not hits:
+        return []
+    spans: list[list[int]] = [[hits[0], hits[0] + 1]]
+    for i in hits[1:]:
+        gap = line[spans[-1][1] : i]
+        # Keep a phrase whole across CJK punctuation, spaces and digits.
+        if len(gap) <= 6 and all(
+            c.isspace() or c.isdigit() or c in "\u3001\u3002\uff0c\uff1a\uff1b\uff08\uff09()\u00b7-\u2014/." for c in gap
+        ):
+            spans[-1][1] = i + 1
+        else:
+            spans.append([i, i + 1])
+    return [(a, b) for a, b in spans]
+
+
+def _non_latin_count(text: str) -> int:
+    return len(_BLOCK_SCRIPT_RE.findall(text))
+
+
+def _translate_phrases(client: VllmClient, phrases: list[str]) -> dict[int, str]:
+    """Translate phrases; drop dirty replies and retry misses one at a time."""
+    if not phrases:
+        return {}
+    wanted = list(range(1, len(phrases) + 1))
+    got: dict[int, str] = {}
+
+    def ask(indices: list[int]) -> None:
+        if not indices:
+            return
+        payload = "\n".join(f"{i}\t{phrases[i - 1]}" for i in indices)
+        try:
+            reply = client.complete(PHRASE_SYSTEM_PROMPT, payload)
+        except GatewayError:
+            return
+        for i, text in _parse_reply(reply, set(indices)).items():
+            # Small models occasionally glue escapes (`\dedicated`) or wrap quotes.
+            cleaned = text.strip().strip("\\\"'`")
+            if not cleaned or _BLOCK_SCRIPT_RE.search(cleaned):
+                continue
+            got[i] = cleaned
+
+    ask(wanted)
+    for i in wanted:
+        if i not in got:
+            ask([i])
+    return got
+
+
+def _repair_by_segment(client: VllmClient, line: str) -> str | None:
+    """
+    Translate only the source-language runs inside `line` and substitute them back.
+
+    Last resort for lines the model will not translate as a whole - typically
+    residual CJK next to Latin acronyms, or text trapped inside link syntax.
+    Prefer calling this on a best-effort partial translation when one exists.
+    """
+    spans = _segments(line)
+    if not spans:
+        return None
+    phrases = [line[a:b] for a, b in spans]
+    got = _translate_phrases(client, phrases)
+    if len(got) != len(phrases):
+        return None
+    out: list[str] = []
+    prev = 0
+    for i, (a, b) in enumerate(spans):
+        gap = line[prev:a]
+        piece = got[i + 1]
+        # `VPN` + `专线` → `VPNdedicated` without a spacer; keep tokens readable.
+        if gap and piece and gap[-1].isalnum() and piece[0].isalnum():
+            piece = " " + piece
+        out.append(gap)
+        out.append(piece)
+        prev = b
+    out.append(line[prev:])
+    # Phrase text may contain spaces; if it landed inside a `#anchor`, compress
+    # those to hyphens so `_LINK_RE` still sees a link.
+    return _clean_translated("".join(out))
+
+
+def _remember_partial(
+    best: dict[int, str],
+    n: int,
+    original: str,
+    candidate: str | None,
+) -> None:
+    """Keep the cleanest scaffold-faithful partial for later segment repair."""
+    if candidate is None:
+        return
+    o_sig, _ = _scaffold(original)
+    t_sig, _ = _scaffold(candidate)
+    if o_sig != t_sig:
+        return
+    cand_n = _non_latin_count(candidate)
+    if cand_n == 0 or cand_n >= _non_latin_count(original):
+        return
+    prev = best.get(n)
+    if prev is None or cand_n < _non_latin_count(prev):
+        best[n] = candidate
+
+
+def translate_lines(
+    client: VllmClient,
+    lines: list[str],
+    numbers: list[int],
+    batch_size: int = DEFAULT_BATCH_LINES,
+    retries: int = DEFAULT_LINE_RETRIES,
+) -> tuple[dict[int, str], dict[int, str]]:
+    """
+    Translate only `numbers` (1-indexed) out of `lines`.
+
+    Returns (clean_by_line, unresolved_by_line_with_reason). A line that never
+    comes back clean is simply absent, so the caller keeps the original and the
+    verify gate refuses the file rather than writing a half-translated one.
+    """
+    done: dict[int, str] = {}
+    problems: dict[int, str] = {}
+    best: dict[int, str] = {}
+    pending = list(numbers)
+
+    for attempt in range(1, retries + 1):
+        if not pending:
+            break
+        # First pass batches for throughput; later passes go one line at a
+        # time, which is where the model is most reliable.
+        size = batch_size if attempt == 1 else 1
+        groups = [pending[i : i + size] for i in range(0, len(pending), size)]
+        retry_queue: list[int] = []
+        for group in groups:
+            payload = "\n".join(f"{n}\t{lines[n - 1]}" for n in group)
+            try:
+                reply = client.complete(LINE_SYSTEM_PROMPT, payload)
+            except GatewayError as exc:
+                for n in group:
+                    problems[n] = str(exc)
+                    retry_queue.append(n)
+                continue
+            got = _parse_reply(reply, set(group))
+            for n in group:
+                cand = got.get(n)
+                _remember_partial(best, n, lines[n - 1], cand)
+                why = _line_problem(lines[n - 1], cand)
+                if why is None and cand is not None:
+                    done[n] = cand
+                    problems.pop(n, None)
+                else:
+                    problems[n] = why or "missing from reply"
+                    retry_queue.append(n)
+        pending = [n for n in retry_queue if n not in done]
+        if pending and attempt < retries:
+            print(f"    retrying {len(pending)} line(s) individually", flush=True)
+
+    if pending:
+        print(f"    segment-repairing {len(pending)} line(s)", flush=True)
+        for n in pending:
+            # Prefer a near-miss English line (e.g. only `专线` left) over the
+            # full Chinese original — fewer, shorter phrases for the model.
+            base = best.get(n, lines[n - 1])
+            fixed = _repair_by_segment(client, base)
+            if fixed is not None and _BLOCK_SCRIPT_RE.search(fixed):
+                again = _repair_by_segment(client, fixed)
+                if again is not None:
+                    fixed = again
+            why = _line_problem(lines[n - 1], fixed)
+            if why is None and fixed is not None:
+                done[n] = fixed
+                problems.pop(n, None)
+            else:
+                problems[n] = f"segment repair failed: {why or 'missing from reply'}"
+
+    return done, {n: why for n, why in problems.items() if n not in done}
 
 
 def translate_file(
@@ -469,32 +753,37 @@ def translate_file(
     config: dict,
     lang: str,
     source_path: str,
-) -> str:
-    chunks = plan_chunks(text, config["max_chunk_lines"])
-    if not chunks:
-        return postprocess_translation(text, lang, source_path)
-    pieces: list[str] = []
-    for c in chunks:
-        piece = extract_chunk_text(text, c.start_line, c.end_line)
-        print(
-            f"    chunk {c.index}: lines {c.start_line}-{c.end_line} "
-            f"({c.end_line - c.start_line + 1})  {c.heading}",
-            flush=True,
-        )
-        pieces.append(translate_chunk(client, piece, c.heading, c.index, len(chunks)))
-    assembled = "\n".join(pieces)
-    if not assembled.endswith("\n") and text.endswith("\n"):
-        assembled += "\n"
-    return postprocess_translation(assembled, lang, source_path)
+) -> tuple[str, dict[int, str]]:
+    """
+    Translate the flagged lines and splice them back in place.
 
+    Lines the scanner did not flag are copied byte-for-byte, so heading, list,
+    fence and table counts cannot drift - the structural checks in the verify
+    gate are satisfied by construction rather than by the model's goodwill.
+    """
+    lines = text.split("\n")
+    numbers = blocking_lines(text, config)
+    if not numbers:
+        return postprocess_translation(text, lang, source_path), {}
 
-def _is_structure_mismatch(result) -> bool:
-    """Retry when the model drops or invents structural elements."""
-    keys = ("list items", "headings", "table rows", "blockquote")
-    return any(
-        any(k in f for k in keys) and ("dropped" in f or "added" in f)
-        for f in result.failures
+    print(
+        f"    {len(numbers)} of {len(lines)} line(s) need translation "
+        f"({len(numbers) / len(lines):.0%})",
+        flush=True,
     )
+    done, problems = translate_lines(
+        client,
+        lines,
+        numbers,
+        config.get("batch_lines", DEFAULT_BATCH_LINES),
+        config.get("line_retries", DEFAULT_LINE_RETRIES),
+    )
+    for n, translated in done.items():
+        original = lines[n - 1]
+        # Indentation carries list nesting; take it from the source, not the model.
+        indent = original[: len(original) - len(original.lstrip())]
+        lines[n - 1] = indent + translated.lstrip()
+    return postprocess_translation("\n".join(lines), lang, source_path), problems
 
 
 def atomic_write(path: Path, content: str) -> None:
@@ -599,16 +888,23 @@ def main(argv: list[str] | None = None) -> int:
         help=f"per-chunk request timeout in seconds (default {DEFAULT_TIMEOUT})",
     )
     ap.add_argument(
-        "--max-chunk-lines",
+        "--batch-lines",
         type=int,
-        default=DEFAULT_TRANSLATE_CHUNK_LINES,
-        help=f"plan_chunks size (default {DEFAULT_TRANSLATE_CHUNK_LINES})",
+        default=DEFAULT_BATCH_LINES,
+        help=f"flagged lines per request (default {DEFAULT_BATCH_LINES})",
+    )
+    ap.add_argument(
+        "--line-retries",
+        type=int,
+        default=DEFAULT_LINE_RETRIES,
+        help=f"attempts per line (default {DEFAULT_LINE_RETRIES})",
     )
     ap.add_argument("--show", type=int, default=5, help="sample blocking lines in report")
     args = ap.parse_args(argv)
 
     config = load_config()
-    config["max_chunk_lines"] = args.max_chunk_lines
+    config["batch_lines"] = args.batch_lines
+    config["line_retries"] = args.line_retries
 
     files: list[Path] = []
     for raw in args.paths:
@@ -690,20 +986,14 @@ def main(argv: list[str] | None = None) -> int:
             # headings in both the source outline and the translation.
             original_text = normalize_source(read_text(path))
             file_config = dict(config)
-            new_text = translate_file(client, original_text, file_config, lang, rel)
+            new_text, problems = translate_file(
+                client, original_text, file_config, lang, rel
+            )
+            if problems:
+                print(f"  {len(problems)} line(s) never came back clean:")
+                for n, why in sorted(problems.items())[:5]:
+                    print(f"    L{n}: {why}")
             result = verify_text(original_text, new_text, file_config, path.suffix or ".md")
-            # One retry with smaller chunks when structure drifts.
-            if not result.passed and _is_structure_mismatch(result):
-                retry_lines = max(80, file_config["max_chunk_lines"] // 2)
-                print(
-                    f"  structure mismatch — retrying with max_chunk_lines={retry_lines}",
-                    flush=True,
-                )
-                file_config["max_chunk_lines"] = retry_lines
-                new_text = translate_file(client, original_text, file_config, lang, rel)
-                result = verify_text(
-                    original_text, new_text, file_config, path.suffix or ".md"
-                )
             for w in result.warnings:
                 print(f"  ! {w}")
             if not result.passed:

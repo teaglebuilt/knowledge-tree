@@ -1,6 +1,9 @@
----title: 量子计算云平台架构设计 — 阿里云视角
-description: 'title: 量子计算云平台架构设计'
-summary: 'title: 量子计算云平台架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/quantum-computing-cloud.md
+title: Quantum Computing Cloud Platform Architecture Design — Alibaba Cloud Perspective
+description: 'title: Quantum Computing Cloud Platform Architecture Design'
+summary: 'title: Quantum Computing Cloud Platform Architecture Design'
 category: general
 tags:
 - architecture
@@ -13,15 +16,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 量子计算云平台架构设计 — 阿里云视角 是什么
-- 如何 量子计算云平台架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- Quantum Computing Cloud Platform Architecture Design — Alibaba Cloud Perspective is what
+- How is Quantum Computing Cloud Platform Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 量子计算云平台架构设计
-- 阿里云视角
+- Quantum Computing Cloud Platform Architecture
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -31,137 +34,81 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
+---
+
+# Quantum Computing Cloud Platform Architecture Design — From Alibaba Cloud Perspective
+
+> **Applicable Version**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solution Architect | **Tags**: `#Quantum Computing` `#Quantum Cloud` `#Hybrid Computing` `#Alibaba Cloud`
 
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+## Table of Contents
 
-
-
-
-title: 量子计算云平台架构设计
-description: '# 量子计算云平台架构设计 — 阿里云视角'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- scheduler
-- gpu
-last_updated: 2026-05-18
-difficulty: expert
-reading_level: expert
-audience:
-- 量子计算研究员
-- 高性能计算架构师
-- 算法工程师
-estimated_read_time: 5min
-intent_queries:
-- 量子计算云平台 [[Kubernetes|Kubernetes]] 架构
-- 量子线路 QASM 编译执行
-- VQE 变分量子本征求解器
-- 量子经典混合计算调度
-- 量子模拟器 GPU 集群
-trigger_keywords:
-- 量子计算
-- 量子云平台
-- 量子线路
-- QASM
-- VQE
-- 量子纠缠
-- 量子模拟器
-- NISQ
-- 量子纠错
-- 量子机器学习
-related_domains:
-- domain-03-networking-traffic
-- domain-10-troubleshooting-diagnostics
-related_topics:
-- topic-hpc-architecture
-- topic-ai-algorithm
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# 量子计算云平台架构设计 — 阿里云视角
-
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#量子计算` `#量子云` `#混合计算` `#阿里云`
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architecture-patterns)
+4. [Implementation Examples](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-patterns](#7-anti-patterns)
+8. [Reference Resources](#8-references)
 
 ---
 
-<!-- chunk: 目录 -->## 目录
+## 1. Overview
 
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+Quantum computing is a new computational paradigm that leverages principles from quantum mechanics (superposition, entanglement, interference) for information processing. Quantum computing has the potential to outperform classical computing in certain specific problems: integer factorization (Shor's algorithm), unstructured search (Grover's algorithm), quantum simulation (molecular/material/drug), combinatorial optimization (QAOA), and quantum machine learning.
 
----
+A quantum computing cloud platform provides scarce quantum computing resources through cloud services to users. Users do not need to own physical quantum computers; they can write quantum programs using Web IDEs or SDKs, submit them to the cloud for execution, and obtain measurement results. This model is similar to time-sharing of early mainframes but faces constraints such as limited number of qubits, short decoherence times, and lack of quantum error correction at the physical layer.
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+Quantum computing is currently in the NISQ (Noisy Intermediate-Scale Quantum) era: the number of qubits ranges from 50 to 1,000, with high levels of noise and errors. In practical applications, quantum computing is often used in conjunction with classical computing (quantum-classical hybrid algorithms). The quantum part handles core computational steps, while the classical part handles preprocessing, postprocessing, parameter optimization, and error mitigation.
 
-量子计算是利用量子力学原理（叠加态、纠缠、干涉）进行信息处理的全新计算范式。量子计算在某些特定问题上具有远超经典计算的潜力：大整数分解（Shor 算法）、无结构搜索（Grover 算法）、量子模拟（分子/材料/药物）、组合优化（QAOA）、量子机器学习。
+The cloud-native architecture provides an ideal operational foundation for a quantum computing cloud platform: capabilities such as task scheduling, user isolation, resource quotas, elasticity scaling, and observability can be directly reused from the Kubernetes ecosystem.
 
-量子计算云平台将稀缺的量子计算资源通过云服务方式提供给用户。用户无需拥有物理量子计算机，通过 Web IDE 或 SDK 编写量子程序，提交到云端执行，获取测量结果。这种模式类似于早期大型机的分时共享，但面对的是量子比特数量有限、退相干时间短、量子纠错尚未实现的物理层约束。
+## 1.1 Industry Background
 
-当前量子计算处于 NISQ（Noisy Intermediate-Scale Quantum）时代：量子比特数在 50-1000 之间，噪声和错误率较高。实际应用中，量子计算通常与经典计算混合使用（量子-经典混合算法），量子部分负责核心计算步骤，经典部分负责预处理、后处理、参数优化和错误缓解。
-
-云原生架构为量子计算云平台提供了理想的运维底座：任务调度、用户隔离、资源配额、弹性伸缩、可观测性等能力都可以直接复用 Kubernetes 生态。
-
-## 1.1 行业背景
-
-| 挑战 | 说明 | 架构影响 |
+| Challenge | Explanation | Impact on Architecture |
 |:---|:---|:---|
-| 极低温环境 | 超导量子芯片需 mK 级温度 | 物理机专用 + 经典控制 |
-| 量子比特脆弱 | 退相干时间 μs-ms 级 | 误差缓解 + 纠错编码 |
-| 混合计算 | 经典-量子交替执行 | 任务编排 + 低延迟通信 |
-| 算法适配 | 量子算法设计门槛高 | 算法库 + 可视化编程 |
-| 资源稀缺 | 量子比特数量有限 | 公平调度 + 优先级队列 |
+| Ultra-low temperature environment | Superconducting quantum chips require temperatures in the mK range | Dedicated physical machines + classical control |
+| Fragile qubits | Decoherence times in the μs-ms range | Error mitigation + error correction codes |
+| Mixed computation | Alternating execution of classical and quantum computations | Task orchestration + low-latency communication |
+| Algorithm adaptation | High barrier to designing quantum algorithms | Algorithm libraries + visual programming |
+| Scarce resources | Limited number of qubits | Fair scheduling + priority queues |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **量子模拟**: 分子基态能量计算、化学反应模拟、新材料设计
-- **优化求解**: 物流路径优化、金融组合优化、排产调度
-- **量子机器学习**: 量子神经网络、变分量子本征求解器（VQE）
-- **密码分析**: Shor 算法破解 RSA、抗量子密码研究
-- **量子编程教育**: 量子算法教学、量子编程竞赛
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 混合优先原则
-
-在 NISQ 时代，纯量子计算的应用场景非常有限。平台设计以"混合计算"为核心模式：经典计算负责参数优化和数据处理，量子计算负责核心量子电路执行。两种计算资源需要紧密协同，经典-量子接口的延迟直接影响混合算法的收敛速度。
-
-## 2.2 公平调度原则
-
-量子计算资源（物理量子比特）极其稀缺，需要公平高效的调度策略。平台需要支持：优先级调度（紧急任务优先）、公平共享（长期用户公平分配）、预留机制（为重要项目预留时间窗口）、回填调度（利用碎片时间执行短任务）。
-
-## 2.3 用户隔离原则
-
-不同用户的量子程序需要严格隔离：电路数据加密传输、执行结果安全返回、算法代码保密。即使用户共享同一物理量子计算机，也不能通过侧信道获取其他用户的信息。
-
-## 2.4 抽象分层原则
-
-量子计算技术栈层次分明：物理层（量子芯片）、控制层（脉冲控制）、电路层（量子门）、算法层（量子算法）、应用层（行业应用）。平台设计需要对每层提供清晰的抽象，让用户可以在任意层次进行操作——从高级算法到低级脉冲控制。
+- **Quantum Simulation**: Molecular ground-state energy calculations, chemical reaction simulations, material design
+- **Optimization Solving**: Logistics path optimization, financial portfolio optimization, production scheduling
+- **Quantum Machine Learning**: Quantum neural networks, variational quantum eigensolver (VQE)
+- **Cryptography Analysis**: Breaking RSA with Shor's algorithm, research on post-quantum cryptography
+- **Quantum Programming Education**: Teaching quantum algorithms, quantum programming competitions
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 量子计算云平台全景架构
+## 2.1 Hybrid Priority Principle
+
+In the NISQ era, the application scenarios for pure quantum computing are very limited. The platform design centers around a "hybrid computation" model: classical computing handles parameter optimization and data processing, while quantum computing executes the core quantum circuits. Both computational resources need to work closely together, and the delay in the classical-quantum interface directly affects the convergence speed of the hybrid algorithm.
+
+## 2.2 Fair Scheduling Principle
+
+Quantum computing resources (physical qubits) are extremely scarce and require fair and efficient scheduling strategies. The platform needs to support: priority scheduling (urgent tasks take precedence), fairness sharing (long-term users are fairly allocated), reservation mechanisms (reserving time windows for important projects), and backfill scheduling (executing short tasks during fragmented time).
+
+## 2.3 User Isolation Principle
+
+Different users' quantum programs need strict isolation: encrypted transmission of circuit data, secure return of execution results, and confidentiality of algorithm codes. Even if users share the same physical quantum computer, they cannot obtain information from other users through side channels.
+
+## 2.4 Abstract Layering Principle
+
+Quantum computing technology stack has distinct layers: physical layer (quantum chip), control layer (pulse control), circuit layer (quantum gates), algorithm layer (quantum algorithms), and application layer (industry applications). Platform design needs to provide clear abstractions for each layer so that users can operate at any level — from high-level algorithms to low-level pulse controls.
+
+---
+
+## 3. Architecture Patterns
+
+## 3.1 Panorama Architecture of Quantum Computing Cloud Platform
 
 ```mermaid
 graph TB
@@ -210,7 +157,7 @@ graph TB
     C1 --> S4
 ```
 
-## 3.2 量子-经典混合执行流程
+## 3.2 Hybrid Execution Flow of Quantum and Classical Computing
 
 ```mermaid
 flowchart LR
@@ -225,7 +172,7 @@ flowchart LR
     G -->|是| I[结果输出]
 ```
 
-## 3.3 任务调度架构
+## 3.3 Task Scheduling Architecture
 
 ```mermaid
 graph TB
@@ -256,9 +203,9 @@ graph TB
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 量子电路构建与编译
+## 4.1 Construction and Compilation of Quantum Circuits
 
 ```python
 import numpy as np
@@ -395,7 +342,7 @@ class QuantumSimulator:
         return result
 ```
 
-## 4.2 VQE 变分量子本征求解器
+## 4.2 Variational Quantum Eigensolver Solver
 
 ```python
 import numpy as np
@@ -475,7 +422,7 @@ class VQESolver:
         return expectation
 ```
 
-## 4.3 任务调度器
+## 4.3 Task Scheduler
 
 ```go
 package quantum
@@ -620,9 +567,9 @@ func (s *FairShareScheduler) QueueLength() int {
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+## 5. Deployment on Kubernetes
 
-## 5.1 量子任务调度服务
+## 5.1 Quantum Task Scheduler Service
 
 ```yaml
 apiVersion: apps/v1
@@ -679,7 +626,7 @@ spec:
               cpu: "2000m"
 ```
 
-## 5.2 量子模拟器集群
+## 5.2 Quantum Simulator Cluster
 
 ```yaml
 apiVersion: apps/v1
@@ -716,7 +663,7 @@ spec:
               cpu: "16000m"
 ```
 
-## 5.3 混合计算编排器
+## 5.3 Hybrid Computation Orchestrator
 
 ```yaml
 apiVersion: apps/v1
@@ -757,119 +704,119 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-## 6.1 任务管理
+## 6.1 Task Management
 
-- **分层队列**: 模拟任务（免费/无限）和物理量子任务（付费/有限）分开调度
-- **智能路由**: 根据量子电路特征（宽度、深度、门类型）自动选择最优后端
-- **错误缓解**: 使用零噪声外推（ZNE）、概率误差消除（PEC）等技术提升 NISQ 计算精度
-- **电路优化**: 编译时自动优化量子电路——门合并、冗余消除、拓扑映射
+- **Multi-layer Queue**: Simulate tasks (free/unlimited) and physical quantum tasks (paid/fixed) separately for scheduling
+- **Smart Routing**: Automatically select the optimal backend based on the characteristics of the quantum circuit (width, depth, gate type) using intelligent routing
+- **Error Mitigation**: Use techniques such as zero-noise extrapolation (ZNE) and probability error correction (PEC) to improve the precision of NISQ computations
+- **Circuit Optimization**: Automatically optimize quantum circuits during compilation — merging gates, eliminating redundancies, topological mapping
 
-## 6.2 资源利用
+## 6.2 Resource Utilization
 
-- **批量执行**: 将多个小电路打包成一批执行，减少量子芯片校准开销
-- **电路缓存**: 相同电路+相同参数的结果缓存，避免重复执行
-- **模拟器分流**: 验证阶段使用 GPU 模拟器（免费），验证通过后再提交物理量子任务
-- **自适应采样**: 根据统计精度需求动态调整采样次数（shots），避免过度采样
+- **Batch Execution**: Bundle multiple small circuits into a batch for execution to reduce calibration costs for quantum chips
+- **Circuit Caching**: Cache results for the same circuit + same parameters to avoid repeated executions
+- **Simulator Sharding**: Use GPU simulators (free) during verification stages, then submit physical quantum tasks after verification
+- **Adaptive Sampling**: Dynamically adjust the number of samples (shots) based on statistical accuracy requirements to avoid over-sampling
 
-## 6.3 安全与隔离
+## 6.3 Security and Isolation
 
-- **电路加密**: 用户量子电路在传输和存储过程中加密
-- **执行隔离**: 不同用户的任务在量子芯片上分时执行，中间进行校准重置
-- **结果签名**: 执行结果使用数字签名，防止篡改
-- **访问审计**: 记录所有量子计算资源的访问和使用日志
-
----
-
-<!-- chunk: 7. 反模式 -->## 7. 反模式
-
-## 7.1 纯量子计算
-
-试图将所有计算都放在量子计算机上执行，忽视经典计算的基础作用。
-
-**解决方案**: 采用量子-经典混合架构。经典计算负责数据预处理、参数优化、结果后处理；量子计算只负责核心量子电路执行。VQE、QAOA 等变分算法是混合计算的典型范例。
-
-## 7.2 忽视噪声影响
-
-假设量子计算是精确的，忽视 NISQ 时代的噪声和错误。
-
-**解决方案**: 在量子电路设计阶段考虑噪声影响，使用错误缓解技术（ZNE、PEC、随机编译）提升结果精度。为用户提供带误差条的结果，而非点估计。
-
-## 7.3 过度追求量子比特数
-
-以量子比特数量作为唯一指标，忽视量子比特质量（保真度、连通性、相干时间）。
-
-**解决方案**: 综合评估量子体积（Quantum Volume）、CLOPS（Circuit Layer Operations Per Second）等指标。100 个高保真度比特可能比 1000 个低保真度比特更有用。
-
-## 7.4 通用量子算法设计
-
-试图设计通用的量子算法解决所有问题，忽视量子计算在特定问题上的优势。
-
-**解决方案**: 聚焦量子优势场景：量子模拟、组合优化、密码学。对于经典计算已经很好地解决的问题（如简单搜索、排序），不需要量子计算。
-
-## 7.5 忽视经典-量子接口延迟
-
-忽视经典参数优化和量子电路执行之间的通信延迟，导致混合算法性能低下。
-
-**解决方案**: 优化经典-量子接口，减少通信轮次。将参数优化逻辑部署在靠近量子硬件的经典服务器上。考虑使用异步执行模式，减少等待时间。
+- **Circuit Encryption**: Encrypt user quantum circuits during transmission and storage
+- **Execution Isolation**: Execute different users' tasks on the quantum chip in turn, performing calibration resets between tasks
+- **Result Signing**: Sign execution results to prevent tampering
+- **Access Auditing**: Record all access and usage logs for quantum computing resources
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 7. Anti-patterns
 
-## 8.1 阿里云组件映射
+## 7.1 Pure Quantum Computing
 
-| 功能域 | **阿里云云原生方案** |
+Attempting to execute all calculations on a quantum computer, ignoring the foundational role of classical computing.
+
+**Solution**: Adopt a hybrid architecture combining quantum and classical computing. Classical computing handles data preprocessing, parameter optimization, and result post-processing; quantum computing only executes the core quantum circuits. Variational algorithms like VQE and QAOA are typical examples of hybrid computation.
+
+## 7.2 Ignoring Noise Effects
+
+Assume quantum computing is precise, ignoring the noise and errors in the NISQ era.
+
+**Solution**: Consider noise impact during the design phase of quantum circuits and use error mitigation techniques (ZNE, PEC, random compilation) to enhance result accuracy. Provide results with error bars instead of point estimates to users.
+
+## 7.3 Overemphasis on the Number of Quantum Bits
+
+Consider the number of qubits as the sole metric, neglecting the quality of qubits (fidelity, connectivity, coherence time).
+
+**Solution**: Evaluate metrics such as Quantum Volume and CLOPS (Circuit Layer Operations Per Second). 100 high-fidelity qubits may be more useful than 1000 low-fidelity qubits.
+
+## 7.4 Designing General Quantum Algorithms
+
+Try to design general quantum algorithms to solve all problems, ignoring the advantages of quantum computing in specific problems.
+
+**Solution**: Focus on scenarios where quantum advantage is present: quantum simulation, combinatorial optimization, cryptography. For classic problems that are well-solved by classical computation (e.g., simple search, sorting), quantum computing is not necessary.
+
+## 7.5 Ignoring the Latency of the Classical-Quantum Interface
+
+Ignore the communication delay between classical parameter optimization and the execution of quantum circuits, leading to suboptimal performance of hybrid algorithms.
+
+**Solution**: Optimize the classical-quantum interface to reduce communication rounds. Deploy parameter optimization logic on a classical server near the quantum hardware. Consider using asynchronous execution modes to reduce waiting times.
+
+---
+
+## 8. References
+
+## 8.1 AliCloud Component Mapping
+
+| Function Domain | **AliCloud Native Solutions** |
 |:---|:---|
-| 容器平台 | **ACK Pro** |
-| 量子计算 | **阿里云量子计算服务** |
-| GPU 模拟 | **GN10（A100）实例** |
-| 数据库 | **PolarDB** |
-| 对象存储 | **OSS（加密存储）** |
-| 可观测性 | **ARMS + SLS** |
-| 工作流 | **[[Argo|Argo]]go Workflows|Argo Workflows]]** |
+| Container Platform | **ACK Pro** |
+| Quantum Computing | **AliCloud Quantum Computing Service** |
+| GPU Simulation | **GN10 (A100) Instance** |
+| Database | **PolarDB** |
+| Object Storage | **OSS (Encrypted Storage)** |
+| Observability | **ARMS + SLS** |
+| Workflow | **[[Argo|Argo]] Go Workflows|Argo Workflows]]** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] 量子比特校准验证（门保真度 > 99.5%）
-- [ ] 量子电路编译正确性验证
-- [ ] 任务调度公平性测试
-- [ ] 量子-经典接口延迟 < 100ms
-- [ ] 用户电路数据加密
-- [ ] 执行结果数字签名验证
-- [ ] 模拟器结果与理论值一致性
-- [ ] 错误缓解效果验证
+- [ ] Quantum Bit Calibration Verification (Gate Fidelity > 99.5%)
+- [ ] Correctness Verification of Quantum Circuits Compilation
+- [ ] Fairness Testing of Task Scheduling
+- [ ] Quantum-Classical Interface Latency < 100ms
+- [ ] Encryption of User Circuit Data
+- [ ] Digital Signature Verification of Execution Results
+- [ ] Consistency of Simulator Results with Theoretical Values
+- [ ] Effectiveness Verification of Error Mitigation
 
-## 8.3 外部参考
+## 8.3 External References
 
-- Qiskit (IBM) — Python 量子计算框架
-- Cirq (Google) — 量子计算框架
-- PennyLane (Xanadu) — 量子机器学习框架
-- OpenQASM 3.0 — 量子汇编语言标准
-- Quantum Volume (IBM) — 量子计算机性能指标
-- NIST PQC — 抗量子密码标准化
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- Qiskit (IBM) — Python Quantum Computing Framework
+- Cirq (Google) — Quantum Computing Framework
+- PennyLane (Xanadu) — Quantum Machine Learning Framework
+- OpenQASM 3.0 — Quantum Assembly Language Standard
+- Quantum Volume (IBM) — Performance Metric for Quantum Computers
+- NIST PQC — Standardization of Post-Quantum Cryptography
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architect Team | **License**: MIT
+
+---
+
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|Artificial Intelligence/ Machine Learning Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

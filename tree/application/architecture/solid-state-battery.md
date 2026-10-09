@@ -1,6 +1,9 @@
----title: 固态电池架构设计 — 阿里云视角
-description: 'title: 固态电池架构设计'
-summary: 'title: 固态电池架构设计'
+---
+title: Solid State Battery Architecture Design — From an Alibaba Cloud Perspective
+description: 'Solid State Battery Architecture Design'
+summary: 'Solid State Battery Architecture Design'
+original_language: Chinese
+source_path: tree/application/architecture/solid-state-battery.md
 category: general
 tags:
 - architecture
@@ -19,15 +22,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 固态电池架构设计 — 阿里云视角 是什么
-- 如何 固态电池架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Solid State Battery Architecture Design — From an Alibaba Cloud Perspective
+- How to Solid State Battery Architecture Design — From an Alibaba Cloud Perspective
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 固态电池架构设计
-- 阿里云视角
+- Solid State Battery Architecture Design
+- From an Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -43,15 +46,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the target cluster and Namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 固态电池架构设计
-description: '# 固态电池架构设计 — 阿里云视角'
+title: Solid State Battery Architecture Design
+description: '# Solid State Battery Architecture Design — From an Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -68,28 +71,28 @@ last_updated: 2026-05-18
 difficulty: advanced
 reading_level: advanced
 audience:
-- 新能源电池架构师
-- 材料科学计算工程师
-- BMS 系统开发者
-- 阿里云 HPC 解决方案架构师
+- Solid State Battery Architect
+- Material Science Computational Engineer
+- BMS System Developer
+- Alibaba Cloud HPC Solution Architect
 estimated_read_time: 5min
 intent_queries:
-- 固态电池材料研发 HPC 高性能计算架构
-- BMS 电池管理系统 Kubernetes 部署
-- DFT 分子动力学模拟集群
-- 电池 SOH 预测 AI 模型部署
-- 固态电池中试产线数字孪生
+- HPC High-Performance Computing Architecture for Solid State Battery Materials Research
+- Kubernetes Deployment for BMS Battery Management System
+- DFT Molecular Dynamics Simulation Cluster
+- Battery SOH Prediction AI Model Deployment
+- Digital Twin for Solid-State Battery Pilot Line
 trigger_keywords:
-- 固态电池
+- Solid-State Battery
 - BMS
-- 电池管理系统
-- 材料模拟
-- DFT计算
-- 分子动力学
-- SOC估算
-- SOH预测
-- 电池安全
-- 储能
+- Battery Management System
+- Material Simulation
+- DFT Calculations
+- Molecular Dynamics
+- SOC Estimation
+- SOH Prediction
+- Battery Safety
+- Storage
 related_domains:
 - domain-7-ai-ml-platform
 - domain-03-networking-traffic
@@ -105,91 +108,91 @@ k8s_versions:
 - '1.32'
 ---
 
-# 固态电池架构设计 — 阿里云视角
+# Solid-State Battery Architecture Design — From Alibaba Cloud Perspective
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-05-18
-> **作者**: 阿里云解决方案架构师 | **标签**: `#固态电池` `#电池研发` `#BMS` `#材料模拟` `#阿里云`
-
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [行业概述](#1-行业概述)
-2. [业务场景](#2-业务场景)
-3. [架构设计](#3-架构设计)
-4. [核心技术栈](#4-核心技术栈)
-5. [Kubernetes 部署方案](#5-kubernetes-部署方案)
-6. [数据架构](#6-数据架构)
-7. [AI/ML 组件](#7-aiml-组件)
-8. [安全与合规](#8-安全与合规)
-9. [最佳实践](#9-最佳实践)
-10. [反模式](#10-反模式)
-11. [参考资源](#11-参考资源)
+> **Applicable Version**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-05-18
+> **Author**: Alibaba Cloud Solution Architect | **Tags**: `#Solid-State-Battery` `#Battery-Research` `#BMS` `#Material-Simulation` `#Alibaba Cloud`
 
 ---
 
-<!-- chunk: 1. 行业概述 -->## 1. 行业概述
+## Table of Contents
 
-## 1.1 市场规模与趋势
+1. [Industry Overview](#1-industry-overview)
+2. [Business Scenarios](#2-business-scenarios)
+3. [Architecture Design](#3-architecture-design)
+4. [Core Technology Stack](#4-core-technology-stack)
+5. [Kubernetes Deployment Solution](#5-kubernetes-deployment-solution)
+6. [Data Architecture](#6-data-architecture)
+7. [AI/ML Components](#7-aiml-components)
+8. [Security and Compliance](#8-security-and-compliance)
+9. [Best Practices](#9-best-practices)
+10. [Anti-pattern](#10-anti-patterns)
+11. [Reference Resources](#11-references)
 
-固态电池是下一代动力电池的核心方向，全球市场规模预计在 2030 年突破 400 亿美元。主要驱动力包括电动汽车续航焦虑、储能安全需求以及消费电子轻薄化趋势。丰田、三星 SDI、宁德时代、QuantumScape 等企业已投入数十亿美元进行研发。全固态电池能量密度有望达到 500 Wh/kg，远超当前液态锂电池的 250-300 Wh/kg。
+---
 
-| 指标 | 2024 年 | 2026 年（预测） | 2030 年（预测） |
+## 1. Industry Overview
+
+## 1.1 Market Size and Trends
+
+Solid-state batteries are the core direction for next-generation power battery systems, with global market size expected to exceed $40 billion by 2030. Key drivers include concerns over electric vehicle range anxiety, safety needs for energy storage, and trends towards lightweight and compact consumer electronics. Companies such as Toyota, Samsung SDI, CATL, and QuantumScape have invested billions in research and development. The theoretical energy density of solid-state batteries could reach 500 Wh/kg, significantly higher than the current 250-300 Wh/kg of liquid electrolyte batteries.
+
+| Metric | 2024 | 2026 (forecast) | 2030 (forecast) |
 |:---|:---|:---|:---|
-| 全球市场规模 | $25B | $65B | $400B |
-| 能量密度（实验室） | 400 Wh/kg | 450 Wh/kg | 500+ Wh/kg |
-| 循环寿命 | 500 次 | 1000 次 | 3000+ 次 |
-| 固态电解质类型 | 硫化物/氧化物/聚合物 | 硫化物为主流 | 复合固态电解质 |
-| 主要应用 | 消费电子/医疗 | 低速车/储能 | EV/航空航天 |
+| Global Market Size | $25B | $65B | $400B |
+| Energy Density (laboratory) | 400 Wh/kg | 450 Wh/kg | 500+ Wh/kg |
+| Cycle Life | 500 cycles | 1000 cycles | 3000+ cycles |
+| Solid-State Electrolyte Type | Sulphides/Oxides/Polymer | Sulphides as mainstream | Composite solid-state electrolytes |
+| Main Applications | Consumer Electronics/Medical | Low-speed vehicles/Storages | EV/Aerospace |
 
-## 1.2 行业痛点
+## 1.2 Industry Pain Points
 
-| 痛点 | 说明 | 数字化转型驱动 |
+| Pain Point | Description | Digital Transformation Driven |
 |:---|:---|:---|
-| 材料研发 | 固态电解质筛选空间巨大，传统试错法效率低 | AI + 高通量计算加速材料发现 |
-| 界面问题 | 固-固界面阻抗大，接触不良导致性能衰减 | 分子动力学模拟界面行为 |
-| 生产工艺 | 全固态电池制造难度大，良率低 | 产线数字孪生 + 工艺参数优化 |
-| 安全管理 | 热失控预防与电池寿命预测 | BMS 实时监控 + AI 预测性维护 |
-| 性能验证 | 长循环寿命测试周期长达数月 | 加速老化模型 + 数据闭环 |
-| 成本控制 | 硫化物电解质成本高 | 工艺仿真优化降本 |
+| Material Research | Significant space for screening solid-state electrolytes, traditional trial-and-error methods are inefficient | AI + High-throughput computing accelerate material discovery |
+| Interface Issues | Large impedance at solid-solid interfaces leads to performance degradation due to poor contact | Molecular dynamics simulations of interface behavior |
+| Production Processes | High difficulty and low yield in manufacturing solid-state batteries | Digital twin production lines + process parameter optimization |
+| Security Management | Thermal Runaway Prevention and Battery Lifespan Prediction | Real-time Monitoring by BMS + Predictive Maintenance by AI |
+| Performance Validation | Long-cycle Life Test Periods Lasting Several Months | Accelerated Aging Model + Data Loop |
+| Cost Control | High Cost of Sulfide Electrolytes | Process Simulation Optimization for Cost Reduction |
 
-## 1.3 数字化转型架构影响
+## 1.3 Digital Transformation Architecture Impact
 
-固态电池研发到量产涉及大量计算密集型任务（DFT/MD/FEA）、高吞吐数据采集（中试产线）、实时监控（BMS）和安全合规（电池安全标准）。整体架构需要覆盖 HPC 高性能计算、IoT 数据采集、AI 模型训练与推理、以及完整的数据溯源与审计链路。
-
----
-
-<!-- chunk: 2. 业务场景 -->## 2. 业务场景
-
-## 2.1 材料设计与筛选
-
-通过高通量计算和 AI 模型筛选固态电解质和电极材料。系统需要支持 DFT（密度泛函理论）、MD（分子动力学）等第一性原理计算，结合材料基因组数据库进行大规模虚拟筛选。每日计算任务可达数千个，需要 GPU 集群和 HPC 调度系统支撑。
-
-**核心流程**: 目标属性定义 → 候选材料生成 → DFT/MD 计算 → 性能评估 → AI 排序 → 实验验证 → 数据反馈
-
-## 2.2 分子模拟与界面分析
-
-针对固态电解质与电极的界面问题，进行原子尺度的分子动力学模拟。模拟系统需要支持数百万原子的长时间模拟，分析离子传导路径、界面副反应和机械应力分布。输出包括离子电导率、界面阻抗谱、以及机械稳定性评估。
-
-## 2.3 中试产线数字化
-
-中试产线包含配料搅拌、涂布烘干、叠片封装、化成测试等环节。通过 IoT 传感器实时采集温度、湿度、压力、厚度等工艺参数，结合数字孪生模型进行工艺参数优化和良率预测。
-
-**核心流程**: 原料配比 → 搅拌涂布 → 辊压分切 → 叠片/卷绕 → 注液/固化 → 化成分容 → 性能测试
-
-## 2.4 BMS 电池管理系统
-
-固态电池 BMS 需要实现电池状态估计（SOC/SOH/SOP）、均衡控制、热管理、故障诊断和寿命预测。通过实时采集电压、电流、温度数据，结合 AI 模型进行精准的状态估算和问题预警。
-
-## 2.5 安全测试与认证
-
-支持针刺、挤压、过充、热箱等安全测试的数字化管理。测试数据需要完整记录、可追溯，满足 UN38.3、GB/T 31485、IEC 62660 等标准要求。
+Developing and transitioning solid-state batteries to mass production involves numerous computationally intensive tasks (DFT/MD/FEA), high-throughput data collection (scale-up line), real-time monitoring (BMS), and safety compliance (battery safety standards). The overall architecture needs to cover HPC high-performance computing, IoT data collection, AI model training and inference, and complete data traceability and audit chains.
 
 ---
 
-<!-- chunk: 3. 架构设计 -->## 3. 架构设计
+## 2. Business Scenarios
 
-## 3.1 固态电池全景架构
+## 2.1 Material Design and Screening
+
+Utilize high-throughput computing and AI models to screen solid-state electrolytes and electrode materials. The system should support DFT (Density Functional Theory), MD (Molecular Dynamics), and other first-principles calculations, combined with a material genome database for large-scale virtual screening. Daily computational tasks can reach several thousand, requiring support from GPU clusters and HPC scheduling systems.
+
+**Core Workflow**: Define Target Attributes → Generate Candidate Materials → Perform DFT/MD Calculations → Evaluate Performance → Sort by AI → Experimental Verification → Feedback Data
+
+## 2.2 Molecular Simulations and Interface Analysis
+
+Conduct atomistic molecular dynamics simulations on interface issues between solid-state electrolytes and electrodes. The simulation system needs to support long-term simulations of millions of atoms, analyzing ion conduction pathways, interface side reactions, and mechanical stress distribution. Outputs include ion conductivity, interface impedance spectra, and stability assessments.
+
+## 2.3 Digitalization of Pilot Production Lines
+
+The pilot production line includes stages such as raw material mixing, coating drying, lamination packaging, and capacity testing. Real-time collection of parameters like temperature, humidity, pressure, and thickness through IoT sensors is combined with digital twin models to optimize process parameters and predict yield.
+
+**Core Workflow**: Raw Material Ratio → Mixing Coating → Rolling Cutting → Lamination/Winding → Liquid Injection/Curing → Capacity Testing → Performance Testing
+
+## 2.4 Solid-State Battery Management System (BMS)
+
+The BMS for solid-state batteries must implement battery state estimation (SOC/SOH/SOP), equalization control, thermal management, fault diagnosis, and lifespan prediction. By real-time collecting voltage, current, and temperature data, AI models are used for precise state estimation and problem warnings.
+
+## 2.5 Safety Testing and Certification
+
+Supports digital management of safety tests including puncture, compression, overcharge, and thermal box tests. Test data must be fully recorded and traceable, meeting requirements for UN38.3, GB/T 31485, IEC 62660, among others.
+
+---
+
+## 3. Architecture Design
+
+## 3.1 Panoramic Architecture of Solid-State Batteries
 
 ```mermaid
 graph TB
@@ -240,7 +243,7 @@ graph TB
     I2 --> D1 & D2 & D3 & D4 & D5
 ```
 
-## 3.2 研发到量产全流程
+## 3.2 Research to Mass Production Workflow
 
 ```mermaid
 flowchart LR
@@ -265,7 +268,7 @@ flowchart LR
 
 ---
 
-<!-- chunk: 4. 核心技术栈 -->## 4. 核心技术栈
+## 4. Core Technology Stack
 
 | Component | Purpose | Technology | License |
 |:---|:---|:---|:---|
@@ -288,9 +291,9 @@ flowchart LR
 
 ---
 
-<!-- chunk: 5. Kubernetes 部署方案 -->## 5. Kubernetes 部署方案
+## 5. Kubernetes Deployment Solution
 
-## 5.1 材料模拟 GPU Job
+## 5.1 Material Simulation GPU Job
 
 ```yaml
 apiVersion: batch/v1
@@ -369,7 +372,7 @@ spec:
       restartPolicy: Never
 ```
 
-## 5.2 BMS 数据采集 Deployment
+## 5.2 Battery Management System Data Collection Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -451,7 +454,7 @@ spec:
             periodSeconds: 10
 ```
 
-## 5.3 BMS 服务与 ConfigMap
+## 5.3 Battery Management System Service and ConfigMap
 
 ```yaml
 apiVersion: v1
@@ -511,9 +514,9 @@ stringData:
 
 ---
 
-<!-- chunk: 6. 数据架构 -->## 6. 数据架构
+## 6. Data Architecture
 
-## 6.1 数据流全景
+## 6.1 Data Flow Panorama
 
 ```mermaid
 flowchart TB
@@ -553,18 +556,18 @@ flowchart TB
     ST1 & ST2 & ST3 & ST4 --> A1 & A2 & A3
 ```
 
-## 6.2 数据流说明
+## 6.2 Data Flow Explanation
 
-- **计算数据流**: DFT/MD 计算结果通过 API 上传至 OSS，元数据存入 PolarDB，支持结果检索与复用
-- **IoT 数据流**: 产线传感器通过 MQTT 网关接入，经 Flink 实时清洗后写入 Lindorm 时序库
-- **BMS 数据流**: 电池运行数据通过 CAN 总线解析，经边缘计算节点预处理后上传云端
-- **知识图谱**: 材料-工艺-性能关系建模为知识图谱，支撑材料推荐与工艺优化
+- **Computational Data Flow**: DFT/MD calculation results are uploaded to OSS via API, metadata stored in PolarDB, supporting result retrieval and reuse
+- **IoT Data Flow**: Production-line sensors connect through MQTT gateways, data cleaned in real-time by Flink and written to Lindorm time-series database
+- **BMS Data Flow**: Battery operation data are parsed via CAN bus, preprocessed by edge computing nodes before uploading to the cloud
+- **Knowledge Graph**: Material-process-performance relationships are modeled into a knowledge graph, supporting material recommendations and process optimization
 
 ---
 
-<!-- chunk: 7. AI/ML 组件 -->## 7. AI/ML 组件
+## 7. AI/ML Components
 
-## 7.1 模型训练流水线
+## 7.1 Model Training Pipeline
 
 ```mermaid
 flowchart LR
@@ -580,103 +583,103 @@ flowchart LR
     I --> J[在线推理]
 ```
 
-## 7.2 核心模型
+## 7.2 Core Models
 
-| 模型 | 用途 | 输入 | 输出 | 框架 |
+| Model | Purpose | Input | Output | Framework |
 |:---|:---|:---|:---|:---|
-| 材料属性预测 | 预测固态电解质离子电导率 | 晶体结构 / 分子描述符 | 电导率 / 稳定性评分 | PyTorch + DGL |
-| 工艺参数优化 | 优化涂布/烘干/叠片参数 | 工艺参数 + 良率数据 | 最优参数推荐 | PAI AutoML |
-| SOC 估算 | 电池荷电状态精准估算 | V/I/T 时序数据 | SOC 值 (%) | LSTM + Attention |
-| SOH 预测 | 电池健康度与寿命预测 | 历史循环数据 | SOH (%) / RUL (cycles) | Transformer |
-| 安全风险预测 | 热失控风险预警 | 实时运行数据 | 风险等级 (1-5) | XGBoost Ensemble |
-| 异常检测 | 产线异常检测 | 传感器时序数据 | 异常分数 + 位置 | AutoEncoder |
+| Material Property Prediction | Predict solid electrolyte ion conductivity | Crystal structure / Molecular descriptors | Conductivity / Stability score | PyTorch + DGL |
+| Process Parameter Optimization | Optimize coating/drying/fold parameters | Process parameters + yield data | Optimal parameter recommendation | PAI AutoML |
+| SOC Estimation | Precise estimation of battery state of charge | Time-sequence data of V/I/T | SOC value (%) | LSTM + Attention |
+| SOH Prediction | Battery Health and Lifespan Forecasting | Historical Cycle Data | SOH (%) / RUL (cycles) | Transformer |
+| Risk Forecasting | Thermal Runaway Warning | Real-time Operational Data | Risk Level (1-5) | XGBoost Ensemble Ensemble |
+| Anomaly Detection | Line Abnormality Detection | Sensor Time Series Data | Anomaly Score + Location | AutoEncoder |
 
-## 7.3 数据管道
+## 7.3 Data Pipeline
 
-训练数据通过 DataWorks 数据集成管道从多个数据源汇聚到 MaxCompute 数据湖，经特征工程处理后生成训练样本集。在线推理服务部署在 ACK 上的 PAI-EAS 端点，支持 A/B 测试和模型灰度发布。
+Training data is aggregated from multiple data sources through Alibaba Cloud DataWorks data integration pipelines to MaxCompute data lake. After feature engineering, it generates a training sample set. The online inference service is deployed on the PAI-EAS endpoint of ACK, supporting A/B testing and model gray release.
 
 ---
 
-<!-- chunk: 8. 安全与合规 -->## 8. 安全与合规
+## 8. Security and Compliance
 
-## 8.1 行业法规与标准
+## 8.1 Industry Regulations and Standards
 
-| 法规/标准 | 适用范围 | 架构要求 |
+| Regulation/Standard | Scope | Architecture Requirements |
 |:---|:---|:---|
-| GB/T 31485 | 电动汽车用动力蓄电池安全要求 | 安全测试数据完整追溯 |
-| GB/T 38031 | 电动汽车用动力蓄电池安全要求 | 热失控预警系统 |
-| UN38.3 | 锂电池运输安全测试 | 测试报告管理 |
-| IEC 62660 | 二次锂离子电池性能测试 | 测试数据标准化 |
-| ISO 26262 | 功能安全（汽车电子） | BMS 功能安全等级 ASIL-D |
-| GB/T 35273 | 个人信息安全规范 | 实验人员数据保护 |
-| 等保三级 | 工业控制系统安全 | 网络隔离 + 审计日志 |
+| GB/T 31485 | Safety Requirements for Electric Vehicle Power Battery | Complete Traceability of Safety Test Data |
+| GB/T 38031 | Safety Requirements for Electric Vehicle Power Battery | Thermal Runaway Warning System |
+| UN38.3 | Safety Testing for Lithium Batteries During Transportation | Management of Test Reports |
+| IEC 62660 | Performance Testing for Secondary Lithium-Ion Batteries | Standardization of Test Data |
+| ISO 26262 | Functional Safety (Automotive Electronics) | BMS Functional Safety Level ASIL-D |
+| GB/T 35273 | Personal Information Security Specification | Protection of Experimental Personnel Data |
+| Graded Protection Level 3 | Industrial Control System Security | Network Isolation + Audit Logs |
 
-## 8.2 安全架构要点
+## 8.2 Security Architecture Highlights
 
-- **配方保密**: 核心固态电解质配方数据加密存储，访问需多因素认证
-- **实验数据**: 全链路审计日志，操作不可抵赖
-- **网络安全**: 研发网络与办公网络物理隔离，VPN 专线访问
-- **灾备**: 跨区域数据备份，RPO < 1h，RTO < 4h
-
----
-
-<!-- chunk: 9. 最佳实践 -->## 9. 最佳实践
-
-1. **GPU 资源调度**: 使用 K8s PriorityClass 和预占策略，确保 DFT 计算高优先级任务优先获得 GPU 资源，避免材料研发任务被低优先级工作阻塞
-2. **计算结果版本管理**: 对每次 DFT/MD 计算的输入参数、软件版本、计算结果建立版本化追踪，确保科研可重复性
-3. **数据闭环设计**: 实验验证结果自动反馈至 AI 模型训练数据集，持续提升材料预测准确率
-4. **中试产线数字孪生**: 在工艺参数变更前先在数字孪生环境验证，减少物理试错次数
-5. **BMS 模型在线更新**: 通过 OTA 方式持续更新 SOC/SOH 估算模型，无需更换硬件
-6. **分级存储策略**: 热数据（最近 30 天 BMS 运行数据）存 Lindorm，温数据（1 年内测试数据）存 PolarDB，冷数据（历史模拟结果）归档至 OSS 低频存储
-7. **多租户项目管理**: 不同研发项目组数据逻辑隔离，共享 GPU 集群算力池
-8. **安全测试自动化**: 针刺/挤压/过充测试设备自动联网，测试数据实时上传并自动生成合规报告
-9. **材料知识图谱**: 构建材料-结构-性能-工艺多维知识图谱，支撑跨项目知识复用
-10. **弹性计算**: 利用云端弹性 HPC 能力，在材料筛选高峰期临时扩容 GPU 节点
+- **Formula Confidentiality**: Core solid electrolyte formula data is encrypted and stored, requiring multi-factor authentication for access
+- **Experimental Data**: Full-chain audit logs, operations cannot be denied
+- **Network Security**: Research network and office network are physically isolated, accessing via VPN dedicated line
+- **Disaster Recovery**: Cross-regional data backup, RPO < 1 hour, RTO < 4 hours
 
 ---
 
-<!-- chunk: 10. 反模式 -->## 10. 反模式
+## 9. Best Practices
 
-1. **忽视计算可重复性**: 不记录软件版本、计算参数和环境配置，导致 DFT 计算结果无法复现。应使用容器化镜像 + 完整参数记录
-2. **BMS 数据全量上云**: 将所有 100Hz 采样数据全量传输至云端，造成带宽浪费和延迟。应在边缘端进行聚合压缩，仅上传关键特征和告警
-3. **单点 HPC 集群**: 所有计算任务依赖单一 HPC 集群，无故障切换能力。应采用混合云架构，关键计算任务可跨集群调度
-4. **配方明文存储**: 核心电解质配方以明文存储在数据库中，任何有数据库访问权限的人都可以查看。应采用应用层加密 + 密钥管理服务（KMS）
-5. **忽视安全标准更新**: 安全测试系统未跟进最新版 GB/T 标准更新，导致测试报告不被认可。应建立标准变更监控机制
+1. **GPU Resource Scheduling**: Use K8s PriorityClass and reservation strategies to ensure high-priority DFT computation tasks get GPU resources first, avoiding blocking material research tasks with low priority work
+2. **Version Management of Computational Results**: Establish version tracking for each DFT/MD computation's input parameters, software versions, and results to ensure reproducibility of scientific research
+3. **Design of Data Loop**: Automatically feed experimental validation results back into the AI model training dataset to continuously improve material prediction accuracy
+4. **Digital Twin of Pilot Production Line**: Validate process parameter changes in the digital twin environment before physical trials to reduce the number of physical trials
+5. **OTA Model Updates for BMS**: Update SOC/SOH estimation models via OTA without replacing hardware
+6. **Hierarchical Storage Strategy**: Store hot data (recent 30 days' BMS operational data) in Lindorm, warm data (test data within the last year) in PolarDB, and cold data (historical simulation results) archive in OSS low-frequency storage
+7. **Multi-tenant Project Management**: Logical isolation of data among different R&D project groups while sharing GPU cluster computing power
+8. **Automated Safety Testing**: Automatic network connection of puncture/bend/excessive charge testing devices, real-time upload of test data, and generation of compliant reports
+9. **Material Knowledge Graph**: Construct a multi-dimensional knowledge graph of materials, structures, properties, and processes to support cross-project knowledge reuse
+10. **Elastic Computing**: Utilize cloud elastic HPC capabilities during material screening peaks to temporarily expand GPU nodes
 
 ---
 
-<!-- chunk: 11. 参考资源 -->## 11. 参考资源
+## 10. Anti-patterns
 
-- [QuantumScape 技术白皮书](https://www.quantumscape.com/technology/)
+1. **Ignoring Computational Reproducibility**: Lack of recording software versions, computation parameters, and environment configurations leads to un-reproducible DFT computation results. Use containerized images + complete parameter records instead
+2. **Full Upload of BMS Data to Cloud**: Transmit all 100Hz sampling data fully to the cloud, wasting bandwidth and causing latency. Aggregate and compress data at the edge before uploading key features and alerts
+3. **Single Point HPC Cluster**: All computational tasks rely on a single HPC cluster with no fault tolerance switching capability. Adopt a hybrid cloud architecture, allowing key computations to be scheduled across clusters
+4. **Explicit Storage of Electrolyte Formulas**: Core electrolyte formulas are stored in plaintext in the database, making them accessible to anyone with database access permissions. Encrypt at the application layer + use Key Management Service (KMS)
+5. **Ignoring Standard Updates**: Safety testing systems do not update to the latest GB/T standards, rendering test reports invalid. Establish a standard change monitoring mechanism
+
+---
+
+## 11. References
+
+- [QuantumScape Technology Whitepaper](https://www.quantumscape.com/technology/)
 - [Toyota Solid-State Battery Roadmap](https://global.toyota/newsroom/corporate/)
-- [Materials Project - 开放材料数据库](https://materialsproject.org/)
-- [VASP 官方文档](https://www.vasp.at/wiki/)
-- [GROMACS 分子动力学手册](https://manual.gromacs.org/)
-- [GB/T 31485-2015 电动汽车用动力蓄电池安全要求](https://openstd.samr.gov.cn/)
-- [IEC 62660 二次锂离子电池标准](https://www.iec.ch/)
-- [阿里云 E-HPC 文档](https://help.aliyun.com/product/118515.html)
-- [PAI 机器学习平台](https://help.aliyun.com/product/30347.html)
+- [Materials Project - Open Materials Database](https://materialsproject.org/)
+- [VASP Official Documentation](https://www.vasp.at/wiki/)
+- [GROMACS Molecular Dynamics Manual](https://manual.gromacs.org/)
+- [GB/T 31485-2015 Electric Vehicle Power Battery Safety Requirements](https://openstd.samr.gov.cn/)
+- [IEC 62660 Secondary Lithium-Ion Battery Standard](https://www.iec.ch/)
+- [AliCloud E-HPC Documentation](https://help.aliyun.com/product/118515.html)
+- [PAI Machine Learning Platform](https://help.aliyun.com/product/30347.html)
 
 ---
 
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+**Maintainers**: AliCloud Solution Architects Team | **License**: MIT
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

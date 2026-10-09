@@ -1,6 +1,10 @@
+---
+original_language: Chinese
+source_path: tree/application/architecture/index.md
+---
 ---title: Topic Application Architecture
-description: Topic Application Architecture 目录索引
-summary: Topic Application Architecture 目录索引
+description: Topic Application Architecture Directory Index
+summary: Topic Application Architecture Directory Index
 category: index
 tags:
 - index
@@ -16,13 +20,13 @@ authors:
 
 # Topic Application Architecture
 
-> 本页为 `domain-20-application-patterns/topic-application-architecture` 目录的自动索引。
+> This page is an automatic index for the directory of `domain-20-application-patterns/topic-application-architecture`.
 
-## 概览
+## Overview
 
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Readme]]
 
-## 文档
+## Documentation
 
 - [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|Ecommerce Architecture]]
 - [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Architecture]]

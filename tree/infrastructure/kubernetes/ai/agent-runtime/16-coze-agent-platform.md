@@ -1,7 +1,7 @@
 ---
-title: Coze Agent平台
-description: 'Coze(扣子)Agent平台架构、多Agent编排、插件开发、发布渠道与企业部署'
-summary: 'Coze(扣子)Agent平台架构、多Agent编排、插件开发、发布渠道与企业部署'
+title: Coze Agent Platform
+description: 'Coze(pin)Agentplatform architecture, multiAgentorchestration, plugin development, release channels and enterprise deployment'
+summary: 'Coze(pin)Agentplatform architecture, multiAgentorchestration, plugin development, release channels and enterprise deployment'
 category: ai-ml-infra
 tags:
 - ai
@@ -16,18 +16,18 @@ last_updated: 2026-07
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 平台工程师
-- 架构师
+- AI Engineer
+- Platform Engineer
+- Architect
 estimated_read_time: 20min
 intent_queries:
-- Coze Agent平台 是什么
-- 如何使用 Coze 构建 Agent
-- 扣子平台架构
-- Coze 多Agent编排
+- What is Coze Agent Platform
+- How to use Coze to build an Agent
+- Coze Platform Architecture
+- Coze Multi-Agent Orchestration
 trigger_keywords:
 - coze
-- 扣子
+- Coze
 - agent platform
 - low-code agent
 - workflow
@@ -43,17 +43,19 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/agent-runtime/16-coze-agent-platform.md
 ---
 
-# Coze Agent平台
+# Coze Agent Platform
 
-## 概述
+## Overview
 
-Coze（扣子）是字节跳动推出的AI Agent构建平台，定位为低代码Agent开发工具。平台将Agent构建所需的组件——模型调用、知识库、插件、工作流、记忆——封装为可视化配置项，降低Agent开发门槛。支持国际版（coze.com）和国内版（coze.cn），分别对接不同模型生态。
+Coze (Button) is an AI Agent development platform launched by ByteDance, positioning itself as a low-code Agent development tool. The platform packages the components required for Agent building—model invocation, knowledge base, plugins, workflows, and memory—into visual configuration items to reduce the barrier to Agent development. It supports the international version (coze.com) and the domestic version (coze.cn), respectively, to connect with different model ecosystems.
 
-## 1. 平台架构
+## 1. Platform Architecture
 
-### 1.1 核心组件
+### 1.1 Core Components
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -79,9 +81,9 @@ Coze（扣子）是字节跳动推出的AI Agent构建平台，定位为低代�
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Bot（Agent实体）
+### 1.2 Bot (Agent Entity)
 
-Bot是Coze中的Agent实体，核心配置项：
+Bot is a component of Coze, core configuration items:
 
 ```yaml
 Bot配置:
@@ -118,7 +120,7 @@ Bot配置:
       window: 50          # 记忆窗口50轮
 ```
 
-### 1.3 模型配置
+### 1.3 Model Configuration
 
 ```
 模型选择策略:
@@ -147,11 +149,11 @@ Bot配置:
   stop_sequences: []       # 停止序列
 ```
 
-## 2. 多Agent编排模式
+## 2. Multi-Agent Orchestration Patterns
 
-### 2.1 Agent-to-Agent调用
+### 2.1 Agent-to-Agent Call
 
-Coze支持在Workflow中调用其他Bot实现多Agent协作：
+Coze supports calling other Bots within a Workflow for multi-Agent collaboration:
 
 ```
 ┌──────────────────────────────────────────┐
@@ -180,7 +182,7 @@ Coze支持在Workflow中调用其他Bot实现多Agent协作：
 └──────────────────────────────────────────┘
 ```
 
-### 2.2 编排模式
+### 2.2 Orchestration Patterns
 
 ```yaml
 模式一: 串行链式
@@ -209,31 +211,31 @@ Coze支持在Workflow中调用其他Bot实现多Agent协作：
   示例: 退款审批→人工确认→执行退款
 ```
 
-## 3. 插件开发
+## 3. Plugin Development
 
-### 3.1 插件架构
+### 3.1 Plugin Architecture
 
-Coze插件分为两类：
+Coze plugins are divided into two types:
 
-**云端插件（Cloud Plugin）**：
+**Cloud Plugins**:
 ```
 用户请求 → Coze Agent → Plugin API调用 → 外部服务
                                     ↓
                               结果返回Agent
 ```
 
-**本地插件（Local Plugin）**：
-- 在Coze平台内使用Node.js或Python编写
-- 无需外部服务器
-- 适合数据处理、格式转换等轻量逻辑
+**Local Plugins**:
+- Written using Node.js or Python on the Coze platform
+- No external server required
+- Suitable for lightweight logic such as data processing and format conversion
 
-### 3.2 插件开发示例
+### 3.2 Plugin Development Example
 
-**Node.js插件**：
+**Node.js Plugin**:
 
 ```javascript
-// coze-plugin: 数据分析插件
-// 入口函数
+// coze-plugin: Data analysis plugin
+// Entry function
 async function handler(event, context) {
   const { data, operation } = JSON.parse(event.body);
 
@@ -266,7 +268,7 @@ async function handler(event, context) {
 }
 
 function summarize(data) {
-  // 汇总逻辑
+  // Summary logic
   return {
     min: Math.min(...data),
     max: Math.max(...data),
@@ -277,10 +279,10 @@ function summarize(data) {
 module.exports = { handler };
 ```
 
-**Python插件**：
+**Python Plugin**:
 
 ```python
-# coze-plugin: 文本处理插件
+# coze-plugin: Text Processing Plugin
 import json
 
 def handler(event, context):
@@ -289,7 +291,7 @@ def handler(event, context):
     operation = body.get('operation', '')
 
     if operation == 'extract_keywords':
-        # 简单关键词提取
+        # Simple Keyword Extraction
         words = text.split()
         keywords = [w for w in words if len(w) > 3]
         return {
@@ -301,7 +303,7 @@ def handler(event, context):
         }
 
     elif operation == 'sentiment':
-        # 简单情感分析
+        # Simple Sentiment Analysis
         positive_words = {'好', '棒', '喜欢', '满意', '优秀'}
         negative_words = {'差', '糟', '不满', '失望', '问题'}
         pos = sum(1 for w in text if w in positive_words)
@@ -318,10 +320,10 @@ def handler(event, context):
     return {'statusCode': 400, 'body': json.dumps({'error': 'Unknown operation'})}
 ```
 
-### 3.3 API插件配置
+### 3.3 API Plugin Configuration
 
 ```yaml
-# API插件定义（OpenAPI格式）
+# API Plugin Definition (OpenAPI Format)
 openapi: 3.0.0
 info:
   title: 产品搜索API
@@ -366,9 +368,9 @@ paths:
                           type: number
 ```
 
-## 4. 工作流（Workflow）
+## 4. Workflow (Workflow)
 
-### 4.1 工作流节点类型
+### 4.1 Workflow Node Types
 
 ```
 节点类型:
@@ -412,10 +414,10 @@ paths:
    - 输出格式
 ```
 
-### 4.2 工作流示例
+### 4.2 Workflow Example
 
 ```yaml
-# 智能客服工作流
+# Intelligent Customer Service Workflow
 workflow:
   name: "智能客服处理流程"
   nodes:
@@ -464,9 +466,9 @@ workflow:
       output: "{{result}}"
 ```
 
-## 5. 发布渠道
+## 5. Release Channels
 
-### 5.1 渠道矩阵
+### 5.1 Channel Matrix
 
 ```yaml
 发布渠道:
@@ -522,10 +524,10 @@ Web接入:
     适用: 快速分享/测试
 ```
 
-### 5.2 API接入示例
+### 5.2 API Access Example
 
 ```python
-# Coze API接入
+# Coze API Access
 import requests
 
 class CozeClient:
@@ -533,7 +535,7 @@ class CozeClient:
         self.bot_id = bot_id
         self.api_token = api_token
         self.base_url = "https://api.coze.cn/v1"  # 国内版
-        # self.base_url = "https://api.coze.com/v1"  # 国际版
+        # self.base_url = "https://api.coze.com/v1"  # International Edition
 
     def chat(self, user_message, conversation_id=None):
         headers = {
@@ -560,7 +562,7 @@ class CozeClient:
         return response.json()
 
     def chat_stream(self, user_message, conversation_id=None):
-        """流式输出"""
+        """Streamlined Output"""
         headers = {
             "Authorization": f"Bearer {self.api_token}",
             "Content-Type": "application/json"
@@ -584,7 +586,7 @@ class CozeClient:
             if line:
                 yield line.decode('utf-8')
 
-# 使用示例
+# Usage Examples
 client = CozeClient(
     bot_id="your-bot-id",
     api_token="your-api-token"
@@ -594,9 +596,9 @@ result = client.chat("查询订单状态")
 print(result)
 ```
 
-## 6. 企业版部署
+## 6. Enterprise Deployment
 
-### 6.1 私有化部署架构
+### 6.1 Private Deployment Architecture
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -625,7 +627,7 @@ print(result)
 └──────────────────────────────────────────────────┘
 ```
 
-### 6.2 企业版特性
+### 6.2 Enterprise Edition Features
 
 ```yaml
 企业增强:
@@ -654,25 +656,25 @@ print(result)
     - 自定义发布渠道
 ```
 
-## 7. 与Dify对比
+## 7. Comparison with Dify
 
-| 维度 | Coze | Dify |
+| Dimension | Coze | Dify |
 |------|------|------|
-| **定位** | 低代码Agent平台 | 开源LLM应用开发平台 |
-| **部署** | SaaS + 企业版私有化 | 开源自部署 + Cloud |
-| **模型支持** | 豆包/GPT/Claude/Gemini | 100+模型（通过API） |
-| **可视化编辑** | 优秀（拖拽式） | 良好（节点式） |
-| **工作流** | 内置，功能完整 | 内置，支持复杂编排 |
-| **知识库** | 内置RAG | 内置RAG |
-| **插件生态** | 丰富（官方市场） | 中等（社区贡献） |
-| **发布渠道** | 飞书/微信/Discord等 | API/Web/嵌入 |
-| **多Agent** | 支持（Bot调用Bot） | 支持（Agent编排） |
-| **代码能力** | 受限（Node.js/Python沙箱） | 更灵活（API/代码节点） |
-| **开源** | 否 | 是（Apache 2.0） |
-| **定价** | 免费额度 + 付费 | 开源免费 / Cloud付费 |
-| **适用场景** | 快速构建聊天Bot | 复杂LLM应用开发 |
-| **技术门槛** | 低 | 中等 |
-| **定制能力** | 受平台限制 | 高（可修改源码） |
+| **Positioning** | Low-code Agent Platform | Open-source LLM Application Development Platform |
+| **Deployment** | SaaS + Enterprise Edition Private Deployment | Self-hosted + Cloud |
+| **Model Support** | Dobby/GPT/Claude/Gemini | 100+ Models (via API) |
+| **Visualization Editing** | Excellent (Drag-and-Drop) | Good (Node-based) |
+| **Workflow** | Built-in, complete functionality | Built-in, supports complex orchestration |
+| **Knowledge Base** | Built-in RAG | Built-in RAG |
+| **Plugin Ecosystem** | Rich (Official Market) | Moderate (Community Contributions) |
+| **Release Channels** | WeChat/Flybook/Discord, etc. | API/Web/Embedded |
+| **Multi-Agent** | Supported (Bot calling Bot) | Supported (Agent orchestration) |
+| **Code Capability** | Limited (Node.js/Python sandbox) | More flexible (API/Code nodes) |
+| **Open Source** | No | Yes (Apache 2.0) |
+| **Pricing** | Free tier + paid | Open-source free / Cloud-paid |
+| **Use Cases** | Quick chatbot building | Complex LLM application development |
+| **Skill Level** | Low | Medium |
+| **Customization Ability** | Platform-restricted | High (Source code modification possible) |
 
 ```
 选型建议:
@@ -691,15 +693,15 @@ print(result)
   - 对开源有要求
 ```
 
-## 相关主题
+## Related Topics
 
-- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|云Agent平台即服务]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent限流与成本控制]]
-- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime架构总览]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/15-cloud-agent-platforms|Cloud Agent Platform as a Service]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/17-agent-rate-limiting-cost-control|Agent Rate Limiting and Cost Control]]
+- [[domain-14-ai-ml-infra/03-agent-runtime/21-agent-runtime-architecture-overview|Agent Runtime Architecture Overview]]
 
-## 参考资料
+## References
 
-- Coze官方文档
-- Coze API参考
+- Coze Official Documentation
+- Coze API Reference
 - Dify GitHub
-- Dify官方文档
+- Dify Official Documentation

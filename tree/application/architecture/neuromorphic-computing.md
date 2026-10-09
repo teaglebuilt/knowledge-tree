@@ -1,6 +1,9 @@
----title: 类脑计算架构设计 — 阿里云视角
-description: 'title: 类脑计算架构设计'
-summary: 'title: 类脑计算架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/neuromorphic-computing.md
+title: Brain-like Computing Architecture Design — From Alibaba Cloud Perspective
+description: 'title: Brain-like Computing Architecture Design'
+summary: 'title: Brain-like Computing Architecture Design'
 category: general
 tags:
 - architecture
@@ -13,15 +16,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 类脑计算架构设计 — 阿里云视角 是什么
-- 如何 类脑计算架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- Class Brain Computing Architecture Design - From Alibaba Cloud Perspective is what
+- How is Class Brain Computing Architecture Design - From Alibaba Cloud Perspective
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 类脑计算架构设计
-- 阿里云视角
+- Class Brain Computing Architecture Design
+- From Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -31,137 +34,76 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+# Brain-like Computing Architecture Design — Alibaba Cloud Perspective
+
+> **Applicable Version**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-05-18
+> **Author**: Alibaba Cloud Solution Architect | **Tags**: `#Brain-like Computing` `#Spiking Neural Networks` `#Neuromorphic Chips` `#Edge Intelligence` `#Alibaba Cloud`
+
+## Table of Contents
+
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architectural-patterns)
+4. [Implementation Examples](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-patterns](#7-anti-patterns)
+8. [Reference Resources](#8-references)
 
 
+## 1. Overview
 
+Neuromorphic Computing is a new computing paradigm inspired by biological neural systems. Unlike the traditional von Neumann architecture, neuromorphic computing employs spiking neural networks (SNN) as an information processing model, simulating mechanisms such as the firing of biological neurons and synaptic plasticity to achieve information processing. The core advantage of neuromorphic computing lies in extremely low power consumption (in the mW range for inference), high spatial-temporal efficiency (event-driven computation), and natural suitability for perception-decision tasks.
 
-title: 类脑计算架构设计
-description: '# 类脑计算架构设计 — 阿里云视角'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- gpu
-- nvidia
-last_updated: 2026-05-18
-difficulty: expert
-reading_level: expert
-audience:
-- AI 芯片架构师
-- 神经形态计算研究员
-- 边缘计算工程师
-- 阿里云 HPC 解决方案架构师
-estimated_read_time: 5min
-intent_queries:
-- 类脑计算 SNN 脉冲神经网络 [[Kubernetes|Kubernetes]] 部署
-- 神经形态芯片 AI 推理架构
-- ANN-to-SNN 转换工具链
-- 边缘类脑计算低功耗推理
-- STDP 突触可塑性训练
-trigger_keywords:
-- 类脑计算
-- 脉冲神经网络
-- SNN
-- 神经形态芯片
-- Loihi
-- 边缘智能
-- 事件驱动
-- 脑机接口
-- 突触可塑性
-- 低功耗推理
-related_domains:
-- domain-7-ai-ml-platform
-- domain-03-networking-traffic
-- domain-12-observability-comprehensive
-related_topics:
-- domain-20-application-patterns/topic-application-architecture/67-brain-computer-interface
-- domain-20-application-patterns/topic-application-architecture/88-nanomaterials
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
+The neuromorphic computing ecosystem comprises three core layers: the algorithm layer (SNN modeling, learning algorithms), the simulation layer (software simulators, performance evaluation), and the hardware layer (neuromorphic chips, FPGA prototypes). Current mainstream neuromorphic chips include Intel Loihi 2, IBM TrueNorth, BrainScaleS-2, and Tsinghua Tianjic chip. Each of these chips has its own characteristics in terms of neuron models, synaptic precision, on-chip learning capabilities, etc.
 
-# 类脑计算架构设计 — 阿里云视角
+From a cloud platform perspective, neuromorphic computing platforms need to provide: GPU computing power required for SNN training (ANN-to-SNN conversion or direct SNN training); parallel computing capability needed for large-scale network simulations; toolchains for deploying models onto edge neuromorphic chips; experimental management and version control capabilities.
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-05-18
-> **作者**: 阿里云解决方案架构师 | **标签**: `#类脑计算` `#脉冲神经网络` `#神经形态芯片` `#边缘智能` `#阿里云`
+## 1.1 Industry Background
 
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
-
----
-
-<!-- chunk: 1. 概述 -->## 1. 概述
-
-类脑计算（Neuromorphic Computing）是受生物神经系统启发的全新计算范式。与传统冯·诺依曼架构不同，类脑计算采用脉冲神经网络（SNN，Spiking Neural Network）作为信息处理模型，通过模拟生物神经元的脉冲发放、突触可塑性等机制实现信息处理。类脑计算的核心优势在于：极低功耗（mW 级推理）、高时空效率（事件驱动计算）、天然适合感知-决策任务。
-
-类脑计算生态系统包含三个核心层次：算法层（SNN 建模、学习算法）、仿真层（软件仿真器、性能评估）和硬件层（神经形态芯片、FPGA 原型）。目前主流的神经形态芯片包括 Intel Loihi 2、IBM TrueNorth、BrainScaleS-2、清华天机芯等。这些芯片在神经元模型、突触精度、片上学习能力等方面各有特点。
-
-从云平台角度看，类脑计算平台需要提供：SNN 训练所需的 GPU 算力（ANN-to-SNN 转换或直接 SNN 训练）；大规模网络仿真所需的并行计算能力；模型部署到边缘神经形态芯片的工具链；实验管理和模型版本管理能力。
-
-## 1.1 行业背景
-
-| 挑战 | 说明 | 架构影响 |
+| Challenge | Explanation | Impact on Architecture |
 |:---|:---|:---|
-| 脉冲编码 | 事件驱动异步计算范式 | 新型编程模型与编译器 |
-| 芯片异构 | 多种神经形态硬件 | 跨平台编译与适配 |
-| 训练困难 | SNN 不可微，训练复杂 | ANN-SNN 转换 + STDP |
-| 边缘部署 | 超低功耗推理需求 | 模型量化 + 芯片适配 |
-| 软硬件协同 | 算法与芯片深度耦合 | 协同设计工具链 |
+| Pulse Coding | Event-driven asynchronous computing paradigm | New programming model and compiler |
+| Chip Heterogeneity | Multiple neuromorphic hardware platforms | Cross-platform compilation and adaptation |
+| Training Difficulty | SNN is not differentiable, making training complex | ANN-to-SNN conversion + STDP |
+| Edge Deployment | Ultra-low-power inference requirements | Model quantization + chip adaptation |
+| Hardware-software Co-design | Deep integration between algorithms and chips | Co-design toolchain |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **脉冲神经网络**: LIF/Izhikevich 等神经元模型的 SNN 建模与训练
-- **神经形态芯片**: Loihi/TrueNorth/天机芯等芯片设计与验证
-- **边缘智能**: 无人机/机器人/物联网终端超低功耗感知决策
-- **脑机接口**: 神经信号实时编解码
-- **机器人控制**: 类脑运动控制与自适应学习
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 软硬件协同原则
-
-类脑计算的性能高度依赖算法与硬件的匹配。SNN 的神经元模型、突触精度、连接拓扑等参数需要与目标芯片的能力对齐。平台设计需要提供软硬件协同仿真工具，让研究人员在软件仿真阶段就能评估模型在目标硬件上的性能表现。
-
-## 2.2 训练-部署闭环原则
-
-SNN 的训练比传统 ANN 更复杂。主流方法有两种：一是 ANN-to-SNN 转换（先训练 ANN，再转换为 SNN），适合图像分类等静态任务；二是直接 SNN 训练（如替代梯度法、STDP 等），适合时序处理和在线学习。平台需要支持两种训练路径，并提供从训练到部署的完整工具链。
-
-## 2.3 事件驱动原则
-
-类脑计算的核心特征是事件驱动。不同于传统 ANN 的稠密矩阵运算，SNN 只在神经元发放脉冲时进行计算，天然稀疏。平台设计需要充分利用这一特性，在数据输入（事件相机/DVS）、网络计算、芯片执行三个层面都采用事件驱动模式。
-
-## 2.4 可观测性原则
-
-SNN 的内部状态（膜电位、脉冲发放率、突触权重）比 ANN 更复杂，需要专门的 visualization 工具。平台需要提供网络拓扑可视化、脉冲活动光栅图、膜电位时序图、权重分布热力图等分析工具，帮助研究人员理解网络行为。
+- **Spiking Neural Networks**: Modeling and training with LIF/Izhikevich and other SNN models
+- **Neuromorphic Chips**: Design and validation of chips like Loihi/TrueNorth/Tianjic
+- **Edge Intelligence**: Perception and decision-making at ultra-low power for drones/robots/Internet of Things terminals
+- **Brain-Computer Interfaces**: Real-time encoding/decoding of neural signals
+- **Robot Control**: Brain-inspired movement control and adaptive learning
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 类脑计算平台全景架构
+## 2.1 Synergistic Principle between Software and Hardware
+
+SNN's performance heavily depends on the alignment between algorithms and hardware. Parameters such as the neural model, synaptic precision, and connectivity topology need to match the capabilities of the target chip. Platform design should provide soft-hardware co-simulation tools so that researchers can evaluate the model's performance on the target hardware during the software simulation phase.
+
+## 2.2 Training-Deployment Loop Principle
+
+SNN training is more complex than traditional ANN training. Two mainstream methods exist: one is ANN-to-SNN conversion (training ANN first, then converting it to SNN), suitable for static tasks like image classification; the other is direct SNN training (e.g., using alternative gradient methods, STDP, etc.), suitable for time-series processing and online learning. The platform needs to support both training paths and provide a complete toolchain from training to deployment.
+
+## 2.3 Event-Driven Principle
+
+The core characteristic of brain-inspired computing is event-driven. Unlike the dense matrix operations of traditional ANN, SNN only performs calculations when neurons fire, naturally being sparse. Platform design should leverage this feature at all levels, including data input (event cameras/DVS), network computation, and chip execution, adopting an event-driven mode.
+
+## 2.4 Observability Principle
+
+The internal states of SNN (membrane potential, firing rate, synaptic weights) are more complex than those of ANN and require specialized visualization tools. The platform should provide analysis tools such as network topology visualization, pulse activity raster plots, membrane potential time series plots, and heat maps of weight distributions to help researchers understand network behavior.
+
+---
+
+## 3. Architectural Patterns
+
+## 3.1 Panoramic Architecture of Brain-Inspired Computing Platforms
 
 ```mermaid
 graph TB
@@ -206,7 +148,7 @@ graph TB
     D1 & D2 & D3 & D4 --> A1 & S1
 ```
 
-## 3.2 ANN-to-SNN 转换流水线
+## 3.2 ANN-to-SNN Conversion Pipeline
 
 ```mermaid
 flowchart LR
@@ -221,7 +163,7 @@ flowchart LR
     G --> I[芯片部署]
 ```
 
-## 3.3 边缘推理部署架构
+## 3.3 Edge Inference Deployment Architecture
 
 ```mermaid
 graph TB
@@ -253,9 +195,9 @@ graph TB
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 LIF 神经元脉冲神经网络
+## 4.1 Leaky Integrate-and-Fire Neuron Pulse Neural Network
 
 ```python
 import numpy as np
@@ -344,7 +286,7 @@ class SNNNetwork:
         return np.argmax(rates)
 ```
 
-## 4.2 STDP 学习规则实现
+## 4.2 STDP Learning Rule Implementation
 
 ```python
 import numpy as np
@@ -385,7 +327,7 @@ class STDPLearner:
         return self.weights.copy()
 ```
 
-## 4.3 SNN 模型管理与部署
+## 4.3 SNN Model Management and Deployment
 
 ```go
 package neuromorphic
@@ -481,9 +423,9 @@ func (r *ModelRegistry) GetBestModel(chip string) (*SNNModel, error) {
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+## 5. Deployment on Kubernetes
 
-## 5.1 SNN 训练 GPU 集群
+## 5.1 GPU Cluster for SNN Training
 
 ```yaml
 apiVersion: apps/v1
@@ -544,7 +486,7 @@ spec:
             claimName: snn-models-pvc
 ```
 
-## 5.2 SNN 仿真服务
+## 5.2 SNN Simulation Service
 
 ```yaml
 apiVersion: apps/v1
@@ -583,7 +525,7 @@ spec:
               cpu: "16000m"
 ```
 
-## 5.3 模型部署工具链
+## 5.3 Model Deployment Toolchain
 
 ```yaml
 apiVersion: apps/v1
@@ -622,117 +564,117 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-## 6.1 SNN 训练优化
+## 6.1 SNN Training Optimization
 
-- **ANN-SNN 转换**: 对于图像分类等静态任务，先训练 ReLU-ANN，再通过权重归一化和阈值标定转换为 SNN，转换损失通常 < 1%
-- **替代梯度训练**: 对于需要时序处理的任务，使用替代梯度（Surrogate Gradient）方法直接训练 SNN
-- **混合训练**: 先用 ANN 预训练初始化权重，再用 STDP 等生物学习规则微调
-- **量化感知训练**: 训练时模拟目标芯片的精度约束（如 4-bit 突触权重），减少部署时的精度损失
+- **ANN-SNN Conversion**: For static tasks like image classification, first train a ReLU-ANN, then convert to an SNN using weight normalization and threshold calibration, typically with a conversion loss < 1%
+- **Alternative Gradient Training**: For tasks requiring sequential processing, use alternative gradient (Surrogate Gradient) methods to directly train an SNN
+- **Hybrid Training**: Pre-train weights using an ANN to initialize, then fine-tune using biological learning rules like STDP
+- **Quantized Sensitivity Training**: During training, simulate the precision constraints of the target neuromorphic chip (e.g., 4-bit synaptic weights) to reduce deployment losses
 
-## 6.2 模型优化
+## 6.2 Model Optimization
 
-- **权重剪枝**: 利用 SNN 的稀疏性，剪除低发放率的神经元和弱突触
-- **分层量化**: 输入层保持高精度，深层使用低精度（4-bit 或 2-bit）
-- **拓扑优化**: 根据目标芯片的片上连接约束调整网络拓扑
-- **能耗建模**: 在仿真阶段使用能耗模型估算推理功耗，指导模型优化
+- **Weight Pruning**: Leverage the sparsity of SNNs by pruning neurons with low firing rates and weak synapses
+- **Layered Quantization**: Keep the input layer at high precision while using lower precision (4-bit or 2-bit) for deeper layers
+- **Topology Optimization**: Adjust network topology based on on-chip connectivity constraints of the target chip
+- **Energy Modeling**: Estimate inference energy during simulation using an energy model to guide model optimization
 
-## 6.3 部署管理
+## 6.3 Deployment Management
 
-- **模型注册中心**: 管理不同版本的 SNN 模型，记录训练参数、精度、能耗指标
-- **芯片适配层**: 为不同神经形态芯片提供统一的编译接口
-- **OTA 更新**: 边缘设备的 SNN 模型支持远程更新，通过增量更新减少传输量
-
----
-
-<!-- chunk: 7. 反模式 -->## 7. 反模式
-
-## 7.1 直接套用 ANN 训练方法
-
-将传统 ANN 的训练方法（如标准反向传播）直接用于 SNN，忽视 SNN 不可微的特性。
-
-**解决方案**: 使用替代梯度方法（用可微函数近似阶跃函数的梯度）或 ANN-to-SNN 转换策略。对于在线学习场景使用 STDP 等生物学习规则。
-
-## 7.2 忽视硬件约束
-
-在仿真器上设计 SNN 时忽视目标芯片的约束（如最大神经元数、突触精度、连接带宽）。
-
-**解决方案**: 仿真时加入硬件约束模型，限制网络规模、权重精度和连接拓扑。使用硬件感知的神经架构搜索（HW-NAS）自动搜索适合目标芯片的网络结构。
-
-## 7.3 过度追求生物真实性
-
-在工程应用中过度追求神经元模型的生物真实性（如使用 Hodgkin-Huxley 模型），导致计算开销过大。
-
-**解决方案**: 根据任务需求选择合适的神经元模型精度。大多数工程应用使用 LIF（Leaky Integrate-and-Fire）模型即可获得良好性能，计算开销远低于高精度模型。
-
-## 7.4 忽视脉冲编码设计
-
-忽视输入数据的脉冲编码方式设计，导致信息在编码过程中丢失。
-
-**解决方案**: 根据数据类型选择合适的编码方式：图像数据常用频率编码（rate coding）或首脉冲时间编码（TTFS）；时序数据常用时间编码；事件相机数据天然就是脉冲形式。编码方式直接影响 SNN 性能。
-
-## 7.5 单一评估指标
-
-仅使用精度作为 SNN 评估指标，忽视能耗和延迟。
-
-**解决方案**: 综合评估精度、能耗（每推理 mJ）、延迟（ms）、神经元利用率等指标。类脑计算的核心优势是能效比，需要在精度和能耗之间找到最佳平衡点。
+- **Model Registry Center**: Manage different versions of SNN models, record training parameters, accuracy, and energy metrics
+- **Chip Adaption Layer**: Provide a unified compilation interface for different neuromorphic chips
+- **OTA Updates**: Support remote updates for SNN models on edge devices through incremental updates to reduce transmission volume
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 7. Anti-patterns
 
-## 8.1 阿里云组件映射
+## 7.1 Directly Applying ANN Training Methods
 
-| 功能域 | **阿里云云原生方案** |
+Apply traditional ANN training methods (such as standard backpropagation) directly to SNNs without considering the non-differentiable nature of SNNs.
+
+**Solution**: Use alternative gradient methods (approximating the gradient of step functions with differentiable functions) or ANN-to-SNN conversion strategies. For online learning scenarios, use biological learning rules like STDP.
+
+## 7.2 Ignoring Hardware Constraints
+
+When designing SNNs on simulators while ignoring the constraints of the target chip (such as the maximum number of neurons, synaptic precision, and connection bandwidth), it leads to excessive computational overhead.
+
+**Solution**: Incorporate hardware constraint models during simulation to limit network size, weight precision, and connection topology. Use hardware-aware neural architecture search (HW-NAS) to automatically search for network structures suitable for the target chip.
+
+## 7.3 Overemphasizing Biological Realism
+
+Overemphasizing the biological realism of neuron models in engineering applications (such as using the Hodgkin-Huxley model) leads to excessive computational costs.
+
+**Solution**: Choose an appropriate level of neuron model accuracy based on task requirements. Most engineering applications can achieve good performance using the LIF (Leaky Integrate-and-Fire) model, which has much lower computational costs compared to high-precision models.
+
+## 7.4 Ignoring Spike Encoding Design
+
+Ignoring the design of spike encoding for input data leads to information loss during encoding.
+
+**Solution**: Choose an appropriate encoding method based on the data type: frequency encoding (rate coding) or first-pulse time encoding (TTFS) is commonly used for image data; time encoding is typically used for sequential data; event cameras naturally encode data as spikes. The choice of encoding method significantly impacts the performance of SNNs.
+
+## 7.5 Single Evaluation Metric
+
+Only using accuracy as an evaluation metric for SNNs ignores energy consumption and latency.
+
+**Solution**: Evaluate accuracy, energy consumption (in mJ per inference), latency (in ms), and neuron utilization comprehensively. The core advantage of brain-inspired computing lies in its efficiency-to-performance ratio, requiring finding the optimal balance between accuracy and energy consumption.
+
+---
+
+## 8. References
+
+## 8.1 AliCloud Component Mapping
+
+| Function Domain | **AliCloud Native Solutions** |
 |:---|:---|
-| 容器平台 | **ACK Pro + GPU** |
-| GPU 实例 | **GN10/GN7（A100/V100）** |
-| AI 平台 | **PAI + DSW** |
-| 对象存储 | **OSS** |
-| 数据库 | **PolarDB** |
-| 可观测性 | **ARMS + SLS** |
-| 工作流 | **[[Argo|Argo]]go Workflows|Argo Workflows]]** |
+| Container Platform | **ACK Pro + GPU** |
+| GPU Instance | **GN10/GN7 (A100/V100)** |
+| AI Platform | **PAI + DSW** |
+| Object Storage | **OSS** |
+| Database | **PolarDB** |
+| Observability | **ARMS + SLS** |
+| Workflow | **[[Argo|Argo]] Go Workflows|Argo Workflows]]** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] SNN 训练收敛性验证（与 ANN 基线对比）
-- [ ] ANN-to-SNN 转换精度损失 < 2%
-- [ ] 芯片能耗效率验证（< 10mW 推理）
-- [ ] 边缘推理延迟测试（< 10ms）
-- [ ] 神经数据隐私保护措施
-- [ ] 算法可解释性报告
-- [ ] 模型注册中心版本管理
+- [ ] SNN Convergence Validation (Compared to ANN Baseline)
+- [ ] Precision Loss During ANN-to-SNN Conversion < 2%
+- [ ] Chip Energy Efficiency Validation (< 10mW Inference)
+- [ ] Edge Inference Latency Testing (< 10ms)
+- [ ] Neural Data Privacy Protection Measures
+- [ ] Algorithm Explainability Report
+- [ ] Model Registry Version Management
 
-## 8.3 外部参考
+## 8.3 External References
 
-- Intel Loihi 2 — 英特尔神经形态芯片
-- IBM TrueNorth — IBM 神经形态芯片
-- Neuromorphic Computing Roadmap — IEEE 神经形态计算路线图
-- BindsNET — Python SNN 仿真框架
-- Norse — PyTorch SNN 扩展库
-- SpiNNaker — 大规模 SNN 仿真硬件
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- Intel Loihi 2 — Intel Neuromorphic Chip
+- IBM TrueNorth — IBM Neuromorphic Chip
+- Neuromorphic Computing Roadmap — IEEE Neuromorphic Computing Roadmap
+- BindsNET — Python SNN Simulation Framework
+- Norse — PyTorch SNN Extension Library
+- SpiNNaker — Large-scale SNN Simulation Hardware
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architects Team | **License**: MIT
+
+---
+
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Micro Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|Artificial Intelligence/ Machine Learning Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 
