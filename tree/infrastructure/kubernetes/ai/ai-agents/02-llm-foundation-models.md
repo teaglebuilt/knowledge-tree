@@ -1,7 +1,8 @@
----title: LLM 基座模型选型与评估 (domain-14-ai-ml-infra)
-description: 'description: ''**文档类型**: 技术选型指南 | **最后更新**: 2026-03 | **关键词**: LLM 选型,
+---
+title: LLM Base Model Selection and Evaluation (domain-14-ai-ml-infra)
+description: 'description: ''**Document Type**: Technical Selection Guide | **Last Updated**: 2026-03 | **Keywords**: LLM Selection,
   GPT-4o, Claude'
-summary: 'description: ''**文档类型**: 技术选型指南 | **最后更新**: 2026-03 | **关键词**: LLM 选型, GPT-4o,
+summary: 'description: ''**Document Type**: Technical Selection Guide | **Last Updated**: 2026-03 | **Keywords**: LLM Selection, GPT-4o,
   Claude'
 category: general
 tags:
@@ -21,15 +22,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- LLM 基座模型选型与评估 是什么
-- 如何 LLM 基座模型选型与评估
-- Kubernetes 14 ai ml infra 最佳实践
+- LLM Base Model Selection and Evaluation is what
+- How to do LLM Base Model Selection and Evaluation
+- Kubernetes 14 ai ml infra Best Practices
 trigger_keywords:
 - LLM
-- 基座模型选型与评估
+- Base Model Selection and Evaluation
 - ai
 - ml
 - infra
@@ -40,72 +41,21 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/02-llm-foundation-models.md
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+# LLM Base Model Selection and Evaluation
 
+## Overview
 
-
-
-title: LLM 基座模型选型与评估
-description: '**文档类型**: 技术选型指南 | **最后更新**: 2026-03 | **关键词**: LLM 选型, GPT-4o, Claude
-  3.5, Gemini, Llama-3, Qwen-2.5, DeepSeek, 微调 vs RAG, 模型评估, Agent 基座'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- docker
-- [[NetworkPolicy|networkpolicy]]
-- operator
-- gpu
-- nvidia
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI 工程师
-- 架构师
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- LLM 基座模型选型与评估 是什么
-- 如何 LLM 基座模型选型与评估
-trigger_keywords:
-- LLM
-- 基座模型选型与评估
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# LLM 基座模型选型与评估
-
-> **文档类型**: 技术选型指南 | **最后更新**: 2026-03 | **关键词**: LLM 选型, GPT-4o, Claude 3.5, Gemini, Llama-3, Qwen-2.5, DeepSeek, 微调 vs RAG, 模型评估, Agent 基座
+LLM selection is the primary decision in building an Agent system, directly determining the upper limit of the Agent's reasoning ability, the reliability of tool invocation, cost structure, and compliance boundaries. This article provides a comprehensive matrix comparison of mainstream models, specialized evaluation metrics for the Agent scenario, a decision framework for fine-tuning versus RAG, and model routing strategies for production environments.
 
 ---
 
-<!-- chunk: 概述 -->## 概述
+## 1. Model Panorama Overview
 
-LLM 的选择是构建 Agent 系统的首要决策，直接决定 Agent 的推理能力上限、工具调用可靠性、成本结构和合规边界。本文提供主流模型的全维度对比矩阵、面向 Agent 场景的专项评估指标、微调 vs RAG 的决策框架，以及生产环境中的模型路由策略。
-
----
-
-<!-- chunk: 1. 模型全景概览 -->## 1. 模型全景概览
-
-## 1.1 主流模型分类
+## 1.1 Mainstream Model Classification
 
 ```
 LLM 生态全景
@@ -131,44 +81,44 @@ LLM 生态全景
 
 ---
 
-<!-- chunk: 2. 主流模型性能对比矩阵 -->## 2. 主流模型性能对比矩阵
+## 2. Model Performance Comparison Matrix
 
-## 2.1 综合能力对比（2025年底基准）
+## 2.1 Comprehensive Capability Comparison (Benchmark by the end of 2025)
 
-| 模型 | 参数量 | 上下文窗口 | 推理能力 | 代码能力 | 工具调用 | 中文能力 | 成本/1M Token | 延迟(首Token) |
+| Model | Parameters | Context Window | Reasoning Ability | Code Ability | Tool Invocation | Chinese Ability | Cost/$1M Tokens | Latency (First Token) |
 |------|-------|-----------|---------|---------|---------|---------|--------------|-------------|
-| **GPT-4o** | 未知 | 128K | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | $2.5/$10 | ~0.5s |
-| **GPT-4o-mini** | 未知 | 128K | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | $0.15/$0.6 | ~0.3s |
-| **o1** | 未知 | 200K | ★★★★★+ | ★★★★★ | ★★★★☆ | ★★★★☆ | $15/$60 | 5-30s |
-| **Claude 3.5 Sonnet** | 未知 | 200K | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | $3/$15 | ~0.5s |
-| **Claude 3.5 Haiku** | 未知 | 200K | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | $0.8/$4 | ~0.3s |
-| **Gemini 2.0 Flash** | 未知 | 1M | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | $0.1/$0.4 | ~0.4s |
-| **Gemini 1.5 Pro** | 未知 | 2M | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | $1.25/$5 | ~1s |
-| **Llama 3.3 70B** | 70B | 128K | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ | 自部署 | 取决于硬件 |
-| **Qwen2.5-72B** | 72B | 128K | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★★ | 自部署 | 取决于硬件 |
+| **GPT-4o** | Unknown | 128K | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | $2.5/$10 | ~0.5s |
+| **GPT-4o-mini** | Unknown | 128K | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | $0.15/$0.6 | ~0.3s |
+| **o1** | Unknown | 200K | ★★★★★+ | ★★★★★ | ★★★★☆ | ★★★★☆ | $15/$60 | 5-30s |
+| **Claude 3.5 Sonnet** | Unknown | 200K | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | $3/$15 | ~0.5s |
+| **Claude 3.5 Haiku** | Unknown | 200K | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | $0.8/$4 | ~0.3s |
+| **Gemini 2.0 Flash** | Unknown | 1M | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | $0.1/$0.4 | ~0.4s |
+| **Gemini 1.5 Pro** | Unknown | 2M | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | $1.25/$5 | ~1s |
+| **Llama 3.3 70B** | 70B | 128K | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ | Self-deployed | Dependent on hardware |
+| **Qwen2.5-72B** | 72B | 128K | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★★ | Self-deployed | Dependent on hardware |
 | **DeepSeek-V3** | 671B(MoE) | 128K | ★★★★★ | ★★★★★ | ★★★★☆ | ★★★★★ | $0.27/$1.1 | ~1s |
 | **DeepSeek-R1** | 671B(MoE) | 128K | ★★★★★+ | ★★★★★ | ★★★☆☆ | ★★★★★ | $0.55/$2.19 | 10-60s |
 
-> 注: 价格为 Input/Output Token 单价，以 API 调用为准，随厂商调整而变化。自部署成本取决于 GPU 资源。
+> Note: Prices are per Input/Output Token, based on API calls, which may vary with vendor adjustments. Self-deployment costs depend on GPU resources.
 
-## 2.2 Agent 专项能力对比
+## 2.2 Specialized Agent Capabilities Comparison
 
-| 模型 | 工具调用可靠性 | 多步规划 | 指令遵循 | 自我纠错 | 长上下文理解 | 并行工具调用 |
+| Model | Tool Invocation Reliability | Multi-step Planning | Command Following | Self-correction | Long-context Understanding | Parallel Tool Invocation |
 |------|-------------|---------|---------|---------|------------|------------|
-| GPT-4o | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | 原生支持 |
-| GPT-4o-mini | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | 原生支持 |
-| Claude 3.5 Sonnet | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | 原生支持 |
-| Gemini 2.0 Flash | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | 原生支持 |
-| Llama 3.3 70B | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | 支持 |
-| Qwen2.5-72B | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | 支持 |
-| DeepSeek-V3 | ★★★★☆ | ★★★★★ | ★★★★★ | ★★★★☆ | ★★★★☆ | 支持 |
-| DeepSeek-R1 | ★★★☆☆ | ★★★★★+ | ★★★★☆ | ★★★★★ | ★★★★☆ | 有限支持 |
+| GPT-4o | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★☆ | Native support |
+| GPT-4o-mini | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | Native Support |
+| Claude 3.5 Sonnet | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | ★★★★★ | Native Support |
+| Gemini 2.0 Flash | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★★★ | Native Support |
+| Llama 3.3 70B | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ | ★★★★☆ | Support |
+| Qwen2.5-72B | ★★★★☆ | ★★★★☆ | ★★★★★ | ★★★★☆ | ★★★★☆ | Support |
+| DeepSeek-V3 | ★★★★☆ | ★★★★★ | ★★★★★ | ★★★★☆ | ★★★★☆ | Support |
+| DeepSeek-R1 | ★★★☆☆ | ★★★★★+ | ★★★★☆ | ★★★★★ | ★★★★☆ | Limited Support |
 
 ---
 
-<!-- chunk: 3. 场景选型决策树 -->## 3. 场景选型决策树
+## 3. Scenario Selection Decision Tree
 
-## 3.1 主决策框架
+## 3.1 Main Decision Framework
 
 ```
 选型决策起点
@@ -193,33 +143,33 @@ LLM 生态全景
 │           └── 否 → 根据成本/性能比选择
 ```
 
-## 3.2 K8s 运维 Agent 专项选型建议
+## 3.2 Kubernetes Operations Agent Special Selection Recommendations
 
-| Agent 类型 | 推荐模型 | 备选模型 | 原因 |
+| Agent Type | Recommended Model | Alternative Model | Reason |
 |-----------|---------|---------|------|
-| 实时诊断 Agent | GPT-4o-mini | Claude 3.5 Haiku | 高频调用需低延迟低成本，能力足够 |
-| 复杂故障分析 | Claude 3.5 Sonnet | GPT-4o | 需要多步推理 + 长上下文理解大量日志 |
-| 配置生成 Agent | GPT-4o | Qwen2.5-72B | YAML 生成需高精度指令遵循 |
-| 离线根因分析 | DeepSeek-R1 | o1 | 深度推理任务，延迟不敏感 |
-| 私有化部署 | Qwen2.5-72B | Llama 3.3 70B | 强中文能力 + 工具调用 + 开源 |
+| Real-time Diagnosis Agent | GPT-4o-mini | Claude 3.5 Haiku | Frequent calls require low latency and cost-effectiveness, sufficient capabilities |
+| Complex Fault Analysis | Claude 3.5 Sonnet | GPT-4o | Requires multi-step reasoning + long contextual understanding of large amounts of logs |
+| Configuration Generation Agent | GPT-4o | Qwen2.5-72B | YAML generation requires high precision instructions to follow |
+| Offline Root Cause Analysis | DeepSeek-R1 | o1 | Deep inference tasks, insensitive to latency |
+| Private Deployment | Qwen2.5-72B | Llama 3.3 70B | Strong Chinese capability + tool invocation + open-source |
 
 ---
 
-<!-- chunk: 4. 模型评估方法论 -->## 4. 模型评估方法论
+## 4. Model Evaluation Methodology
 
-## 4.1 针对 Agent 的评估维度
+## 4.1 Evaluation Dimensions for Agents
 
 ```python
-# Agent 能力基准测试框架
+# Agent Capability Baseline Test Framework
 class AgentBenchmark:
     
     def evaluate_tool_calling_accuracy(self, model, test_cases: list) -> float:
-        """评估工具调用准确性"""
-        # 测试点:
-        # 1. 是否选择了正确的工具
-        # 2. 工具参数是否准确填写
-        # 3. 是否正确处理工具错误并重试
-        # 4. 是否避免不必要的工具调用
+        """Evaluation of Call Accuracy for Evaluation Tools"""
+        # Test Points:
+        # 1. Did the right tools get selected
+        # 2. Are the tool parameters correctly filled
+        # 3. Are errors from tools properly handled and retried
+        # 4. Are unnecessary tool calls avoided
         correct = 0
         for case in test_cases:
             result = model.invoke(case["input"], tools=case["tools"])
@@ -228,36 +178,36 @@ class AgentBenchmark:
         return correct / len(test_cases)
     
     def evaluate_multi_step_planning(self, model, scenarios: list) -> dict:
-        """评估多步骤规划能力"""
+        """Evaluate multi-step planning capability"""
         metrics = {
             "task_completion_rate": 0,
             "avg_steps_efficiency": 0,  # 实际步骤/最优步骤
             "hallucination_rate": 0,    # 无凭据声明的比例
         }
-        # ... 评估实现
+        # ... Evaluate Implementation
         return metrics
     
     def evaluate_context_retention(self, model, long_conv: list) -> float:
-        """评估长对话中的上下文保持能力"""
-        # 在第 20 轮对话后提问第 3 轮提到的信息
-        # 测量回忆准确率
+        """Evaluate context retention ability in long dialogues"""
+        # Ask information from the third round after the twentieth round of dialogue
+        # Measure recall accuracy
         pass
 ```
 
-## 4.2 推荐评测基准集
+## 4.2 Recommend Evaluation Baseline Sets
 
-| 基准集 | 测量维度 | 适用场景 |
+| Baseline Set | Measurement Dimension | Applicable Scenario |
 |--------|---------|---------|
-| **MMLU** | 多领域知识储备 | 通用能力基线 |
-| **HumanEval / MBPP** | 代码生成能力 | 代码 Agent |
-| **ToolBench** | 工具调用准确性 | 工具调用 Agent |
-| **AgentBench** | Agent 任务完成率 | 综合 Agent 评估 |
-| **GAIA** | 真实世界任务 | 通用 Agent |
-| **SWE-bench** | 软件工程任务 | 代码/DevOps Agent |
-| **τ-bench** | 工具 + 推理综合 | 复杂 Agent 场景 |
-| **K8s 专项测试集** | K8s 知识深度 | 运维 Agent（自建） |
+| **MMLU** | Multidisciplinary Knowledge | General Capability Baseline |
+| **HumanEval / MBPP** | Code Generation Ability | Code Agent |
+| **ToolBench** | Accuracy of Tool Calls | Tool Call Agent |
+| **AgentBench** | Task Completion Rate of Agents | Comprehensive Agent Evaluation |
+| **GAIA** | Real-world Tasks | General Agent |
+| **SWE-bench** | Software Engineering Tasks | Code/DevOps Agent |
+| **τ-bench** | Comprehensive Tool + Reasoning | Complex Agent Scenarios |
+| **K8s Special Test Set** | Depth of Kubernetes Knowledge | Maintenance Agent (Self-built) |
 
-## 4.3 自建评估集（K8s 运维场景）
+## 4.3 Self-built Evaluation Set (K8s Operations Scenario)
 
 ```python
 K8S_AGENT_TEST_CASES = [
@@ -287,22 +237,22 @@ K8S_AGENT_TEST_CASES = [
 
 ---
 
-<!-- chunk: 5. 微调（Fine-tuning）vs RAG 决策框架 -->## 5. 微调（Fine-tuning）vs RAG 决策框架
+## 5. Fine-tuning vs RAG Decision Framework
 
-## 5.1 决策矩阵
+## 5.1 Decision Matrix
 
-| 维度 | 微调（Fine-tuning） | RAG |
+| Dimension | Fine-tuning (Micro-tuning) | RAG |
 |------|-------------------|-----|
-| **适用场景** | 固定格式输出、领域风格、专业术语 | 知识更新频繁、需要引用来源、知识量大 |
-| **知识更新成本** | 高（需重新训练） | 低（更新知识库即可） |
-| **训练数据需求** | 需要高质量标注数据（数百~数千条） | 无需训练数据 |
-| **推理成本** | 低（无需额外检索） | 较高（检索 + 生成） |
-| **延迟** | 低 | 较高（+100~500ms 检索时间） |
-| **幻觉风险** | 较高（模型可能过度泛化） | 较低（有检索结果支撑） |
-| **可解释性** | 差（知识融入权重） | 好（可追溯检索来源） |
-| **初始投入** | 高（训练成本 + 基础设施） | 中（构建知识库 + 向量化）|
+| **Applicable Scenarios** | Fixed format output, domain style, technical terms | Frequent knowledge updates, need to cite sources, large knowledge volume |
+| **Knowledge Update Cost** | High (retraining required) | Low (update knowledge base only) |
+| **Training Data Requirements** | Requires high-quality annotated data (hundreds to thousands of entries) | No training data needed |
+| **Inference Cost** | Low (no additional search required) | Higher (search + generation) |
+| **Latency** | Low | Higher (+100~500ms search time) |
+| **Hallucination Risk** | High (model may overgeneralize) | Low (supported by search results) |
+| **Interpretability** | Poor (knowledge embedding weights) | Good (traceable search sources) |
+| **Initial Investment** | High (training cost + infrastructure) | Moderate (build knowledge base + vectorization)|
 
-## 5.2 决策判断树
+## 5.2 Decision Judgment Tree
 
 ```
 选择微调 还是 RAG?
@@ -326,7 +276,7 @@ K8S_AGENT_TEST_CASES = [
     示例: 微调模型学习输出格式 + RAG 提供最新知识
 ```
 
-## 5.3 实用建议
+## 5.3 Practical Recommendations
 
 ```
 尝试顺序（成本从低到高）:
@@ -343,9 +293,9 @@ K8S_AGENT_TEST_CASES = [
 
 ---
 
-<!-- chunk: 6. 模型路由策略（生产环境） -->## 6. 模型路由策略（生产环境）
+## 6. Model Routing Strategy (Production Environment)
 
-在生产 Agent 系统中，通常需要多模型路由来平衡成本和质量：
+In a production Agent system, typically multiple model routing is needed to balance cost and quality:
 
 ```python
 from enum import Enum
@@ -375,35 +325,35 @@ MODEL_REGISTRY = {
 
 class ModelRouter:
     def route(self, task: dict) -> str:
-        """根据任务特征选择最优模型"""
+        """Choose the optimal model based on task characteristics"""
         complexity = self._assess_complexity(task)
         requires_chinese = self._needs_chinese(task)
         is_latency_sensitive = task.get("latency_sensitive", False)
         context_length = self._estimate_context(task)
         
-        # 超长上下文
+        # Long context
         if context_length > 128_000:
             return "gemini-1.5-pro"  # 2M context
         
-        # 深度推理任务（延迟不敏感）
+        # Deep inference tasks (latency-insensitive)
         if complexity == TaskComplexity.COMPLEX and not is_latency_sensitive:
             if requires_chinese:
                 return "deepseek-r1"
             return "claude-3-5-sonnet"
         
-        # 高频简单任务（成本敏感）
+        # High-frequency simple tasks (cost-sensitive)
         if complexity == TaskComplexity.SIMPLE:
             if requires_chinese:
                 return "deepseek-v3"  # 极低价格 + 强中文
             return "gpt-4o-mini"
         
-        # 中等复杂度（默认主力）
+        # Medium complexity (default main force)
         if requires_chinese:
             return "deepseek-v3"
         return "gpt-4o-mini"
     
     def _assess_complexity(self, task: dict) -> TaskComplexity:
-        """基于任务描述评估复杂度"""
+        """Assess complexity based on task description"""
         description = task.get("description", "")
         tool_count = len(task.get("available_tools", []))
         
@@ -416,11 +366,11 @@ class ModelRouter:
 
 ---
 
-<!-- chunk: 7. 开源模型自部署指南 -->## 7. 开源模型自部署指南
+## 7. Open-source model self-deployment guide
 
-## 7.1 硬件需求速查
+## 7.1 Hardware Requirements Quick Reference
 
-| 模型 | 最低 GPU | 推荐 GPU | 显存需求(FP16) | 推理吞吐量(vLLM) |
+| Model | Minimum GPU | Recommended GPU | Memory Requirement (FP16) | Inference Throughput (vLLM) |
 |------|---------|---------|--------------|----------------|
 | Qwen2.5-7B | 1x RTX 3090 | 1x A100 | ~16GB | ~50 req/s |
 | Llama 3.1 8B | 1x RTX 3090 | 1x A100 | ~16GB | ~50 req/s |
@@ -430,28 +380,28 @@ class ModelRouter:
 | Qwen2.5-72B | 4x A100 80G | 8x A100 | ~144GB | ~8 req/s |
 | DeepSeek-V3 671B | 8x H100 (FP8) | 16x H100 | ~350GB(FP8) | ~3 req/s |
 
-## 7.2 vLLM 部署示例
+## 7.2 vLLM Deployment Example
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# 部署 Qwen2.5-72B 的推荐配置
+# 🟢 Low-risk: Read-only/information collection, usually no side effects
+# Recommended configuration for deploying Qwen2.5-72B
 docker run --gpus all \
   -v /data/models:/models \
   -p 8000:8000 \
   vllm/vllm-openai:latest \
   --model /models/Qwen2.5-72B-Instruct \
   --served-model-name qwen2.5-72b \
-  --tensor-parallel-size 4 \      # 4 张 GPU 张量并行
+  --tensor-parallel-size 4 \      # 4 GPUs for tensor parallelism
   --pipeline-parallel-size 1 \
-  --max-model-len 32768 \         # 最大上下文长度（显存限制）
-  --max-num-seqs 256 \            # 最大并发请求数
-  --enable-chunked-prefill \      # 提升长文本处理效率
+  --max-model-len 32768 \         # Maximum context length (memory limit)
+  --max-num-seqs 256 \            # Maximum concurrent requests
+  --enable-chunked-prefill \      # Improve efficiency for long texts
   --trust-remote-code \
   --dtype bfloat16 \
   --api-key "your-secret-key"
 ```
 ```yaml
-# K8s 部署 vLLM（对接生产环境）
+# Kubernetes deploy vLLM (integrate with production environment)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -505,9 +455,9 @@ spec:
 
 ---
 
-<!-- chunk: 8. 合规与数据安全考量 -->## 8. 合规与数据安全考量
+## 8. Compliance and data security considerations
 
-## 8.1 数据分类与模型选择
+## 8.1 Data Classification and Model Selection
 
 ```
 数据密级 → 模型选择规则:
@@ -528,7 +478,7 @@ spec:
   └── 通常要求完全本地化部署，不允许数据出境
 ```
 
-## 8.2 国内合规要求
+## 8.2 Domestic compliance requirements
 
 ```
 中国大陆合规要点:
@@ -546,55 +496,55 @@ spec:
 
 ---
 
-<!-- chunk: 9. 最佳实践与反模式 -->## 9. 最佳实践与反模式
+## 9. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **多模型策略**：不要把所有任务都发给同一个最贵的模型，按复杂度路由可节省 60-80% 成本
-- **评估驱动选型**：用你自己的数据集测试，而不仅依赖公开基准——基准分数和实际业务效果存在差距
-- **版本锁定**：生产环境固定模型版本（如 `gpt-4o-2024-11-20`），避免供应商静默升级影响输出一致性
-- **温度配置**：工具调用类任务设置 `temperature=0`，创意类任务设置 `temperature=0.7`
-- **流式输出**：对延迟敏感的场景使用 Streaming，降低用户感知等待时间
+- **Multi-model strategy**: Don't send all tasks to the most expensive model at once; route by complexity to save up to 60-80% in costs
+- **Type selection driven by evaluation**: Test with your own dataset instead of relying solely on public benchmarks—there's a gap between benchmark scores and actual business outcomes
+- **Version Locking**: Production environment fixed model version (e.g., `gpt-4o-2024-11-20`), avoiding supplier silent upgrades affecting output consistency
+- **Temperature Configuration**: Set `temperature=0` for batch tasks, and `temperature=0.7` for creative tasks
+- **Stream Output**: Use Streaming for scenarios sensitive to latency, reducing user perception of waiting time
 
-## 反模式
+## Anti-patterns
 
-- **只用最贵的模型**：简单分类任务用 GPT-4o 是极大浪费，GPT-4o-mini 足够
-- **不锁定版本**：`gpt-4o-latest` 会自动升级，可能导致输出格式突然变化
-- **忽略 Token 计量**：不监控 Token 使用量，成本会迅速失控
-- **过度依赖单一供应商**：OpenAI 服务不稳定时没有备选，应设计多供应商 Fallback
+- **Using Only the Most Expensive Model**: Simple classification tasks using GPT-4o is a huge waste; GPT-4o-mini is sufficient
+- **Not Locking Versions**:`gpt-4o-latest` will automatically upgrade, potentially causing sudden changes in output format
+- **Ignoring Token Counting**: No monitoring of token usage leads to rapid cost overruns
+- **Over-Dependence on a Single Supplier**: Without alternatives when OpenAI services are unstable, design fallbacks for multiple suppliers
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documents
 
-| 文档 | 关联内容 |
+| Document | Relevant Content |
 |------|---------|
-| [01 - Agent 基础](./01-ai-agent-fundamentals.md) | Agent 推理框架对模型能力的依赖 |
-| [03 - Agent 框架对比](./03-agent-frameworks-comparison.md) | 不同框架与模型的兼容性 |
-| [11 - 成本与延迟优化](./11-cost-latency-optimization.md) | 模型路由的成本优化实践 |
-| [domain-14-ai-ml-infra/17-llm-inference-serving.md](../domain-14-ai-ml-infra/17-llm-inference-serving.md) | vLLM/TGI 部署详情 |
-| [domain-14-ai-ml-infra/03-gpu-scheduling-management.md](../domain-14-ai-ml-infra/03-gpu-scheduling-management.md) | GPU 资源调度 |
+| [01 - AI Agent Basics](./01-ai-agent-fundamentals.md) | Dependency of model capabilities in the AI agent inference framework |
+| [03 - Agent Framework Comparison](./03-agent-frameworks-comparison.md) | Compatibility between different frameworks and models |
+| [11 - Cost and Latency Optimization](./11-cost-latency-optimization.md) | Practical practices for cost optimization in model routing |
+| [domain-14-ai-ml-infra/17-llm-inference-serving.md](../domain-14-ai-ml-infra/17-llm-inference-serving.md) | Details of vLLM/TGI deployment |
+| [domain-14-ai-ml-infra/03-gpu-scheduling-management.md](../domain-14-ai-ml-infra/03-gpu-scheduling-management.md) | GPU resource scheduling |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Related Obsidian Documents
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent 工程专题|AI Agent 工程专题]]]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
-- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|成本与延迟优化策略]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|[[AI Agent Engineering Topic|AI Agent Engineering Topic]]]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Basics and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation Deep Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Usage & Function Calling Design Guidelines]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation and Observability Framework]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
+- [[domain-14-ai-ml-infra/02-ai-agents/11-cost-latency-optimization.md|Cost and Latency Optimization Strategies]]
 
 ## See Also
 

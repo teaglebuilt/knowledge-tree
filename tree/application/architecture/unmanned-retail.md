@@ -1,6 +1,7 @@
----title: 无人零售与智能货柜架构设计 — 阿里云视角
-description: 'title: 无人零售与智能货柜架构设计'
-summary: 'title: 无人零售与智能货柜架构设计'
+---
+title: Unmanned Retail and Smart Cabinet Architecture Design — From an Alibaba Cloud Perspective
+description: 'title: Unmanned Retail and Smart Cabinet Architecture Design'
+summary: 'title: Unmanned Retail and Smart Cabinet Architecture Design'
 category: general
 tags:
 - architecture
@@ -14,15 +15,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 5min
 intent_queries:
-- 无人零售与智能货柜架构设计 — 阿里云视角 是什么
-- 如何 无人零售与智能货柜架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is "Unmanned Retail and Smart Cabinet Architecture Design — From an Alibaba Cloud Perspective"
+- How is "Unmanned Retail and Smart Cabinet Architecture Design — From an Alibaba Cloud Perspective"
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 无人零售与智能货柜架构设计
-- 阿里云视角
+- Unmanned Retail
+- From an Alibaba Cloud Perspective is "Unmanned Retail and Smart Cabinet Architecture Design"
 - application
 - patterns
 prerequisites:
@@ -33,111 +34,52 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/application/architecture/unmanned-retail.md
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+# Unmanned Retail and Smart Dispenser Architecture Design — From Alibaba Cloud Perspective
 
+## Table of Contents
 
-
-
-title: 无人零售与智能货柜架构设计
-description: '# 无人零售与智能货柜架构设计 — 阿里云视角'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- [[DaemonSet|daemonset]]
-- gpu
-- nvidia
-last_updated: 2026-05-18
-difficulty: intermediate
-reading_level: intermediate
-audience:
-- 新零售架构师
-- IoT工程师
-- 边缘计算专家
-estimated_read_time: 5min
-intent_queries:
-- 无人零售 [[Kubernetes|Kubernetes]] 边缘计算
-- 智能货柜 AI视觉 Kubernetes
-- IoT零售 阿里云 Kubernetes
-- 商品识别 GPU Kubernetes
-- 无人零售 离线自治 K8s
-trigger_keywords:
-- 无人零售
-- 智能货柜
-- 自动售货
-- AI视觉
-- IoT
-- 边缘计算
-- 商品识别
-- 阿里云
-related_domains:
-- domain-01-cluster-fundamentals
-- domain-11-production-operations
-- domain-11-ai-infra
-related_topics:
-- 31-instant-retail
-- 11-smart-retail-architecture
-- 32-smart-restaurant
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# 无人零售与智能货柜架构设计 — 阿里云视角
-
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#无人零售` `#智能货柜` `#自动售货` `#阿里云`
+1. [Industry Background](#1-industry-background)
+2. [Business Architecture](#2-business-architecture)
+3. [Technical Architecture](#3-technical-architecture)
+4. [Core Data Flow](#4-core-data-flow)
+5. [Security and Compliance](#5-security-and-compliance)
+6. [Observability](#6-observability)
+7. [Alibaba Cloud Component Mapping](#7-alibaba-cloud-component-mapping)
+8. [Production Checklist](#8-production-checklist)
 
 ---
 
-## 目录
+## 1. Industry Background
 
-1. [行业背景](#1-行业背景)
-2. [业务架构](#2-业务架构)
-3. [技术架构](#3-技术架构)
-4. [核心数据流](#4-核心数据流)
-5. [安全与合规](#5-安全与合规)
-6. [可观测性](#6-可观测性)
-7. [阿里云组件映射](#7-阿里云组件映射)
-8. [生产检查清单](#8-生产检查清单)
+### 1.1 Business Characteristics
 
----
+Unmanned retail achieves 24-hour self-service shopping through IoT + AI:
 
-## 1. 行业背景
-
-### 1.1 业务特点
-
-无人零售通过 IoT + AI 实现 24h 自助购物：
-
-| 挑战 | 说明 | 架构影响 |
+| Challenge | Explanation | Impact on Architecture |
 |:---|:---|:---|
-| 设备分散 | 成百上千台设备分布 | 边缘计算 + 统一管理 |
-| 网络不稳定 | 部分点位 4G 弱信号 | 离线自治能力 |
-| 货损防盗 | 商品被盗/损坏 | AI 视觉监控 |
-| 库存精准 | 自动识别商品拿取 | 传感器融合 |
-| 支付多样 | 刷脸/扫码/免密支付 | 聚合支付 |
+| Device Dispersion | Hundreds or Thousands of Devices Distributed | Edge Computing + Unified Management |
+| Device dispersion | Hundreds or thousands of distributed devices | Edge computing + Unified Management |
+| Network instability | Weak 4G signal at some points | Offline autonomous capability |
+| Loss and theft prevention | Theft/damage of goods | AI visual monitoring |
+| Precise inventory | Automatic recognition of goods picked up | Sensor fusion |
 
-### 1.2 核心场景
+### 1.2 Core Scenarios
 
-- **视觉识别**: 消费者拿取商品自动识别
-- **重力感应**: 货道重量变化检测
-- **动态定价**: 基于库存/时段的自动调价
-- **智能补货**: 缺货预警 + 最优补货路径
-- **远程运维**: 设备状态监控 + 问题预警
+- **Visual Recognition**: Automatic identification of goods when consumers take them
+- **Gravity Sensing**: Detection of changes in cargo weight in aisles
+- **Dynamic Pricing**: Automatic price adjustment based on inventory/periods
+- **Smart Replenishment**: Stock shortage warning + optimal replenishment path
+- **Remote Maintenance**: Monitoring of device status + problem warnings
 
 ---
 
-## 2. 业务架构
+## 2. Business Architecture
 
-### 2.1 无人零售全景架构
+### 2.1 Omnichannel Architecture of Unmanned Retail
 
 ```mermaid
 graph TB
@@ -175,7 +117,7 @@ graph TB
     P1 & P2 & P3 & P4 & P5 --> O1 & O2 & O3 & O4
 ```
 
-### 2.2 购物流程时序
+### 2.2 Purchase Flow Sequence
 
 ```mermaid
 sequenceDiagram
@@ -202,12 +144,12 @@ sequenceDiagram
 
 ---
 
-## 3. 技术架构
+## 3. Technical Architecture
 
-### 3.1 K8s 部署
+### 3.1 Kubernetes Deployment
 
 ```yaml
-# 边缘设备管理 DaemonSet
+# Edge Device Management DaemonSet
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -239,7 +181,7 @@ spec:
 ```
 
 ```yaml
-# 商品识别 AI 服务 GPU Deployment
+# Product Recognition AI Service GPU Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -281,9 +223,9 @@ spec:
 
 ---
 
-## 4. 核心数据流
+## 4. Core Data Flow
 
-### 4.1 智能补货调度
+### 4.1 Intelligent Replenishment Scheduling
 
 ```mermaid
 flowchart LR
@@ -298,64 +240,64 @@ flowchart LR
 
 ---
 
-## 5. 安全与合规
+## 5. Security and Compliance
 
-- **食品安全**: 冷链商品温控监控
-- **支付安全**: 免密支付限额保护
-- **隐私保护**: 人脸数据加密存储
-
----
-
-## 6. 可观测性
-
-- **识别准确率**: > 99%
-- **交易成功率**: > 99.5%
-- **设备在线率**: > 98%
+- **Food Safety**: Cold-chain Product Temperature Control Monitoring
+- **Payment Safety**: Limit Protection for Contactless Payments
+- **Privacy Protection**: Face Data Encryption Storage
 
 ---
 
-## 7. 阿里云组件映射
+## 6. Observability
 
-| 功能域 | **阿里云云原生方案** |
+- **Recognition Accuracy**: > 99%
+- **Transaction Success Rate**: > 99.5%
+- **Device Online Rate**: > 98%
+
+---
+
+## 7. Alibaba Cloud Component Mapping
+
+| Function Domain | **Alibaba Cloud Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Edge** |
-| IoT | **阿里云 IoT 平台** |
-| AI | **PAI / 视觉智能** |
-| 数据库 | **PolarDB + Lindorm** |
-| 对象存储 | **OSS** |
-| 支付 | **支付宝** |
-| 可观测性 | **ARMS + SLS** |
+| Container Platform | **ACK Edge** |
+| IoT | **Alibaba Cloud IoT Platform** |
+| AI | **PAI / Visual Intelligence** |
+| Database | **PolarDB + Lindorm** |
+| Object Storage | **OSS** |
+| Payment | **Alipay** |
+| Observability | **ARMS + SLS** |
 
 ---
 
-## 8. 生产检查清单
+## 8. Production Checklist
 
-- [ ] 商品识别准确率验证
-- [ ] 离线模式自治测试
-- [ ] 冷链温控数据完整性
-- [ ] 支付安全限额配置
-- [ ] 人脸隐私数据加密
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] Product recognition accuracy verification
+- [ ] Offline autonomous testing
+- [ ] Integrity of cold chain temperature control data
+- [ ] Payment security limit configuration
+- [ ] Privacy encryption of facial data
 
 ---
 
-## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architects Team | **License**: MIT
+
+---
+
+## Obsidian Related Documentation
 
 - topic-application-architecture KUDIG Database — Global MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

@@ -1,6 +1,7 @@
----title: 成本与延迟优化策略 (domain-14-ai-ml-infra)
-description: 'title: 成本与延迟优化策略'
-summary: 'title: 成本与延迟优化策略'
+---
+title: Cost and Delay Optimization Strategy (domain-14-ai-ml-infra)
+description: 'title: Cost and Delay Optimization Strategy'
+summary: 'title: Cost and Delay Optimization Strategy'
 category: general
 tags:
 - ai
@@ -19,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 成本与延迟优化策略 是什么
-- 如何 成本与延迟优化策略
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Cost and Delay Optimization Strategy
+- How is Cost and Delay Optimization Strategy
+- Kubernetes 14 AI ML Infra Best Practices
 trigger_keywords:
-- 成本与延迟优化策略
+- Cost and Delay Optimization Strategy
 - ai
 - ml
 - infra
@@ -43,17 +44,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/11-cost-latency-optimization.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute at your own risk: confirm that the target cluster and Namespace are correct; ensure you have sufficient RBAC permissions; verify these commands in a non-production environment first. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 成本与延迟优化策略
-description: '# 成本与延迟优化策略'
+title: Cost and Delay Optimization Strategy
+description: '# Cost and Delay Optimization Strategy'
 category: ai-agent
 tags:
 - ai
@@ -70,15 +73,15 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architect
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 成本与延迟优化策略 是什么
-- 如何 成本与延迟优化策略
+- What is Cost and Delay Optimization Strategy
+- How is Cost and Delay Optimization Strategy
 trigger_keywords:
-- 成本与延迟优化策略
+- Cost and Delay Optimization Strategy
 - ai
 - agent
 authors:
@@ -92,21 +95,21 @@ k8s_versions:
 - '1.32'
 ---
 
-# 成本与延迟优化策略
+# Cost and Delay Optimization Strategy
 
-> **文档类型**: 工程优化专题 | **最后更新**: 2026-03 | **关键词**: Token 优化, 语义缓存, 模型路由, 成本控制, 延迟优化, KV Cache, 批处理, LLM 成本, vLLM 优化
-
----
-
-<!-- chunk: 概述 -->## 概述
-
-LLM API 调用成本和响应延迟是 Agent 系统商业化落地的核心挑战。在实际生产环境中，无优化的 Agent 每次对话成本可高达 $0.5-2，而经过系统优化后可降低至 $0.02-0.1，即 **10-100x 的成本压缩空间**。本文覆盖从 Token 预算、语义缓存、模型路由到批处理策略的全套优化技术。
+> **Document Type**: Engineering Optimization Special Topic | **Last Updated**: 2026-03 | **Keywords**: Token Optimization, Semantic Caching, Model Routing, Cost Control, Delay Optimization, KV Cache, Batch Processing, LLM Cost, vLLM Optimization
 
 ---
 
-<!-- chunk: 1. 成本结构分析 -->## 1. 成本结构分析
+## Overview
 
-## 1.1 Agent 成本分解
+LLM API call costs and response delays are core challenges for commercializing the Agent system. In actual production environments, unoptimized Agents can cost up to $0.5-2 per conversation, while optimized systems can reduce this to $0.02-0.1, i.e., a **10-100x cost reduction space**. This article covers a suite of optimization techniques including token budgeting, semantic caching, model routing, and batch processing strategies.
+
+---
+
+## 1. Cost Structure Analysis
+
+## 1.1 Decomposition of Agent Costs
 
 ```
 典型 K8s 诊断 Agent 单次任务成本分解（无优化）:
@@ -130,7 +133,7 @@ LLM API 调用成本和响应延迟是 Agent 系统商业化落地的核心挑�
   总成本: ~$0.03 (-90%)
 ```
 
-## 1.2 成本监控仪表板
+## 1.2 Cost Monitoring Dashboard
 
 ```python
 from dataclasses import dataclass, field
@@ -139,9 +142,9 @@ import time
 
 @dataclass
 class LLMCostTracker:
-    """实时 LLM 成本追踪器"""
+    """Real-time LLM cost tracker"""
     
-    # 模型定价（每百万 Token，单位 USD）
+    # Model Pricing (per million Tokens, unit USD)
     MODEL_PRICING = {
         "gpt-4o": {"input": 2.5, "output": 10.0},
         "gpt-4o-mini": {"input": 0.15, "output": 0.6},
@@ -163,7 +166,7 @@ class LLMCostTracker:
         output_tokens: int,
         session_id: str,
     ):
-        """记录一次 LLM 调用的成本"""
+        """Record the cost of a single LLM call"""
         pricing = self.MODEL_PRICING.get(model, {"input": 0, "output": 0})
         
         cost = (
@@ -179,7 +182,7 @@ class LLMCostTracker:
         return cost
     
     def get_daily_report(self) -> dict:
-        """生成日成本报告"""
+        """Generate daily cost reports"""
         date_key = time.strftime("%Y-%m-%d")
         today_costs = {
             k.split(":", 1)[1]: v 
@@ -194,18 +197,18 @@ class LLMCostTracker:
             "projection_monthly_usd": sum(today_costs.values()) * 30,
         }
 
-# 全局成本追踪器（通过依赖注入）
+# Global Cost Tracker (through dependency injection)
 cost_tracker = LLMCostTracker()
 ```
 
 ---
 
-<!-- chunk: 2. Token 预算优化 -->## 2. Token 预算优化
+## 2. Token Budget Optimization
 
-## 2.1 系统提示压缩
+## 2.1 System Prompt Compression
 
 ```python
-# 对比：未优化 vs 优化后的系统提示
+# Comparison: Unoptimized vs Optimized System Prompts
 
 UNOPTIMIZED_SYSTEM_PROMPT = """
 你是一个非常专业的 Kubernetes 运维专家助手。你在 Kubernetes 领域有超过十年的丰富经验，
@@ -223,7 +226,7 @@ OPTIMIZED_SYSTEM_PROMPT = """
 [约 35 tokens - 节省 93%]
 """
 
-# 动态系统提示（根据任务类型按需注入知识）
+# Dynamic System Prompts (inject knowledge based on task type)
 def build_contextual_system_prompt(task_type: str) -> str:
     BASE = "你是 K8s 运维专家 Agent。基于工具数据给出准确诊断和修复步骤。"
     
@@ -237,12 +240,12 @@ def build_contextual_system_prompt(task_type: str) -> str:
     return BASE + TASK_ADDONS.get(task_type, "")
 ```
 
-## 2.2 工具描述精简
+## 2.2 Simplify Tool Descriptions
 
 ```python
-# 工具描述优化（减少每次调用携带的 Token 数）
+# Tool Description Optimization (reduce the number of tokens carried per call)
 
-# 未优化（~150 tokens/工具）
+# Unoptimized (~150 tokens/tool)
 VERBOSE_TOOL = {
     "function": {
         "description": """这个工具用于获取 Kubernetes Pod 的详细状态信息。
@@ -253,21 +256,21 @@ VERBOSE_TOOL = {
     }
 }
 
-# 优化后（~30 tokens/工具）
+# Optimized (~30 tokens/tool)
 CONCISE_TOOL = {
     "function": {
         "description": "kubectl describe pod: 获取 Pod 状态/事件/容器信息。诊断 Pending/CrashLoop/OOM 使用。",
     }
 }
 
-# 对 20 个工具每次调用节省: (150-30) × 20 = 2400 tokens ≈ $0.006
+# Savings from optimizing 20 tools per call: (150-30) × 20 = 2400 tokens ≈ $0.006
 ```
 
-## 2.3 对话历史压缩
+## 2.3 Compress Conversation History
 
 ```python
 class AdaptiveContextCompressor:
-    """自适应上下文压缩器"""
+    """Adaptive context compressor"""
     
     def __init__(self, llm, max_tokens: int = 4000):
         self.llm = llm
@@ -275,7 +278,7 @@ class AdaptiveContextCompressor:
         self.encoder = tiktoken.encoding_for_model("gpt-4o")
     
     def compress(self, messages: list[dict]) -> list[dict]:
-        """智能压缩对话历史"""
+        """Smart Compression of Conversation History"""
         total_tokens = sum(
             len(self.encoder.encode(str(m.get("content", ""))))
             for m in messages
@@ -287,14 +290,14 @@ class AdaptiveContextCompressor:
         system_msgs = [m for m in messages if m["role"] == "system"]
         conv_msgs = [m for m in messages if m["role"] != "system"]
         
-        # 保留最近 4 条消息（2 轮对话）
+        # Retain the last 4 messages (2 rounds of conversation)
         recent = conv_msgs[-4:]
         to_compress = conv_msgs[:-4]
         
         if not to_compress:
             return messages
         
-        # 压缩旧消息
+        # Compress old messages
         summary = self.llm.invoke(
             f"一句话总结以下对话的关键信息（最多 80 字）：\n{to_compress}"
         ).content
@@ -309,11 +312,11 @@ class AdaptiveContextCompressor:
 
 ---
 
-<!-- chunk: 3. 语义缓存（Semantic Cache） -->## 3. 语义缓存（Semantic Cache）
+## 3. Semantic Cache (Semantic Cache)
 
-语义缓存是成本优化中投入产出比最高的手段：对于相似（而非完全相同）的问题，直接返回缓存结果。
+Semantic cache is the highest-cost-effective approach in cost optimization: for similar (rather than completely identical) problems, directly return the cached results.
 
-## 3.1 基于向量相似度的缓存
+## 3.1 Vector Similarity-Based Cache
 
 ```python
 import hashlib
@@ -321,7 +324,7 @@ import numpy as np
 from typing import Optional
 
 class SemanticCache:
-    """基于向量相似度的语义缓存"""
+    """Vector Similarity-Based Semantic Cache"""
     
     def __init__(
         self,
@@ -338,11 +341,11 @@ class SemanticCache:
         self.redis = redis_client  # 存储缓存内容和 TTL
     
     def get(self, query: str) -> Optional[dict]:
-        """检索语义相似的缓存结果"""
+        """Retrieve semantically similar cached results"""
         
         query_embedding = self.embedding_model.embed_query(query)
         
-        # 向量相似度检索
+        # Vector similarity search
         results = self.vector_store.similarity_search_by_vector(
             query_embedding,
             k=1,
@@ -353,7 +356,7 @@ class SemanticCache:
         
         top_result = results[0]
         
-        # 计算余弦相似度
+        # Compute cosine similarity
         cached_embedding = top_result.metadata.get("embedding")
         if cached_embedding is None:
             return None
@@ -380,14 +383,14 @@ class SemanticCache:
         response: dict,
         query_embedding: list = None,
     ):
-        """存储查询和响应到缓存"""
+        """Store queries and responses to cache"""
         
         if query_embedding is None:
             query_embedding = self.embedding_model.embed_query(query)
         
         cache_key = hashlib.md5(query.encode()).hexdigest()
         
-        # 存储向量（用于相似度检索）
+        # Store vectors (for similarity search)
         self.vector_store.add_texts(
             texts=[query],
             metadatas=[{
@@ -397,7 +400,7 @@ class SemanticCache:
             }]
         )
         
-        # 存储响应内容（带 TTL）
+        # Store response content (with TTL)
         self.redis.setex(
             f"semantic_cache:{cache_key}",
             self.ttl,
@@ -410,14 +413,14 @@ class SemanticCache:
         b_arr = np.array(b)
         return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr)))
 
-# 集成到 Agent 服务
+# Integrate into Agent Service
 class CachedAgentService:
     def __init__(self, agent_executor, semantic_cache: SemanticCache):
         self.agent = agent_executor
         self.cache = semantic_cache
     
     def run(self, query: str, session_id: str = None) -> dict:
-        # 对非实时数据查询尝试缓存
+        # Attempt caching for non-real-time data queries
         if self._is_cacheable(query):
             cached = self.cache.get(query)
             if cached:
@@ -428,23 +431,23 @@ class CachedAgentService:
                     "cost_saved": True,
                 }
         
-        # Cache Miss：执行 Agent
+        # Cache Miss: Execute Agent
         result = self.agent.invoke({"input": query})
         
-        # 存入缓存（非实时操作）
+        # Cache entry (non-real-time operation)
         if self._is_cacheable(query):
             self.cache.set(query, result)
         
         return {**result, "cache_hit": False}
     
     def _is_cacheable(self, query: str) -> bool:
-        """判断查询是否可以缓存（实时操作不缓存）"""
-        # 实时数据查询不缓存
+        """Determine if a query can be cached (do not cache real-time queries)"""
+        # Do not cache real-time data queries
         realtime_keywords = ["当前", "现在", "最新", "实时", "live"]
         if any(kw in query for kw in realtime_keywords):
             return False
         
-        # 读取操作可缓存，修改操作不缓存
+        # Read operations are cacheable, write operations are not
         modification_keywords = ["修改", "更新", "删除", "扩容", "重启"]
         if any(kw in query for kw in modification_keywords):
             return False
@@ -454,9 +457,9 @@ class CachedAgentService:
 
 ---
 
-<!-- chunk: 4. 模型路由优化 -->## 4. 模型路由优化
+## 4. Model Routing Optimization
 
-## 4.1 智能路由策略
+## 4.1 Intelligent Routing Strategy
 
 ```python
 from dataclasses import dataclass
@@ -481,7 +484,7 @@ MODELS = {
 }
 
 class IntelligentModelRouter:
-    """智能模型路由器"""
+    """Intelligent Model Router"""
     
     def route(
         self,
@@ -492,36 +495,36 @@ class IntelligentModelRouter:
         latency_sensitive: bool,
         cost_sensitive: bool,
     ) -> str:
-        """根据任务特征选择最优模型"""
+        """Select the Optimal Model Based on Task Characteristics"""
         
-        # 超长上下文（>100K tokens）
+        # Long Contexts (>100K tokens)
         if context_length > 100_000:
             return "long-context"
         
-        # 延迟敏感 + 成本敏感
+        # Delay-sensitive + Cost-sensitive
         if latency_sensitive and cost_sensitive:
             return "fast-cheap"
         
-        # 中文场景 + 成本敏感
+        # Chinese Scenarios + Cost-sensitive
         if language == "zh" and cost_sensitive:
             return "chinese-budget"
         
-        # 复杂推理（多步骤分析）
+        # Complex Inference (Multi-step Analysis)
         complexity = self._assess_complexity(task, available_tools)
         if complexity == "high":
             return "best-reasoning"
         
-        # 中等复杂度
+        # Moderate Complexity
         if complexity == "medium":
             if cost_sensitive:
                 return "fast-cheap"
             return "balanced"
         
-        # 简单任务
+        # Simple Tasks
         return "fast-cheap"
     
     def _assess_complexity(self, task: str, tool_count: int) -> str:
-        """评估任务复杂度"""
+        """Evaluate Task Complexity"""
         high_complexity_keywords = ["分析", "规划", "设计", "评估", "compare", "compare"]
         medium_complexity_keywords = ["诊断", "排查", "检查", "diagnose", "investigate"]
         
@@ -531,11 +534,11 @@ class IntelligentModelRouter:
             return "medium"
         return "low"
 
-# 实际成本节省计算
+# Actual Cost Savings Calculation
 def calculate_routing_savings(daily_requests: int = 1000) -> dict:
-    """计算模型路由带来的成本节省"""
+    """Calculate Cost Savings from Model Routing"""
     
-    # 假设任务分布
+    # Assumed Task Distribution
     task_distribution = {
         "fast-cheap": 0.60,     # 60% 简单任务
         "balanced": 0.25,       # 25% 中等任务
@@ -545,10 +548,10 @@ def calculate_routing_savings(daily_requests: int = 1000) -> dict:
     
     avg_tokens_per_task = 5000  # 输入 + 输出 Token
     
-    # 全用 GPT-4o 的成本
+    # Cost Using Only GPT-4o
     all_gpt4o_cost = daily_requests * avg_tokens_per_task * 6.25 / 1_000_000
     
-    # 路由后的成本
+    # Post-routing Cost
     routed_cost = 0
     for model, ratio in task_distribution.items():
         model_profile = MODELS[model]
@@ -566,13 +569,13 @@ def calculate_routing_savings(daily_requests: int = 1000) -> dict:
 
 ---
 
-<!-- chunk: 5. KV Cache 与 Prompt Caching -->## 5. KV Cache 与 Prompt Caching
+## 5. Key-Value Cache and Prompt Caching
 
-## 5.1 OpenAI Prompt Caching（固定前缀复用）
+## 5.1 OpenAI Prompt Caching (Prefix Reuse Fixed)
 
 ```python
-# Prompt Caching 利用技巧：将系统提示和工具定义放在最前面（最稳定部分）
-# OpenAI 自动缓存超过 1024 token 的相同前缀，节省 50% 成本
+# Techniques for Utilizing Prompt Caching: Place System Prompts and Tool Definitions at the Front (Most Stable Part)
+# OpenAI Automatically Caches Prefixes Over 1024 Tokens, Saving 50% in Costs
 
 def build_cache_optimized_messages(
     system_prompt: str,      # 稳定部分（会被缓存）
@@ -586,14 +589,14 @@ def build_cache_optimized_messages(
     """
     return [
         {"role": "system", "content": system_prompt},
-        # 工具定义通过 tools 参数传递（也会被缓存）
-        *conversation_history,  # 历史消息
+        # tool definition passed through tools parameter (also cached)
+        *conversation_history,  # conversation history
         {"role": "user", "content": current_query},  # 最新消息
     ]
-    # 建议：系统提示 + 工具定义 >= 1024 tokens 才能触发缓存
-    # 缓存命中后：输入 Token 成本 -50%
+    # Note: system prompt + tool definition >= 1024 tokens to trigger caching
+    # Cache hit: input token cost reduced by 50%
 
-# Anthropic Claude 的显式 Prompt Caching
+# Explicit Prompt Caching for Anthropic Claude
 import anthropic
 
 client = anthropic.Anthropic()
@@ -620,45 +623,45 @@ response = client.messages.create(
     ]
 )
 
-# 查看缓存命中情况
+# Check cache hit status
 usage = response.usage
 print(f"缓存读取 tokens: {usage.cache_read_input_tokens}")  # 0.1x 价格
 print(f"缓存写入 tokens: {usage.cache_creation_input_tokens}")  # 1.25x 价格（首次）
 print(f"普通输入 tokens: {usage.input_tokens}")
 ```
 
-## 5.2 vLLM KV Cache 优化
+## 5.2 vLLM KV Cache Optimization
 
 ```python
-# vLLM 的 Prefix Caching（同一系统提示的多个请求复用 KV Cache）
-# 在 vLLM 部署参数中启用:
+# vLLM Prefix Caching (reusing KV Cache for multiple requests with same system prompt)
+# Enable this in vLLM deployment parameters:
 # --enable-prefix-caching
 
-# 利用此功能的关键：确保系统提示在所有请求中完全相同
+# Key to leverage this feature: ensure that the system prompt is identical across all requests
 
-# 测量缓存命中率
+# Measure cache hit rate
 import requests
 
 def get_vllm_cache_metrics(vllm_url: str) -> dict:
     response = requests.get(f"{vllm_url}/metrics")
     metrics_text = response.text
     
-    # 解析 vllm_cache_usage_perc 和 vllm_num_preemptions_total
+    # Parse vllm_cache_usage_perc and vllm_num_preemptions_total
     return parse_prometheus_metrics(metrics_text)
 ```
 
 ---
 
-<!-- chunk: 6. 批处理与并发优化 -->## 6. 批处理与并发优化
+## 6. Batch Processing and Concurrency Optimization
 
-## 6.1 异步批处理
+## 6.1 Asynchronous Batch Processing
 
 ```python
 import asyncio
 from collections import deque
 
 class BatchedLLMProcessor:
-    """批处理 LLM 请求，提升吞吐量"""
+    """Batch process LLM requests, boost throughput"""
     
     def __init__(
         self,
@@ -672,7 +675,7 @@ class BatchedLLMProcessor:
         self.queue = asyncio.Queue()
     
     async def process_batch(self, requests: list) -> list:
-        """并发处理一批请求"""
+        """Concurrent handle a batch of requests"""
         tasks = [
             asyncio.create_task(self.llm.ainvoke(req["messages"]))
             for req in requests
@@ -681,12 +684,12 @@ class BatchedLLMProcessor:
         return results
     
     async def batch_worker(self):
-        """后台批处理工作器"""
+        """Background batch processing worker"""
         while True:
             batch = []
             deadline = asyncio.get_event_loop().time() + self.max_wait
             
-            # 凑批
+            # Fake Batch
             while (len(batch) < self.batch_size and 
                    asyncio.get_event_loop().time() < deadline):
                 try:
@@ -703,13 +706,13 @@ class BatchedLLMProcessor:
                 for item, result in zip(batch, results):
                     item["future"].set_result(result)
 
-# 离线评估场景的批量处理
+# Batch processing in offline evaluation scenarios
 async def batch_evaluate_agent(
     test_cases: list[dict],
     agent_executor,
     concurrency: int = 5,
 ) -> list[dict]:
-    """并发执行批量评估任务"""
+    """Concurrently execute batch evaluation tasks"""
     semaphore = asyncio.Semaphore(concurrency)
     
     async def run_single(case: dict) -> dict:
@@ -736,22 +739,22 @@ async def batch_evaluate_agent(
 
 ---
 
-<!-- chunk: 7. 综合优化效果对比 -->## 7. 综合优化效果对比
+## 7. Comprehensive Optimization Effect Comparison
 
-## 7.1 各策略成本节省汇总
+## 7.1 Summary of Cost Savings for Each Strategy
 
-| 优化策略 | 适用场景 | 成本节省 | 实施复杂度 | 推荐优先级 |
+|  Optimization Strategy | Applicable Scenarios | Cost Savings | Implementation Complexity | Recommended Priority |
 |---------|---------|---------|-----------|----------|
-| **模型路由** | 所有场景 | 50-70% | 中 | P0 最高 |
-| **语义缓存** | 知识查询场景 | 30-60% | 中 | P0 最高 |
-| **系统提示压缩** | 所有场景 | 10-30% | 低 | P1 高 |
-| **Prompt Caching** | 固定前缀场景 | 10-50% | 低 | P1 高 |
-| **上下文压缩** | 长对话场景 | 20-40% | 中 | P1 高 |
-| **并行工具调用** | 多工具场景 | 0%（降延迟）| 低 | P1 高 |
-| **KV Cache (vLLM)** | 自部署 LLM | 20-50% | 低 | P2 中 |
-| **批处理** | 离线任务 | 10-20% | 高 | P3 低 |
+| **Model Routing** | All Scenarios | 50-70% | Medium | P0 Highest |
+| **Semantic Caching** | Knowledge Query Scenarios | 30-60% | Medium | P0 Highest |
+| **System Prompt Compression** | All Scenarios | 10-30% | Low | P1 High |
+| **Prompt Caching** | Fixed Prefix Scenarios | 10-50% | Low | P1 High |
+| **Context Compression** | Long Dialogue Scenarios | 20-40% | Medium | P1 High |
+| **Parallel Tool Invocation** | Multi-Tool Scenarios | 0% (Reduce Latency) | Low | P1 High |
+| **KV Cache (vLLM)** | Self-Deployed LLM | 20-50% | Low | P2 Medium |
+| **Batch Processing** | Offline Tasks | 10-20% | High | P3 Low |
 
-## 7.2 生产环境成本优化路线图
+## 7.2 Production Environment Cost Optimization Roadmap
 
 ```
 第一阶段（立即执行，低风险）:
@@ -773,12 +776,12 @@ async def batch_evaluate_agent(
 
 ---
 
-<!-- chunk: 8. 延迟优化 -->## 8. 延迟优化
+## 8. Delay Optimization
 
-## 8.1 关键路径延迟分析
+## 8.1 Analysis of Key Path Delays
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read/Information Collection, Usually No Side Effects
 Agent 任务端到端延迟分解（典型 5 步任务）:
 
   总延迟: ~8500ms
@@ -795,16 +798,16 @@ Agent 任务端到端延迟分解（典型 5 步任务）:
 
 优化后目标: ~3500ms (节省 59%)
 ```
-## 8.2 流式输出降低感知延迟
+## 8.2 Reduce User Perceived Delay Through Streaming Output
 
 ```python
-# 流式输出将 TTFT 从 8s（等待完整响应）降至 0.5s（第一个 Token）
-# 用户感知延迟降低 10-16x
+# Streaming Output Reduces TTFT from 8s (Waiting for Complete Response) to 0.5s (First Token)
+# User Perceived Delay Reduced by 10-16x
 
 async def stream_with_early_ux(query: str) -> AsyncGenerator:
-    """先发送 Agent 的思考过程，降低用户感知等待"""
+    """Send the Agent's Thought Process First to Lower User Perceived Wait"""
     
-    # 立即发送"正在处理"状态
+    # Immediately Send "Processing In Progress" Status
     yield {
         "type": "status",
         "content": "正在诊断中..."
@@ -812,7 +815,7 @@ async def stream_with_early_ux(query: str) -> AsyncGenerator:
     
     async for event in agent.astream_events({"input": query}, version="v2"):
         if event["event"] == "on_tool_start":
-            # 实时告知用户正在执行哪个工具
+            # Real-time notification to users about which tool is being executed
             yield {
                 "type": "tool_start",
                 "content": f"正在执行: {event['name']}"
@@ -827,11 +830,11 @@ async def stream_with_early_ux(query: str) -> AsyncGenerator:
                 }
 ```
 
-## 8.3 预取（Prefetch）策略
+## 8.3 Prefetching Strategy
 
 ```python
 class PrefetchAgent:
-    """预取相关上下文，降低 RAG 延迟"""
+    """Context for prefetching, reducing RAG latency"""
     
     def __init__(self, retriever, llm):
         self.retriever = retriever
@@ -839,12 +842,12 @@ class PrefetchAgent:
         self.prefetch_cache = {}
     
     async def predict_and_prefetch(self, partial_input: str):
-        """用户输入时就开始预取可能需要的知识"""
+        """Start prefetching knowledge when the user inputs a query"""
         
-        # 预测用户可能的完整问题
+        # Predict the complete question the user might ask
         predicted_queries = await self._predict_queries(partial_input)
         
-        # 并发预取所有预测查询
+        # Concurrently prefetch all predicted queries
         prefetch_tasks = [
             self.retriever.aget_relevant_documents(q)
             for q in predicted_queries
@@ -852,7 +855,7 @@ class PrefetchAgent:
         
         results = await asyncio.gather(*prefetch_tasks)
         
-        # 缓存预取结果
+        # Cache the fetched results
         for query, docs in zip(predicted_queries, results):
             self.prefetch_cache[query] = {
                 "docs": docs,
@@ -862,56 +865,56 @@ class PrefetchAgent:
 
 ---
 
-<!-- chunk: 9. 最佳实践与反模式 -->## 9. 最佳实践与反模式
+## 9. Best Practices and Anti-patterns
 
-## 最佳实践
+## Best Practices
 
-- **成本预算告警**：设置日成本和月成本上限告警，防止成本失控
-- **按用户计费追踪**：精确到每个 session/user 的 Token 消耗，支持成本分摊
-- **优先 Cache 而非优化提示**：提示优化影响质量，缓存几乎没有质量损失
-- **生产监控成本**：将成本数据接入 Grafana，让工程师直观看到成本变化
-- **定期审查热门查询**：发现可以预缓存或用规则替代的高频查询
+- **Cost Budget Alert**: Set cost thresholds for daily and monthly budgets to prevent overspending
+- **User-Based Billing Tracking**: Track token consumption per session/user for precise cost allocation
+- **Prioritize Caching Over Prompt Optimization**: Optimize prompts can degrade quality; caching has minimal impact on quality
+- **Monitor Production Costs**: Integrate cost data into Grafana to allow engineers to see cost changes intuitively
+- **Regularly Review Popular Queries**: Identify queries that can be pre-cached or replaced by rules
 
-## 反模式
+## Anti-patterns
 
-- **所有任务用最贵的模型**：GPT-4o 处理简单问候或格式转换是极大浪费
-- **不限制 Token 输出**：没有 max_tokens 限制，少数恶意请求可产生极高成本
-- **缓存实时数据**：将"当前 Pod 状态"缓存，返回过时数据导致诊断错误
-- **忽略缓存命中率**：语义缓存部署后不监控命中率，不知道是否在发挥作用
+- **Use the Most Expensive Model for All Tasks**: Using GPT-4o for simple greetings or format conversions is wasteful
+- **No Max Tokens Limitation**: Without a max_tokens limit, some malicious requests can incur extremely high costs
+- **Cache Real-Time Data**: Caching "current Pod status" and returning outdated data can lead to diagnostic errors
+- **Ignore Cache Hit Rate Monitoring**: After semantic caching is deployed, not monitoring hit rates means not knowing if it's working
 
 ---
 
-<!-- chunk: 关联文档 -->## 关联文档
+## Related Documentation
 
-| 文档 | 关联内容 |
+| Documentation | Related Content |
 |------|---------|
-| [02 - LLM 模型选型](./02-llm-foundation-models.md) | 模型路由的定价基准 |
-| [07 - 记忆管理](./07-memory-context-management.md) | 上下文压缩对成本的影响 |
-| [08 - 评测与可观测性](./observability.md|08-agent-evaluation-observability]].md) | 成本 Prometheus 指标 |
-| [09 - 生产部署](./09-production-deployment-guide.md) | vLLM 部署与 KV Cache |
-| [domain-14-ai-ml-infra/26-cost-optimization-overview.md](../domain-14-ai-ml-infra/26-cost-optimization-overview.md) | AI 基础设施成本优化 |
-| [domain-14-ai-ml-infra/23-llm-cost-monitoring.md](../domain-14-ai-ml-infra/23-llm-cost-monitoring.md) | LLM 成本监控体系 |
+| [02 - LLM Model Selection](./02-llm-foundation-models.md) | Pricing Benchmark for Model Routing |
+| [07 - Memory Management](./07-memory-context-management.md) | Impact of Context Compression on Costs |
+| [08 - Evaluation and Observability](./observability.md|08-agent-evaluation-observability]].md) | Cost Prometheus metrics |
+| [09 - Production Deployment](./09-production-deployment-guide.md) | vLLM Deployment and KV Cache |
+| [domain-14-ai-ml-infra/26-cost-optimization-overview.md](../domain-14-ai-ml-infra/26-cost-optimization-overview.md) | Overview of Cost Optimization for AI Infrastructure |
+| [domain-14-ai-ml-infra/23-llm-cost-monitoring.md](../domain-14-ai-ml-infra/23-llm-cost-monitoring.md) | LLM Cost Monitoring Framework |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题原创内容。*
+*This document is original content from the kudig-database project's 02-ai-agents topic.*
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documents
 
 - 02-ai-agents KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|Foundation and Core Architecture of AI Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|Selection and Evaluation of LLM Foundation Models]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|Deep Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|Deep Guide to Retrieval-Augmented Generation (RAG)]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Design Guidelines for Tool Use and Function Calling]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Architecture for Multi-Agent Orchestration and Collaboration]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Evaluation Framework and Observability for Agents]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

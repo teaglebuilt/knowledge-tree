@@ -1,6 +1,7 @@
----title: 氢能源架构设计 — 阿里云视角
-description: 'title: 氢能源架构设计'
-summary: 'title: 氢能源架构设计'
+---
+title: Hydrogen Energy Architecture Design — Alibaba Cloud Perspective
+description: 'title: Hydrogen Energy Architecture Design'
+summary: 'title: Hydrogen Energy Architecture Design'
 category: general
 tags:
 - architecture
@@ -19,15 +20,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 氢能源架构设计 — 阿里云视角 是什么
-- 如何 氢能源架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- Hydrogen Energy Architecture Design — Alibaba Cloud Perspective is what
+- What is Hydrogen Energy Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 氢能源架构设计
-- 阿里云视角
+- Hydrogen Energy Architecture
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -40,139 +41,76 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/application/architecture/hydrogen-energy.md
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+# Hydrogen Energy Architecture Design — From Alibaba Cloud Perspective
 
+## Table of Contents
 
-
-
-title: 氢能源架构设计
-description: '# 氢能源架构设计 — 阿里云视角'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- scheduler
-- [[Prometheus|prometheus]]
-- grafana
-- mysql
-- [[DaemonSet|daemonset]]
-- operator
-- webhook
-last_updated: 2026-05-18
-difficulty: advanced
-reading_level: advanced
-audience:
-- 氢能源系统架构师
-- 工业自动化工程师
-- IoT平台专家
-estimated_read_time: 5min
-intent_queries:
-- 氢能源工业 IoT 云边协同架构
-- 加氢站安全监控联锁系统
-- 电解槽数字孪生效率优化
-- 氢气泄漏传感器监测
-- 阿里云 Lindorm 时序数据库
-trigger_keywords:
-- 氢能源
-- 制氢储氢
-- 燃料电池
-- 加氢站
-- 电解槽
-- 氢气泄漏
-- 安全联锁
-- 数字孪生
-- 边缘计算
-- 预测性维护
-related_domains:
-- domain-03-networking-traffic
-- domain-10-troubleshooting-diagnostics
-related_topics:
-- topic-iot-platform-architecture
-- topic-industrial-iot-architecture
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# 氢能源架构设计 — 阿里云视角
-
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#氢能源` `#制氢` `#储氢` `#燃料电池` `#阿里云`
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architecture-patterns)
+4. [Example Implementation](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-patterns](#7-anti-patterns)
+8. [Reference Resources](#8-references)
 
 ---
 
-<!-- chunk: 目录 -->## 目录
+## 1. Overview
 
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+Hydrogen energy is seen as the most promising clean energy carrier for the 21st century. Driven by the global goal of carbon neutrality, the hydrogen industry chain is moving from laboratories to large-scale commercialization. Hydrogen energy covers the "production storage utilization" four links: production (electrolysis water to green hydrogen, fossil fuels to gray hydrogen/blue hydrogen), storage transportation (high-pressure gas, low-temperature liquid, organic liquid, solid-state hydrogen storage), refueling (construction and operation of hydrogen refueling stations), and application (fuel cell vehicles, distributed power generation, industrial raw material substitution).
 
----
+From an information technology perspective, the hydrogen energy system is a typical Industrial Internet of Things (IIoT) scenario, featuring the following characteristics: dispersed and numerous devices (electrolysers, storage tanks, compressors, refueling machines, fuel cells, etc.); extremely high safety requirements (hydrogen is flammable and explosive, with a lower explosive limit of only 4%); high real-time requirements (leakage detection needs to respond within seconds); rich data dimensions (multi-dimensional time series data including temperature, pressure, flow rate, concentration, voltage, current, etc.).
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+Cloud-native architecture provides a unified digital foundation for the hydrogen energy system. Through edge computing to achieve real-time control and safety interlocks at the site, through cloud platforms to achieve global monitoring, optimization scheduling, and data analysis, and through AI models to achieve optimized efficiency of green hydrogen production, predictive safety of hydrogen storage, and intelligent scheduling of hydrogen refueling stations, among other advanced functions.
 
-氢能源被视为 21 世纪最具发展潜力的清洁能源载体。在全球碳中和目标的驱动下，氢能产业链正从实验室走向规模化商用。氢能源覆盖"制储运用"四大环节：制氢（电解水制绿氢、化石燃料制灰氢/蓝氢）、储运（高压气态、低温液态、有机液态、固态储氢）、加注（加氢站网络建设与运营）、应用（燃料电池汽车、分布式发电、工业原料替代）。
+## 1.1 Industry Background
 
-从信息技术角度看，氢能源系统是一个典型的工业物联网（IIoT）场景，具有以下特点：设备分散且数量多（电解槽、储罐、压缩机、加氢机、燃料电池等）；安全要求极高（氢气易燃易爆，泄漏浓度下限仅 4%）；实时性要求高（泄漏检测需要在秒级响应）；数据维度丰富（温度、压力、流量、浓度、电压、电流等多维时序数据）。
-
-云原生架构为氢能源系统提供了统一的数字化底座。通过边缘计算实现现场设备的实时控制和安全联锁，通过云端平台实现全局监控、优化调度和数据分析，通过 AI 模型实现制氢效率优化、储氢安全预测、加氢站智能调度等高级功能。
-
-## 1.1 行业背景
-
-| 挑战 | 说明 | 架构影响 |
+| Challenge | Explanation | Impact on Architecture |
 |:---|:---|:---|
-| 安全风险 | 氢气易燃易爆（4%-75%可燃范围） | 泄漏监测 + 安全联锁 + 多重冗余 |
-| 效率优化 | 电解水制氢能耗 4-5 kWh/Nm³ | AI 优化控制 + 实时调节 |
-| 储运困难 | 氢气密度极低（0.0899 g/L） | 多方式储运 + 智能调度 |
-| 基础设施 | 加氢站建设成本 1500-2000 万元/站 | 无人值守 + 远程运维 |
-| 产业链协同 | 制储运用全链条协同 | 数据共享平台 + 标准接口 |
+| Safety Risks | Flammable and explosive (4%-75% flammable range) | Leak detection + Safety interlocks + Multiple redundancies |
+| Efficiency Optimization | Electrolysis water hydrogen production energy consumption 4-5 kWh/Nm³ | AI optimized control + Real-time regulation |
+| Storage Transportation Difficulties | Extremely low hydrogen density (0.0899 g/L) | Multi-mode storage + Intelligent scheduling |
+| Infrastructure | Construction cost of hydrogen refueling stations 15-20 million yuan/station | Unattended + Remote maintenance |
+| Industry Chain Collaboration | Full-chain collaboration of production storage utilization | Data sharing platform + Standard interfaces |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **绿氢制备**: 利用光伏/风电等可再生能源电解水制取绿氢，P2G（Power to Gas）模式
-- **氢储运**: 高压气态（35/70MPa）、低温液态（-253°C）、有机液态（LOHC）、固态储氢
-- **加氢站运营**: 智能加氢、安全监控、无人值守、远程运维
-- **燃料电池管理**: 电堆状态监控、寿命预测、性能优化
-- **氢能车辆**: 重卡、公交、叉车、船舶等氢能化运营管理
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 安全第一原则
-
-氢能源系统的安全是生命线。架构设计必须贯彻"安全第一"原则，从传感器层到应用层建立多层次安全防护体系。关键安全措施包括：氢气泄漏传感器冗余部署（每个危险区域至少 2 个独立传感器）；安全联锁系统独立于主控制系统（采用 SIL2/SIL3 等级的安全 PLC）；紧急停车系统（ESD）硬接线优先于软件控制。
-
-## 2.2 云边协同原则
-
-氢能源系统的设备（电解槽、加氢机等）分布在广泛的地理位置，需要云边协同架构。边缘侧负责实时控制和安全联锁（毫秒级响应），云端负责全局优化和数据分析（分钟级/小时级调度）。边缘节点需要支持离线自治，在云边通信中断时仍能维持设备安全运行。
-
-## 2.3 数据驱动原则
-
-氢能源系统的优化需要依赖大量运行数据。通过收集电解槽电压-电流曲线、储罐压力-温度变化、加氢站流量-压力波动等时序数据，建立数字孪生模型，实现设备性能退化预测、维护计划优化、调度策略改进。AI 模型在云端训练，推理模型下发到边缘执行。
-
-## 2.4 标准开放原则
-
-氢能源产业链涉及设备制造商、系统集成商、运营服务商、终端用户等多个角色。架构设计需要基于开放标准（如 OPC UA、MQTT、Modbus），建立统一的设备接入协议和数据模型。通过 API 网关对外提供标准化服务接口，支撑产业链上下游的数据互通和业务协同。
+- **Green Hydrogen Production**: Utilizing renewable energy such as photovoltaics/wind power to electrolyze water to produce green hydrogen, P2G (Power to Gas) mode
+- **Hydrogen Storage and Transportation**: High-pressure gas (35/70MPa), low-temperature liquid (-253°C), organic liquid (LOHC), solid-state hydrogen storage
+- **Hydrogen Refueling Station Operations**: Intelligent refueling, safety monitoring, unattended operations, remote maintenance
+- **Fuel Cell Management**: Monitoring of stack status, life prediction, performance optimization
+- **Hydrogen Vehicles**: Operation management of heavy trucks, buses, forklifts, ships, etc.
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 氢能源全景架构
+## 2.1 Safety First Principle
+
+Hydrogen energy system's safety is a lifeline. The architecture design must adhere to the "safety first" principle, establishing a multi-layered security protection system from the sensor layer to the application layer. Key safety measures include redundant deployment of hydrogen gas leakage sensors (at least 2 independent sensors in each hazardous area); an independent safety interlock system that operates at a higher level than the main control system (using safety PLCs at SIL2/SIL3 levels); and an emergency shutdown system (ESD) with hard-wired priority over software control.
+
+## 2.2 Cloud-to-Edge Coordinating Principle
+
+Hydrogen energy systems' equipment (such as electrolysis cells and hydrogen refueling stations) are distributed across various geographical locations, necessitating a cloud-to-edge architecture. Edge nodes handle real-time control and safety interlocks (with millisecond response times), while the cloud handles global optimization and data analysis (with minute/hourly scheduling). Edge nodes need to support offline autonomy, ensuring device safety operation even when cloud-to-edge communication is interrupted.
+
+## 2.3 Data-Driven Principle
+
+The optimization of hydrogen energy systems requires extensive operational data. By collecting time-series data such as electrolysis cell voltage-current curves, changes in storage tank pressure-temperature, and fluctuations in hydrogen station flow-pressure, digital twins can be established to predict equipment performance degradation, optimize maintenance plans, and improve dispatch strategies. AI models are trained in the cloud, while inference models are deployed to edge execution.
+
+## 2.4 Standard Open Principle
+
+The hydrogen energy supply chain involves multiple roles including equipment manufacturers, system integrators, service providers, and end users. The architecture design should be based on open standards (such as OPC UA, MQTT, Modbus), establishing unified device access protocols and data models. APIs are provided through an API gateway to support data interoperability and business collaboration across the supply chain.
+
+---
+
+## 3. Architecture Patterns
+
+## 3.1 Panoramic Hydrogen Energy Architecture
 
 ```mermaid
 graph TB
@@ -220,7 +158,7 @@ graph TB
     P1 --> P2 --> P3 --> P4
 ```
 
-## 3.2 加氢站云边协同架构
+## 3.2 Cloud-to-Edge Coordinating Hydrogen Station Architecture
 
 ```mermaid
 graph TB
@@ -255,7 +193,7 @@ graph TB
     C5 --> N2
 ```
 
-## 3.3 电解槽智能控制架构
+## 3.3 Intelligent Control Architecture for Electrolysis Cells
 
 ```mermaid
 flowchart LR
@@ -272,9 +210,9 @@ flowchart LR
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 氢气泄漏检测与安全联锁
+## 4.1 Hydrogen Leakage Detection and Safety Interlock
 
 ```python
 import time
@@ -355,7 +293,7 @@ class HydrogenSafetyController:
         pass
 ```
 
-## 4.2 电解槽数字孪生效率优化
+## 4.2 Digital Twin Efficiency Optimization for Electrolysis Cells
 
 ```python
 import numpy as np
@@ -438,7 +376,7 @@ class ElectrolyzerDigitalTwin:
                      'electrolyte_conc': 30} for _ in range(stacks)]
 ```
 
-## 4.3 加氢站智能调度
+## 4.3 Intelligent Dispatching for Hydrogen Stations
 
 ```go
 package scheduler
@@ -521,9 +459,9 @@ type Assignment struct {
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+## 5. Deployment on Kubernetes
 
-## 5.1 电解槽控制边缘 DaemonSet
+## 5.1 Electrolysis Cell Control Edge DaemonSet
 
 ```yaml
 apiVersion: apps/v1
@@ -596,7 +534,7 @@ spec:
             name: h2-controller-config
 ```
 
-## 5.2 安全监控告警服务
+## 5.2 Security Monitoring Alarm Service
 
 ```yaml
 apiVersion: apps/v1
@@ -652,7 +590,7 @@ spec:
             periodSeconds: 5
 ```
 
-## 5.3 AI 优化引擎部署
+## 5.3 AI Optimization Engine Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -696,119 +634,119 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-## 6.1 安全体系建设
+## 6.1 Security System Construction
 
-- **冗余传感器部署**: 每个危险区域至少部署 2 个独立氢气泄漏传感器，采用投票机制避免误报
-- **安全联锁独立**: 安全联锁系统（SIS）独立于基本过程控制系统（BPCS），采用 SIL2 以上等级
-- **紧急停车（ESD）**: 设置多级紧急停车策略——单设备停车、区域停车、全站停车
-- **防爆设计**: 加氢区域所有电气设备采用防爆型（Ex d IIC T4），电缆采用本安型或隔爆型
-- **定期安全演练**: 每季度进行泄漏应急演练，每半年进行全站综合应急演练
+- **Redundant Sensor Deployment**: At least deploy 2 independent hydrogen leak sensors in each hazardous area using a voting mechanism to avoid false alarms
+- **Independent Safety Interlock**: The safety interlock system (SIS) is independent of the basic process control system (BPCS), using a SIL2 or higher level
+- **Emergency Shutdown (ESD)**: Set up multi-level emergency shutdown strategies — single device shutdown, regional shutdown, full station shutdown
+- **Explosion-proof Design**: All electrical equipment in the hydrogen filling area uses explosion-proof type (Ex d IIC T4), and cables use intrinsically safe or explosion-proof types
+- **Regular Safety Drills**: Conduct quarterly leak emergency drills and semi-annual comprehensive station-wide emergency drills
 
-## 6.2 运维管理优化
+## 6.2 Maintenance Management Optimization
 
-- **预测性维护**: 基于设备运行数据（压缩机振动、电解槽电压、储罐压力等）建立预测模型，提前发现设备劣化趋势
-- **远程运维**: 通过安全VPN隧道实现远程诊断和参数调整，减少现场运维人员需求
-- **标准化作业流程**: 将加氢站日常操作流程数字化，通过移动端指导操作人员执行标准化作业
+- **Predictive Maintenance**: Establish predictive models based on equipment operation data (compressor vibration, electrolysis cell voltage, storage tank pressure, etc.) to detect early signs of equipment deterioration
+- **Remote Maintenance**: Use a secure VPN tunnel for remote diagnosis and parameter adjustments, reducing the need for on-site maintenance personnel
+- **Standardized Work Procedures**: Digitize the daily operating procedures at the hydrogen filling station and guide operators through standardized work procedures via mobile devices
 
-## 6.3 数据管理
+## 6.3 Data Management
 
-- **时序数据高效存储**: 使用 Lindorm 时序引擎存储高频传感器数据，支持千万级时间线
-- **数据分级存储**: 实时数据（1s 精度保留 7 天）、历史数据（1min 精度保留 1 年）、统计数据（1h 精度永久保留）
-- **数据质量监控**: 建立传感器数据质量评估机制，自动标记异常数据（跳变、漂移、缺失）
-
----
-
-<!-- chunk: 7. 反模式 -->## 7. 反模式
-
-## 7.1 安全联锁依赖软件
-
-将安全联锁功能完全依赖软件实现，一旦软件问题可能导致安全功能失效。
-
-**解决方案**: 关键安全联锁采用硬接线（hardwired）方式实现，包括紧急停车按钮、氢气泄漏联锁切断阀等。软件安全层作为补充，而非替代。
-
-## 7.2 边缘节点无离线能力
-
-边缘计算节点完全依赖云端连接，通信中断时设备失控。
-
-**解决方案**: 边缘节点必须具备离线自治能力，在通信中断时按照预设的安全策略运行，并在通信恢复后自动同步数据。
-
-## 7.3 忽视氢脆效应监测
-
-氢气在高压条件下会渗入金属材料导致"氢脆"，使材料强度下降甚至开裂。忽视氢脆监测可能导致设备失效。
-
-**解决方案**: 对高压储氢容器定期进行无损检测，在数字孪生模型中加入氢脆劣化预测模块，根据运行历史预测剩余安全寿命。
-
-## 7.4 单一数据来源决策
-
-仅依赖单一传感器数据做出关键决策，一旦传感器问题可能导致误判。
-
-**解决方案**: 关键决策采用多传感器数据融合，通过交叉验证提高可靠性。设置传感器健康监测，自动标记异常传感器并降级使用。
-
-## 7.5 忽视全链条碳排放
-
-只关注制氢环节的碳排放，忽视储运和加注环节的能耗和碳排放。
-
-**解决方案**: 建立全生命周期碳排放追踪体系，从"摇篮到坟墓"计算每公斤氢气的碳足迹，并与碳交易市场对接。
+- **Efficient Storage of Time Series Data**: Store high-frequency sensor data using the Lindorm time series engine, supporting millions of timelines
+- **Hierarchical Storage of Data**: Real-time data (retaining 7 days at 1s precision), historical data (retaining 1 year at 1min precision), statistical data (permanently retaining at 1h precision)
+- **Data Quality Monitoring**: Establish a mechanism for evaluating sensor data quality, automatically marking abnormal data (jumps, drifts, missing values)
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 7. Anti-patterns
 
-## 8.1 阿里云组件映射
+## 7.1 Software Dependency for Safety Interlocks
 
-| 功能域 | **阿里云云原生方案** |
+Depend completely on software implementation for safety interlock functions, which can lead to failure if there are software issues.
+
+**Solution**: Implement critical safety interlocks using hardwired (hardwired) methods, including emergency shutdown buttons and hydrogen leak interlock shut-off valves. The software security layer serves as an enhancement rather than a replacement.
+
+## 7.2 Edge Node No Offline Capability
+
+Edge computing nodes completely rely on cloud connectivity, and when communication is interrupted, the device becomes uncontrollable.
+
+**Solution**: The edge node must have offline autonomous capability, running according to preset security policies when communication is interrupted, and automatically synchronizing data upon recovery.
+
+## 7.3 Ignoring Hydrogen Embrittlement Monitoring
+
+Hydrogen under high pressure can infiltrate metal materials causing "hydrogen embrittlement," reducing material strength and even cracking. Ignoring hydrogen embrittlement monitoring may lead to equipment failure.
+
+**Solution**: Regularly perform non-destructive testing on high-pressure hydrogen storage containers, and add a hydrogen embrittlement degradation prediction module in the digital twin model based on operational history to predict remaining safe life.
+
+## 7.4 Single Data Source Decision Making
+
+Make critical decisions solely based on data from a single sensor, which could result in misjudgment if the sensor fails.
+
+**Solution**: Use multi-sensor data fusion for critical decision-making, enhancing reliability through cross-validation. Set up sensor health monitoring to automatically mark abnormal sensors and downgrade their usage.
+
+## 7.5 Ignoring Full Supply Chain Carbon Emissions
+
+Concentrate only on carbon emissions from the hydrogen production phase, ignoring the energy consumption and carbon emissions from storage, transportation, and refueling.
+
+**Solution**: Establish a lifecycle carbon emission tracking system, calculating the carbon footprint of each kilogram of hydrogen from cradle to grave, and connect it to the carbon trading market.
+
+---
+
+## 8. References
+
+## 8.1 AliCloud Component Mapping
+
+| Function Domain | **AliCloud Native Solutions** |
 |:---|:---|
-| 容器平台 | **ACK Edge + ACK Pro** |
-| IoT 平台 | **阿里云 IoT 企业实例** |
-| AI 平台 | **PAI + 数据科学笔记本** |
-| 时序数据库 | **Lindorm TSDB** |
-| 关系数据库 | **PolarDB MySQL** |
-| 消息队列 | **RocketMQ** |
-| 可观测性 | **ARMS + SLS + Grafana** |
-| 视频监控 | **阿里云视频监控** |
+| Container Platform | **ACK Edge + ACK Pro** |
+| IoT Platform | **AliCloud IoT Enterprise Instance** |
+| AI Platform | **PAI + Data Science Notebook** |
+| Time Series Database | **Lindorm TSDB** |
+| Relational Database | **PolarDB MySQL** |
+| Message Queue | **RocketMQ** |
+| Observability | **ARMS + SLS + Grafana** |
+| Video Monitoring | **Aliyun Video Monitoring** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] 氢气泄漏检测灵敏度校准（< 1000ppm 检出）
-- [ ] 安全联锁系统 SIL 等级验证
-- [ ] 加氢枪对接安全联锁测试
-- [ ] 储氢容器定期检验记录
-- [ ] 防爆区域电气设备合规检查
-- [ ] 紧急停车系统功能测试
-- [ ] 边缘节点离线自治能力验证
-- [ ] 全链条碳排放数据上链存证
-- [ ] 消防系统联动测试
+- [ ] Hydrogen leak detection calibration (< 1000ppm detection)
+- [ ] Validation of Safety Interlock System SIL grade
+- [ ] Safety interlock test for hydrogen refueling gun
+- [ ] Regular inspection records for storage cylinders
+- [ ] Compliance check for explosion-proof electrical equipment in hazardous areas
+- [ ] Emergency shutdown system function test
+- [ ] Verification of edge node offline autonomous capability
+- [ ] Chain-of-custody recording of carbon emissions data
+- [ ] Fire system interlock test
 
-## 8.3 外部参考
+## 8.3 External References
 
-- ISO 19880-1:2020 — 氢燃料车辆加氢站标准
-- IEC 62282-3-100 — 燃料电池安全标准
-- GB/T 34542 — 氢气储存和运输安全标准
-- CGA H-3 — 氢气管道系统标准
-- SAE J2601 — 氢燃料车辆加注协议
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- ISO 19880-1:2020 — Hydrogen Fuel Vehicle Hydrogen Refueling Station Standard
+- IEC 62282-3-100 — Fuel Cell Safety Standard
+- GB/T 34542 — Hydrogen Storage and Transportation Safety Standard
+- CGA H-3 — Hydrogen Pipeline System Standard
+- SAE J2601 — Hydrogen Fuel Vehicle Refueling Protocol
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architects Team | **License**: MIT
+
+---
+
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

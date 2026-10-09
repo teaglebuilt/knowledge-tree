@@ -1,7 +1,5 @@
 ---
-original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/07-memory-context-management.md
----
 title: Memory Management and Context Window Engineering (domain-14-ai-ml-infra)
 description: 'title: Memory Management and Context Window Engineering'
 summary: 'title: Memory Management and Context Window Engineering'
@@ -37,51 +35,6 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
----
-
-> **Production Environment Security Tips**
->
-> This document contains executable operational commands. Execute only after confirming: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High risk (may cause data loss or service disruption), 🟡 Medium risk (modifies cluster state but usually rollbackable), 🟢 Low risk/readonly (information gathering, no side effects).
-
-
-
-
-title: Memory Management and Contextual Window Engineering
-description: '# Memory Management and Contextual Window Engineering'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- redis
-- postgresql
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI Engineers
-- Architects
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- What is memory management and contextual window engineering
-- How to do memory management and contextual window engineering
-trigger_keywords:
-- Memory Management and Contextual Window Engineering
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # Memory Management and Contextual Window Engineering

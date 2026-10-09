@@ -1,7 +1,6 @@
 ---
 original_language: Chinese
 source_path: tree/infrastructure/kubernetes/ai/ai-agents/06-multi-agent-orchestration.md
----
 title: Multi-Agent Orchestration and Collaboration Architecture (domain-14-ai-ml-infra)
 description: 'title: Multi-Agent Orchestration and Collaboration Architecture'
 summary: 'title: Multi-Agent Orchestration and Collaboration Architecture'
@@ -44,55 +43,6 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-
----
-
-> **Production Environment Security Tips**
->
-> This document contains executable operational commands. Execute at your own risk: confirm that the target cluster and Namespace are correct; ensure you have sufficient RBAC permissions; verify these commands in a non-production environment first. Risk level annotations: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
-
-
-
-
-title: Multi-Agent Orchestration and Collaboration Architecture
-description: '# Multi-Agent Orchestration and Collaboration Architecture'
-category: ai-agent
-tags:
-- ai
-- agent
-- llm
-- rag
-- multi-agent
-- scheduler
-- [[Prometheus|prometheus]]
-- grafana
-- redis
-- postgresql
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- AI Engineers
-- Architects
-- SRE
-estimated_read_time: 5min
-intent_queries:
-- What is Multi-Agent Orchestration and Collaboration Architecture
-- How to use Multi-Agent Orchestration and Collaboration Architecture
-trigger_keywords:
-- Agent
-- Orchestration and Collaboration Architecture
-- ai
-- agent
-authors:
-- name: Dillan Teagle
-  role: contributor
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # Multi-Agent Orchestration and Collaboration Architecture

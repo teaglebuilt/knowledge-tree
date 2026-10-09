@@ -128,9 +128,37 @@ Rules (must follow):
 _NUM_HEADING_RE = re.compile(r"^\s*(\d+)([.\s]|$)")
 _CHUNK_COMMENT_RE = re.compile(r"<!--\s*chunk:\s*.*?-->", re.IGNORECASE | re.DOTALL)
 _HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
+# Ideographs + kana/hangul/cyrillic/… plus the Fullwidth / CJK-punctuation
+# blocks. Qwen routinely leaves `：` / `（` in otherwise-English lines; those
+# must fail `_line_problem` (and get folded to ASCII by `_clean_translated`).
 _NON_LATIN_RE = re.compile(
     r"[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F"
-    r"\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]"
+    r"\u3000-\u303F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF"
+    r"\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]"
+)
+# Ideographs only — used to decide whether a line is still Chinese prose
+# (keep its punctuation) vs English (fold fullwidth punct to ASCII).
+_CJK_IDEOGRAPH_RE = re.compile(r"[\u3400-\u9FFF\uF900-\uFAFF]")
+_CJK_PUNCT_TO_ASCII = str.maketrans(
+    {
+        "\u3000": " ",  # ideographic space
+        "\u3001": ",",  # 、
+        "\u3002": ".",  # 。
+        "\u3008": "<",  # 〈
+        "\u3009": ">",  # 〉
+        "\u300a": '"',  # 《
+        "\u300b": '"',  # 》
+        "\u300c": '"',  # 「
+        "\u300d": '"',  # 」
+        "\u300e": '"',  # 『
+        "\u300f": '"',  # 』
+        "\u3010": "[",  # 【
+        "\u3011": "]",  # 】
+        "\u3014": "(",  # 〔
+        "\u3015": ")",  # 〕
+        "\u30fb": "·",  # ・
+        "\uff5e": "~",  # ～ (fullwidth tilde; outside FF01-FF5E map)
+    }
 )
 
 # TOC corpora often number sections with Arabic, Roman, or Chinese numerals.
@@ -379,11 +407,48 @@ def repair_internal_anchors(text: str) -> str:
     return f"---\n{fm}\n---\n{body}"
 
 
+def fold_fullwidth_punctuation(text: str) -> str:
+    """
+    Map fullwidth / CJK punctuation to ASCII.
+
+    Small CJK-trained models keep `：` `（` `）` etc. after translating the
+    words around them. mdlang flags those as blocking Fullwidth/CJK-Punctuation
+    findings, so the verify gate rejects an otherwise-good file.
+    """
+    chars: list[str] = []
+    for i, ch in enumerate(text):
+        cp = ord(ch)
+        # Fullwidth ASCII graphic variants (！＂＃ … ／：； … ～).
+        if 0xFF01 <= cp <= 0xFF5E:
+            ascii_ch = chr(cp - 0xFEE0)
+            chars.append(ascii_ch)
+            # CJK `：word` has no space; English wants `: word`. Skip URLs (`://`).
+            if (
+                ascii_ch in ":,;"
+                and i + 1 < len(text)
+                and text[i + 1] not in " \t\n/"
+                and (text[i + 1].isalnum() or ord(text[i + 1]) > 127)
+            ):
+                chars.append(" ")
+        else:
+            chars.append(ch)
+    return "".join(chars).translate(_CJK_PUNCT_TO_ASCII)
+
+
 def postprocess_translation(text: str, lang: str, source_path: str) -> str:
-    """Strip markers, repair TOC anchors, stamp provenance."""
+    """Strip markers, repair TOC anchors, stamp provenance, fold leftover FW punct."""
     text = strip_chunk_comments(text)
     text = ensure_provenance(text, lang, source_path)
-    return repair_internal_anchors(text)
+    text = repair_internal_anchors(text)
+    # Sweep English lines only — Chinese leftovers (code comments, etc.) keep
+    # their native punctuation.
+    out: list[str] = []
+    for line in text.split("\n"):
+        if _CJK_IDEOGRAPH_RE.search(line):
+            out.append(line)
+        else:
+            out.append(fold_fullwidth_punctuation(line))
+    return "\n".join(out)
 
 
 class GatewayError(RuntimeError):
@@ -516,8 +581,12 @@ def _clean_translated(text: str) -> str:
     link because its URL class is `[^)\\s]*`. Collapse whitespace inside link
     destinations so the link still parses; `repair_internal_anchors` rewrites
     the target from the heading label afterwards.
+
+    Also fold fullwidth / CJK punctuation to ASCII — the model translates the
+    words but keeps `：` / `（`, which verify flags as residual Fullwidth.
     """
     text = text.replace("\\t", " ").replace("\t", " ")
+    text = fold_fullwidth_punctuation(text)
 
     def _fix_dest(m: re.Match[str]) -> str:
         bang, label, dest = m.group(1), m.group(2), m.group(3).strip()
@@ -571,9 +640,17 @@ def _parse_reply(reply: str, wanted: set[int]) -> dict[int, str]:
     return out
 
 
+# Script runs worth handing to the phrase model. Punctuation/fullwidth alone is
+# folded to ASCII by `_clean_translated` — do not open a segment for `：`.
+_SEGMENT_SCRIPT_RE = re.compile(
+    r"[\u0400-\u04FF\u0590-\u05FF\u0600-\u06FF\u0900-\u097F"
+    r"\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF]"
+)
+
+
 def _segments(line: str) -> list[tuple[int, int]]:
     """Maximal spans of source-language text, merging the punctuation between them."""
-    hits = [m.start() for m in _NON_LATIN_RE.finditer(line)]
+    hits = [m.start() for m in _SEGMENT_SCRIPT_RE.finditer(line)]
     if not hits:
         return []
     spans: list[list[int]] = [[hits[0], hits[0] + 1]]

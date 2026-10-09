@@ -1,6 +1,7 @@
----title: 太空互联网架构设计 — 阿里云视角
-description: 'title: 太空互联网架构设计'
-summary: 'title: 太空互联网架构设计'
+---
+title: Space Internet Architecture Design — From Alibaba Cloud Perspective
+description: 'title: Space Internet Architecture Design'
+summary: 'title: Space Internet Architecture Design'
 category: general
 tags:
 - architecture
@@ -19,15 +20,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 太空互联网架构设计 — 阿里云视角 是什么
-- 如何 太空互联网架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- Space Internet Architecture Design — From Alibaba Cloud Perspective is what
+- How Space Internet Architecture Design — From Alibaba Cloud Perspective
+- Kubernetes 20 Application Patterns Best Practices
 trigger_keywords:
-- 太空互联网架构设计
-- 阿里云视角
+- Space Internet Architecture Design
+- From Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -43,143 +44,78 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/application/architecture/space-internet.md
 ---
 
-> **生产环境安全提示**
->
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+# Space Internet Architecture Design — From Alibaba Cloud Perspective
 
+## Table of Contents
 
-
-
-title: 太空互联网架构设计
-description: '# 太空互联网架构设计 — 阿里云视角'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- scheduler
-- [[Prometheus|prometheus]]
-- grafana
-- opa
-- redis
-- kafka
-- job
-last_updated: 2026-05-18
-difficulty: expert
-reading_level: expert
-audience:
-- 卫星互联网架构师
-- 航天科技IT负责人
-- 卫星数据处理工程师
-- 天地一体化网络工程师
-estimated_read_time: 5min
-intent_queries:
-- space internet satellite [[Kubernetes|kubernetes]]
-- 太空互联网K8s架构
-- 卫星运管微服务设计
-- 遥感数据处理平台
-- 卫星物联网架构
-trigger_keywords:
-- 太空互联网
-- 低轨卫星
-- 遥感
-- 卫星物联网
-- 卫星运管
-- 星间链路
-- 太空互联网架构
-- 卫星数据处理
-- 轨道计算
-- 卫星通信
-related_domains:
-- domain-01-cluster-fundamentals
-- domain-03-networking-traffic
-related_topics:
-- satellite-internet
-- digital-twin-city
-- energy-power-architecture
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
----
-
-# 太空互联网架构设计 — 阿里云视角
-
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#太空互联网` `#低轨卫星` `#遥感` `#阿里云`
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architecture-patterns)
+4. [Example Implementation](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-patterns](#7-anti-patterns)
+8. [Reference Resources](#8-reference-resources)
 
 ---
 
-<!-- chunk: 目录 -->## 目录
+## 1. Overview
 
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+Space Internet is a new generation of space information infrastructure that provides broadband communication, remote sensing data services, navigation enhancement, and IoT data collection for global users through low Earth orbit (LEO) constellations. With the advancement of projects such as SpaceX Starlink, OneWeb, and China's StarNet, LEO constellation projects have transitioned from concept validation to large-scale commercialization. By 2030, it is expected that there will be over 100,000 operational LEO satellites in orbit, covering more than 99% of the Earth's surface area.
 
----
+The core technical challenges of Space Internet include: satellites moving at an orbital altitude of 500-1200km with speeds of approximately 7.5km/s, resulting in network topologies changing at minute frequencies; star-to-star laser links requiring Gbps-level communications over thousands of kilometers; remote sensing data generating at PB/day levels, necessitating in-orbit processing and ground coordination; limited satellite platform resources requiring highly optimized computing and storage.
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+From an architectural perspective, Space Internet is a typical end-to-end distributed system combining space segments, ground segments, and user segments. The space segment, ground segment, and user segment need to work closely together to form an adaptive and self-healing intelligent network. Cloud-native technologies provide elastic scaling, rapid iteration, and efficient operation capabilities for the ground systems of Space Internet, enabling core systems such as satellite operations, data processing, and business operations to be delivered in microservices.
 
-太空互联网是通过低轨卫星（LEO）星座为全球用户提供宽带通信、遥感数据服务、导航增强和物联网数据采集的新一代空间信息基础设施。随着 SpaceX Starlink、OneWeb、中国星网等项目的推进，低轨卫星星座已从概念验证进入大规模商用阶段。预计到 2030 年，全球在轨低轨卫星数量将超过 10 万颗，覆盖全球 99% 以上的地表面积。
+## 1.1 Industry Background
 
-太空互联网的核心技术挑战在于：卫星在 500-1200km 轨道以约 7.5km/s 的速度运动，导致网络拓扑以分钟级频率变化；星间激光链路需要在数千公里距离上实现 Gbps 级通信；遥感数据以 PB/天级别产生，需要在轨处理与地面协同；卫星平台资源受限，计算与存储需要高度优化。
-
-从架构角度看，太空互联网是一个典型的天地一体化分布式系统。空间段、地面段和用户段需要紧密协同，形成一个自适应、自愈合的智能网络。云原生技术为太空互联网的地面系统提供了弹性伸缩、快速迭代和高效运维的能力，使得卫星运管、数据处理、业务运营等核心系统能够以微服务方式敏捷交付。
-
-## 1.1 行业背景
-
-| 挑战 | 说明 | 架构影响 |
+| Challenge | Explanation | Impact on Architecture |
 |:---|:---|:---|
-| 卫星规模化 | 万颗级卫星管理 | 自动化运维 + 批量调度 |
-| 轨道动态 | 星座拓扑快速变化 | 自适应路由 + SDN |
-| 星地协同 | 天地一体化网络 | 协议适配 + 延迟容忍 |
-| 遥感大数据 | PB 级遥感图像 | 分布式处理 + AI 推理 |
-| 低延迟通信 | 卫星互联网接入 | 边缘计算 + 本地缓存 |
+| Satellite Scale | Managing thousands of satellites | Automated Operations + Batch Scheduling |
+| Orbital Dynamics | Rapid changes in constellation topology | Adaptive Routing + SDN |
+| Ground-Space Coordination | End-to-end integrated networks | Protocol Adaptation + Delay Tolerance |
+| Remote Sensing Big Data | PB-sized remote sensing images | Distributed Processing + AI Inference |
+| Low-Latency Communication | Satellite Internet Access | Edge Computing + Local Caching |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **卫星宽带**: 全球互联网接入服务，面向个人和企业用户
-- **遥感服务**: 对地观测数据服务，支撑农业、环保、国防等领域
-- **导航增强**: 高精度定位服务，厘米级 RTK 增强
-- **卫星物联网**: 广域物联网数据采集，覆盖海洋、沙漠等偏远区域
-- **应急通信**: 灾害应急通信保障，地面网络中断时的备份手段
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 天地一体化原则
-
-太空互联网的架构设计必须将空间段和地面段作为统一系统考虑。卫星星座是网络的边缘节点，地面站是核心锚点，云平台是数据处理和业务运营的中枢。三者之间通过统一的控制平面进行协调管理。
-
-天地一体化的核心是建立标准的星地接口协议，包括测控协议、数传协议和业务协议。测控协议负责卫星平台的状态监控和指令上注，数传协议负责遥感数据和其他有效载荷数据的下行传输，业务协议负责用户面数据的管理和调度。
-
-## 2.2 高可用弹性原则
-
-卫星运管系统需要 7x24 不间断运行，任何中断都可能导致卫星失控或数据丢失。系统设计需要采用多活架构，在不同地域部署独立的运管中心，实现问题自动切换。数据处理系统需要根据卫星过境频率和数据量动态伸缩，在卫星过境窗口内快速处理海量数据。
-
-## 2.3 数据驱动原则
-
-太空互联网的核心价值在于数据。从卫星遥感到用户行为，从轨道参数到网络性能，所有数据都需要被采集、存储、分析和利用。架构设计需要建立完整的数据管道，从数据采集到数据消费形成闭环。AI/ML 技术广泛应用于遥感图像分析、轨道预测、网络优化等场景。
-
-## 2.4 安全可靠原则
-
-太空互联网涉及国家安全，需要从物理安全、网络安全、数据安全多个维度进行防护。卫星测控链路需要加密保护，遥感数据需要分级管理，用户隐私需要端到端加密。系统需要具备抗干扰、抗毁伤能力，在部分节点失效时仍能维持核心服务。
+- **Satellite Broadband**: Global internet access service, targeting personal and corporate users
+- **Remote Sensing Services**: Remote sensing data services supporting agriculture, environmental protection, defense, and other fields
+- **Navigation Enhancement**: High-precision positioning services, centimeter-grade RTK enhancement
+- **Satellite IoT**: Wide-area IoT data collection covering remote areas such as oceans and deserts
+- **Emergency Communications**: Backup means for disaster emergency communication when ground networks are interrupted
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 太空互联网全景架构
+## 2.1 Integrated Earth-Space Principle
+
+The architecture design for space internet must consider the space segment and ground segment as a unified system. Satellite constellations are edge nodes of the network, while ground stations serve as core anchors, and cloud platforms act as the central hub for data processing and business operations. These three components coordinate through a unified control plane.
+
+The core of integrated earth-space lies in establishing standard star-ground interface protocols, including telemetry protocols, data transmission protocols, and service protocols. Telemetry protocols handle state monitoring and command injection for satellite platforms, while data transmission protocols manage downlink transmission of sensing data and other payload data. Service protocols manage and schedule user-plane data.
+
+## 2.2 High-Availability Elastic Principle
+
+The satellite operation management system needs to operate continuously 7x24 hours without interruption. Any disruption could lead to satellite loss of control or data loss. System design should adopt a multi-active architecture, deploying independent operation centers in different regions to achieve automatic failover. The data processing system should dynamically scale based on the frequency of satellite passes and data volume, quickly processing massive amounts of data within the satellite pass window.
+
+## 2.3 Data-Driven Principle
+
+The core value of space internet lies in data. From satellite sensing to user behavior, from orbital parameters to network performance, all data must be collected, stored, analyzed, and utilized. The architecture design should establish a complete data pipeline, forming a loop from data collection to consumption. AI/ML technologies are widely applied in scenarios such as remote sensing image analysis, orbit prediction, and network optimization.
+
+## 2.4 Secure Reliable Principle
+
+Space internet involves national security and requires protection from multiple dimensions including physical security, network security, and data security. Satellite telemetry links need encryption protection, while remote sensing data needs graded management. User privacy should be end-to-end encrypted. The system should have anti-interference and anti-destruction capabilities, maintaining core services even when some nodes fail.
+
+---
+
+## 3. Architecture Patterns
+
+## 3.1 Panoramic Architecture of Space Internet
 
 ```mermaid
 graph TB
@@ -230,9 +166,9 @@ graph TB
     S1 & S2 & S3 & S4 & S5 --> U1 & U2 & U3 & U4
 ```
 
-## 3.2 卫星运管微服务架构
+## 3.2 Microservices Architecture for Satellite Operation Management
 
-卫星运管系统采用微服务架构，将传统的大型运管软件拆分为独立可部署的服务单元。每个服务专注于单一职责，通过 API 网关统一暴露接口，通过事件总线进行异步通信。
+The satellite operation management system adopts a microservices architecture, breaking down traditional large-scale operation software into independent deployable service units. Each service focuses on a single responsibility, exposing interfaces through an API gateway, and communicating asynchronously via an event bus.
 
 ```mermaid
 graph LR
@@ -268,9 +204,9 @@ graph LR
     S3 --> A3
 ```
 
-## 3.3 遥感数据处理流水线架构
+## 3.3 Streaming Pipeline Architecture for Remote Sensing Data Processing
 
-遥感数据从卫星下传到最终产品生成，需要经过辐射校正、几何校正、大气校正、融合拼接、目标识别等多个处理步骤。采用流水线架构可以将处理步骤编排为有向无环图（DAG），支持并行处理和增量更新。
+Radiance correction, geometric correction, atmospheric correction, fusion stitching, target recognition, and other processing steps are required for remote sensing data from satellites to final product generation. A pipeline architecture can compile these steps into a directed acyclic graph (DAG), supporting parallel processing and incremental updates.
 
 ```mermaid
 flowchart LR
@@ -286,9 +222,9 @@ flowchart LR
     I --> K[数据存档]
 ```
 
-## 3.4 星地协同边缘计算架构
+## 3.4 Edge Computing Architecture for Star-Ground Collaboration
 
-在卫星上部署轻量级计算节点，实现数据的在轨处理和智能筛选。只有在轨处理结果和关键原始数据才通过星地链路下传，大幅降低数据传输量和地面处理压力。
+Deploy lightweight computing nodes on satellites for in-orbit processing and intelligent filtering of data. Only in-orbit processing results and critical original data are transmitted via the star-ground link, significantly reducing data transmission volume and ground processing pressure.
 
 ```mermaid
 graph TB
@@ -322,11 +258,11 @@ graph TB
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 轨道计算服务
+## 4.1 Orbit Calculation Service
 
-轨道计算服务基于 SGP4/SDP4 模型，根据 TLE（Two-Line Element）数据计算卫星的实时位置和未来轨道预报。
+Track calculation services are based on the SGP4/SDP4 model, calculating the real-time position and future orbital predictions of satellites using TLE (Two-Line Element) data.
 
 ```go
 package orbit
@@ -405,9 +341,9 @@ func (s *OrbitService) GetPassPredictions(satID string, groundLat, groundLon flo
 }
 ```
 
-## 4.2 遥感数据处理工作流
+## 4.2 Remote Sensing Data Processing Workflow
 
-使用 Argo Workflows 编排遥感数据处理流水线：
+Use Argo Workflows to orchestrate the remote sensing data processing pipeline:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -481,7 +417,7 @@ spec:
         dependencies: [geometric, ai-detect]
 ```
 
-## 4.3 卫星测控调度服务
+## 4.3 Satellite Tracking and Control Scheduling Service
 
 ```python
 import heapq
@@ -544,9 +480,9 @@ class TelecommandScheduler:
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+## 5. Deployment on Kubernetes
 
-## 5.1 卫星运管核心服务部署
+## 5.1 Core Services for Satellite Management Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -634,7 +570,7 @@ spec:
             name: sat-ops-config
 ```
 
-## 5.2 遥感数据处理 GPU 节点池
+## 5.2 GPU Node Pools for Remote Sensing Data Processing
 
 ```yaml
 apiVersion: apps/v1
@@ -680,7 +616,7 @@ spec:
               cpu: "16000m"
 ```
 
-## 5.3 KEDA 自动伸缩配置
+## 5.3 Auto-scaling Configuration with KEDA
 
 ```yaml
 apiVersion: keda.sh/v1alpha1
@@ -703,7 +639,7 @@ spec:
         lagThreshold: "10"
 ```
 
-## 5.4 关键 ConfigMap 和 Secret
+## 5.4 Key ConfigMaps and Secrets
 
 ```yaml
 apiVersion: v1
@@ -733,126 +669,126 @@ stringData:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-## 6.1 卫星运管自动化
+## 6.1 Automated Satellite Management
 
-- **TLE 数据自动同步**: 建立定时任务每 4 小时从 Space-Track 等来源同步 TLE 数据，并通过消息队列广播到所有运管微服务
-- **过境自动调度**: 根据轨道预报自动生成过境调度计划，提前分配信关站资源和测控任务
-- **异常自动检测**: 基于历史遥测数据训练异常检测模型，实时监控卫星健康状态，自动告警并触发应急处置流程
-- **批量操作管理**: 使用 Kubernetes Job 和 CronJob 管理批量卫星操作，如星座轨道维持、载荷标定等
+- **Automated Synchronization of TLE Data**: Establish a scheduled task that synchronizes TLE data from sources such as Space-Track every 4 hours and broadcasts it to all satellite management microservices via a message queue
+- **Automatic Overflight Scheduling**: Generate overflight scheduling plans based on orbital predictions and automatically allocate resources and tasks at ground stations
+- **Automatic Detection of Abnormalities**: Train anomaly detection models based on historical telemetry data to monitor the health status of satellites in real time, automatically alert, and trigger emergency response procedures
+- **Management of Batch Operations**: Use Kubernetes Jobs and CronJobs to manage batch satellite operations, such as constellation orbit maintenance, payload calibration, etc.
 
-## 6.2 遥感数据处理优化
+## 6.2 Optimization of Remote Sensing Data Processing
 
-- **分级存储策略**: 热数据存储在 SSD，温数据存储在 HDD，冷数据归档到 OSS 归档存储。根据访问频率自动迁移
-- **GPU 加速推理**: 使用 TensorRT 或 ONNX Runtime 优化 AI 模型推理性能，在 NVIDIA GPU 上实现批量影像的实时目标检测
-- **分布式处理**: 使用 Spark 或 Flink 对大规模遥感数据进行分布式批处理和流处理
-- **增量更新**: 对于重复覆盖区域，采用增量处理策略，只处理变化部分，减少计算量
+- **Hierarchical Storage Strategy**: Store hot data on SSDs, warm data on HDDs, and cold data archive them in OSS archival storage. Automatically migrate data based on access frequency
+- **GPU-Accelerated Inference**: Optimize AI model inference performance using TensorRT or ONNX Runtime on NVIDIA GPUs to achieve real-time object detection for batches of images
+- **Distributed Processing**: Perform distributed batch processing and stream processing on large-scale remote sensing data using Spark or Flink
+- **Incremental Updates**: For repeated coverage areas, adopt an incremental processing strategy, only processing the changed parts to reduce computational load
 
-## 6.3 网络与通信优化
+## 6.3 Network and Communication Optimization
 
-- **延迟容忍网络 (DTN)**: 在星地链路不可用时，使用 DTN 协议栈实现数据的存储转发，确保数据最终送达
-- **自适应编码调制 (ACM)**: 根据链路质量动态调整调制编码方式，最大化链路吞吐量
-- **星间路由优化**: 使用强化学习算法优化星间路由策略，降低端到端延迟
-- **多信关站负载均衡**: 根据卫星可视性和链路负载，动态选择最优信关站
+- **Delay-Tolerant Networking (DTN)**: Use the DTN protocol stack to forward data when ground links are unavailable, ensuring final delivery of data
+- **Adaptive Coding Modulation (ACM)**: Dynamically adjust modulation coding schemes based on link quality to maximize link throughput
+- **Optimized Inter-Satellite Routing**: Use reinforcement learning algorithms to optimize inter-satellite routing strategies, reducing end-to-end latency
+- **Dynamic Load Balancing at Ground Stations**: Choose the optimal ground station based on satellite visibility and link load dynamically
 
-## 6.4 可观测性实践
+## 6.4 Observability Practices
 
-- **三层监控体系**: 基础设施层（CPU/内存/GPU/磁盘）、应用层（延迟/吞吐/错误率）、业务层（轨道精度/处理时效/用户满意度）
-- **分布式追踪**: 使用 OpenTelemetry 对跨服务请求进行全链路追踪，快速定位性能瓶颈
-- **告警分级**: 将告警分为 P0（系统不可用）、P1（核心功能降级）、P2（非核心功能异常）、P3（需要关注）四级，分别设置不同的响应时间要求
-
----
-
-<!-- chunk: 7. 反模式 -->## 7. 反模式
-
-## 7.1 单一地面站瓶颈
-
-将所有卫星通信集中在单一地面站，导致该站成为系统瓶颈。一旦地面站问题，整颗卫星或整个星座的通信中断。
-
-**解决方案**: 部署多个地理分布的地面站，实现地面站冗余和负载均衡。使用站点分集技术，同一颗卫星可以同时被多个地面站接收。
-
-## 7.2 忽视轨道动态性
-
-将卫星网络视为静态拓扑，使用静态路由表。由于卫星高速运动，网络拓扑以分钟级变化，静态路由很快失效。
-
-**解决方案**: 采用软件定义网络（SDN）技术，根据实时轨道参数动态计算和更新路由表。使用星座仿真器在部署前验证路由算法的有效性。
-
-## 7.3 遥感数据全量下传
-
-试图将卫星采集的所有原始数据全量下传到地面处理。卫星数据量可达 TB/天，远超星地链路带宽。
-
-**解决方案**: 在卫星上部署边缘计算能力，实现数据在轨预处理、智能筛选和压缩。只下传处理结果和关键原始数据，大幅降低数据传输量。
-
-## 7.4 紧耦合的运管系统
-
-将轨道计算、测控调度、数据处理等功能紧耦合在单一系统中，导致系统难以扩展和维护。
-
-**解决方案**: 采用微服务架构，将功能拆分为独立可部署的服务。通过 API 网关和事件总线进行松耦合通信。每个服务可以独立扩展和升级。
-
-## 7.5 忽视安全合规
-
-太空互联网涉及国家安全和频谱资源管理，忽视安全合规可能导致严重后果。常见问题包括：测控链路未加密、遥感数据未分级、用户隐私未保护。
-
-**解决方案**: 建立完善的安全体系，包括测控链路加密、数据分级管理、访问控制、安全审计等。定期进行安全评估和渗透测试。
+- **Three-tier Monitoring System**: Infrastructure layer (CPU/memory/GPU/disk), application layer (latency/bandwidth/error rate), business layer (orbital accuracy/process efficiency/user satisfaction)
+- **Distributed Tracing**: Use OpenTelemetry for full-chain tracing of cross-service requests, quickly identifying performance bottlenecks
+- **Alert Grading**: Categorize alerts into P0 (system unavailability), P1 (core functionality degradation), P2 (non-core functionality anomalies), and P3 (needs attention), setting different response time requirements for each level
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 7. Anti-patterns
 
-## 8.1 阿里云组件映射
+## 7.1 Single Ground Station Bottleneck
 
-| 功能域 | **阿里云云原生方案** |
+Concentrating all satellite communications at a single ground station makes it a system bottleneck. If there's an issue with the ground station, communication to the entire satellite or constellation is interrupted.
+
+**Solution**: Deploy multiple geographically distributed ground stations for redundancy and load balancing. Use site diversity techniques so that a single satellite can be received by multiple ground stations simultaneously.
+
+## 7.2 Ignoring Orbital Dynamics
+
+Treat the satellite network as a static topology and use static routing tables. Due to the high-speed movement of satellites, the network topology changes every few minutes, making static routing ineffective quickly.
+
+**Solution**: Use Software-Defined Networking (SDN) technology to dynamically calculate and update routing tables based on real-time orbital parameters. Validate the routing algorithm before deployment using a constellation simulator.
+
+## 7.3 Full-Volume Downlink of Remote Sensing Data
+
+Attempt to fully transmit all raw data collected by the satellite to the ground for processing. Satellite data volume can reach TB/day, far exceeding the bandwidth of the ground-link.
+
+**Solution**: Deploy edge computing capabilities on the satellite to perform in-orbit preprocessing, intelligent filtering, and compression of data. Only transmit processed results and critical raw data, significantly reducing data transmission volume.
+
+## 7.4 Tight Coupling of Operations and Management Systems
+
+Combine track calculations, control scheduling, and data processing functions within a single system, leading to difficulty in scaling and maintenance.
+
+**Solution**: Adopt a microservices architecture, dividing functions into independent deployable services. Communicate via an API gateway and event bus for loose coupling. Each service can be independently scaled and upgraded.
+
+## 7.5 Neglecting Security Compliance
+
+Space internet involves national security and spectrum resource management, neglecting security compliance can lead to severe consequences. Common issues include: unencrypted control links, ungraded remote sensing data, and lack of user privacy protection.
+
+**Solution**: Establish a robust security framework including encrypted control links, graded data management, access controls, and security audits. Regularly conduct security assessments and penetration testing.
+
+---
+
+## 8. Reference Resources
+
+## 8.1 AliCloud Component Mapping
+
+| Function Domain | **AliCloud Native Solutions** |
 |:---|:---|
-| 容器平台 | **ACK Pro** |
-| 大数据 | **MaxCompute + DataWorks** |
-| AI | **PAI + 视觉智能** |
-| 对象存储 | **OSS + 归档存储** |
-| 数据库 | **PolarDB + Lindorm** |
-| 消息队列 | **RocketMQ** |
-| 可观测性 | **ARMS + SLS + Grafana** |
-| 工作流 | **Argo Workflows on ACK** |
+| Container Platform | **ACK Pro** |
+| Big Data | **MaxCompute + DataWorks** |
+| AI | **PAI + Visual Intelligence** |
+| Object Storage | **OSS + Archive Storage** |
+| Database | **PolarDB + Lindorm** |
+| Message Queue | **RocketMQ** |
+| Observability | **ARMS + SLS + Grafana** |
+| Workflow | **Argo Workflows on ACK** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] TLE 数据同步频率与轨道预报精度验证
-- [ ] 星地链路连通性与数传速率测试
-- [ ] 遥感数据产品质量评估（几何精度、辐射精度）
-- [ ] 频谱干扰监测系统部署
-- [ ] 空间碎片碰撞预警系统联调
-- [ ] 地面站冗余切换演练
-- [ ] 安全渗透测试与合规审计
-- [ ] 遥感数据分级保护策略实施
-- [ ] 应急通信保障预案演练
+- [ ] Verify TLE data synchronization frequency against orbital prediction accuracy
+- [ ] Test link connectivity between ground stations and data transmission rates
+- [ ] Evaluate quality of remote sensing data products (geometric precision, radiometric precision)
+- [ ] Spectrum Interference Monitoring System Deployment
+- [ ] Space Debris Collision Warning System Integration
+- [ ] Ground Station Redundancy Switching Exercise
+- [ ] Security Penetration Testing and Compliance Audits
+- [ ] Remote Sensing Data Categorization Protection Strategy Implementation
+- [ ] Emergency Communication Assurance Plan Exercise
 
-## 8.3 外部参考
+## 8.3 External References
 
-- ITU Radio Regulations — 国际电联无线电规则
-- CCSDS Standards — 空间数据系统咨询委员会标准
-- SGP4/SDP4 Orbit Propagation Model — 轨道传播模型
-- NASA EOSDIS — 地球观测系统数据和信息系统
-- Starlink Technical Overview — SpaceX 星链技术概览
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- ITU Radio Regulations — International Telecommunication Union Radio Regulations
+- CCSDS Standards — Consultative Committee for Space Data Systems Standards
+- SGP4/SDP4 Orbit Propagation Model — SGP4/SDP4 Orbit Propagation Model
+- NASA EOSDIS — Earth Observing System Data and Information System
+- Starlink Technical Overview — SpaceX Starlink Technical Overview
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architects Team | **License**: MIT
+
+---
+
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|Internet of Things IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|Artificial Intelligence Machine Learning Inference Services Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 
