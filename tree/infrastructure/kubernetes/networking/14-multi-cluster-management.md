@@ -87,11 +87,11 @@ source_path: tree/infrastructure/kubernetes/networking/14-multi-cluster-manageme
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                           多集群管理架构                                 │
+│                           Multi-cluster management architecture                                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐     │
-│  │  管理控制平面    │    │  注册中心集群    │    │  监控告警中心    │    │
+│  │  Management control plane    │    │  Registration center cluster    │    │  Monitoring alert center    │    │
 │  │                 │    │                 │    │                 │    │
 │  │ Cluster API     │◄──►│ Cluster Registry │◄──►│ Observability   │    │
 │  │ ArgoCD          │    │ Fleet Manager   │    │ Central System  │    │
@@ -100,7 +100,7 @@ source_path: tree/infrastructure/kubernetes/networking/14-multi-cluster-manageme
 │           │                       │                       │              │
 │           ▼                       ▼                       ▼              │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐     │
-│  │  开发集群        │    │  生产集群        │    │  灾备集群        │    │
+│  │  Development cluster        │    │  Production cluster        │    │  Disaster recovery cluster        │    │
 │  │  dev-cluster     │    │  prod-cluster    │    │  dr-cluster      │    │
 │  │                 │    │                 │    │                 │    │
 │  │ Applications    │    │ Critical Apps   │    │ Backup Systems  │    │
@@ -790,40 +790,40 @@ subjects:
 CLUSTERS=("production-cluster" "staging-cluster" "dr-cluster")
 
 diagnose_cluster_connectivity() {
-    echo "=== 集群连接性诊断 ==="
+    echo "=== Cluster Connectivity Diagnosis ==="
     for cluster in "${CLUSTERS[@]}"; do
-        echo "检查集群: $cluster"
+        echo "Check cluster: $cluster"
         kubectl config use-context $cluster
         
         # Check API Server availability
         if kubectl cluster-info >/dev/null 2>&1; then
-            echo "✅ $cluster API Server 可达"
+            echo "✅ $cluster API Server reachable"
         else
-            echo "❌ $cluster API Server 不可达"
+            echo "❌ $cluster API Server unreachable"
         fi
         
         # Check node status
         ready_nodes=$(kubectl get nodes --no-headers | grep -c " Ready ")
         total_nodes=$(kubectl get nodes --no-headers | wc -l)
-        echo "📊 $cluster 节点状态: $ready_nodes/$total_nodes 就绪"
+        echo "📊 $cluster Node Status: $ready_nodes/$total_nodes ready"
     done
 }
 
 diagnose_cross_cluster_services() {
-    echo "=== 跨集群服务诊断 ==="
+    echo "=== Cross-cluster Service Diagnosis ==="
     # Check service discovery
     for cluster in "${CLUSTERS[@]}"; do
-        echo "检查 $cluster 中的服务..."
+        echo "Check services in $cluster..."
         kubectl config use-context $cluster
         kubectl get svc --all-namespaces | grep -E "(LoadBalancer|ClusterIP)" | head -5
     done
 }
 
 diagnose_network_connectivity() {
-    echo "=== 网络连通性诊断 ==="
+    echo "=== Network Connectivity Diagnosis ==="
     # Check inter-Pod communication
     for cluster in "${CLUSTERS[@]}"; do
-        echo "检查 $cluster 网络连通性..."
+        echo "Check network connectivity in $cluster..."
         kubectl config use-context $cluster
         kubectl run debug-pod --image=busybox --restart=Never --rm -it -- sh -c "
             ping -c 3 8.8.8.8
@@ -837,7 +837,7 @@ diagnose_cluster_connectivity
 diagnose_cross_cluster_services
 diagnose_network_connectivity
 
-echo "=== 诊断完成 ==="
+echo "=== Diagnosis Complete ==="
 ```
 
 ## Best Practices for Production Environment

@@ -1,6 +1,7 @@
----title: 成本管理与 FinOps
-description: 'title: 成本管理与 FinOps'
-summary: 'title: 成本管理与 FinOps'
+---
+title: Cost Management and FinOps
+description: 'title: Cost Management and FinOps'
+summary: 'title: Cost Management and FinOps'
 category: general
 tags:
 - k8s
@@ -19,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 35min
 intent_queries:
-- cost-management-kubecost是什么？
-- cost-management-kubecost的使用方法
-- cost-management-kubecost的最佳实践
+- What is cost-management-kubecost?
+- How to use cost-management-kubecost
+- Best practices for cost-management-kubecost
 trigger_keywords:
-- 成本管理与
+- Cost Management and
 - FinOps
 - ai
 - ml
@@ -42,17 +43,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/27-cost-management-kubecost.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the command has been validated in a non-production environment. Command risk levels are annotated: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually can be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 成本管理与 FinOps
-description: '# 成本管理与 FinOps'
+title: cost management and FinOps
+description: '# cost management and FinOps'
 category: ai-infra
 tags:
 - k8s
@@ -69,29 +72,29 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineer
+- MLOps Engineer
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 成本管理与 FinOps 是什么
-- 如何 成本管理与 FinOps
-- [[Kubernetes|Kubernetes]] 11 ai infra 最佳实践
+- What is cost management and FinOps
+- How to do cost management and FinOps
+- [[Kubernetes|Kubernetes]] 11 ai infra best practices
 trigger_keywords:
-- 成本管理与
+- cost management and
 - FinOps
 - ai
 - infra
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domains: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domains: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
 authors:
 - name: Dillan Teagle
   role: contributor
@@ -103,84 +106,84 @@ k8s_versions:
 - '1.32'
 ---
 
-# 成本管理与 FinOps
+# Cost Management and FinOps
 
-<!-- chunk: 概述 -->
-## 概述
 
-Kubernetes 成本管理是确保云原生基础设施经济高效运行的关键实践。本文档详细介绍成本构成分析、监控工具部署、优化策略和 FinOps 成熟度模型。
+## Overview
 
-<!-- chunk: 成本架构 -->
-## 成本架构
+Kubernetes cost management is a critical practice for ensuring the economic efficiency of cloud-native infrastructure. This document provides detailed information on cost analysis, deployment of monitoring tools, optimization strategies, and the maturity model of FinOps.
 
-### Kubernetes 成本构成模型
+
+## Cost Architecture
+
+### Kubernetes Cost Composition Model
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: read-only/information gathering, typically with no side effects
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           Kubernetes 成本构成模型                                    │
+│                           Kubernetes cost model architecture                                    │
 │                                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          总成本 (Total Cost of Ownership)                    │   │
+│   │                          Total Cost of Ownership (TCO)                    │   │
 │   │                                                                              │   │
 │   │   ┌─────────────────────────────────────────────────────────────────────┐   │   │
-│   │   │                      计算成本 (50-70%)                               │   │   │
+│   │   │                      Compute Cost (50-70%)                               │   │   │
 │   │   │                                                                      │   │   │
 │   │   │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐               │   │   │
-│   │   │   │   CPU 成本   │   │   内存成本  │   │   GPU 成本  │               │   │   │
+│   │   │   │   CPU cost   │   │   Memory cost  │   │   GPU cost  │               │   │   │
 │   │   │   │             │   │             │   │             │               │   │   │
-│   │   │   │ • 按需实例  │   │ • 按需实例  │   │ • 训练任务  │               │   │   │
-│   │   │   │ • 预留实例  │   │ • 高内存型  │   │ • 推理服务  │               │   │   │
-│   │   │   │ • Spot实例  │   │             │   │ • Spot GPU  │               │   │   │
+│   │   │   │ • On-Demand instance  │   │ • On-Demand instance  │   │ • Training tasks  │               │   │   │
+│   │   │   │ • Reserved instance  │   │ • High-memory type  │   │ • Inference service  │               │   │   │
+│   │   │   │ • Spot instance  │   │             │   │ • Spot GPU  │               │   │   │
 │   │   │   └─────────────┘   └─────────────┘   └─────────────┘               │   │   │
 │   │   │                                                                      │   │   │
 │   │   └──────────────────────────────────────────────────────────────────────┘   │   │
 │   │                                                                              │   │
 │   │   ┌────────────────────────┐   ┌────────────────────────┐                   │   │
-│   │   │     存储成本 (15-25%)   │   │     网络成本 (10-20%)   │                   │   │
+│   │   │     Storage Cost (15-25%)   │   │     Network Cost (10-20%)   │                   │   │
 │   │   │                        │   │                        │                   │   │
-│   │   │  • 块存储 (EBS/Disk)   │   │  • 跨 AZ 流量          │                   │   │
-│   │   │  • 文件存储 (EFS/NFS)  │   │  • 跨区域流量          │                   │   │
-│   │   │  • 对象存储 (S3)       │   │  • 公网出口流量        │                   │   │
-│   │   │  • 快照和备份          │   │  • 负载均衡            │                   │   │
+│   │   │  • Block storage (EBS/Disk)   │   │  • Traffic across AZs          │                   │   │
+│   │   │  • File storage (EFS/NFS)  │   │  • Traffic across regions          │                   │   │
+│   │   │  • Object storage (S3)       │   │  • Internet gateway traffic          │                   │   │
+│   │   │  • Snapshots and backups          │   │  • Load balancers            │                   │   │
 │   │   └────────────────────────┘   └────────────────────────┘                   │   │
 │   │                                                                              │   │
 │   │   ┌────────────────────────┐   ┌────────────────────────┐                   │   │
-│   │   │     管理成本 (5-10%)    │   │     其他成本 (5-10%)    │                   │   │
+│   │   │     Management Cost (5-10%)    │   │     Other Costs (5-10%)    │                   │   │
 │   │   │                        │   │                        │                   │   │
-│   │   │  • 控制平面 (托管)     │   │  • 日志存储            │                   │   │
-│   │   │  • 监控/可观测性       │   │  • 安全工具            │                   │   │
-│   │   │  • 服务网格            │   │  • CI/CD 运行          │                   │   │
-│   │   │  • 备份/DR             │   │  • 开发环境            │                   │   │
+│   │   │  • Control plane (managed)     │   │  • Log storage            │                   │   │
+│   │   │  • Monitoring/observability       │   │  • Security tools            │                   │   │
+│   │   │  • Service mesh            │   │  • CI/CD pipelines            │                   │   │
+│   │   │  • Backup/DR             │   │  • Development environment            │                   │   │
 │   │   └────────────────────────┘   └────────────────────────┘                   │   │
 │   │                                                                              │   │
 │   └─────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                      │
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
-### 成本分配模型
+### Cost Allocation Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              成本分配架构                                            │
+│                              Cost Allocation Architecture                                            │
 │                                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          组织层级 (Organization)                             │   │
+│   │                          Organization Level (Organization)                             │   │
 │   │                                                                              │   │
 │   │   ┌──────────────────────────────────────────────────────────────────────┐  │   │
-│   │   │                          公司 (Company)                               │  │   │
+│   │   │                          Company Level (Company)                               │  │   │
 │   │   │                                                                       │  │   │
 │   │   │   ┌─────────────────────────────────────────────────────────────┐    │  │   │
-│   │   │   │                     部门 (Department)                        │    │  │   │
+│   │   │   │                     Department                        │    │  │   │
 │   │   │   │                                                              │    │  │   │
 │   │   │   │   ┌────────────────────────────────────────────────────┐    │    │  │   │
-│   │   │   │   │                  团队 (Team)                        │    │    │  │   │
+│   │   │   │   │                  Team                        │    │    │  │   │
 │   │   │   │   │                                                     │    │    │  │   │
 │   │   │   │   │   ┌───────────────────────────────────────────┐    │    │    │  │   │
-│   │   │   │   │   │              项目 (Project)                │    │    │    │  │   │
+│   │   │   │   │   │              Project                │    │    │    │  │   │
 │   │   │   │   │   │                                            │    │    │    │  │   │
 │   │   │   │   │   │   ┌────────────────────────────────────┐  │    │    │    │  │   │
-│   │   │   │   │   │   │         环境 (Environment)          │  │    │    │    │  │   │
+│   │   │   │   │   │   │         Environment          │  │    │    │    │  │   │
 │   │   │   │   │   │   │   prod | staging | dev | test      │  │    │    │    │  │   │
 │   │   │   │   │   │   └────────────────────────────────────┘  │    │    │    │  │   │
 │   │   │   │   │   │                                            │    │    │    │  │   │
@@ -195,7 +198,7 @@ Kubernetes 成本管理是确保云原生基础设施经济高效运行的关键
 │   └─────────────────────────────────────────────────────────────────────────────┘   │
 │                                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          Kubernetes 层级                                     │   │
+│   │                          Kubernetes Layer                                     │   │
 │   │                                                                              │   │
 │   │   Cluster ──► Namespace ──► Deployment ──► Pod ──► Container               │   │
 │   │      │            │              │           │          │                   │   │
@@ -210,75 +213,75 @@ Kubernetes 成本管理是确保云原生基础设施经济高效运行的关键
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-<!-- chunk: 成本监控工具对比 -->
-## 成本监控工具对比
 
-| 工具 | 类型 | 核心功能 | 成本 | 适用场景 |
+## Cost Monitoring Tools Comparison
+
+| Tool | Type | Core Function | Cost | Use Cases |
 |-----|-----|---------|------|---------|
-| **Kubecost** | 开源/商业 | 成本分配、优化建议、预算告警 | 免费版可用 | 中大型集群 |
-| **OpenCost** | 开源 (CNCF) | 成本监控、Prometheus 集成 | 免费 | 任意规模 |
-| **CloudHealth** | 商业 | 多云成本管理、治理 | 付费 | 企业级多云 |
-| **Spot.io** | 商业 | 成本优化自动化、Spot 管理 | 付费 | 需要自动化 |
-| **CAST AI** | 商业 | 自动优化、跨云调度 | 付费 | 多云/混合云 |
-| **AWS Cost Explorer** | 云厂商 | AWS 原生成本分析 | 包含 | AWS 用户 |
-| **阿里云成本分析** | 云厂商 | ACK 原生成本统计 | 包含 | 阿里云用户 |
+| **Kubecost** | Open Source/Commercial | Cost allocation, optimization suggestions, budget alerts | Free version available | Suitable for medium to large clusters |
+| **OpenCost** | Open Source (CNCF) | Cost monitoring, Prometheus integration | Free | Suitable for any size |
+| **CloudHealth** | Commercial | Multi-cloud cost management, governance | Paid | Suitable for enterprise-level multi-cloud |
+| **Spot.io** | Commercial | Automated cost optimization, Spot management | Paid | Suitable for automation needs |
+| **CAST AI** | Commercial | Automatic optimization, cross-cloud scheduling | Paid | Suitable for multi-cloud/hybrid cloud |
+| **AWS Cost Explorer** | Cloud Provider | AWS Original Cost Analysis | Included | AWS Users |
+| **AliCloud Cost Analysis** | Cloud Provider | ACK Original Cost Statistics | Included | AliCloud Users |
 
-<!-- chunk: Kubecost 部署 -->
-## Kubecost 部署
 
-### Helm 安装
+## Kubecost Deployment
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
-> - `kubectl apply/create/replace`：创建/变更集群资源
+### Helm Installation
+
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource status, suggest to first use --dry-run or diff to confirm
+> - `helm upgrade/install`: Deploy/Upgrade release
+> - `kubectl apply/create/replace`: Create/Modify cluster resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🟡 Medium Risk: modifies cluster/resource state, confirm target, impact scope, and authorization before execution
 #!/bin/bash
 # deploy-kubecost.sh
-# Kubecost 完整部署脚本
+# Kubecost Complete Deployment Script
 
 set -e
 
 NAMESPACE="kubecost"
 RELEASE_NAME="kubecost"
 
-echo "=== 部署 Kubecost ==="
+message: "=== Deployment of Kubecost ==="
 
-# 添加 Helm 仓库
+# Add Helm repository
 helm repo add kubecost https://kubecost.github.io/cost-analyzer/
 helm repo update
 
-# 创建命名空间
+# Create namespace
 kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
-# 创建 values 文件
+# Create values file
 cat > kubecost-values.yaml << 'EOF'
 # Kubecost Helm Values
 
-# 全局配置
+# Global configuration
 global:
   prometheus:
     enabled: true
     nodeExporter:
       enabled: true
 
-# 产品配置
+# Product configuration
 kubecostProductConfigs:
-  # 集群名称
+  # Cluster name
   clusterName: "production-cluster"
   
-  # 货币设置
+  # Currency settings
   currencyCode: "USD"
   
-  # 共享成本分配
+  # Shared cost allocation
   sharedCostEnabled: true
   sharedNamespaces:
     - kube-system
     - monitoring
     - ingress-nginx
     
-# Prometheus 配置
+# Prometheus configuration
 prometheus:
   server:
     retention: 30d
@@ -299,22 +302,22 @@ prometheus:
   alertmanager:
     enabled: false
 
-# 网络成本监控
+# Network Cost Monitoring
 networkCosts:
   enabled: true
   config:
-    # 按区域定价
+    # Regional pricing
     zoneCost: 0.01
     regionCost: 0.02
     internetCost: 0.12
 
-# 持久化
+# Persistence
 persistentVolume:
   enabled: true
   size: 32Gi
   storageClass: "gp3"
 
-# 资源配置
+# Resource configuration
 kubecostModel:
   resources:
     requests:
@@ -324,7 +327,7 @@ kubecostModel:
       cpu: 1
       memory: 2Gi
       
-# 前端配置
+# Frontend configuration
 kubecostFrontend:
   resources:
     requests:
@@ -334,12 +337,12 @@ kubecostFrontend:
       cpu: 200m
       memory: 256Mi
 
-# 服务配置
+# Service configuration
 service:
   type: ClusterIP
   port: 9090
 
-# Ingress 配置 (可选)
+# Ingress configuration (optional)
 ingress:
   enabled: false
   # className: nginx
@@ -360,23 +363,23 @@ serviceAccount:
   #   eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/kubecost-role
 EOF
 
-# 部署 Kubecost
+# Deploy Kubecost
 helm upgrade --install $RELEASE_NAME kubecost/cost-analyzer \
   --namespace $NAMESPACE \
   --values kubecost-values.yaml \
   --wait --timeout 10m
 
-echo "=== 等待 Pod 就绪 ==="
+message: "=== Wait for Pods to be Ready ==="
 kubectl wait --for=condition=Ready pod \
   -l app=cost-analyzer \
   -n $NAMESPACE \
   --timeout=300s
 
-echo "=== 部署完成 ==="
-echo "访问命令: kubectl port-forward -n $NAMESPACE svc/kubecost-cost-analyzer 9090:9090"
-echo "浏览器访问: http://localhost:9090"
+message: "=== Deployment Complete ==="
+message: "Visit command: kubectl port-forward -n $NAMESPACE svc/kubecost-cost-analyzer 9090:9090"
+message: "Browser access: http://localhost:9090"
 ```
-### OpenCost 部署 (开源替代)
+### OpenCost Deployment (Open Source Alternative)
 
 ```yaml
 # opencost-deployment.yaml
@@ -511,10 +514,10 @@ subjects:
     namespace: opencost
 ```
 
-<!-- chunk: 资源优化配置 -->
-## 资源优化配置
 
-### VPA 资源建议
+## Resource Optimization Configuration
+
+### VPA Resource Recommendations
 
 ```yaml
 # vpa-recommendation.yaml
@@ -545,7 +548,7 @@ spec:
         controlledValues: RequestsAndLimits
 
 ---
-# VPA 推荐配置 - 自动更新模式
+# VPA Recommended Configuration - Automatic Update Mode
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -570,7 +573,7 @@ spec:
           memory: 4Gi
 ```
 
-### Cluster Autoscaler 成本优化
+### Cluster Autoscaler Cost Optimization
 
 ```yaml
 # cluster-autoscaler-cost-config.yaml
@@ -581,12 +584,12 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |
-    # 扩展器配置 - 优先使用最便宜的节点池
+    # Expander Configuration - Prioritize the cheapest node pool
     expanders:
       - priority
       - least-waste
     
-    # 节点池优先级 (数字越小优先级越高)
+    # Node Pool Priority (lower number means higher priority)
     priorities: |
       10:
         - .*spot.*           # 最优先 Spot 实例
@@ -595,7 +598,7 @@ data:
       50:
         - .*ondemand.*       # 最后按需实例
     
-    # 缩容配置
+    # Drain Configuration
     scale-down-enabled: true
     scale-down-delay-after-add: 10m          # 扩容后等待缩容
     scale-down-delay-after-delete: 0s        # 删除节点后等待
@@ -604,17 +607,17 @@ data:
     scale-down-unready-time: 20m             # 不健康节点空闲时间
     scale-down-utilization-threshold: 0.5    # 利用率阈值
     
-    # 节点组配置
+    # Node Group Configuration
     balance-similar-node-groups: true        # 平衡相似节点组
     
-    # 性能配置
+    # Performance Configuration
     scan-interval: 10s
     max-node-provision-time: 15m
     max-graceful-termination-sec: 600
     max-empty-bulk-delete: 10
 
 ---
-# Karpenter 成本优化配置
+# Karpenter Cost Optimization Configuration
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
@@ -646,57 +649,57 @@ spec:
   disruption:
     consolidationPolicy: WhenUnderutilized
     consolidateAfter: 30s
-  # 权重配置 - 优先选择 Spot
+  # Weight Configuration - Prioritize Spot
   weight: 100
 ```
 
-<!-- chunk: 成本标签体系 -->
-## 成本标签体系
 
-### 标签规范
+## Cost Tagging System
+
+### Tag Specification
 
 ```yaml
 # cost-labeling-standard.yaml
 
 ---
-# 命名空间级别标签
+# Namespace-Level Labels
 apiVersion: v1
 kind: Namespace
 metadata:
   name: team-backend
   labels:
-    # 组织标签
+    # Organization Labels
     team: backend
     department: engineering
     cost-center: "CC-12345"
     
-    # 环境标签
+    # Environment Labels
     environment: production
     
-    # 管理标签
+    # Management Labels
     owner: backend-team@company.com
     managed-by: terraform
 
 ---
-# Deployment 级别标签
+# Deployment-Level Labels
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-server
   namespace: team-backend
   labels:
-    # 应用标签
+    # Application Labels
     app: api-server
     app.kubernetes.io/name: api-server
     app.kubernetes.io/component: backend
     app.kubernetes.io/part-of: platform
     
-    # 成本标签
+    # Cost Labels
     team: backend
     project: platform-api
     cost-center: "CC-12345"
     
-    # 运维标签
+    # Operations Labels
     tier: critical
     sla: gold
 spec:
@@ -707,7 +710,7 @@ spec:
         team: backend
         project: platform-api
       annotations:
-        # Kubecost 注解
+        # Kubecost Annotation
         cost.kubernetes.io/team: "backend"
         cost.kubernetes.io/project: "platform-api"
     spec:
@@ -722,11 +725,11 @@ spec:
               memory: 2Gi
 ```
 
-### 标签强制策略
+### Mandatory Tag Policies
 
 ```yaml
 # cost-label-policy.yaml
-# 使用 Kyverno 强制成本标签
+# Use Kyverno to enforce cost labels at the namespace level
 
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -750,7 +753,7 @@ spec:
                 - "!kube-public"
                 - "!monitoring"
       validate:
-        message: "所有 Pod 必须包含 'team' 标签用于成本分配"
+        message: "All Pods must contain the 'team' label for cost allocation"
         pattern:
           metadata:
             labels:
@@ -766,7 +769,7 @@ spec:
                 - production
                 - staging
       validate:
-        message: "生产/预发环境 Pod 必须包含 'project' 标签"
+        message: "Production/Staging environment Pods must contain the 'project' label"
         pattern:
           metadata:
             labels:
@@ -779,23 +782,23 @@ spec:
               kinds:
                 - Namespace
       validate:
-        message: "命名空间必须包含 'cost-center' 标签"
+        message: "The namespace must contain the 'cost-center' label"
         pattern:
           metadata:
             labels:
               cost-center: "?*"
 ```
 
-<!-- chunk: 成本查询与分析 -->
-## 成本查询与分析
 
-### Prometheus 成本查询
+## Cost Query and Analysis
+
+### Prometheus Cost Query
 
 ```promql
 # cost-prometheus-queries.promql
 
 # =============================================================================
-# 按命名空间统计 CPU 成本
+# Statistic CPU Cost by Namespace
 # =============================================================================
 sum by (namespace) (
   rate(container_cpu_usage_seconds_total{container!="", namespace!="kube-system"}[5m])
@@ -803,7 +806,7 @@ sum by (namespace) (
 (node_hourly_cost / 3600)
 
 # =============================================================================
-# 按命名空间统计内存成本
+# Statistic Memory Cost by Namespace
 # =============================================================================
 sum by (namespace) (
   container_memory_usage_bytes{container!="", namespace!="kube-system"}
@@ -811,7 +814,7 @@ sum by (namespace) (
 (node_hourly_cost / 3600 / 1024 / 1024 / 1024)
 
 # =============================================================================
-# 按标签统计成本 (team)
+# Count costs by tag (team)
 # =============================================================================
 sum by (label_team) (
   rate(container_cpu_usage_seconds_total{container!=""}[1h]) 
@@ -821,22 +824,22 @@ sum by (label_team) (
 node_hourly_cost
 
 # =============================================================================
-# 资源请求 vs 实际使用 (识别浪费)
+# Resource requests vs actual usage (identify waste)
 # =============================================================================
-# CPU 请求利用率
+# CPU request utilization
 sum(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (namespace)
 /
 sum(kube_pod_container_resource_requests{resource="cpu"}) by (namespace)
 
-# 内存请求利用率
+# Memory request utilization
 sum(container_memory_usage_bytes{container!=""}) by (namespace)
 /
 sum(kube_pod_container_resource_requests{resource="memory"}) by (namespace)
 
 # =============================================================================
-# 闲置资源统计
+# Idle resource statistics
 # =============================================================================
-# CPU 闲置量
+# CPU idle quantity
 (
   sum(kube_pod_container_resource_requests{resource="cpu"}) -
   sum(rate(container_cpu_usage_seconds_total{container!=""}[5m]))
@@ -844,7 +847,7 @@ sum(kube_pod_container_resource_requests{resource="memory"}) by (namespace)
 / 
 sum(kube_pod_container_resource_requests{resource="cpu"}) * 100
 
-# 内存闲置量
+# Memory idle quantity
 (
   sum(kube_pod_container_resource_requests{resource="memory"}) -
   sum(container_memory_usage_bytes{container!=""})
@@ -853,9 +856,9 @@ sum(kube_pod_container_resource_requests{resource="cpu"}) * 100
 sum(kube_pod_container_resource_requests{resource="memory"}) * 100
 
 # =============================================================================
-# 节点利用率 (识别可缩容节点)
+# Node utilization (identify nodes to scale down)
 # =============================================================================
-# CPU 利用率低于 50% 的节点
+# Nodes with CPU utilization below 50%
 (
   sum(rate(container_cpu_usage_seconds_total{container!=""}[5m])) by (node)
   /
@@ -863,19 +866,19 @@ sum(kube_pod_container_resource_requests{resource="memory"}) * 100
 ) < 0.5
 
 # =============================================================================
-# 跨 AZ 流量成本估算
+# Estimate cross AZ traffic cost
 # =============================================================================
 sum(rate(container_network_transmit_bytes_total[5m])) by (namespace) 
-* 0.01  # 假设跨 AZ 流量 $0.01/GB
+* 0.01  # Assume cross AZ traffic $0.01/GB
 ```
 
-### ResourceQuota 成本控制
+### ResourceQuota Cost Control
 
 ```yaml
 # resourcequota-cost-control.yaml
 
 ---
-# 团队配额
+# Team quota
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -883,31 +886,31 @@ metadata:
   namespace: team-backend
 spec:
   hard:
-    # 计算资源
+    # Compute resources
     requests.cpu: "100"
     requests.memory: 200Gi
     limits.cpu: "200"
     limits.memory: 400Gi
     
-    # GPU 资源
+    # GPU resources
     requests.nvidia.com/gpu: "4"
     
-    # 存储资源
+    # Storage resources
     persistentvolumeclaims: "50"
     requests.storage: 1Ti
     
-    # 对象数量
+    # Number of objects
     pods: "200"
     services: "50"
     secrets: "100"
     configmaps: "100"
     
-    # 特定存储类配额
+    # Specific storage class quota
     gp3.storageclass.storage.k8s.io/requests.storage: 500Gi
     io2.storageclass.storage.k8s.io/requests.storage: 100Gi
 
 ---
-# LimitRange 默认资源
+# Default resources in LimitRange
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -915,7 +918,7 @@ metadata:
   namespace: team-backend
 spec:
   limits:
-    # 容器默认值
+    # Container defaults
     - type: Container
       default:
         cpu: 500m
@@ -930,13 +933,13 @@ spec:
         cpu: 4
         memory: 8Gi
         
-    # Pod 限制
+    # Pod limits
     - type: Pod
       max:
         cpu: "16"
         memory: 32Gi
         
-    # PVC 限制
+    # PVC Limit
     - type: PersistentVolumeClaim
       min:
         storage: 1Gi
@@ -944,8 +947,8 @@ spec:
         storage: 100Gi
 ```
 
-<!-- chunk: 成本告警规则 -->
-## 成本告警规则
+
+## Cost Alert Rules
 
 ```yaml
 # cost-alerting-rules.yaml
@@ -957,7 +960,7 @@ metadata:
 spec:
   groups:
     # =================================================================
-    # 成本阈值告警
+    # Cost Threshold Alert
     # =================================================================
     - name: cost.thresholds
       interval: 5m
@@ -969,8 +972,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "日成本超过 $1000"
-            description: "过去 24 小时集群成本: ${{ $value | printf \"%.2f\" }}"
+            summary: "Daily cost exceeds $1000"
+            description: "Cluster cost over the past 24 hours: ${{ $value | printf \"%.2f\" }}"
             
         - alert: NamespaceCostSpike
           expr: |
@@ -983,11 +986,11 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "命名空间 {{ $labels.namespace }} 成本激增"
-            description: "成本比 24 小时平均值增长 {{ $value | printf \"%.1f\" }}x"
+            summary: "Cost in namespace {{ $labels.namespace }} has spiked"
+            description: "Cost has increased by {{ $value | printf \"%.1f\" }}x compared to the average over the past 24 hours"
             
     # =================================================================
-    # 资源效率告警
+    # Resource Efficiency Alert
     # =================================================================
     - name: cost.efficiency
       interval: 5m
@@ -1003,8 +1006,8 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "命名空间 {{ $labels.namespace }} CPU 利用率低"
-            description: "CPU 利用率仅 {{ $value | printf \"%.1f\" }}%,建议调整资源请求"
+            summary: "CPU utilization in namespace {{ $labels.namespace }} is low"
+            description: "CPU utilization is only {{ $value | printf \"%.1f\" }}%, suggest adjusting resource requests"
             
         - alert: LowMemoryUtilization
           expr: |
@@ -1017,8 +1020,8 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "命名空间 {{ $labels.namespace }} 内存利用率低"
-            description: "内存利用率仅 {{ $value | printf \"%.1f\" }}%"
+            summary: "Memory utilization in namespace {{ $labels.namespace }} is low"
+            description: "Memory utilization is only {{ $value | printf \"%.1f\" }}%"
             
         - alert: OverprovisionedResources
           expr: |
@@ -1031,11 +1034,11 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "命名空间 {{ $labels.namespace }} 资源超额配置"
-            description: "Limits/Requests 比率为 {{ $value | printf \"%.1f\" }}x"
+            summary: "Namespace {{ $labels.namespace }} has resource over-allocation"
+            description: "The ratio of limits to requests is {{ $value | printf \"%.1f\" }}x"
             
     # =================================================================
-    # 预算告警
+    # Budget Alert
     # =================================================================
     - name: cost.budget
       interval: 15m
@@ -1050,7 +1053,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "月度预算已使用 80%"
+            summary: "Monthly budget has been used at 80%"
             
         - alert: MonthlyBudgetExceeded
           expr: |
@@ -1062,140 +1065,140 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "月度预算已超支"
+            summary: "Monthly budget has exceeded"
 ```
 
-<!-- chunk: 成本优化检查清单 -->
-## 成本优化检查清单
 
-### 优化策略矩阵
+## Cost Optimization Checklist
 
-| 优化策略 | 节省比例 | 实现复杂度 | 适用场景 |
+### Optimization Strategy Matrix
+
+| Strategy | Savings Rate | Implementation Complexity | Applicable Scenarios |
 |---------|---------|-----------|---------|
-| **抢占式/Spot 实例** | 50-90% | 低 | 可中断工作负载 |
-| **预留实例** | 30-60% | 低 | 稳定基线负载 |
-| **节点自动缩放** | 20-40% | 中 | 负载波动场景 |
-| **VPA 资源调整** | 15-30% | 低 | 过度配置应用 |
-| **节点池优化** | 10-30% | 中 | 多样化工作负载 |
-| **Bin Packing** | 15-25% | 中 | 提高装箱率 |
-| **存储分层** | 20-40% | 中 | 大量存储场景 |
-| **网络优化** | 10-20% | 高 | 跨区域流量大 |
+| **Preemptible/Spot Instances** | 50-90% | Low | Non-critical workloads |
+| **Reserved Instances** | 30-60% | Low | Stable baseline loads |
+| **Node Auto Scaling** | 20-40% | Medium | Load fluctuation scenarios |
+| **VPA Resource Adjustment** | 15-30% | Low | Over-provisioned applications |
+| **Node Pool Optimization** | 10-30% | Medium | Diverse workload scenarios |
+| **Bin Packing** | 15-25% | Medium | Improve bin packing rate |
+| **Storage Layering** | 20-40% | Medium | Large storage scenarios |
+| **Network Optimization** | 10-20% | High | Large cross-region traffic |
 
-### 检查命令集
+### Check Command Set
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
 #!/bin/bash
 # cost-optimization-checklist.sh
-# 成本优化检查脚本
+# Cost Optimization Check Script
 
-echo "=== Kubernetes 成本优化检查 ==="
+echo "=== Kubernetes Cost Optimization Check ==="
 echo ""
 
-echo "1. 资源利用率检查"
-echo "--- 无资源请求的 Pod ---"
+echo "1. Resource Utilization Check"
+echo "--- Pods Without Resource Requests ---"
 kubectl get pods --all-namespaces -o json | jq -r '
   .items[] | 
   select(.spec.containers[].resources.requests == null) | 
   "\(.metadata.namespace)/\(.metadata.name)"'
 echo ""
 
-echo "2. 闲置 Pod 检查"
-echo "--- CPU 使用率低于 10% 的 Pod ---"
+echo "2. Idle Pod Check"
+echo "--- Pods With CPU Usage Below 10% ---"
 kubectl top pods --all-namespaces --sort-by=cpu | head -20
 echo ""
 
-echo "3. 过期 PVC 检查"
-echo "--- 未绑定的 PVC ---"
+echo "3. Expired PVC Check"
+echo "--- Unbound PVCs ---"
 kubectl get pvc --all-namespaces --field-selector=status.phase!=Bound
 echo ""
 
-echo "4. 未使用 ConfigMap/Secret"
-echo "--- 检查命令 ---"
+echo "4. Unused ConfigMap/Secrets"
+echo "--- Check Command ---"
 echo "kubectl get configmaps --all-namespaces -o json | jq '.items[].metadata.name'"
 echo ""
 
-echo "5. 节点利用率"
+echo "5. Node Utilization"
 kubectl top nodes
 echo ""
 
-echo "6. 跨 AZ Pod 分布"
+echo "6. Pod Distribution Across AZs"
 kubectl get pods --all-namespaces -o wide | awk '{print $8}' | sort | uniq -c
 echo ""
 
-echo "=== 检查完成 ==="
+echo "=== Check Complete ==="
 ```
-<!-- chunk: FinOps 成熟度模型 -->
-## FinOps 成熟度模型
 
-### 成熟度阶段
+## Financial Operations Maturity Model
 
-| 阶段 | 名称 | 核心能力 | 关键指标 | 目标 |
+### Maturity Phases
+
+| Stage | Name | Core Capabilities | Key Metrics | Goals |
 |-----|------|---------|---------|------|
-| **Level 1** | Crawl (起步) | 成本可见性 | 能看到成本数据 | 知道花了多少钱 |
-| **Level 2** | Walk (行走) | 成本分配 | 按团队/项目分配 | 知道谁花了钱 |
-| **Level 3** | Run (奔跑) | 成本优化 | 主动优化措施 | 持续降低成本 |
-| **Level 4** | Fly (飞翔) | 预测优化 | 预测性成本管理 | 前瞻性决策 |
+| **Level 1** | Crawl (Beginner) | Cost Visibility | See cost data | Know how much was spent |
+| **Level 2** | Walk (Walking) | Cost Allocation | Allocate by team/project | Know who spent what |
+| **Level 3** | Run (Running) | Cost Optimization | Active optimization measures | Continuously reduce costs |
+| **Level 4** | Fly (Flying) | Predictive Optimization | Predictive cost management | Proactive decision-making |
 
-### 云厂商特定功能
+### Vendor-Specific Features
 
-| 功能 | AWS EKS | Azure AKS | GCP GKE | 阿里云 ACK |
+| Feature | AWS EKS | Azure AKS | GCP GKE | AliCloud ACK |
 |-----|---------|-----------|---------|-----------|
-| 成本分析 | Cost Explorer | Cost Management | Cloud Billing | 成本分析 |
-| 资源建议 | Compute Optimizer | Advisor | Recommender | 资源画像 |
-| Spot 节点 | Spot Instances | Spot VMs | Preemptible VMs | 抢占式实例 |
-| 预留实例 | Reserved/Savings Plans | Reserved | CUDs | 预留实例 |
-| 弹性配额 | Service Quotas | Quotas | Quotas | 弹性配额 |
+| Cost Analysis | Cost Explorer | Cost Management | Cloud Billing | Cost Analysis |
+| Resource Recommendations | Compute Optimizer | Advisor | Recommender | Resource Profile |
+| Spot Nodes | Spot Instances | Spot VMs | Preemptible VMs | Spot Instance |
+| Reserved Instances | Reserved/Savings Plans | Reserved | CUDs | Reserved Instance |
+| Elastic Quotas | Service Quotas | Quotas | Quotas | Elastic Quotas |
 
-<!-- chunk: 版本变更记录 -->
-## 版本变更记录
 
-| 版本 | 变更内容 | 影响 |
+## Version Change Log
+
+| Version | Change Log | Impact |
 |-----|---------|------|
-| **Kubecost 2.0** | 新增 GPU 成本追踪 | 更精确的成本分析 |
-| **OpenCost 1.0** | CNCF 毕业项目 | 开源标准化 |
-| **v1.29** | VPA 增强 | 更好的资源建议 |
-| **v1.28** | Karpenter GA | 更智能的节点管理 |
+| **Kubecost 2.0** | GPU Cost Tracking Enhancements | More Precise Cost Analysis |
+| **OpenCost 1.0** | CNCF Graduated Project | Open Source Standardization |
+| **v1.29** | Enhanced VPA | Better Resource Recommendations |
+| **v1.28** | GA for Karpenter | Smarter Node Management |
 
-<!-- chunk: 最佳实践总结 -->
-## 最佳实践总结
 
-### 成本管理检查清单
+## Best Practice Summary
 
-- [ ] 部署成本监控工具 (Kubecost/OpenCost)
-- [ ] 建立成本标签规范
-- [ ] 配置 ResourceQuota 和 LimitRange
-- [ ] 启用 VPA 资源建议
-- [ ] 配置节点自动缩放
-- [ ] 使用 Spot/抢占式实例
-- [ ] 设置成本告警
-- [ ] 定期进行成本审查
+### Cost Management Checklist
 
----
-
-**参考资料**:
-- [Kubecost 文档](https://docs.kubecost.com/)
-- [OpenCost 项目](https://www.opencost.io/)
-- [FinOps 基金会](https://www.finops.org/)
-- [Kubernetes 成本优化](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/)
+- [ ] Deploy Cost Monitoring Tools (Kubecost/OpenCost)
+- [ ] Establish Cost Tagging Standards
+- [ ] Configure ResourceQuota and LimitRange
+- [ ] Enable VPA Resource Recommendations
+- [ ] Configure Auto-scaling for Nodes
+- [ ] Use Spot/Spot Instances
+- [ ] Set up Cost Alerts
+- [ ] Conduct Regular Cost Reviews
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**References**:
+- [Kubecost Documentation](https://docs.kubecost.com/)
+- [OpenCost Project](https://www.opencost.io/)
+- [FinOps Foundation](https://www.finops.org/)
+- [Kubernetes Cost Optimization](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/)
+
+---
+
+
+## Obsidian Documentation Related
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

@@ -1,6 +1,6 @@
 ---
-title: Kubeflow AI 平台部署与实践指南
-description: '# Kubeflow AI 平台部署与实践指南'
+title: Kubeflow AI Platform Deployment and Practice Guide
+description: '# Kubeflow AI Platform Deployment and Practice Guide'
 summary: 'def preprocess_data(input_path: str, output_path: str):'
 category: ai-infra
 tags:
@@ -20,18 +20,18 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Kubeflow AI 平台部署与实践指南 是什么
-- 如何 Kubeflow AI 平台部署与实践指南
-- Kubernetes 11 ai infra 最佳实践
+- What is Kubeflow AI Platform Deployment and Practice Guide
+- How Kubeflow AI Platform Deployment and Practice Guide
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
 - Kubeflow
 - AI
-- 平台部署与实践指南
+- Platform Deployment and Practice Guide
 - ai
 - infra
 prerequisites:
@@ -53,115 +53,117 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/99-kubeflow-ai-platform-guide.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (modifies cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# [[Kubeflow|Kubeflow]] AI 平台部署与实践指南
+# [[Kubeflow|Kubeflow]] AI Platform Deployment and Practice Guide
 
-> **适用版本**: Kubeflow v1.10.0  
-> **最后更新**: 2026-04-24  
-> **难度**: 高级
-
----
-
-<!-- chunk: 📋 目录 -->
-## 📋 目录
-
-- [一、核心组件架构](#一核心组件架构)
-- [二、部署方式](#二部署方式)
-- [三、Notebook 工作空间](#三notebook-工作空间)
-- [四、Pipelines 工作流编排](#四pipelines-工作流编排)
-- [五、Katib 超参数调优](#五katib-超参数调优)
-- [六、Training Operator 分布式训练](#六training-operator-分布式训练)
-- [七、[[KServe|KServe]] 模型服务集成](#七kserve-模型服务集成)
-- [八、多租户与隔离](#八多租户与隔离)
-- [九、生产环境 checklist](#九生产环境-checklist)
+> **Applicable Version**: Kubeflow v1.10.0  
+> **Last Updated**: 2026-04-24  
+> **Difficulty**: Advanced
 
 ---
 
-<!-- chunk: 一、核心组件架构 -->
-## 一、核心组件架构
+
+## 📋 Table of Contents
+
+- [- Core Component Architecture](#1-core-component-architecture)
+- [- Deployment Method](#2-deployment-methods)
+- [- Notebook Workspace](#3-jupyter-notebooks-workspace)
+- [- Pipelines Workflow Orchestration](#4-pipeline-workflow-orchestration)
+- [- Katib Hyperparameter Tuning](#5-katib-hyperparameter-tuning)
+- [- Training Operator Distributed Training](#6-training-operator-distributed-training)
+- [Seven, [[KServe|KServe]] Model Service Integration](#seven-kserve-model-service-integration)
+- [- Multi-Tenant and Isolation](#8-multi-tenancy-and-isolation)
+- [- Production Environment Checklist](#9-production-environment-checklist)
+
+---
+
+
+## 1. Core Component Architecture
 
 ```
-Kubeflow 平台
-├── Central Dashboard (统一入口)
-├── Notebooks (Jupyter / VSCode 工作空间)
-├── Pipelines (基于 Argo Workflows 的 ML 流水线)
+Kubeflow platform
+├── Central Dashboard (unified entry)
+├── Notebooks (Jupyter / VSCode workspace)
+├── Pipelines (ML pipelines based on Argo Workflows)
 │   └── SDK: kfp
-├── Katib (超参数调优 / AutoML / NAS)
-├── Training Operator (分布式训练作业)
+├── Katib (hyperparameter tuning / AutoML / NAS)
+├── Training Operator (distributed training jobs)
 │   ├── TFJob (TensorFlow)
 │   ├── PyTorchJob (PyTorch)
 │   ├── MPIJob (MPI)
 │   └── XGBoostJob
-├── KServe (模型推理服务, 可选独立)
-└── Manifests (统一安装配置)
+├── KServe (inference service for models, optionally independent)
+└── Manifests (unified installation configuration)
 ```
 
 ---
 
-<!-- chunk: 二、部署方式 -->
-## 二、部署方式
 
-### 2.1 Manifests 安装 (官方推荐)
+## 2. Deployment Methods
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl apply/create/replace`：创建/变更集群资源
+### 2.1 Installing with Manifests (Official Recommended)
+
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource status, recommend using --dry-run or diff first
+> - `kubectl apply/create/replace`: Create/Modify Cluster Resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 设置环境变量
+# 🟡 Yellow risk: modifies cluster/resource status; confirm target, impact scope, and authorization before execution
+# Set environment variables
 export KUBEFLOW_VERSION=v1.10.0
 
-# 下载并安装
+# Download and install
 wget https://github.com/kubeflow/manifests/archive/refs/tags/${KUBEFLOW_VERSION}.tar.gz
 tar -xzf ${KUBEFLOW_VERSION}.tar.gz
 cd manifests-${KUBEFLOW_VERSION}
 
-# 完整安装 (包含所有组件)
+# Complete installation (includes all components)
 while ! kustomize build example | kubectl apply -f -; do
   echo "Retrying to apply resources..."
   sleep 20
 done
 ```
-### 2.2 组件选择性安装
+### 2.2 Selective Installation of Components
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium Risk Change** — Modify cluster resource status, recommend using --dry-run or diff first
+> - `kubectl apply/create/replace`: Create/Modify Cluster Resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 仅安装核心 + Pipelines + Training
+# 🟡 Yellow risk: modifies cluster/resource status; confirm target, impact scope, and authorization before execution
+# Only install core + Pipelines + Training
 kustomize build apps/pipeline/upstream | kubectl apply -f -
 kustomize build apps/training-operator/upstream | kubectl apply -f -
 ```
-### 2.3 重要前置条件
+### 2.3 Important Pre-requisites
 
-| 组件 | 要求 |
+| Checkpoint | Requirement |
 |:---|:---|
-| K8s 版本 | v1.29+ |
-| Storage | 默认 StorageClass (PVC) |
-| [[Ingress|Ingress]] | Istio / NGINX / 云厂商 LB |
-| GPU (可选) | NVIDIA GPU Operator 预装 |
-| 资源 | 至少 8C16G 控制平面节点 |
+| K8s Version | v1.29+ |
+| Storage | Default StorageClass (PVC) |
+| [[Ingress|Ingress]] | Istio / NGINIX / Cloud Provider LB |
+| GPU (optional) | NVIDIA GPU Operator pre-installed |
+| Resources | At least 8C16G control plane nodes |
 
 ---
 
-<!-- chunk: 三、Notebook 工作空间 -->
-## 三、Notebook 工作空间
+
+## 3. Jupyter Notebooks Workspace
 
 ```yaml
 apiVersion: kubeflow.org/v1
@@ -192,18 +194,18 @@ spec:
           claimName: workspace-pvc
 ```
 
-**常用镜像**
-- `jupyter-scipy`: 基础科学计算
+**Common Images**
+- `jupyter-scipy`: Basic Scientific Computing
 - `jupyter-pytorch`: PyTorch + CUDA
 - `jupyter-tensorflow`: TensorFlow + CUDA
-- `jupyter-pytorch-full`: PyTorch + 常用 ML 库
+- `jupyter-pytorch-full`: PyTorch + Common ML Libraries
 
 ---
 
-<!-- chunk: 四、Pipelines 工作流编排 -->
-## 四、Pipelines 工作流编排
 
-### 4.1 Python SDK 定义流水线
+## 4. Pipeline Workflow Orchestration
+
+### 4.1 Defining Pipelines with Python SDK
 
 ```python
 from kfp import dsl
@@ -219,7 +221,7 @@ def preprocess_data(input_path: str, output_path: str):
 @dsl.component(base_image="pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime")
 def train_model(data_path: str, model_path: str, epochs: int):
     import torch
-    # 训练逻辑
+    # Train logic
     torch.save(model.state_dict(), model_path)
 
 @dsl.pipeline(name="ml-training-pipeline")
@@ -237,7 +239,7 @@ def my_pipeline(
         epochs=epochs
     )
 
-# 提交运行
+# Submit for execution
 kfp_client = client.Client(host="http://ml-pipeline.kubeflow:8888")
 run = kfp_client.create_run_from_pipeline_func(
     my_pipeline,
@@ -247,8 +249,8 @@ run = kfp_client.create_run_from_pipeline_func(
 
 ---
 
-<!-- chunk: 五、Katib 超参数调优 -->
-## 五、Katib 超参数调优
+
+## 5. Katib Hyperparameter Tuning
 
 ```yaml
 apiVersion: kubeflow.org/v1beta1
@@ -305,8 +307,8 @@ spec:
 
 ---
 
-<!-- chunk: 六、Training Operator 分布式训练 -->
-## 六、Training Operator 分布式训练
+
+## 6. Training Operator Distributed Training
 
 ### 6.1 PyTorchJob (DDP)
 
@@ -355,11 +357,11 @@ spec:
 
 ---
 
-<!-- chunk: 七、KServe 模型服务集成 -->
-## 七、KServe 模型服务集成
+
+## 7. KServe Model Serving Integration
 
 ```yaml
-# 在 Kubeflow 中集成 KServe
+# Integrate KServe into Kubeflow
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
@@ -377,10 +379,10 @@ spec:
 
 ---
 
-<!-- chunk: 八、多租户与隔离 -->
-## 八、多租户与隔离
 
-### 8.1 Profile (命名空间 + RBAC)
+## 8. Multi-tenancy and Isolation
+
+### 8.1 Profile (Namespace + RBAC)
 
 ```yaml
 apiVersion: kubeflow.org/v1
@@ -401,49 +403,49 @@ spec:
 
 ---
 
-<!-- chunk: 九、生产环境 checklist -->
-## 九、生产环境 checklist
 
-| 检查项 | 要求 |
+## 9. Production Environment Checklist
+
+| Item | Requirement |
 |:---|:---|
-| 持久化存储 | PVC + 备份策略 |
-| GPU 节点隔离 | Taints/Tolerations + Node Selector |
-| 网络策略 | 限制 Notebook 访问范围 |
-| 资源配额 | Profile 级别限制 |
-| 镜像安全 | Harbor + cosign 签名验证 |
-| 日志收集 | Fluent Bit → Loki/Elasticsearch |
-| 监控告警 | Prometheus + Grafana |
-| 流水线安全 | 最小权限 ServiceAccount |
-| 数据隔离 | S3/OSS Bucket 按团队隔离 |
-| 成本追踪 | OpenCost 按 Namespace 归因 |
+| Persistent Storage | PVC + Backup Strategy |
+| Isolate GPU Nodes | Taints/Tolerations + Node Selector |
+| Network Policies | Limit Notebook access scope |
+| Resource Quotas | Profile-level restrictions |
+| Image Security | Harbor + cosign signature verification |
+| Log Collection | Fluent Bit → Loki/Elasticsearch |
+| Monitoring Alerts | Prometheus + Grafana |
+| Pipeline Security | ServiceAccount with minimal permissions |
+| Data Isolation | S3/OSS Bucket isolated by team |
+| Cost Tracking | OpenCost attributed to Namespace |
 
 ---
 
-<!-- chunk: 参考链接 -->
-## 参考链接
 
-- [Kubeflow 官方文档](https://www.kubeflow.org/docs/)
+## References
+
+- [Kubeflow Official Documentation](https://www.kubeflow.org/docs/)
 - [Kubeflow Manifests](https://github.com/kubeflow/manifests)
-- [KServe 文档](https://kserve.github.io/website/latest/)
+- [KServe Documentation](https://kserve.github.io/website/latest/)
 - [Kubeflow Pipelines SDK](https://kubeflow-pipelines.readthedocs.io/)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Related Documents in Obsidian
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipelines and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
 
 ## See Also
 
@@ -454,7 +456,7 @@ spec:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 ```
 

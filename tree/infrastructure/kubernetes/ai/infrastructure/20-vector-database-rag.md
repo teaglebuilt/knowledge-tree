@@ -1,6 +1,6 @@
 ---
-title: 147 - 向量数据库与RAG架构
-description: '# 147 - 向量数据库与RAG架构'
+title: 147 - Vector Databases and RAG Architecture
+description: '# 147 - Vector Databases and RAG Architecture'
 summary: 'service.beta.kubernetes.io/aws-load-balancer-type: nlb'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 向量数据库与RAG架构 是什么
-- 如何 向量数据库与RAG架构
-- Kubernetes 11 ai infra 最佳实践
+- What is vector databases and RAG architecture
+- How to understand vector databases and RAG architecture
+- Kubernetes 11 AI infra best practices
 trigger_keywords:
-- 向量数据库与RAG架构
+- Vector Databases and RAG Architecture
 - ai
 - infra
 prerequisites:
@@ -52,30 +52,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/20-vector-database-rag.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 147 - 向量数据库与RAG架构
+# 147 - Vector Database and RAG Architecture
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 高级 | **参考**: [Milvus](https://milvus.io/docs) | [Weaviate](https://weaviate.io/developers/weaviate) | [LangChain](https://python.langchain.com/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: [Milvus](https://milvus.io/docs) | [Weaviate](https://weaviate.io/developers/weaviate) | [LangChain](https://python.langchain.com/)
 
-<!-- chunk: 一、RAG系统架构全景 -->
-## 一、RAG系统架构全景
 
-### 1.1 生产级RAG架构
+## 1. RAG System Architecture Overview
+
+### 1.1 Production-Level RAG Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -125,38 +127,38 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 向量数据库全面对比
+### 1.2 Comprehensive Comparison of Vector Databases
 
-| 数据库 | QPS | P99延迟 | 最大向量 | 分布式 | GPU加速 | 开源 | 托管服务 | 适用场景 |
+| Database | QPS | P99 latency | Maximum vector | Distributed | GPU acceleration | Open Source | Managed Service | Applicable Scenario |
 |--------|-----|---------|----------|-------|---------|------|----------|---------|
-| **Milvus** | 10K+ | <10ms | 10B+ | ✓ | ✓ | ✓ | Zilliz | 大规模生产 |
-| **Weaviate** | 5K | <20ms | 1B+ | ✓ | ✗ | ✓ | Weaviate Cloud | 企业级 |
-| **Qdrant** | 8K | <15ms | 1B+ | ✓ | ✗ | ✓ | Qdrant Cloud | 高性能 |
-| **Pinecone** | 10K+ | <20ms | 1B+ | ✓ | ✓ | ✗ | Pinecone | 托管首选 |
-| **Chroma** | 1K | <50ms | 10M | ✗ | ✗ | ✓ | - | 开发测试 |
-| **pgvector** | 500 | <100ms | 100M | ✗ | ✗ | ✓ | - | PG用户 |
-| **Elasticsearch** | 3K | <50ms | 1B+ | ✓ | ✗ | ✓ | Elastic Cloud | 混合搜索 |
-| **Redis Stack** | 15K+ | <5ms | 100M | ✓ | ✗ | ✓ | Redis Cloud | 低延迟 |
+| **Milvus** | 10K+ | <10ms | 10B+ | ✓ | ✓ | ✓ | Zilliz | Large-scale production |
+| **Weaviate** | 5K | <20ms | 1B+ | ✓ | ✗ | ✓ | Weaviate Cloud | Enterprise-level |
+| **Qdrant** | 8K | <15ms | 1B+ | ✓ | ✗ | ✓ | Qdrant Cloud | High-performance |
+| **Pinecone** | 10K+ | <20ms | 1B+ | ✓ | ✓ | ✗ | Pinecone | Preferred managed service |
+| **Chroma** | 1K | <50ms | 10M | ✗ | ✗ | ✓ | - | Development/test |
+| **pgvector** | 500 | <100ms | 100M | ✗ | ✗ | ✓ | - | PostgreSQL users |
+| **Elasticsearch** | 3K | <50ms | 1B+ | ✓ | ✗ | ✓ | Elastic Cloud | Hybrid search |
+| **Redis Stack** | 15K+ | <5ms | 100M | ✓ | ✗ | ✓ | Redis Cloud | Low latency |
 
-### 1.3 Embedding模型对比
+### 1.3 Model Comparison of Embeddings
 
-| 模型 | 维度 | MTEB分数 | 中文支持 | 速度 | 适用场景 |
+| Model | Dimensions | MTEB Score | Chinese Support | Speed | Applicable Scenario |
 |-----|------|---------|---------|------|---------|
-| **text-embedding-3-large** | 3072 | 64.6 | ✓ | 中 | 通用首选 |
-| **text-embedding-3-small** | 1536 | 62.3 | ✓ | 快 | 成本敏感 |
-| **E5-large-v2** | 1024 | 62.0 | ✓ | 中 | 开源首选 |
-| **BGE-large-zh-v1.5** | 1024 | 64.5 | ★★★ | 中 | 中文首选 |
-| **Cohere embed-v3** | 1024 | 64.5 | ✓ | 快 | 多语言 |
-| **Jina-embeddings-v2** | 768 | 60.4 | ✓ | 快 | 长文本 |
-| **GTE-large** | 1024 | 63.1 | ✓ | 中 | 通用 |
-| **instructor-xl** | 768 | 61.8 | ✓ | 慢 | 指令跟随 |
+| **text-embedding-3-large** | 3072 | 64.6 | ✓ | Medium | General preferred |
+| **text-embedding-3-small** | 1536 | 62.3 | ✓ | Fast | Cost-sensitive |
+| **E5-large-v2** | 1024 | 62.0 | ✓ | Medium | Open-source preferred |
+| **BGE-large-zh-v1.5** | 1024 | 64.5 | ★★★ | Medium | Chinese preferred |
+| **Cohere embed-v3** | 1024 | 64.5 | ✓ | Fast | Multilingual |
+| **Jina-embeddings-v2** | 768 | 60.4 | ✓ | Fast | Long text |
+| **GTE-large** | 1024 | 63.1 | ✓ | Medium | General |
+| **instructor-xl** | 768 | 61.8 | ✓ | slow | instruction-following |
 
 ---
 
-<!-- chunk: 二、Milvus生产部署 -->
-## 二、Milvus生产部署
 
-### 2.1 Milvus集群架构
+## 2. Milvus Production Deployment
+
+### 2.1 Milvus Cluster Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -218,16 +220,16 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Milvus Operator部署
+### 2.2 Deployment of Milvus Operator
 
 ```yaml
-# Milvus Operator安装
+# Milvus Operator Installation
 apiVersion: v1
 kind: Namespace
 metadata:
   name: milvus
 ---
-# 使用Helm安装Operator
+# Install Operator Using Helm
 # helm repo add milvus-operator https://zilliztech.github.io/milvus-operator/
 # helm install milvus-operator milvus-operator/milvus-operator -n milvus
 ---
@@ -239,9 +241,9 @@ metadata:
 spec:
   mode: cluster
   
-  # 依赖组件配置
+  # Component Configuration
   dependencies:
-    # etcd配置
+    # etcd Configuration
     etcd:
       inCluster:
         deletionPolicy: Delete
@@ -259,7 +261,7 @@ spec:
             storageClass: fast-ssd
             size: 50Gi
     
-    # Pulsar配置
+    # Pulsar Configuration
     pulsar:
       inCluster:
         deletionPolicy: Delete
@@ -291,7 +293,7 @@ spec:
           zookeeper:
             replicaCount: 3
     
-    # 对象存储配置
+    # Object Storage Configuration
     storage:
       type: S3
       secretRef: milvus-s3-secret
@@ -301,9 +303,9 @@ spec:
       useSSL: true
       useIAM: true
   
-  # 组件配置
+  # Component Configuration
   components:
-    # Proxy配置
+    # Proxy Configuration
     proxy:
       replicas: 3
       resources:
@@ -318,7 +320,7 @@ spec:
         service.beta.kubernetes.io/aws-load-balancer-type: nlb
         service.beta.kubernetes.io/aws-load-balancer-internal: "true"
     
-    # QueryNode配置
+    # QueryNode Configuration
     queryNode:
       replicas: 5
       resources:
@@ -329,7 +331,7 @@ spec:
           cpu: "8"
           memory: "32Gi"
     
-    # DataNode配置
+    # DataNode Configuration
     dataNode:
       replicas: 3
       resources:
@@ -340,7 +342,7 @@ spec:
           cpu: "4"
           memory: "16Gi"
     
-    # IndexNode配置 (GPU加速)
+    # IndexNode Configuration (GPU Acceleration)
     indexNode:
       replicas: 2
       resources:
@@ -353,7 +355,7 @@ spec:
           memory: "32Gi"
           nvidia.com/gpu: "1"
     
-    # RootCoord配置
+    # RootCoord Configuration
     rootCoord:
       replicas: 1
       resources:
@@ -361,7 +363,7 @@ spec:
           cpu: "1"
           memory: "2Gi"
     
-    # QueryCoord配置
+    # QueryCoord Configuration
     queryCoord:
       replicas: 1
       resources:
@@ -369,7 +371,7 @@ spec:
           cpu: "1"
           memory: "2Gi"
     
-    # DataCoord配置
+    # DataCoord Configuration
     dataCoord:
       replicas: 1
       resources:
@@ -377,7 +379,7 @@ spec:
           cpu: "1"
           memory: "2Gi"
     
-    # IndexCoord配置
+    # IndexCoord Configuration
     indexCoord:
       replicas: 1
       resources:
@@ -385,14 +387,14 @@ spec:
           cpu: "1"
           memory: "2Gi"
   
-  # 配置参数
+  # Configuration Parameters
   config:
-    # 通用配置
+    # General Configuration
     common:
       gracefulTime: 5000
       gracefulStopTimeout: 30
     
-    # Proxy配置
+    # Proxy Configuration
     proxy:
       maxTaskNum: 1024
       maxConnectionNum: 10000
@@ -400,7 +402,7 @@ spec:
         enable: true
         filename: access.log
     
-    # QueryNode配置
+    # QueryNode Configuration
     queryNode:
       gracefulTime: 5000
       enableDisk: true
@@ -408,11 +410,11 @@ spec:
         enabled: true
         memoryLimit: 8589934592  # 8GB
     
-    # 索引配置
+    # Index Configuration
     indexNode:
       enableDisk: true
     
-    # 数据配置
+    # Data Configuration
     dataCoord:
       segment:
         maxSize: 512
@@ -431,10 +433,10 @@ stringData:
   secretkey: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 ```
 
-### 2.3 Collection和索引配置
+### 2.3 Configuration of Collections and Indexes
 
 ```python
-# milvus_collection.py - Milvus Collection管理
+# milvus_collection.py - Milvus Collection Management
 from pymilvus import (
     connections, Collection, FieldSchema, CollectionSchema, 
     DataType, utility, MilvusClient
@@ -443,7 +445,7 @@ from typing import List, Dict, Optional
 import numpy as np
 
 class MilvusCollectionManager:
-    """Milvus Collection管理器"""
+    """Milvus Collection Manager"""
     
     def __init__(
         self,
@@ -455,7 +457,7 @@ class MilvusCollectionManager:
         self.port = port
         self.db_name = db_name
         
-        # 连接Milvus
+        # Connect to Milvus
         connections.connect(
             alias="default",
             host=host,
@@ -471,9 +473,9 @@ class MilvusCollectionManager:
         metric_type: str = "COSINE",
         enable_dynamic_field: bool = True,
     ):
-        """创建Collection"""
+        """Create Collection"""
         
-        # 定义Schema
+        # Define Schema
         fields = [
             FieldSchema(
                 name="id",
@@ -507,7 +509,7 @@ class MilvusCollectionManager:
             enable_dynamic_field=enable_dynamic_field
         )
         
-        # 创建Collection
+        # Create Collection
         collection = Collection(
             name=collection_name,
             schema=schema,
@@ -516,7 +518,7 @@ class MilvusCollectionManager:
             num_partitions=16  # 分区数
         )
         
-        # 创建索引
+        # Create Index
         index_params = self._get_index_params(index_type, metric_type)
         collection.create_index(
             field_name="vector",
@@ -524,13 +526,13 @@ class MilvusCollectionManager:
             index_name="vector_index"
         )
         
-        # 创建标量索引
+        # Create Scalar Index
         collection.create_index(
             field_name="created_at",
             index_name="created_at_index"
         )
         
-        # 加载到内存
+        # Load into Memory
         collection.load()
         
         return collection
@@ -540,7 +542,7 @@ class MilvusCollectionManager:
         index_type: str,
         metric_type: str
     ) -> dict:
-        """获取索引参数"""
+        """Get Index Parameters"""
         
         index_configs = {
             "HNSW": {
@@ -608,11 +610,11 @@ class MilvusCollectionManager:
         metadata: List[dict],
         batch_size: int = 1000
     ):
-        """批量插入向量"""
+        """Batch Insert Vectors"""
         
         collection = Collection(collection_name)
         
-        # 分批插入
+        # Batch Insert
         total = len(vectors)
         for i in range(0, total, batch_size):
             batch_end = min(i + batch_size, total)
@@ -627,7 +629,7 @@ class MilvusCollectionManager:
             
             collection.insert(data)
         
-        # 刷新到存储
+        # Flush to Storage
         collection.flush()
         
         return total
@@ -641,7 +643,7 @@ class MilvusCollectionManager:
         output_fields: List[str] = None,
         search_params: dict = None
     ):
-        """向量搜索"""
+        """Vector Search"""
         
         collection = Collection(collection_name)
         
@@ -675,11 +677,11 @@ class MilvusCollectionManager:
         alpha: float = 0.5,  # 向量权重
         filter_expr: str = None
     ):
-        """混合搜索 (向量 + BM25)"""
+        """Hybrid Search (Vector + BM25)"""
         
         collection = Collection(collection_name)
         
-        # 向量搜索
+        # Vector Search
         vector_results = self.search(
             collection_name,
             [query_vector],
@@ -687,7 +689,7 @@ class MilvusCollectionManager:
             filter_expr=filter_expr
         )[0]
         
-        # 组合分数
+        # Combine Scores
         combined_results = []
         for hit in vector_results:
             combined_score = hit.score * alpha
@@ -698,11 +700,11 @@ class MilvusCollectionManager:
                 "metadata": hit.entity.get("metadata")
             })
         
-        # 排序并返回top_k
+        # Sort and return top_k
         combined_results.sort(key=lambda x: x["score"], reverse=True)
         return combined_results[:top_k]
 
-# 索引类型选择指南
+# Index Type Selection Guide
 INDEX_SELECTION_GUIDE = """
 索引选择指南:
 
@@ -733,7 +735,7 @@ INDEX_SELECTION_GUIDE = """
 """
 ```
 
-### 2.4 Milvus监控配置
+### 2.4 Configuration of Milvus Monitoring
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -759,7 +761,7 @@ spec:
   groups:
   - name: milvus-health
     rules:
-    # 搜索延迟告警
+    # Search latency alarm
     - alert: MilvusHighSearchLatency
       expr: |
         histogram_quantile(0.99, sum(rate(milvus_proxy_search_vectors_duration_seconds_bucket[5m])) by (le)) > 0.5
@@ -767,10 +769,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "Milvus搜索延迟过高"
-        description: "P99延迟 {{ $value }}秒"
+        summary: "Milvus search latency is too high"
+        description: "P99 latency {{ $value }} seconds"
     
-    # QPS下降告警
+    # QPS drop alarm
     - alert: MilvusLowQPS
       expr: |
         sum(rate(milvus_proxy_search_vectors_total[5m])) < 100
@@ -778,9 +780,9 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "Milvus QPS下降"
+        summary: "Milvus QPS drops"
     
-    # 内存使用告警
+    # Memory usage alarm
     - alert: MilvusHighMemoryUsage
       expr: |
         milvus_querynode_memory_usage_ratio > 0.85
@@ -788,9 +790,9 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "QueryNode内存使用率过高"
+        summary: "QueryNode memory usage is too high"
     
-    # 磁盘空间告警
+    # Disk space alarm
     - alert: MilvusLowDiskSpace
       expr: |
         milvus_storage_disk_usage_ratio > 0.80
@@ -798,9 +800,9 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "存储磁盘空间不足"
+        summary: "Storage disk space is insufficient"
     
-    # 组件不健康
+    # Component unhealthy
     - alert: MilvusComponentUnhealthy
       expr: |
         milvus_component_healthy == 0
@@ -808,20 +810,20 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "Milvus组件不健康"
-        description: "组件 {{ $labels.component }} 状态异常"
+        summary: "Milvus component is unhealthy"
+        description: "Component {{ $labels.component }} status is abnormal"
   
   - name: milvus-performance
     rules:
-    # 搜索QPS
+    # Search QPS
     - record: milvus:search_qps
       expr: sum(rate(milvus_proxy_search_vectors_total[5m]))
     
-    # 插入QPS
+    # Insert QPS
     - record: milvus:insert_qps
       expr: sum(rate(milvus_proxy_insert_vectors_total[5m]))
     
-    # 搜索延迟P50/P95/P99
+    # Search latency P50/P95/P99
     - record: milvus:search_latency_p50
       expr: |
         histogram_quantile(0.50, sum(rate(milvus_proxy_search_vectors_duration_seconds_bucket[5m])) by (le))
@@ -837,10 +839,10 @@ spec:
 
 ---
 
-<!-- chunk: 三、Weaviate部署 -->
-## 三、Weaviate部署
 
-### 3.1 Weaviate集群配置
+## 3. Weaviate Deployment
+
+### 3.1 Configuration of Weaviate Cluster
 
 ```yaml
 apiVersion: v1
@@ -869,7 +871,7 @@ spec:
         image: semitechnologies/weaviate:1.24.1
         
         env:
-        # 集群配置
+        # Cluster configuration
         - name: CLUSTER_HOSTNAME
           valueFrom:
             fieldRef:
@@ -881,7 +883,7 @@ spec:
         - name: CLUSTER_JOIN
           value: "weaviate-0.weaviate-headless.weaviate.svc.cluster.local:7100,weaviate-1.weaviate-headless.weaviate.svc.cluster.local:7100,weaviate-2.weaviate-headless.weaviate.svc.cluster.local:7100"
         
-        # 性能配置
+        # Performance configuration
         - name: QUERY_DEFAULTS_LIMIT
           value: "25"
         - name: QUERY_MAXIMUM_RESULTS
@@ -889,13 +891,13 @@ spec:
         - name: PERSISTENCE_DATA_PATH
           value: "/var/lib/weaviate"
         
-        # 模块配置
+        # Module configuration
         - name: ENABLE_MODULES
           value: "text2vec-openai,text2vec-cohere,text2vec-huggingface,generative-openai,generative-cohere,qna-openai,reranker-cohere"
         - name: DEFAULT_VECTORIZER_MODULE
           value: "text2vec-openai"
         
-        # 认证配置
+        # Authentication configuration
         - name: AUTHENTICATION_APIKEY_ENABLED
           value: "true"
         - name: AUTHENTICATION_APIKEY_ALLOWED_KEYS
@@ -906,7 +908,7 @@ spec:
         - name: AUTHENTICATION_APIKEY_USERS
           value: "admin,readonly"
         
-        # 资源限制
+        # Resource limits
         - name: LIMIT_RESOURCES
           value: "true"
         - name: MAXIMUM_CONCURRENT_GET_REQUESTS
@@ -1008,10 +1010,10 @@ stringData:
   api-keys: "admin-key-xxxxx,readonly-key-xxxxx"
 ```
 
-### 3.2 Weaviate Schema和数据操作
+### 3.2 Schema and Data Operations of Weaviate
 
 ```python
-# weaviate_operations.py - Weaviate操作
+# weaviate_operations.py - Weaviate operations
 import weaviate
 from weaviate.classes.config import Configure, Property, DataType
 from weaviate.classes.query import MetadataQuery, Filter
@@ -1019,7 +1021,7 @@ from typing import List, Dict, Optional
 import json
 
 class WeaviateManager:
-    """Weaviate管理器"""
+    """Weaviate manager"""
     
     def __init__(
         self,
@@ -1049,9 +1051,9 @@ class WeaviateManager:
         generative: str = "generative-openai",
         replication_factor: int = 3,
     ):
-        """创建Collection"""
+        """Create Collection"""
         
-        # 配置向量化器
+        # Configure vectorizer
         vectorizer_config = None
         if vectorizer == "text2vec-openai":
             vectorizer_config = Configure.Vectorizer.text2vec_openai(
@@ -1063,14 +1065,14 @@ class WeaviateManager:
                 model="embed-multilingual-v3.0"
             )
         
-        # 配置生成器
+        # Configure generator
         generative_config = None
         if generative == "generative-openai":
             generative_config = Configure.Generative.openai(
                 model="gpt-4-turbo-preview"
             )
         
-        # 创建Collection
+        # Create Collection
         collection = self.client.collections.create(
             name=name,
             vectorizer_config=vectorizer_config,
@@ -1107,14 +1109,14 @@ class WeaviateManager:
                     skip_vectorization=True
                 ),
             ],
-            # 向量索引配置
+            # Vector index configuration
             vector_index_config=Configure.VectorIndex.hnsw(
                 distance_metric=weaviate.classes.config.VectorDistances.COSINE,
                 ef_construction=256,
                 max_connections=64,
                 ef=128
             ),
-            # 倒排索引配置
+            # Inverted Index Configuration
             inverted_index_config=Configure.inverted_index(
                 bm25_b=0.75,
                 bm25_k1=1.2,
@@ -1132,7 +1134,7 @@ class WeaviateManager:
         data: List[Dict],
         batch_size: int = 100
     ):
-        """批量插入数据"""
+        """Batch Insert Data"""
         
         collection = self.client.collections.get(collection_name)
         
@@ -1160,16 +1162,16 @@ class WeaviateManager:
         filters: dict = None,
         alpha: float = 0.5  # 混合搜索权重
     ):
-        """混合搜索"""
+        """Hybrid Search"""
         
         collection = self.client.collections.get(collection_name)
         
-        # 构建过滤器
+        # Build Filter
         filter_obj = None
         if filters:
             filter_obj = self._build_filter(filters)
         
-        # 执行混合搜索
+        # Execute Hybrid Search
         response = collection.query.hybrid(
             query=query,
             alpha=alpha,  # 0=纯BM25, 1=纯向量
@@ -1201,7 +1203,7 @@ class WeaviateManager:
         prompt: str,
         top_k: int = 5
     ):
-        """RAG生成"""
+        """RAG Generation"""
         
         collection = self.client.collections.get(collection_name)
         
@@ -1231,7 +1233,7 @@ class WeaviateManager:
         }
     
     def _build_filter(self, filters: dict):
-        """构建过滤器"""
+        """Build Filter"""
         conditions = []
         
         for key, value in filters.items():
@@ -1257,16 +1259,16 @@ class WeaviateManager:
         return None
     
     def close(self):
-        """关闭连接"""
+        """Close Connection"""
         self.client.close()
 ```
 
 ---
 
-<!-- chunk: 四、Qdrant部署 -->
-## 四、Qdrant部署
 
-### 4.1 Qdrant集群配置
+## 4. Qdrant Deployment
+
+### 4.1 Configuration of Qdrant Cluster
 
 ```yaml
 apiVersion: v1
@@ -1308,7 +1310,7 @@ spec:
         - name: QDRANT__STORAGE__SNAPSHOTS_PATH
           value: "/qdrant/snapshots"
         
-        # 性能配置
+        # Performance Configuration
         - name: QDRANT__STORAGE__ON_DISK_PAYLOAD
           value: "true"
         - name: QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD
@@ -1316,7 +1318,7 @@ spec:
         - name: QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS
           value: "0"  # 使用所有CPU
         
-        # API Key认证
+        # API Key Authentication
         - name: QDRANT__SERVICE__API_KEY
           valueFrom:
             secretKeyRef:
@@ -1395,16 +1397,16 @@ spec:
     app: qdrant
 ```
 
-### 4.2 Qdrant Python客户端
+### 4.2 Qdrant Python Client
 
 ```python
-# qdrant_client.py - Qdrant操作
+# qdrant_client.py - Qdrant Operations
 from qdrant_client import QdrantClient, models
 from typing import List, Dict, Optional
 import uuid
 
 class QdrantManager:
-    """Qdrant管理器"""
+    """Qdrant Manager"""
     
     def __init__(
         self,
@@ -1427,9 +1429,9 @@ class QdrantManager:
         replication_factor: int = 2,
         shard_number: int = 4
     ):
-        """创建Collection"""
+        """Create Collection"""
         
-        # 量化配置
+        # Quantized Configuration
         quantization_config = None
         if quantization == "scalar":
             quantization_config = models.ScalarQuantization(
@@ -1453,7 +1455,7 @@ class QdrantManager:
                 )
             )
         
-        # 创建Collection
+        # Quantization Configuration
         self.client.create_collection(
             collection_name=name,
             vectors_config=models.VectorParams(
@@ -1476,7 +1478,7 @@ class QdrantManager:
             shard_number=shard_number
         )
         
-        # 创建payload索引
+        # Create Collection
         self.client.create_payload_index(
             collection_name=name,
             field_name="source",
@@ -1498,7 +1500,7 @@ class QdrantManager:
         ids: List[str] = None,
         batch_size: int = 100
     ):
-        """批量更新/插入"""
+        """Batch Update/Insert"""
         
         if ids is None:
             ids = [str(uuid.uuid4()) for _ in range(len(vectors))]
@@ -1512,7 +1514,7 @@ class QdrantManager:
             for i in range(len(vectors))
         ]
         
-        # 分批上传
+        # Batch Upload
         for i in range(0, len(points), batch_size):
             batch = points[i:i + batch_size]
             self.client.upsert(
@@ -1531,9 +1533,9 @@ class QdrantManager:
         filter_conditions: Dict = None,
         score_threshold: float = None
     ):
-        """向量搜索"""
+        """Vector Search"""
         
-        # 构建过滤器
+        # Build Filter
         query_filter = None
         if filter_conditions:
             must_conditions = []
@@ -1591,7 +1593,7 @@ class QdrantManager:
         top_k: int = 10,
         filter_conditions: Dict = None
     ):
-        """推荐搜索 (基于正负样本)"""
+        """Recommended Search (based on Positive and Negative Samples)"""
         
         results = self.client.recommend(
             collection_name=collection_name,
@@ -1613,13 +1615,13 @@ class QdrantManager:
 
 ---
 
-<!-- chunk: 五、RAG Pipeline实现 -->
-## 五、RAG Pipeline实现
 
-### 5.1 完整RAG Pipeline
+## 5. Implementation of RAG Pipeline
+
+### 5.1 Complete RAG Pipeline
 
 ```python
-# rag_pipeline.py - 生产级RAG Pipeline
+# rag_pipeline.py - Production-Level RAG Pipeline
 from typing import List, Dict, Optional, AsyncIterator
 import asyncio
 from dataclasses import dataclass
@@ -1633,7 +1635,7 @@ from sentence_transformers import CrossEncoder
 import tiktoken
 
 class SearchStrategy(Enum):
-    """搜索策略"""
+    """Search Strategy"""
     VECTOR = "vector"
     HYBRID = "hybrid"
     MULTI_QUERY = "multi_query"
@@ -1641,7 +1643,7 @@ class SearchStrategy(Enum):
 
 @dataclass
 class Document:
-    """文档对象"""
+    """Document Object"""
     id: str
     content: str
     metadata: Dict
@@ -1650,14 +1652,14 @@ class Document:
 
 @dataclass
 class RAGResponse:
-    """RAG响应"""
+    """RAG Response"""
     answer: str
     sources: List[Document]
     confidence: float
     tokens_used: int
 
 class RAGPipeline:
-    """生产级RAG Pipeline"""
+    """Production-Level RAG Pipeline"""
     
     def __init__(
         self,
@@ -1671,27 +1673,27 @@ class RAGPipeline:
         self.vector_db = vector_db
         self.llm_client = llm_client
         
-        # 初始化Embedding模型
+        # Initialize Embedding Model
         self.embedding_model = HuggingFaceEmbeddings(
             model_name=embedding_model,
             model_kwargs={'device': 'cuda'},
             encode_kwargs={'normalize_embeddings': True}
         )
         
-        # 初始化Reranker
+        # Initialize Reranker
         self.reranker = CrossEncoder(
             reranker_model,
             device='cuda'
         )
         
-        # 文本分割器
+        # Text Splitter
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", "。", "！", "？", ".", "!", "?", " "]
+            separators=["\n\n", "\n", ".", "!", "?", ".", "!", "?", " "]
         )
         
-        # Token计数器
+        # Token Counter
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
     
     async def ingest_documents(
@@ -1700,12 +1702,12 @@ class RAGPipeline:
         collection_name: str,
         batch_size: int = 100
     ):
-        """文档摄入"""
+        """Document Ingestion"""
         
         all_chunks = []
         
         for doc in documents:
-            # 分块
+            # Chunking
             chunks = self.text_splitter.split_text(doc["content"])
             
             for i, chunk in enumerate(chunks):
@@ -1724,17 +1726,17 @@ class RAGPipeline:
                     }
                 })
         
-        # 批量生成Embedding
+        # Batch Generation of Embeddings
         embeddings = await self._batch_embed(
             [c["content"] for c in all_chunks],
             batch_size
         )
         
-        # 添加embedding到chunks
+        # Add embedding to chunks
         for i, chunk in enumerate(all_chunks):
             chunk["embedding"] = embeddings[i]
         
-        # 插入向量数据库
+        # Insert into Vector Database
         await self._batch_insert(collection_name, all_chunks, batch_size)
         
         return len(all_chunks)
@@ -1749,12 +1751,12 @@ class RAGPipeline:
         filter_conditions: Dict = None,
         stream: bool = False
     ) -> RAGResponse:
-        """RAG查询"""
+        """RAG Query"""
         
-        # Step 1: 查询改写/扩展
+        # Step 1: Query Rewrite/Expansion
         enhanced_queries = await self._enhance_query(question, strategy)
         
-        # Step 2: 检索
+        # Step 2: Retrieval
         candidates = await self._retrieve(
             enhanced_queries,
             collection_name,
@@ -1763,23 +1765,23 @@ class RAGPipeline:
             strategy
         )
         
-        # Step 3: 重排序
+        # Step 3: Reordering
         reranked_docs = await self._rerank(
             question,
             candidates,
             rerank_top_k
         )
         
-        # Step 4: 构建上下文
+        # Step 4: Context Construction
         context = self._build_context(reranked_docs)
         
-        # Step 5: 生成答案
+        # Step 5: Generate an answer
         if stream:
             return self._generate_stream(question, context, reranked_docs)
         else:
             answer, tokens = await self._generate(question, context)
             
-            # 计算置信度
+            # Calculate confidence
             confidence = self._calculate_confidence(reranked_docs)
             
             return RAGResponse(
@@ -1794,10 +1796,10 @@ class RAGPipeline:
         question: str,
         strategy: SearchStrategy
     ) -> List[str]:
-        """查询增强"""
+        """Query Enhancement"""
         
         if strategy == SearchStrategy.MULTI_QUERY:
-            # 生成多个查询变体
+            # Generate multiple query variants
             prompt = f"""Given the question: "{question}"
             
 Generate 3 different search queries that would help find relevant information.
@@ -1808,7 +1810,7 @@ Output only the queries, one per line."""
             return queries[:4]
         
         elif strategy == SearchStrategy.HYDE:
-            # 生成假设性答案
+            # Generate hypothetical answers
             prompt = f"""Question: {question}
 
 Write a detailed answer to this question as if you were an expert. 
@@ -1829,16 +1831,16 @@ This will be used to search for similar content."""
         filter_conditions: Dict,
         strategy: SearchStrategy
     ) -> List[Document]:
-        """检索文档"""
+        """Retrieve Documents"""
         
         all_results = {}
         
         for query in queries:
-            # 生成查询向量
+            # Generate query vectors
             query_embedding = self.embedding_model.embed_query(query)
             
             if strategy == SearchStrategy.HYBRID:
-                # 混合搜索
+                # Hybrid search
                 results = await self.vector_db.hybrid_search(
                     collection_name,
                     query_embedding,
@@ -1847,7 +1849,7 @@ This will be used to search for similar content."""
                     filter_conditions
                 )
             else:
-                # 纯向量搜索
+                # Pure vector search
                 results = await self.vector_db.search(
                     collection_name,
                     query_embedding,
@@ -1855,7 +1857,7 @@ This will be used to search for similar content."""
                     filter_conditions
                 )
             
-            # 合并结果,保留最高分
+            # Merge results, retain highest score
             for r in results:
                 doc_id = r["id"]
                 if doc_id not in all_results or r["score"] > all_results[doc_id].score:
@@ -1866,7 +1868,7 @@ This will be used to search for similar content."""
                         score=r["score"]
                     )
         
-        # 按分数排序
+        # Sort by score
         sorted_results = sorted(
             all_results.values(),
             key=lambda x: x.score,
@@ -1881,22 +1883,22 @@ This will be used to search for similar content."""
         documents: List[Document],
         top_k: int
     ) -> List[Document]:
-        """重排序"""
+        """Reorder"""
         
         if not documents:
             return []
         
-        # 准备输入对
+        # Prepare input pairs
         pairs = [(question, doc.content) for doc in documents]
         
-        # 计算重排序分数
+        # Calculate reorder scores
         scores = self.reranker.predict(pairs)
         
-        # 更新分数
+        # Update scores
         for i, doc in enumerate(documents):
             doc.score = float(scores[i])
         
-        # 排序并返回top_k
+        # Sort and return top_k
         reranked = sorted(documents, key=lambda x: x.score, reverse=True)
         return reranked[:top_k]
     
@@ -1905,7 +1907,7 @@ This will be used to search for similar content."""
         documents: List[Document],
         max_tokens: int = 4000
     ) -> str:
-        """构建上下文"""
+        """Build Context"""
         
         context_parts = []
         total_tokens = 0
@@ -1927,7 +1929,7 @@ This will be used to search for similar content."""
         question: str,
         context: str
     ) -> tuple:
-        """生成答案"""
+        """Generate Answer"""
         
         prompt = f"""Based on the following context, answer the question accurately and concisely.
 If the context doesn't contain enough information, say so.
@@ -1956,7 +1958,7 @@ Answer:"""
         context: str,
         sources: List[Document]
     ) -> AsyncIterator[str]:
-        """流式生成"""
+        """Stream Generation"""
         
         prompt = f"""Based on the following context, answer the question.
 
@@ -1975,16 +1977,16 @@ Answer:"""
             yield chunk
     
     def _calculate_confidence(self, documents: List[Document]) -> float:
-        """计算置信度"""
+        """Calculate confidence"""
         
         if not documents:
             return 0.0
         
-        # 基于重排序分数计算
+        # Calculate ranking score based on permutation
         avg_score = sum(doc.score for doc in documents) / len(documents)
         top_score = documents[0].score if documents else 0
         
-        # 综合置信度
+        # Combine confidence
         confidence = (avg_score * 0.4 + top_score * 0.6)
         return min(max(confidence, 0.0), 1.0)
     
@@ -1993,7 +1995,7 @@ Answer:"""
         texts: List[str],
         batch_size: int
     ) -> List[List[float]]:
-        """批量生成Embedding"""
+        """Batch generate Embedding"""
         
         embeddings = []
         for i in range(0, len(texts), batch_size):
@@ -2009,23 +2011,23 @@ Answer:"""
         chunks: List[Dict],
         batch_size: int
     ):
-        """批量插入"""
+        """Batch insert"""
         
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i:i + batch_size]
             await self.vector_db.insert(collection_name, batch)
 ```
 
-### 5.2 高级检索策略
+### 5.2 Advanced Search Strategies
 
 ```python
-# advanced_retrieval.py - 高级检索策略
+# advanced_retrieval.py - Advanced search strategies
 from typing import List, Dict, Optional
 import numpy as np
 from collections import defaultdict
 
 class AdvancedRetriever:
-    """高级检索器"""
+    """Advanced retriever"""
     
     def __init__(self, vector_db, embedding_model, llm_client):
         self.vector_db = vector_db
@@ -2038,9 +2040,9 @@ class AdvancedRetriever:
         collection_name: str,
         top_k: int = 5
     ) -> List[Dict]:
-        """父文档检索 - 检索小块,返回大块"""
+        """Parent document retrieval - Retrieve small chunks, return large blocks"""
         
-        # 搜索小块
+        # Search small chunks
         query_embedding = self.embedding_model.embed_query(query)
         small_chunks = await self.vector_db.search(
             collection_name + "_small",
@@ -2048,14 +2050,14 @@ class AdvancedRetriever:
             top_k * 3
         )
         
-        # 获取对应的父文档ID
+        # Get corresponding parent document ID
         parent_ids = set()
         for chunk in small_chunks:
             parent_id = chunk["metadata"].get("parent_id")
             if parent_id:
                 parent_ids.add(parent_id)
         
-        # 检索父文档
+        # Retrieve parent document
         parent_docs = await self.vector_db.get_by_ids(
             collection_name + "_large",
             list(parent_ids)[:top_k]
@@ -2069,9 +2071,9 @@ class AdvancedRetriever:
         collection_name: str,
         top_k: int = 5
     ) -> List[Dict]:
-        """自查询检索 - LLM解析查询生成过滤条件"""
+        """Self-query retrieval - Parse query with LLM to generate filter conditions"""
         
-        # 使用LLM解析查询
+        # Use LLM to parse query
         parse_prompt = f"""Parse the following query into search parameters.
 
 Query: "{query}"
@@ -2095,7 +2097,7 @@ Output:"""
             search_query = query
             filters = {}
         
-        # 执行带过滤的搜索
+        # Execute filtered search
         query_embedding = self.embedding_model.embed_query(search_query)
         results = await self.vector_db.search(
             collection_name,
@@ -2112,7 +2114,7 @@ Output:"""
         documents: List[Dict],
         max_length: int = 500
     ) -> List[Dict]:
-        """上下文压缩 - 提取与查询相关的部分"""
+        """Context compression - Extract parts related to the query"""
         
         compressed = []
         
@@ -2147,7 +2149,7 @@ Relevant extract:"""
         top_k: int = 10,
         weights: Dict[str, float] = None
     ) -> List[Dict]:
-        """集成检索 - 多策略融合"""
+        """Integration retrieval - Fusion of multiple strategies"""
         
         if weights is None:
             weights = {
@@ -2158,7 +2160,7 @@ Relevant extract:"""
         
         all_results = defaultdict(lambda: {"score": 0, "doc": None})
         
-        # 向量检索
+        # Vector retrieval
         query_embedding = self.embedding_model.embed_query(query)
         vector_results = await self.vector_db.search(
             collection_name,
@@ -2170,7 +2172,7 @@ Relevant extract:"""
             all_results[r["id"]]["score"] += r["score"] * weights["vector"]
             all_results[r["id"]]["doc"] = r
         
-        # BM25检索 (如果支持)
+        # BM25 retrieval (if supported)
         if hasattr(self.vector_db, "bm25_search"):
             bm25_results = await self.vector_db.bm25_search(
                 collection_name,
@@ -2183,7 +2185,7 @@ Relevant extract:"""
                 if all_results[r["id"]]["doc"] is None:
                     all_results[r["id"]]["doc"] = r
         
-        # 多查询检索
+        # Multi-query retrieval
         multi_queries = await self._generate_multi_queries(query)
         for mq in multi_queries:
             mq_embedding = self.embedding_model.embed_query(mq)
@@ -2200,7 +2202,7 @@ Relevant extract:"""
                 if all_results[r["id"]]["doc"] is None:
                     all_results[r["id"]]["doc"] = r
         
-        # 合并排序
+        # Merge sort
         sorted_results = sorted(
             [{"id": k, "score": v["score"], **v["doc"]} 
              for k, v in all_results.items() if v["doc"]],
@@ -2217,9 +2219,9 @@ Relevant extract:"""
         top_k: int = 10,
         lambda_mult: float = 0.5
     ) -> List[Dict]:
-        """MMR (Maximal Marginal Relevance) - 多样性检索"""
+        """MMR (Maximal Marginal Relevance) - Diversified retrieval"""
         
-        # 获取更多候选
+        # Get more candidates
         query_embedding = self.embedding_model.embed_query(query)
         candidates = await self.vector_db.search(
             collection_name,
@@ -2230,14 +2232,14 @@ Relevant extract:"""
         if not candidates:
             return []
         
-        # 获取候选向量
+        # Get candidate vector
         candidate_embeddings = np.array([
             c.get("embedding", self.embedding_model.embed_query(c["content"]))
             for c in candidates
         ])
         query_embedding = np.array(query_embedding)
         
-        # MMR选择
+        # MMR selection
         selected = []
         selected_indices = set()
         
@@ -2249,10 +2251,10 @@ Relevant extract:"""
                 if i in selected_indices:
                     continue
                 
-                # 相关性分数
+                # Relevance score
                 relevance = np.dot(query_embedding, candidate_embeddings[i])
                 
-                # 多样性分数
+                # Diversity score
                 diversity = 0
                 if selected:
                     similarities = [
@@ -2261,7 +2263,7 @@ Relevant extract:"""
                     ]
                     diversity = max(similarities)
                 
-                # MMR分数
+                # MMR score
                 mmr_score = lambda_mult * relevance - (1 - lambda_mult) * diversity
                 
                 if mmr_score > best_score:
@@ -2275,7 +2277,7 @@ Relevant extract:"""
         return selected
     
     async def _generate_multi_queries(self, query: str) -> List[str]:
-        """生成多个查询变体"""
+        """Generate multiple query variants"""
         
         prompt = f"""Generate 3 different ways to ask this question:
 "{query}"
@@ -2289,10 +2291,10 @@ Output only the questions, one per line."""
 
 ---
 
-<!-- chunk: 六、Embedding服务部署 -->
-## 六、Embedding服务部署
 
-### 6.1 TEI (Text Embeddings Inference) 部署
+## 6. Embedding Service Deployment
+
+### 6.1 TEI (Text Embeddings Inference) Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -2399,7 +2401,7 @@ spec:
         averageValue: "100"
 ```
 
-### 6.2 Reranker服务部署
+### 6.2 Reranker Service Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -2450,10 +2452,10 @@ spec:
 
 ---
 
-<!-- chunk: 七、监控与可观测性 -->
-## 七、监控与可观测性
 
-### 7.1 RAG系统监控
+## 7. Monitoring and Observability
+
+### 7.1 RAG System Monitoring
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -2465,7 +2467,7 @@ spec:
   groups:
   - name: rag-quality
     rules:
-    # 检索质量指标
+    # Retrieval quality metrics
     - record: rag:retrieval_recall
       expr: |
         sum(rag_retrieval_relevant_docs) / sum(rag_retrieval_total_relevant)
@@ -2474,17 +2476,17 @@ spec:
       expr: |
         sum(rag_retrieval_relevant_docs) / sum(rag_retrieval_returned_docs)
     
-    # 响应质量告警
+    # Response quality alert
     - alert: RAGLowRetrievalRecall
       expr: rag:retrieval_recall < 0.7
       for: 30m
       labels:
         severity: warning
       annotations:
-        summary: "RAG检索召回率低"
-        description: "召回率 {{ $value | humanizePercentage }}"
+        summary: "RAG retrieval recall rate is low"
+        description: "Recall rate {{ $value | humanizePercentage }}"
     
-    # 延迟告警
+    # Latency alert
     - alert: RAGHighLatency
       expr: |
         histogram_quantile(0.99, sum(rate(rag_query_duration_seconds_bucket[5m])) by (le)) > 5
@@ -2492,17 +2494,17 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "RAG查询延迟过高"
-        description: "P99延迟 {{ $value }}秒"
+        summary: "RAG query latency is too high"
+        description: "P99 latency {{ $value }} seconds"
     
-    # Embedding服务告警
+    # Embedding service alert
     - alert: EmbeddingServiceDown
       expr: up{job="tei-service"} == 0
       for: 2m
       labels:
         severity: critical
       annotations:
-        summary: "Embedding服务不可用"
+        summary: "Embedding service is unavailable"
   
   - name: rag-performance
     rules:
@@ -2510,7 +2512,7 @@ spec:
     - record: rag:query_qps
       expr: sum(rate(rag_query_total[5m]))
     
-    # 延迟分位数
+    # Latency percentile
     - record: rag:query_latency_p50
       expr: |
         histogram_quantile(0.50, sum(rate(rag_query_duration_seconds_bucket[5m])) by (le))
@@ -2519,41 +2521,41 @@ spec:
       expr: |
         histogram_quantile(0.95, sum(rate(rag_query_duration_seconds_bucket[5m])) by (le))
     
-    # Token使用
+    # Token usage
     - record: rag:tokens_per_query
       expr: |
         sum(rate(rag_tokens_used_total[5m])) / sum(rate(rag_query_total[5m]))
 ```
 
-### 7.2 RAG评估指标
+### 7.2 RAG Evaluation Metrics
 
 ```python
-# rag_evaluation.py - RAG评估
+# rag_evaluation.py - RAG evaluation
 from typing import List, Dict
 import numpy as np
 from dataclasses import dataclass
 
 @dataclass
 class RAGMetrics:
-    """RAG评估指标"""
-    # 检索指标
+    """RAG evaluation metrics"""
+    # Retrieval metrics
     recall_at_k: float
     precision_at_k: float
     mrr: float  # Mean Reciprocal Rank
     ndcg: float  # Normalized Discounted Cumulative Gain
     
-    # 生成指标
+    # Generation metrics
     faithfulness: float  # 答案是否基于上下文
     relevance: float  # 答案与问题的相关性
     coherence: float  # 答案的连贯性
     
-    # 系统指标
+    # System metrics
     latency_p50: float
     latency_p99: float
     tokens_used: int
 
 class RAGEvaluator:
-    """RAG评估器"""
+    """RAG evaluator"""
     
     def __init__(self, llm_client):
         self.llm_client = llm_client
@@ -2564,7 +2566,7 @@ class RAGEvaluator:
         relevant_docs: List[str],
         k: int = 5
     ) -> Dict[str, float]:
-        """评估检索质量"""
+        """Evaluate retrieval quality"""
         
         retrieved_set = set(retrieved_docs[:k])
         relevant_set = set(relevant_docs)
@@ -2603,9 +2605,9 @@ class RAGEvaluator:
         answer: str,
         context: str
     ) -> Dict[str, float]:
-        """评估生成质量"""
+        """Evaluate generation quality"""
         
-        # 忠实度评估
+        # Fidelity evaluation
         faithfulness_prompt = f"""Rate how faithful the answer is to the provided context.
 Score from 0-1, where 1 means the answer only contains information from the context.
 
@@ -2616,7 +2618,7 @@ Score (0-1):"""
         
         faithfulness = await self._get_score(faithfulness_prompt)
         
-        # 相关性评估
+        # Relevance evaluation
         relevance_prompt = f"""Rate how relevant the answer is to the question.
 Score from 0-1, where 1 means the answer directly addresses the question.
 
@@ -2627,7 +2629,7 @@ Score (0-1):"""
         
         relevance = await self._get_score(relevance_prompt)
         
-        # 连贯性评估
+        # Coherence evaluation
         coherence_prompt = f"""Rate the coherence and clarity of the answer.
 Score from 0-1, where 1 means the answer is clear, well-structured, and easy to understand.
 
@@ -2644,7 +2646,7 @@ Score (0-1):"""
         }
     
     async def _get_score(self, prompt: str) -> float:
-        """获取评分"""
+        """Get score"""
         response = await self.llm_client.generate(prompt, max_tokens=10)
         try:
             score = float(response.strip())
@@ -2655,32 +2657,32 @@ Score (0-1):"""
 
 ---
 
-<!-- chunk: 八、性能优化 -->
-## 八、性能优化
 
-### 8.1 性能优化策略
+## 8. Performance Optimization
 
-| 优化项 | 方法 | 效果 | 适用场景 |
+### 8.1 Performance Optimization Strategies
+
+| Improvement Item | Method | Effect | Applicable Scenario |
 |--------|------|------|---------|
-| **索引优化** | HNSW参数调优 (M=32, ef=256) | 召回率+5%, 延迟+10% | 高精度需求 |
-| **量化索引** | Scalar/Product Quantization | 内存-50%, 延迟+20% | 大规模数据 |
-| **批量请求** | Batch embedding/search | 吞吐量+5x | 批处理场景 |
-| **缓存** | Redis缓存热门查询 | 命中率30%+, 延迟-80% | 重复查询多 |
-| **预计算** | 预热索引到内存 | 首次延迟-90% | 冷启动优化 |
-| **分片** | 按时间/主题分片 | 单分片查询延迟-50% | 数据量大 |
-| **GPU加速** | GPU索引构建/搜索 | 吞吐量+10x | 高并发 |
+| Index Optimization | HNSW parameter tuning (M=32, ef=256) | Recall+5%, Delay+10% | High precision requirement |
+| Quantized Index | Scalar/Product Quantization | Memory-50%, Delay+20% | Large-scale data |
+| Batch Requests | Batch embedding/search | Throughput+5x | Batch processing scenario |
+| Cache | Redis cache hot queries | Hit rate 30%+, Delay-80% | Many repeated queries |
+| Pre-computation | Warm index to memory | First delay-90% | Cold start optimization |
+| Sharding | Shard by time/topic | Single shard query delay-50% | Large data volume |
+| GPU Acceleration | GPU index build/search | Throughput+10x | High concurrency |
 
-### 8.2 缓存策略
+### 8.2 Caching Strategies
 
 ```python
-# rag_cache.py - RAG缓存
+# rag_cache.py - RAG cache
 import redis
 import hashlib
 import json
 from typing import Optional, List, Dict
 
 class RAGCache:
-    """RAG缓存管理"""
+    """RAG cache management"""
     
     def __init__(
         self,
@@ -2693,11 +2695,11 @@ class RAGCache:
         self.result_ttl = result_ttl
     
     def _hash_key(self, text: str) -> str:
-        """生成缓存key"""
+        """Generate cache key"""
         return hashlib.md5(text.encode()).hexdigest()
     
     async def get_embedding(self, text: str) -> Optional[List[float]]:
-        """获取缓存的embedding"""
+        """Get cache embedding"""
         key = f"emb:{self._hash_key(text)}"
         cached = self.redis.get(key)
         if cached:
@@ -2705,7 +2707,7 @@ class RAGCache:
         return None
     
     async def set_embedding(self, text: str, embedding: List[float]):
-        """缓存embedding"""
+        """Cache embedding"""
         key = f"emb:{self._hash_key(text)}"
         self.redis.setex(key, self.embedding_ttl, json.dumps(embedding))
     
@@ -2715,7 +2717,7 @@ class RAGCache:
         collection: str,
         top_k: int
     ) -> Optional[List[Dict]]:
-        """获取缓存的搜索结果"""
+        """Get cache search results"""
         key = f"search:{collection}:{top_k}:{self._hash_key(query)}"
         cached = self.redis.get(key)
         if cached:
@@ -2729,7 +2731,7 @@ class RAGCache:
         top_k: int,
         results: List[Dict]
     ):
-        """缓存搜索结果"""
+        """Cache search results"""
         key = f"search:{collection}:{top_k}:{self._hash_key(query)}"
         self.redis.setex(key, self.result_ttl, json.dumps(results))
     
@@ -2738,7 +2740,7 @@ class RAGCache:
         query: str,
         collection: str
     ) -> Optional[Dict]:
-        """获取缓存的RAG响应"""
+        """Get cache RAG response"""
         key = f"rag:{collection}:{self._hash_key(query)}"
         cached = self.redis.get(key)
         if cached:
@@ -2751,12 +2753,12 @@ class RAGCache:
         collection: str,
         response: Dict
     ):
-        """缓存RAG响应"""
+        """Cache RAG response"""
         key = f"rag:{collection}:{self._hash_key(query)}"
         self.redis.setex(key, self.result_ttl, json.dumps(response))
     
     def invalidate_collection(self, collection: str):
-        """清除某个collection的缓存"""
+        """clear the cache of a certain collection"""
         pattern = f"*:{collection}:*"
         keys = self.redis.keys(pattern)
         if keys:
@@ -2765,31 +2767,31 @@ class RAGCache:
 
 ---
 
-<!-- chunk: 九、快速参考 -->
-## 九、快速参考
 
-### 9.1 向量数据库选择
+## 9. Quick Reference
 
-| 需求 | 推荐方案 | 理由 |
+### 9.1 Vector Database Selection
+
+| Requirement | Recommended Solution | Reason |
 |-----|---------|------|
-| 大规模生产 (>1亿向量) | Milvus | 分布式,GPU加速,高可用 |
-| 企业级功能 | Weaviate | GraphQL,模块化,易集成 |
-| 高性能Rust | Qdrant | 低延迟,高吞吐,轻量 |
-| 零运维 | Pinecone | 全托管,免维护 |
-| 快速原型 | Chroma | 简单,本地运行 |
-| 现有PG用户 | pgvector | 无需新基础设施 |
+| Production Scale (>100 million vectors) | Milvus | Distributed, GPU acceleration, high availability |
+| Enterprise Features | Weaviate | GraphQL, modular, easy integration |
+| High Performance Rust | Qdrant | Low latency, high throughput, lightweight |
+| Zero Maintenance | Pinecone | Fully managed, no maintenance |
+| Quick Prototype | Chroma | Simple, local run |
+| Existing PG Users | pgvector | No need for new infrastructure |
 
-### 9.2 Embedding模型选择
+### 9.2 Embedding Model Selection
 
-| 场景 | 推荐模型 | 维度 | 说明 |
+| Scenario | Recommended Model | Dimension | Note |
 |-----|---------|------|------|
-| 通用英文 | text-embedding-3-small | 1536 | OpenAI,高质量 |
-| 通用中文 | BGE-large-zh-v1.5 | 1024 | 开源最佳 |
-| 多语言 | Cohere embed-v3 | 1024 | 100+语言 |
-| 长文本 | Jina-embeddings-v2 | 768 | 8K上下文 |
-| 成本敏感 | E5-small-v2 | 384 | 小模型 |
+| General English | text-embedding-3-small | 1536 | OpenAI, high quality |
+| General Chinese | BGE-large-zh-v1.5 | 1024 | Open-source best |
+| Multilingual | Cohere embed-v3 | 1024 | 100+ languages |
+| Long Text | Jina-embeddings-v2 | 768 | 8K Context |
+| Cost-sensitive | E5-small-v2 | 384 | Small Model |
 
-### 9.3 常用API
+### 9.3 Common APIs
 
 ```python
 # Milvus
@@ -2811,45 +2813,45 @@ results = vectorstore.similarity_search(query, k=10)
 
 ---
 
-<!-- chunk: 十、最佳实践 -->
-## 十、最佳实践
 
-### RAG系统检查清单
+## 10. Best Practices
 
-- [ ] **数据准备**: 清洗、分块、去重
-- [ ] **Embedding选择**: 根据语言和场景选择模型
-- [ ] **向量数据库**: 根据规模和需求选择
-- [ ] **索引配置**: HNSW参数调优
-- [ ] **检索策略**: 混合搜索、重排序
-- [ ] **提示工程**: 优化RAG提示模板
-- [ ] **缓存策略**: 热门查询缓存
-- [ ] **监控告警**: 延迟、召回率、错误率
-- [ ] **评估体系**: 定期评估检索和生成质量
-- [ ] **迭代优化**: 基于用户反馈持续改进
+### RAG System Checklist
 
----
-
-**相关文档**: [144-LLM推理服务](144-llm-inference-serving.md) | [142-LLM数据Pipeline](142-llm-data-pipeline.md) | [132-AI/ML工作负载](132-ai-ml-workloads.md)
-
-**版本**: Milvus 2.3+ | Weaviate 1.24+ | Qdrant 1.8+ | LangChain 0.1+
+- [ ] **Data Preparation**: Clean, chunk, deduplicate
+- [ ] **Embedding Selection**: Choose model based on language and scenario
+- [ ] **Vector Database**: Choose based on scale and need
+- [ ] **Index Configuration**: Optimize HNSW parameters
+- [ ] **Retrieval Strategy**: Hybrid search, reordering
+- [ ] **Prompt Engineering**: Optimize RAG prompt templates
+- [ ] **Caching Strategy**: Cache hot queries
+- [ ] **Monitoring Alerts**: Latency, recall rate, error rate
+- [ ] **Evaluation System**: Regularly evaluate retrieval and generation quality
+- [ ] **Iterative Optimization**: Continuously improve based on user feedback
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**Related Documentation**: [144-LLM Inference Serving](144-llm-inference-serving.md) | [142-LLM Data Pipeline](142-llm-data-pipeline.md) | [132-AI/ML Workloads](132-ai-ml-workloads.md)
+
+**Version**: Milvus 2.3+ | Weaviate 1.24+ | Qdrant 1.8+ | LangChain 0.1+
+
+---
+
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
 
 ## See Also
 
@@ -2860,7 +2862,7 @@ results = vectorstore.similarity_search(query, k=10)
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

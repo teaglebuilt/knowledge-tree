@@ -1,7 +1,7 @@
 ---
-title: AI Agent 沙箱安全架构
-description: AI Agent 代码执行沙箱、工具调用安全、数据隔离、K8s 上的 Agent 安全部署方案
-summary: AI Agent 代码执行沙箱、工具调用安全、数据隔离、K8s 上的 Agent 安全部署方案
+title: AI Agent Sandbox Security Architecture
+description: AI Agent Code Execution Sandbox, Tool Invocation Security, Data Isolation, Kubernetes-based Agent Security Deployment Solution
+summary: AI Agent Code Execution Sandbox, Tool Invocation Security, Data Isolation, Kubernetes-based Agent Security Deployment Solution
 category: ai-infra
 tags:
 - k8s
@@ -20,22 +20,22 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 安全工程师
-- 架构师
+- AI Engineers
+- Security Engineers
+- Architects
 estimated_read_time: 40min
 intent_queries:
-- AI Agent 沙箱怎么实现
-- Agent 代码执行安全隔离
-- Agent 工具调用权限控制
-- K8s 上部署安全的 AI Agent
-- Agent 提示注入防护
+- How to Implement AI Agent Sandbox
+- Code Execution Security Isolation for Agent
+- Permission Control for Agent Tool Invocation
+- Secure Deployment of AI Agent on Kubernetes
+- Protection Against Agent Prompt Injection
 trigger_keywords:
 - Agent Sandbox
-- AI Agent 安全
-- 代码执行沙箱
-- 工具调用安全
-- Agent 隔离
+- Security for AI Agent
+- Code Execution Sandbox
+- Tool Invocation Security
+- Agent Isolation
 prerequisites:
 - kubectl-basics
 - prometheus-basics
@@ -52,73 +52,75 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-05-security-compliance/
-  label: 云原生安全知识域
+  label: Cloud-Native Security Knowledge Domain
 - type: domain
   path: ../domain-14-ai-ml-infra/
-  label: AI 基础设施
+  label: AI Infrastructure
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/37-agent-sandbox-security.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether these commands have been validated in a non-production environment. Risk level annotations: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI Agent 沙箱安全架构
+# AI Agent Sandbox Security Architecture
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.28 - v1.33 | **最后更新**: 2026-05
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.28 - v1.33 | **Last Updated**: 2026-05
 
 ---
 
-<!-- chunk: 一、概述 -->
-## 一、概述
 
-AI Agent 具备**自主执行代码、调用工具、访问外部系统**的能力, 这带来了传统应用不存在的安全风险:
+## 1. Overview
 
-| 风险类型 | 说明 | 严重程度 |
+AI Agent possesses the capability to **execute autonomous code, invoke tools, access external systems**, which brings traditional applications no traditional security risks:
+
+| Risk Type | Description | Severity |
 |----------|------|----------|
-| 代码执行 | Agent 生成并执行任意代码 (Python/Bash) | 极高 |
-| 工具滥用 | Agent 调用删除/修改等危险操作 | 高 |
-| 数据泄露 | Agent 读取敏感数据并外传 | 高 |
-| 提示注入 | 恶意输入劫持 Agent 行为 | 高 |
-| 资源耗尽 | Agent 无限循环或分配过多资源 | 中 |
+| Code Execution | Agent generates and executes arbitrary code (Python/Bash) | Extreme |
+| Tool Abuse | Agent calls dangerous operations such as deletion/modification | High |
+| Data Leakage | Agent reads sensitive data and leaks it externally | High |
+| Prompt Injection | Malicious inputs hijack Agent behavior | High |
+| Resource Exhaustion | Agent enters an infinite loop or allocates excessive resources | Medium |
 
-**沙箱的目标**: 在不影响 Agent 功能的前提下, 最小化每次操作的风险边界。
+**Sandbox's Objective**: Minimize the risk boundary of each operation without affecting Agent functionality.
 
 ---
 
-<!-- chunk: 二、沙箱架构模式 -->
-## 二、沙箱架构模式
 
-### 2.1 四种模式对比
+## 2. Sandbox Architecture Models
 
-| 模式 | 隔离强度 | 启动速度 | 资源开销 | 适用场景 |
+### 2.1 Comparison of Four Modes
+
+| Mode | Isolation Strength | Startup Speed | Resource Consumption | Applicable Scenarios |
 |------|---------|---------|---------|---------|
-| 容器级 (gVisor) | ★★★★ | ~100ms | ~15MB | 通用代码执行 |
-| VM 级 (Firecracker) | ★★★★★ | ~125ms | ~5MB | 不可信代码 |
-| 进程级 (nsjail) | ★★★ | ~10ms | ~1MB | 轻量快速执行 |
-| Wasm 级 | ★★★ | ~5ms | ~2MB | 边缘/轻量任务 |
+| Container-Level (gVisor) | ★★★★ | ~100ms | ~15MB | General code execution |
+| Virtual Machine-Level (Firecracker) | ★★★★★ | ~125ms | ~5MB | Untrusted code |
+| Process-Level (nsjail) | ★★★ | ~10ms | ~1MB | Lightweight rapid execution |
+| WebAssembly-Level | ★★★ | ~5ms | ~2MB | Edge/lightweight tasks |
 
-### 2.2 推荐选型
+### 2.2 Recommended Selection
 
 ```
-Agent 任务类型          推荐沙箱           理由
+Agent task type  recommended sandbox  reason
 ──────────────────────────────────────────────────
-Python 脚本执行         gVisor 容器       兼容性好, 隔离强
-Bash 命令执行           nsjail + gVisor   快速启动, 双重隔离
-文件读写               gVisor + 只读挂载  防止文件系统破坏
-网络请求               NetworkPolicy     限制出口域名/IP
-数据库操作             RBAC + 审计日志    最小权限 + 可追溯
-不可信代码             Firecracker VM    最强隔离
+Python script execution gVisor container compatibility good, isolation strong
+Bash commands execution           nsjail + gVisor   quick start, dual isolation
+file read/write gVisor + read-only mount deterrent against filesystem damage
+Network request   NetworkPolicy  limitation exit domain/IP
+Database operations RBAC + Audit logs Minimum permissions + Traceable
+Untrusted Code             Firecracker VM    Strongest Isolation
 ```
 
 ---
 
-<!-- chunk: 三、K8s 上的 Agent 沙箱实现 -->
-## 三、K8s 上的 Agent 沙箱实现
 
-### 3.1 Agent Pod 安全模板
+## 3. Agent Sandbox Implementation on K8s
+
+### 3.1 Safe Template for Agent Pods
 
 ```yaml
 apiVersion: v1
@@ -173,7 +175,7 @@ spec:
         sizeLimit: "1Gi"
 ```
 
-### 3.2 NetworkPolicy 限制
+### 3.2 NetworkPolicy Restrictions
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -188,23 +190,23 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # 允许 DNS
+    # Allow DNS
     - to: []
       ports:
         - port: 53
           protocol: UDP
-    # 允许访问 LLM API
+    # Allow access to LLM API
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
       ports:
         - port: 443
           protocol: TCP
-    # 禁止访问内部服务 (默认拒绝)
-    # 所有其他出站流量被阻断
+    # Prohibit access to internal services (default deny)
+    # All other outbound traffic is blocked
 ```
 
-### 3.3 RBAC 最小权限
+### 3.3 RBAC Least Privilege
 
 ```yaml
 apiVersion: v1
@@ -225,7 +227,7 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list"]
-  # 不允许 create/update/delete
+  # Allow create/update/delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -243,24 +245,24 @@ roleRef:
 
 ---
 
-<!-- chunk: 四、工具调用安全 -->
-## 四、工具调用安全
 
-### 4.1 分级审批模型
+## 4. Tool Call Security
+
+### 4.1 Graded Approval Model
 
 ```
-工具风险等级    示例                    Agent 行为
+Tool Risk Level    Example                    Agent behavior
 ─────────────────────────────────────────────────
-L0 无风险      查询状态/读取指标        自主执行
-L1 低风险      读取日志/查看配置        自主执行 + 记录
-L2 中风险      重启 Pod/修改 ConfigMap  执行前确认
-L3 高风险      删除资源/修改 RBAC       强制人工审批
+L0 Low risk      Query status/Read metrics        Autonomous execution
+L1 Low risk      Read logs/View configuration    Autonomous execution + Record
+L2 Medium risk    Restart Pod/Edit ConfigMap      Confirm before execution
+L3 High risk      Delete resources/Edit RBAC      Mandatory manual approval
 ```
 
-### 4.2 工具白名单配置
+### 4.2 Configuration of Tool Whitelists
 
 ```yaml
-# Agent 工具权限配置
+# Agent tool permission configuration
 agent_tools:
   allowed:
     - name: "kubectl_get"
@@ -296,13 +298,13 @@ agent_tools:
 
 ---
 
-<!-- chunk: 五、代码执行沙箱 -->
-## 五、代码执行沙箱
 
-### 5.1 临时容器执行模式
+## 5. Code Execution Sandbox
+
+### 5.1 Temporary Container Execution Mode
 
 ```yaml
-# Agent 代码执行 Pod (临时, 用完销毁)
+# Agent execution Pod (temp, destroy on completion)
 apiVersion: v1
 kind: Pod
 metadata:
@@ -338,22 +340,22 @@ spec:
         sizeLimit: "100Mi"
 ```
 
-### 5.2 超时与资源控制
+### 5.2 Timeout and Resource Control
 
 ```python
-# Agent 执行控制器
+# Agent Execution Controller
 import kubernetes
 import time
 
 def execute_in_sandbox(code: str, timeout: int = 300):
-    """在沙箱中执行 Agent 生成的代码"""
+    """Execute the code generated by the Agent in a sandbox"""
     pod_manifest = build_sandbox_pod(code, timeout)
     
-    # 创建 Pod
+    # Create Pod
     v1 = kubernetes.client.CoreV1Api()
     pod = v1.create_namespaced_pod("agent-workspace", pod_manifest)
     
-    # 等待完成或超时
+    # Wait for completion or timeout
     start = time.time()
     while time.time() - start < timeout:
         status = v1.read_namespaced_pod_status(pod.metadata.name, "agent-workspace")
@@ -361,10 +363,10 @@ def execute_in_sandbox(code: str, timeout: int = 300):
             break
         time.sleep(1)
     
-    # 获取输出
+    # Get output
     logs = v1.read_namespaced_pod_log(pod.metadata.name, "agent-workspace")
     
-    # 清理 Pod
+    # Clean up Pod
     v1.delete_namespaced_pod(pod.metadata.name, "agent-workspace")
     
     return logs
@@ -372,13 +374,13 @@ def execute_in_sandbox(code: str, timeout: int = 300):
 
 ---
 
-<!-- chunk: 六、监控与审计 -->
-## 六、监控与审计
 
-### 6.1 Agent 行为追踪
+## 6. Monitoring and Auditing
+
+### 6.1 Tracking of Agent Behavior
 
 ```yaml
-# Prometheus 指标
+# Prometheus metrics
 agent_tool_calls_total{tool="kubectl_get", risk_level="L0"} 1523
 agent_tool_calls_total{tool="kubectl_restart", risk_level="L2"} 12
 agent_tool_calls_blocked{tool="kubectl_delete", reason="not_allowed"} 5
@@ -389,7 +391,7 @@ agent_approval_pending{risk_level="L2"} 2
 agent_approval_pending{risk_level="L3"} 0
 ```
 
-### 6.2 审计日志格式
+### 6.2 Audit Log Format
 
 ```json
 {
@@ -408,39 +410,39 @@ agent_approval_pending{risk_level="L3"} 0
 
 ---
 
-<!-- chunk: 七、生产检查清单 -->
-## 七、生产检查清单
 
-- [ ] Agent Pod 使用 gVisor RuntimeClass
-- [ ] readOnlyRootFilesystem 启用
-- [ ] runAsNonRoot 强制
-- [ ] NetworkPolicy 限制出站流量
-- [ ] RBAC 最小权限 (只读)
-- [ ] 代码执行超时 ≤ 5 分钟
-- [ ] 内存限制 ≤ 2Gi
-- [ ] 工具白名单配置
-- [ ] L2/L3 操作人工审批
-- [ ] 审计日志全量记录
-- [ ] 异常行为告警 (调用频率/超时/OOM)
-- [ ] 沙箱 Pod 自动清理 (TTL)
+## 7. Production Checklist
+
+- [ ] Use gVisor RuntimeClass for Agent Pod
+- [ ] Enable readOnlyRootFilesystem
+- [ ] Force runAsNonRoot
+- [ ] Limit outbound traffic with NetworkPolicy
+- [ ] RBAC Least Privilege (Read-Only)
+- [ ] Code Execution Timeout ≤ 5 Minutes
+- [ ] Memory Limit ≤ 2Gi
+- [ ] Tool Whitelist Configuration
+- [ ] Level 2/Level 3 Operations Manual Approval
+- [ ] Audit Logs Full Recording
+- [ ] Alert for Abnormal Behaviors (Call Frequency/Timeout/OOM)
+- [ ] Sandbox Pod Automatic Cleanup (TTL)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

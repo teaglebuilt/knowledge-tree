@@ -1,7 +1,7 @@
 ---
-title: Kubernetes AI/ML 生产运维 Runbook
-description: 覆盖 GPU OOM、NCCL 超时、推理延迟、模型回滚、训练检查点、MIG/DRA、多租户配额与 AI 工作负载可观测性的生产级运维手册
-summary: 覆盖 GPU OOM、NCCL 超时、推理延迟、模型回滚、训练检查点、MIG/DRA、多租户配额与 AI 工作负载可观测性的生产级运维手册
+title: Kubernetes AI/ML Production Operations Runbook
+description: Covers GPU OOM, NCCL timeout, inference latency, model rollback, training checkpoints, MIG/DRA, multi-tenant quotas, and observability of AI workloads in production-grade operations manual
+summary: Covers GPU OOM, NCCL timeout, inference latency, model rollback, training checkpoints, MIG/DRA, multi-tenant quotas, and observability of AI workloads in production-grade operations manual
 category: ai-ml-infra
 tags:
 - production
@@ -25,17 +25,17 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 运维工程师
-- 平台工程师
+- Operations Engineer
+- Platform Engineer
 estimated_read_time: 25min
 intent_queries:
-- Kubernetes AI/ML 生产运维 Runbook 是什么
-- GPU OOM 怎么处理
-- NCCL 超时怎么排查
-- 推理延迟高怎么优化
-- 模型回滚怎么做
-- MIG DRA 怎么用
-- AI 多租户配额
+- What is Kubernetes AI/ML Production Operations Runbook
+- How to handle GPU OOM
+- How to troubleshoot NCCL timeout
+- How to optimize inference latency
+- How to do model rollback
+- How to use MIG/DRA
+- How to use AI multi-tenant quotas
 trigger_keywords:
 - ai ml ops
 - gpu oom
@@ -62,169 +62,171 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/45-ai-ml-ops-runbook.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk levels are annotated: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
-# Kubernetes AI/ML 生产运维 Runbook
+# Kubernetes AI/ML Production Operations Runbook
 
-> **适用范围**: Kubernetes v1.28–v1.33 | **最后更新**: 2026-07 | **文档类型**: 生产运维 Runbook
+> **Scope**: Kubernetes v1.28–v1.33 | **Last Updated**: 2026-07 | **Document Type**: Production Operations Guide
 
-本 Runbook 面向管理 AI/ML 生产平台的 SRE 与 MLOps 工程师，聚焦 GPU 工作负载的高频故障与运维场景：GPU OOM、NCCL 分布式训练超时、推理延迟飙升、模型版本回滚、训练检查点保护、MIG/DRA 资源切分、多租户 GPU 配额与可观测性。AI 工作负载具有资源密集、故障成本高、调试复杂的特点，必须建立专门的监控、配额与应急响应流程。
-
----
-
-## 1. 适用场景与范围
-
-- **GPU OOM**：训练或推理 Pod 因显存不足被 OOMKilled，或触发 CUDA out-of-memory。
-- **NCCL 超时**：多机多卡训练中 NCCL 集合通信超时，常见于网络、拓扑、IB/RoCE 配置问题。
-- **推理延迟**：在线推理服务 P99 延迟超过 SLO，可能由批处理大小、模型版本、GPU 抢占导致。
-- **模型回滚**：新模型上线后指标下降，需要快速切回上一版本。
-- **检查点保护**：长周期训练任务必须周期性保存 checkpoint，并在节点故障后恢复。
-- **MIG/DRA**：NVIDIA MIG 物理切分与 Kubernetes DRA 动态资源分配的生产落地。
-- **多租户配额**：按团队/项目分配 GPU、显存、CPU、内存配额，防止 noisy neighbor。
+This Runbook targets SREs and MLOps engineers managing AI/ML production platforms, focusing on high-frequency faults and operations scenarios for GPU workloads: GPU OOM, NCCL distributed training timeout, inference latency spike, model version rollback, checkpoint protection, MIG/DRA resource partitioning, multi-tenant GPU quotas, and observability. AI workloads are resource-intensive, costly to fix, and complex to debug, necessitating dedicated monitoring, quota, and emergency response procedures.
 
 ---
 
-## 2. 前置条件与工具
+## 1. Scope and Scope of Application
 
-### 2.1 基础设施前提
+- **GPU OOM**: Training or inference Pods are killed due to insufficient GPU memory, or CUDA out-of-memory triggers.
+- **NCCL Timeout**: NCCL collective communication times out during multi-node multi-card training, often due to network, topology, or IB/RoCE configuration issues.
+- **Inference Latency**: Online inference services exceed SLAs with P99 latency, possibly caused by batch size, model version, or GPU contention.
+- **Model Rollback**: New models degrade performance post-launch, requiring rapid rollback to previous versions.
+- **Checkpoint Protection**: Long-running training tasks must periodically save checkpoints and recover from node failures.
+- **MIG/DRA**: Production implementation of NVIDIA MIG physical partitioning and Kubernetes DRA dynamic resource allocation.
+- **Multi-Tenant Quotas**: Allocate GPUs, VRAM, CPUs, and memory based on teams/projects to prevent noisy neighbors.
 
-- 节点已安装 NVIDIA Driver + NVIDIA Container Toolkit + device-plugin。
-- 已部署 DCGM Exporter 与 Node Feature Discovery（NFD）。
-- 已配置 RuntimeClass（nvidia）与 GPU Operator。
-- 训练存储使用高性能并行文件系统（Lustre/BeeGFS/FSx for Lustre）或对象存储 + PVC。
+---
 
-### 2.2 必备工具
+## 2. Pre-requisites and Tools
 
-| 工具 | 用途 | 推荐版本 |
+### 2.1 Infrastructure Pre-requisites
+
+- NVIDIA Driver + NVIDIA Container Toolkit + device-plugin are installed on nodes.
+- DCGM Exporter and Node Feature Discovery (NFD) are deployed.
+- RuntimeClass (nvidia) and GPU Operator are configured.
+- Training storage uses high-performance parallel file systems (Lustre/BeeGFS/FSx for Lustre) or object storage + PVC.
+
+### 2.2 Essential Tools
+
+| Tool | Purpose | Recommended Version |
 |------|------|----------|
-| `nvidia-smi` | GPU 状态与显存查看 | 随驱动 |
-| `dcgmi` | GPU 健康诊断 | 3.x+ |
-| `nccl-tests` | NCCL 性能基准 | 2.20+ |
-| `kubectl` | Pod/节点/事件查看 | v1.28+ |
-| Prometheus + DCGM Exporter | GPU 指标采集 | v3.x+ |
-| Volcano/Yunikorn | 批调度与队列 | 1.9+ / 1.5+ |
-| KServe/Triton | 推理服务管理 | 0.13+ / 2.48+ |
+| `nvidia-smi` | GPU Status and Memory View | With Driver |
+| `dcgmi` | GPU Health Diagnosis | 3.x+ |
+| `nccl-tests` | NCCL Performance Benchmark | 2.20+ |
+| `kubectl` | Pod/Node/Event View | v1.28+ |
+| Prometheus + DCGM Exporter | GPU Metrics Collection | v3.x+ |
+| Volcano/Yunikorn | Batch Scheduling and Queues | 1.9+ / 1.5+ |
+| KServe/Triton | Inference Service Management | 0.13+ / 2.48+ |
 
 ---
 
-## 3. 标准操作流程
+## 3. Standard Operating Procedures
 
-### 3.1 GPU OOM 诊断与处理
+### 3.1 Diagnosing and Handling GPU OOM
 
-#### 现场采集
+#### On-Site Collection
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 查看 Pod 状态与事件
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization before execution
+# View Pod status and events
 kubectl describe pod <pod> -n <ns>
 kubectl logs <pod> -n <ns> --previous
 
-# 查看节点 GPU 显存
+# View node GPU memory
 kubectl exec -it <pod> -n <ns> -- nvidia-smi
 
-# 查看 DCGM 指标
+# View DCGM metrics
 kubectl port-forward -n monitoring svc/dcgm-exporter 9400:9400
 curl -s localhost:9400/metrics | grep -i memory
 ```
-#### 常见根因
+#### Common Root Causes
 
-- **Batch Size 过大**：降低 batch size 或启用梯度累积。
-- **模型并行策略不当**：改用 ZeRO/FSDP/Tensor Parallelism。
-- **显存泄漏**：PyTorch 缓存未释放，添加 `torch.cuda.empty_cache()`。
-- **多任务共享 GPU**：MIG 切分不足，或 Request/Limit 未对齐实际显存。
+- **Batch Size Too Large**: Reduce batch size or enable gradient accumulation.
+- **Incorrect Model Parallel Strategy**: Use ZeRO/FSDP/Tensor Parallelism instead.
+- **Memory Leaks**: PyTorch cache not released, add `torch.cuda.empty_cache()`.
+- **Shared GPU for Multiple Tasks**: MIG partitioning insufficient, or Request/Limit not aligned with actual GPU memory.
 
-#### 缓解命令
+#### Mitigation Commands
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 降低 batch size（通过环境变量或 ConfigMap）
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization
+# Reduce batch size (via environment variable or ConfigMap)
 kubectl set env deployment/<training> -n <ns> BATCH_SIZE=16
 
-# 临时增加 GPU 资源
+# Temporarily increase GPU resources
 kubectl patch deployment <training> -n <ns> -p '{"spec":{"template":{"spec":{"containers":[{"name":"train","resources":{"limits":{"nvidia.com/gpu":"2"}}}]}}}}'
 ```
-### 3.2 NCCL 超时排查
+### 3.2 Diagnosing NCCL Timeout Issues
 
-NCCL 超时通常表现为 `NCCL_TIMEOUT` 或 `NCCL_WATCHDOG` 报错。
+NCCL timeout typically manifests as `NCCL_TIMEOUT` or `NCCL_WATCHDOG` errors.
 
-#### 检查清单
+#### Checklist
 
-1. **网络连通**：
+1. **Network Connectivity**:
    ```bash
    kubectl exec -it <pod> -n <ns> -- bash
    ping <peer-pod-ip>
    ib_write_bw # 若使用 InfiniBand
    ```
-2. **NCCL 调试日志**：
+2. **NCCL Debug Logs**:
    ```bash
    export NCCL_DEBUG=INFO
    export NCCL_DEBUG_SUBSYS=ALL
    ```
-3. **拓扑与 NIC 绑定**：
+3. **Topology and NIC Binding**:
    ```bash
    nvidia-smi topo -m
    ```
-4. **防火墙与安全组**：确保 Pod 间 29500 等 NCCL 端口互通。
-5. **IB/RoCE 配置**：检查 `NCCL_IB_DISABLE`、`NCCL_SOCKET_IFNAME` 是否设置正确。
+4. **Firewall and Security Groups**: Ensure Pod-to-Pod connectivity on ports like 29500 for NCCL.
+5. **IB/RoCE Configuration**: Check that `NCCL_IB_DISABLE`, `NCCL_SOCKET_IFNAME` are correctly set.
 
-#### 常见修复
+#### Common Fixes
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 强制使用 TCP Socket（RoCE 不稳定时临时规避）
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization
+# Force use of TCP Socket (temporarily bypass RoCE instability)
 kubectl set env job/<distributed-training> NCCL_IB_DISABLE=1
 
-# 指定通信网卡
+# Specify communication NIC
 kubectl set env job/<distributed-training> NCCL_SOCKET_IFNAME=eth0
 ```
-### 3.3 推理延迟优化
+### 3.3 Optimizing Inference Latency
 
-#### 诊断命令
+#### Diagnostic Commands
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# KServe 推理 Pod 延迟指标
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization
+# KServe inference Pod latency metric
 curl http://<inference-service>/v2/models/<model>/metrics
 
-# GPU 利用率与显存
+# GPU utilization and memory
 kubectl exec -it <inference-pod> -n <ns> -- nvidia-smi dmon -s u
 ```
-#### 优化手段
+#### Optimization Measures
 
-| 问题 | 优化手段 |
+| Issue | Optimization Measures |
 |------|----------|
-| 批处理不足 | 启用 dynamic batching / Triton ensemble |
-| 模型过大 | 量化（INT8/FP16）、蒸馏、模型剪枝 |
-| GPU 抢占 | 为推理服务设置高 PriorityClass 与独占 GPU |
-| 冷启动 | 配置最小副本数与 KServe 预测器预热 |
-| 网络延迟 | 推理 Pod 靠近入口部署，使用 topology-aware routing |
+| Insufficient Batch Size | Enable dynamic batching / Triton ensemble |
+| Model Too Large | Quantization (INT8/FP16), distillation, model pruning |
+| GPU Contention | Set high PriorityClass and exclusive GPU for inference services. |
+| Cold Start | Configure minimum replica count and pre-warm KServe predictor. |
+| Network Latency | Deploy inference Pods near the entry point, use topology-aware routing. |
 
-### 3.4 模型回滚
+### 3.4 Model Rollback
 
-KServe InferenceService 回滚：
+KServe InferenceService Rollback:
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 查看历史 revision
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization
+# View historical revisions
 kubectl get revision -n <ns> -l serving.kserve.io/inferenceservice=<model>
 
-# 回滚到指定 revision
+# Rollback to specified revision
 kubectl patch inferenceservice <model> -n <ns> -p '{"spec":{"predictor":{"canaryTrafficPercent":0,"tensorflow":{"storageUri":"s3://models/v1.2.3"}}}}' --type=merge
 ```
-或采用 Argo Rollouts 管理模型服务：
+Or use Argo Rollouts to manage model service instances:
 
 ```bash
 argocd app rollback <model-service> <revision>
 ```
 
-### 3.5 训练检查点保护
+### 3.5 Protecting Training Checkpoints
 
-#### 检查点保存策略
+#### Checkpoint Saving Strategies
 
 ```yaml
 spec:
@@ -244,19 +246,19 @@ spec:
       claimName: training-checkpoints
 ```
 
-#### 故障恢复
+#### Fault Recovery Strategies
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 查看最新检查点
+# 🟡 Medium Risk: modifies cluster/resource state; confirm target, impact scope, and authorization
+# View latest checkpoint
 kubectl exec -it <pod> -n <ns> -- ls -lt /checkpoints
 
-# 重新提交训练任务，加载最近检查点
+# Resubmit training task, load latest checkpoint
 kubectl create job --from=cronjob/<training-cron> resume-training-$(date +%s) -n <ns>
 ```
-### 3.6 MIG 与 DRA 配置
+### 3.6 MIG And DRA Configuration
 
-#### MIG 策略
+#### MIG Strategy
 
 ```yaml
 apiVersion: v1
@@ -275,7 +277,7 @@ data:
             "1g.5gb": 7
 ```
 
-Pod 请求 MIG：
+Pod requests MIG:
 
 ```yaml
 resources:
@@ -283,11 +285,11 @@ resources:
     nvidia.com/mig-1g.5gb: 1
 ```
 
-#### DRA（Dynamic Resource Allocation）
+#### DRA (Dynamic Resource Allocation)
 
-适用于 K8s v1.32+，需要启用 `DynamicResourceAllocation` feature gate 并部署 DRA driver。
+Applicable for K8s v1.32+, requires enabling the `DynamicResourceAllocation` feature gate and deploying the DRA driver.
 
-### 3.7 多租户 GPU 配额
+### 3.7 Multi-Tenant GPU Quota
 
 ```yaml
 apiVersion: v1
@@ -303,58 +305,58 @@ spec:
     requests.cpu: 64
 ```
 
-配合 LimitRange 与 Volcano Queue 实现优先级与抢占策略。
+Complement with LimitRange and Volcano Queue to implement priority and preemptive strategies.
 
 ---
 
-## 4. 关键检查点与验证命令
+## 4. Key Points and Verification Commands
 
-| 检查项 | 命令 | 合格标准 |
+| Check Item | Command | Pass Criteria |
 |--------|------|----------|
-| GPU 节点状态 | `kubectl get nodes -L nvidia.com/gpu.count` | 节点 Ready，GPU 数量正确 |
-| Pod GPU 分配 | `kubectl describe pod <pod> -n <ns>` | 已分配 nvidia.com/gpu |
-| GPU 利用率 | `curl localhost:9400/metrics \| grep DCGM_FI_DEV_GPU_UTIL` | 符合预期 |
-| NCCL 测试 | `all_reduce_perf -b 8M -e 1G -f 2 -g 8` | 带宽接近理论值 |
-| 推理延迟 | KServe/Triton metrics | P99 ≤ SLO |
-| 检查点完整性 | `ls -lt /checkpoints` | 最近 1 小时内存在 checkpoint |
-| 配额使用 | `kubectl describe quota -n <ns>` | 未超限 |
+| GPU Node Status | `kubectl get nodes -L nvidia.com/gpu.count` | Node Ready, correct GPU count |
+| Pod GPU Allocation | `kubectl describe pod <pod> -n <ns>` | GPU allocated successfully |
+| GPU Utilization | `curl localhost:9400/metrics \| grep DCGM_FI_DEV_GPU_UTIL` | Within expected range |
+| NCCL Test | `all_reduce_perf -b 8M -e 1G -f 2 -g 8` | Bandwidth close to theoretical value |
+| Inference Latency | KServe/Triton metrics | P99 ≤ Service Level Objective (SLO) |
+| Checkpoint Integrity | `ls -lt /checkpoints` | Recent checkpoint exists within the last hour |
+| Quota Usage | `kubectl describe quota -n <ns>` | Not over quota |
 
 ---
 
-## 5. 回滚/应急方案
+## 5. Rollback/Incident Response Plan
 
-- **GPU 节点故障**：将该节点设为不可调度并驱逐工作负载。
+- **GPU Node Failure**: Mark the node as unschedulable and evict the workload.
   ```bash
   kubectl cordon <node>
   kubectl drain <node> --ignore-daemonsets --force --delete-emptydir-data
   ```
-- **训练任务 OOM 反复失败**：减小 batch size，启用 CPU offloading，或改用更大显存 GPU 型号。
-- **推理服务降级**：立即切回上一模型版本，并通过 PDB + HPA 保证最小副本。
-- **NCCL 通信完全中断**：临时改为单机多卡或减小分布式规模，排查网络后再恢复。
-- **检查点损坏**：回退到上一个有效 checkpoint，损失部分训练进度。
+- **Training Task OOM Repeated Failures**: Reduce batch size, enable CPU offloading, or switch to a larger GPU model.
+- **Inference Service Degradation**: Immediately revert to the previous model version and ensure minimum replicas via PDB + HPA.
+- **NCCL Communication Completely Interrupted**: Temporarily switch to single-node multi-GPU or reduce distributed scale, investigate network issues before recovery.
+- **Checkpoint Damage**: Rollback to the last valid checkpoint, losing some training progress.
 
 ---
 
-## 6. 风险与注意事项
+## 6. Risks and Considerations
 
-1. **GPU 驱动与 CUDA 版本匹配**：驱动、CUDA、PyTorch、NCCL 版本不一致会导致隐性性能下降或崩溃。
-2. **MIG 与 DRA 共存风险**：同一节点不要混用传统 device-plugin 与 DRA，避免资源计算冲突。
-3. **训练任务长周期运行**：超过 24 小时的任务必须配置 checkpoint，节点维护前提前通知并优雅终止。
-4. **推理服务冷启动成本**：大模型加载时间长，需配置最小副本与 readiness probe 超时。
-5. **多租户隔离**：GPU 显存隔离依赖 MIG/DRA，进程级隔离仍需结合 seccomp/AppArmor。
+1. **GPU Driver and CUDA Version Consistency**: Inconsistent versions can lead to hidden performance degradation or crashes.
+2. **MIG and DRA Coexistence Risks**: Do not mix traditional device-plugin with DRA on the same node to avoid resource conflicts.
+3. **Long-Running Training Tasks**: Tasks exceeding 24 hours must configure checkpoints, and nodes should be maintained with prior notification and graceful termination.
+4. **Inference Service Cold Start Costs** : Long model loading times require configuring minimum replicas and readiness probe timeouts.
+5. **Tenant Isolation** : GPU memory isolation relies on MIG/DRA, while process-level isolation still requires seccomp/AppArmor.
 
 ---
 
-## 7. 相关 Runbook / 推荐阅读
+## 7. Related Runbooks / Recommended Reading
 
-- [[domain-14-ai-ml-infra/99-production-readiness-operations-guide.md|AI/ML 基础设施 生产就绪运维指南]]
-- [[domain-11-production-operations/99-production-readiness-operations-guide.md|生产运维 生产就绪运维指南]]
-- [[domain-14-ai-ml-infra/01-ai-infra/03-gpu-scheduling-management.md|GPU 调度与管理]]
-- [[domain-14-ai-ml-infra/01-ai-infra/04-gpu-monitoring-dcgm.md|GPU 监控与 DCGM]]
-- [[domain-14-ai-ml-infra/01-ai-infra/05-distributed-training-frameworks.md|分布式训练框架]]
-- [[domain-14-ai-ml-infra/01-ai-infra/10-model-deployment-management.md|模型部署管理]]
-- [[domain-14-ai-ml-infra/01-ai-infra/14-troubleshooting-performance.md|AI 性能故障排查]]
-- [[domain-14-ai-ml-infra/01-ai-infra/17-llm-inference-serving.md|LLM 推理服务]]
+- [[domain-14-ai-ml-infra/99-production-readiness-operations-guide.md|AI/ML Infrastructure Production Readiness Operations Guide]]
+- [[domain-11-production-operations/99-production-readiness-operations-guide.md|Production Operations Production Readiness Operations Guide]]
+- [[domain-14-ai-ml-infra/01-ai-infra/03-gpu-scheduling-management.md|GPU Scheduling and Management]]
+- [[domain-14-ai-ml-infra/01-ai-infra/04-gpu-monitoring-dcgm.md|GPU Monitoring and DCGM]]
+- [[domain-14-ai-ml-infra/01-ai-infra/05-distributed-training-frameworks.md|Distributed Training Frameworks]]
+- [[domain-14-ai-ml-infra/01-ai-infra/10-model-deployment-management.md|Model Deployment Management]]
+- [[domain-14-ai-ml-infra/01-ai-infra/14-troubleshooting-performance.md|Performance Troubleshooting]]
+- [[domain-14-ai-ml-infra/01-ai-infra/17-llm-inference-serving.md|LLM Inference Serving]]
 
 
 <!-- risk-assessed -->

@@ -58,9 +58,9 @@ source_path: tree/infrastructure/kubernetes/networking/ebpf/01-ebpf-programming-
 eBPF (extended Berkeley Packet Filter) is a programmable virtual machine within the Linux kernel, allowing custom programs to run safely in the kernel space without modifying the kernel code.
 
 ```
-用户态程序 → 加载 eBPF 字节码 → 内核验证器(Verifier) → JIT 编译 → 内核中执行
+Userspace program → Load eBPF bytecode → Kernel verifier(Verifier) → JIT compiler → Executed in kernel
      │                                                              │
-     └── 读取 Map 数据 ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+     └── Read Map data ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
 ```
 
 Key advantages:
@@ -399,9 +399,9 @@ int ppid = BPF_CORE_READ(parent, tgid);
 CO-RE works as follows:
 
 ```
-编译时：记录字段重定位信息（BTF）
-加载时：根据目标内核 BTF 调整偏移量
-运行时：直接访问内核结构体字段
+Compilation time: Record relocation information for fields (BTF)
+Loading time: Adjust offsets according to target kernel BTF
+Runtime: Directly access kernel structure field fields
 ```
 
 ## 5. Development Toolchain

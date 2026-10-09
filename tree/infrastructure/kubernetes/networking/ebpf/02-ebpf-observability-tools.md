@@ -233,9 +233,9 @@ profile:hz:99
 ### 3.1 Architecture
 
 ```
-Pixie Edge Module (PEM) → Vizier (数据层) → Cloud / 自托管
+Pixie Edge Module (PEM) -> Vizier (data layer) -> Cloud / Self-hosted
     │
-    └── 自动采集：HTTP/gRPC/MySQL/Postgres/Kafka/DNS/进程
+    └── Automatic collection: HTTP/gRPC/MySQL/Postgres/Kafka/DNS/Process
 ```
 
 ### 3.2 Installation
@@ -307,9 +307,9 @@ px.display(df, 'pod_cpu')
 ### 4.1 Architecture
 
 ```
-Parca Agent → eBPF 采集（CPU profiling） → Parca Server → Web UI
+Parca Agent -> eBPF Collection (CPU profiling) -> Parca Server -> Web UI
     │
-    └── 支持：Go, Rust, C/C++, Python, Java, Node.js
+    └── Support: Go, Rust, C/C++, Python, Java, Node.js
 ```
 
 ### 4.2 Installation
@@ -354,9 +354,9 @@ Advantages of Continuous Profiling:
 ### 5.1 Architecture
 
 ```
-Tetragon Agent → eBPF 内核传感器 → TracingPolicy → 事件/动作
+Tetragon Agent -> eBPF kernel sensor -> TracingPolicy -> Event/Action
     │
-    └── 支持：进程、文件、网络、安全事件
+    └── Support: process, file, network, security events
 ```
 
 ### 5.2 Installation

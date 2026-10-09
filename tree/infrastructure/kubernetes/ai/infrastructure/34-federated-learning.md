@@ -1,6 +1,6 @@
 ---
-title: 34 - 联邦学习与分布式协同训练
-description: '## 一、联邦学习架构'
+title: 34 - Federated Learning and Distributed Collaborative Training
+description: '## one,Federated Learning Architecture'
 summary: 'from sklearn.linear_model import LogisticRegression'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 联邦学习与分布式协同训练 是什么
-- 如何 联邦学习与分布式协同训练
-- Kubernetes 11 ai infra 最佳实践
+- Federated Learning and Distributed Collaborative Training is what
+- How Federated Learning and Distributed Collaborative Training
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- 联邦学习与分布式协同训练
+- Federated Learning and Distributed Collaborative Training
 - ai
 - infra
 prerequisites:
@@ -50,30 +50,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/34-federated-learning.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually can be rolled back), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 34 - 联邦学习与分布式协同训练
+# 34 - Federated Learning and Distributed Collaborative Training
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 专家级 | **参考**: [FATE](https://fate.readthedocs.io/) | [FedML](https://fedml.ai/) | [TensorFlow Federated](https://www.tensorflow.org/federated)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Expert Level | **References**: [FATE](https://fate.readthedocs.io/) | [FedML](https://fedml.ai/) | [TensorFlow Federated](https://www.tensorflow.org/federated)
 
-<!-- chunk: 一、联邦学习架构 -->
-## 一、联邦学习架构
 
-### 1.1 联邦学习全景架构
+## 1. Overall Architecture Overview
+
+### 1.1 Federated Learning Panoramic Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -112,21 +114,21 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 联邦学习模式分类
+### 1.2 Classification of Federated Learning Modes
 
-| 模式类型 | 技术特点 | 适用场景 | 优势 | 挑战 |
+| **Mode Type** | **Technical Features** | **Applicable Scenarios** | **Advantages** | **Challenges** |
 |----------|----------|----------|------|------|
-| **横向联邦** | 样本维度聚合 | 用户重叠、特征不同 | 实现简单、效率高 | 隐私保护有限 |
-| **纵向联邦** | 特征维度聚合 | 特征重叠、用户不同 | 保护用户隐私 | 计算复杂度高 |
-| **联邦迁移** | 知识迁移学习 | 域间知识共享 | 跨域学习能力强 | 模型适配困难 |
-| **联邦强化** | 策略协同优化 | 多智能体协作 | 决策能力提升 | 收敛性保证难 |
+| **Cross-Domain Federated** | **Sample Dimension Aggregation** | **Users overlap, features differ** | **Simple implementation, high efficiency** | **Limited privacy protection** |
+| **Vertical Federated** | **Feature Dimension Aggregation** | **Features overlap, users differ** | **Privacy protection** | **High computational complexity** |
+| **Federated Transfer Learning** | **Knowledge Transfer Learning** | **Inter-domain knowledge sharing** | **Strong cross-domain learning capability** | **Model adaptation difficult** |
+| **Federated Reinforcement Learning** | **Strategy Coordinated Optimization** | **Multi-agent collaboration** | **Improved decision-making capabilities** | **Difficult to ensure convergence** |
 
 ---
 
-<!-- chunk: 二、FATE联邦学习平台部署 -->
-## 二、FATE联邦学习平台部署
 
-### 2.1 FATE集群架构
+## 2. FATE Federated Learning Platform Deployment
+
+### 2.1 FATE Cluster Architecture
 
 ```yaml
 # fate-cluster-deployment.yaml
@@ -136,7 +138,7 @@ metadata:
   name: fate-cluster
 
 ---
-# MySQL数据库（元数据存储）
+# MySQL database (metadata storage)
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -186,7 +188,7 @@ spec:
           storage: 100Gi
 
 ---
-# Redis缓存（会话存储）
+# Redis cache (session storage)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -216,7 +218,7 @@ spec:
             memory: \"2Gi\"
 
 ---
-# FATE Flow控制器
+# FATE Flow controller
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -275,7 +277,7 @@ spec:
           claimName: fate-data-pvc
 
 ---
-# FATE Board可视化界面
+# FATE Board visualization interface
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -312,7 +314,7 @@ spec:
             memory: \"2Gi\"
 
 ---
-# 服务暴露
+# Service exposure
 apiVersion: v1
 kind: Service
 metadata:
@@ -341,7 +343,7 @@ spec:
   type: LoadBalancer
 ```
 
-### 2.2 联邦学习参与者配置
+### 2.2 Configuration of Federated Learning Participants
 
 ```yaml
 # participant-config.yaml
@@ -447,10 +449,10 @@ data:
 
 ---
 
-<!-- chunk: 三、联邦学习训练流程 -->
-## 三、联邦学习训练流程
 
-### 3.1 横向联邦学习实现
+## 3. Federated Learning Training Process
+
+### 3.1 Implementation of Horizontal Federated Learning
 
 ```python
 # horizontal_federated_learning.py
@@ -474,7 +476,7 @@ class HorizontalFederatedClient:
         self.private_key = self._generate_keys()
         
     def _generate_keys(self):
-        \"\"\"生成RSA密钥对\"\"\"
+        \"\"\"Generate RSA key pair\"\"\"
         private_key = rsa.generate_private_key(
             public_exponent=65537,
             key_size=2048
@@ -482,19 +484,19 @@ class HorizontalFederatedClient:
         return private_key
     
     def preprocess_data(self, feature_columns, target_column):
-        \"\"\"数据预处理\"\"\"
+        \"\"\"Data preprocessing\"\"\"
         X = self.local_data[feature_columns]
         y = self.local_data[target_column]
         
-        # 标准化
+        # Standardization
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
         
         return X_scaled, y.values
     
     def local_training(self, X, y, global_weights=None):
-        \"\"\"本地模型训练\"\"\"
-        # 初始化模型
+        \"\"\"Local model training\"\"\"
+        # Initialize model
         if self.model is None:
             self.model = LogisticRegression(
                 penalty='l2',
@@ -503,12 +505,12 @@ class HorizontalFederatedClient:
                 random_state=42
             )
         
-        # 如果有全局权重，进行初始化
+        # If global weights exist, initialize
         if global_weights is not None:
             self.model.coef_ = global_weights['coef']
             self.model.intercept_ = global_weights['intercept']
         
-        # 本地训练
+        # Local training
         self.model.fit(X, y)
         
         return {
@@ -518,8 +520,8 @@ class HorizontalFederatedClient:
         }
     
     def encrypt_gradients(self, gradients):
-        \"\"\"加密梯度\"\"\"
-        # 简化实现：实际应使用同态加密
+        \"\"\"Encrypt gradient\"\"\"
+        # Simplified implementation: should use homomorphic encryption instead
         serialized = pickle.dumps(gradients)
         encrypted = self.private_key.public_key().encrypt(
             serialized,
@@ -532,20 +534,20 @@ class HorizontalFederatedClient:
         return encrypted
     
     def participate_in_round(self, round_info):
-        \"\"\"参与联邦学习轮次\"\"\"
+        \"\"\"Participate in federated learning rounds\"\"\"
         try:
-            # 获取本轮参数
+            # Get current parameters
             feature_cols = round_info['feature_columns']
             target_col = round_info['target_column']
             global_weights = round_info.get('global_weights')
             
-            # 预处理数据
+            # Preprocess data
             X, y = self.preprocess_data(feature_cols, target_col)
             
-            # 本地训练
+            # Local training
             local_model = self.local_training(X, y, global_weights)
             
-            # 计算贡献度
+            # Compute contribution
             contribution = {
                 'client_id': self.client_id,
                 'weights': local_model,
@@ -553,7 +555,7 @@ class HorizontalFederatedClient:
                 'round_id': round_info['round_id']
             }
             
-            # 发送贡献到协调器
+            # Send contribution to coordinator
             response = requests.post(
                 f\"{self.coordinator_url}/submit_contribution\",
                 json=contribution,
@@ -573,10 +575,10 @@ class HorizontalFederatedCoordinator:
         self.round_history = []
         
     def federated_averaging(self, contributions):
-        \"\"\"联邦平均算法\"\"\"
+        \"\"\"Federated averaging algorithm\"\"\"
         total_samples = sum(contrib['samples_count'] for contrib in contributions)
         
-        # 加权平均
+        # Weighted average
         weighted_coef = np.zeros_like(contributions[0]['weights']['coef'])
         weighted_intercept = 0.0
         
@@ -591,7 +593,7 @@ class HorizontalFederatedCoordinator:
         }
     
     def run_federated_round(self, round_id, feature_columns, target_column):
-        \"\"\"运行联邦学习轮次\"\"\"
+        \"\"\"Run federated learning rounds\"\"\"
         round_info = {
             'round_id': round_id,
             'feature_columns': feature_columns,
@@ -599,7 +601,7 @@ class HorizontalFederatedCoordinator:
             'global_weights': self.global_model
         }
         
-        # 收集各参与方贡献
+        # Collect contributions from each participant
         contributions = []
         for participant_url in self.participants:
             try:
@@ -612,7 +614,7 @@ class HorizontalFederatedCoordinator:
             except Exception as e:
                 print(f\"Participant {participant_url} failed: {e}\")
         
-        # 聚合模型
+        # Aggregate model
         if contributions:
             self.global_model = self.federated_averaging(contributions)
             self.round_history.append({
@@ -633,22 +635,22 @@ class HorizontalFederatedCoordinator:
                 'message': 'No contributions received'
             }
 
-# 使用示例
-# 客户端启动
+# Usage example
+# Client startup
 client = HorizontalFederatedClient(
     client_id=\"hospital_a\",
     coordinator_url=\"http://coordinator.company.com:8000\",
     local_data_path=\"/data/patient_data.csv\"
 )
 
-# 协调器启动
+# Coordinator starts
 coordinator = HorizontalFederatedCoordinator([
     \"http://hospital-a.company.com:8000\",
     \"http://hospital-b.company.com:8000\",
     \"http://hospital-c.company.com:8000\"
 ])
 
-# 运行联邦学习
+# Run Federated Learning
 for round_num in range(10):
     result = coordinator.run_federated_round(
         round_id=round_num,
@@ -658,7 +660,7 @@ for round_num in range(10):
     print(f\"Round {round_num}: {result}\")
 ```
 
-### 3.2 纵向联邦学习实现
+### 3.2 Implementation of Vertical Federated Learning
 
 ```python
 # vertical_federated_learning.py
@@ -680,11 +682,11 @@ class VerticalFederatedGuest:
         self.encrypted_gradients = None
         
     def prepare_guest_data(self, feature_columns, label_column):
-        \"\"\"准备访客方数据\"\"\"
+        \"\"\"Prepare guest-side data\"\"\"
         X_guest = self.local_data[feature_columns]
         y = self.local_data[label_column]
         
-        # 数据标准化
+        # Data standardization
         scaler_X = StandardScaler()
         X_guest_scaled = scaler_X.fit_transform(X_guest)
         
@@ -694,31 +696,31 @@ class VerticalFederatedGuest:
         return X_guest_scaled, y_scaled, scaler_X, scaler_y
     
     def compute_guest_gradients(self, X_guest, y, host_encrypted_u):
-        \"\"\"计算访客方梯度（使用加密数据）\"\"\"
+        \"\"\"Compute guest-side gradient (using encrypted data)\"\"\"
         n_samples = len(X_guest)
         
-        # 解密主机方的u值
+        # Decrypt the u value from the host
         u_decrypted = [self.private_key.decrypt(enc_u) for enc_u in host_encrypted_u]
         u_array = np.array(u_decrypted)
         
-        # 计算梯度
+        # Compute the gradient
         guest_gradient = (1/n_samples) * X_guest.T.dot(u_array - y)
         
-        # 加密梯度发送给仲裁方
+        # Encrypt the gradient and send to arbitrator
         encrypted_gradient = [self.public_key.encrypt(grad) for grad in guest_gradient]
         
         return encrypted_gradient
     
     def participate_in_vertical_training(self, training_round):
-        \"\"\"参与纵向联邦训练\"\"\"
+        \"\"\"Participate in vertical federated training\"\"\"
         try:
-            # 准备数据
+            # Prepare data
             X_guest, y, scaler_X, scaler_y = self.prepare_guest_data(
                 training_round['guest_features'],
                 training_round['label_column']
             )
             
-            # 从主机方获取加密中间结果
+            # Obtain encrypted intermediate results from the host
             host_response = requests.post(
                 f\"{self.host_url}/compute_host_forward\",
                 json={
@@ -731,10 +733,10 @@ class VerticalFederatedGuest:
                 host_result = host_response.json()
                 host_encrypted_u = host_result['encrypted_u']
                 
-                # 计算梯度
+                # Compute the gradient
                 guest_gradients = self.compute_guest_gradients(X_guest, y, host_encrypted_u)
                 
-                # 将梯度发送给仲裁方
+                # Send the gradient to the arbitrator
                 arbiter_response = requests.post(
                     f\"{self.arbiter_url}/aggregate_gradients\",
                     json={
@@ -760,23 +762,23 @@ class VerticalFederatedHost:
         self.weights = None
         
     def prepare_host_data(self, feature_columns):
-        \"\"\"准备主机方数据\"\"\"
+        \"\"\"Prepare host-side data\"\"\"
         X_host = self.local_data[feature_columns]
         scaler = StandardScaler()
         X_host_scaled = scaler.fit_transform(X_host)
         return X_host_scaled, scaler
     
     def compute_host_forward(self, X_host, guest_weights):
-        \"\"\"计算主机方前向传播\"\"\"
-        # 计算线性组合
+        \"\"\"Compute host-side forward propagation\"\"\"
+        # Calculate the linear combination
         linear_combination = X_host.dot(guest_weights)
         
-        # 应用激活函数（这里简化为线性）
+        # Apply activation function (simplified to linear)
         u_host = linear_combination
         
-        # 加密u值
-        # 注意：实际实现中需要从访客方获取公钥
-        # 这里简化处理
+        # Encrypt the u value
+        # Note: In actual implementation, public key needs to be obtained from the guest
+        # Simplified handling here
         encrypted_u = [u for u in u_host]
         
         return encrypted_u
@@ -789,29 +791,29 @@ class VerticalFederatedArbiter:
         self.learning_rate = 0.01
         
     def aggregate_encrypted_gradients(self, guest_gradients, host_gradients):
-        \"\"\"聚合加密梯度\"\"\"
-        # 解密并聚合梯度
-        # 简化实现：实际需要更复杂的同态加密操作
+        \"\"\"Aggregate encrypted gradients\"\"\"
+        # Decrypt and aggregate the gradients
+        # Simplified implementation: actual requires more complex homomorphic encryption operations
         total_gradients = []
         for g_grad, h_grad in zip(guest_gradients, host_gradients):
-            # 这里应该解密并聚合
+            # Here should decrypt and aggregate
             aggregated = float(g_grad) + float(h_grad)
             total_gradients.append(aggregated)
         
         return np.array(total_gradients)
     
     def update_global_model(self, aggregated_gradients):
-        \"\"\"更新全局模型\"\"\"
+        \"\"\"Update global model\"\"\"
         if self.global_weights is None:
             self.global_weights = np.zeros(len(aggregated_gradients))
         
-        # 梯度下降更新
+        # Gradient descent update
         self.global_weights -= self.learning_rate * aggregated_gradients
         
         return self.global_weights
 
-# 使用示例
-# 访客方（拥有标签）
+# Usage example
+# Visitor side (owns the label)
 guest = VerticalFederatedGuest(
     guest_id=\"bank\",
     host_url=\"http://telecom.company.com:8000\",
@@ -819,7 +821,7 @@ guest = VerticalFederatedGuest(
     local_data_path=\"/data/bank_customer_data.csv\"
 )
 
-# 主机方（拥有特征）
+# Host side (owns the feature)
 host = VerticalFederatedHost(
     host_id=\"telecom\",
     guest_url=\"http://bank.company.com:8000\",
@@ -827,13 +829,13 @@ host = VerticalFederatedHost(
     local_data_path=\"/data/telecom_customer_data.csv\"
 )
 
-# 仲裁方
+# Arbiter
 arbiter = VerticalFederatedArbiter(
     guest_url=\"http://bank.company.com:8000\",
     host_url=\"http://telecom.company.com:8000\"
 )
 
-# 联邦训练循环
+# Federated training loop
 for round_num in range(50):
     training_config = {
         'round_id': round_num,
@@ -842,17 +844,17 @@ for round_num in range(50):
         'label_column': 'churn'
     }
     
-    # 访客方参与训练
+    # Visitor participates in training
     guest_result = guest.participate_in_vertical_training(training_config)
     print(f\"Round {round_num} - Guest result: {guest_result}\")
 ```
 
 ---
 
-<!-- chunk: 四、联邦学习安全机制 -->
-## 四、联邦学习安全机制
 
-### 4.1 差分隐私保护
+## 4. Federated Learning Security Mechanisms
+
+### 4.1 Differential Privacy Protection
 
 ```python
 # differential_privacy.py
@@ -866,26 +868,26 @@ class DifferentialPrivacy:
         self.delta = delta
         
     def add_laplace_noise(self, data, sensitivity):
-        \"\"\"添加拉普拉斯噪声\"\"\"
+        \"\"\"Add Laplace noise\"\"\"
         noise_scale = sensitivity / self.epsilon
         noise = laplace.rvs(size=len(data), scale=noise_scale)
         return data + noise
     
     def add_gaussian_noise(self, data, sensitivity):
-        \"\"\"添加高斯噪声\"\"\"
+        \"\"\"Add Gaussian noise\"\"\"
         sigma = sensitivity * np.sqrt(2 * np.log(1.25 / self.delta)) / self.epsilon
         noise = np.random.normal(0, sigma, size=len(data))
         return data + noise
     
     def privatize_gradients(self, gradients, clipping_bound=1.0):
-        \"\"\"梯度差分隐私化\"\"\"
-        # 梯度裁剪
+        \"\"\"Differentially private gradient\"\"\"
+        # Gradient clipping
         clipped_gradients = np.clip(gradients, -clipping_bound, clipping_bound)
         
-        # 计算敏感度
+        # Compute sensitivity
         sensitivity = 2 * clipping_bound
         
-        # 添加噪声
+        # Add noise
         private_gradients = self.add_gaussian_noise(clipped_gradients, sensitivity)
         
         return private_gradients
@@ -896,11 +898,11 @@ class PrivateFederatedLearning:
         self.noise_multiplier = 0.1
         
     def secure_aggregation(self, client_updates, num_clients):
-        \"\"\"安全聚合带隐私保护\"\"\"
-        # 聚合客户端更新
+        \"\"\"Privacy-preserving aggregation\"\"\"
+        # Aggregate client updates
         aggregated_update = np.mean(client_updates, axis=0)
         
-        # 添加聚合噪声
+        # Add aggregation noise
         sensitivity = 2.0 / num_clients  # 聚合敏感度
         noisy_aggregate = self.privacy.add_gaussian_noise(
             aggregated_update, 
@@ -910,8 +912,8 @@ class PrivateFederatedLearning:
         return noisy_aggregate
     
     def adaptive_privacy_budget(self, round_num, total_rounds):
-        \"\"\"自适应隐私预算分配\"\"\"
-        # 前期使用较少隐私预算，后期增加精度
+        \"\"\"Adaptive privacy budget allocation\"\"\"
+        # Use less privacy budget early, more later for accuracy
         progress = round_num / total_rounds
         if progress < 0.3:
             return 0.1  # 初始探索阶段
@@ -920,20 +922,20 @@ class PrivateFederatedLearning:
         else:
             return 1.0  # 后期精确阶段
 
-# 使用示例
+# Usage example
 dp_fl = PrivateFederatedLearning(privacy_budget=0.5)
 
-# 模拟客户端梯度
+# Simulate client gradients
 client_gradients = [
     np.random.randn(10) for _ in range(5)  # 5个客户端，每个10维梯度
 ]
 
-# 私有聚合
+# Private aggregation
 private_aggregate = dp_fl.secure_aggregation(client_gradients, len(client_gradients))
 print(\"Private aggregate shape:\", private_aggregate.shape)
 ```
 
-### 4.2 安全多方计算
+### 4.2 Secure Multi-Party Computation
 
 ```python
 # secure_multiparty_computation.py
@@ -949,7 +951,7 @@ class SecureMultipartyComputation:
         self.keys = self._generate_keys()
         
     def _generate_keys(self):
-        \"\"\"为每个参与方生成密钥对\"\"\"
+        \"\"\"Generate key pairs for each participant\"\"\"
         keys = {}
         for i in range(self.num_parties):
             key = RSA.generate(2048)
@@ -960,79 +962,79 @@ class SecureMultipartyComputation:
         return keys
     
     def secret_share(self, secret, num_shares=None):
-        \"\"\"秘密分享\"\"\"
+        \"\"\"secret sharing\"\"\"
         if num_shares is None:
             num_shares = self.num_parties
             
-        # 生成随机份额
+        # Generate random shares
         shares = [secrets.randbelow(2**32) for _ in range(num_shares - 1)]
         
-        # 最后一个份额使得所有份额之和等于秘密
+        # The last share makes the sum of all shares equal to the secret
         last_share = (secret - sum(shares)) % (2**32)
         shares.append(last_share)
         
         return shares
     
     def reconstruct_secret(self, shares):
-        \"\"\"重构秘密\"\"\"
+        \"\"\"reconstruct secret\"\"\"
         return sum(shares) % (2**32)
     
     def secure_sum(self, private_values):
-        \"\"\"安全求和协议\"\"\"
+        \"\"\"secure sum protocol\"\"\"
         if len(private_values) != self.num_parties:
             raise ValueError(\"Number of values must match number of parties\")
         
-        # 每个参与方将自己的值秘密分享给其他方
+        # Each participant privately shares their value with other parties
         shares_matrix = []
         for i, value in enumerate(private_values):
             shares = self.secret_share(value, self.num_parties)
             shares_matrix.append(shares)
         
-        # 每个参与方收集自己收到的所有份额并求和
+        # Each participant collects all shares received and sums them up
         partial_sums = []
         for j in range(self.num_parties):
             partial_sum = sum(shares_matrix[i][j] for i in range(self.num_parties))
             partial_sums.append(partial_sum)
         
-        # 最终重构总和
+        # Finally reconstruct the total sum
         total_sum = self.reconstruct_secret(partial_sums)
         return total_sum
     
     def oblivious_transfer(self, sender_choices, receiver_choice):
-        \"\"\"不经意传输\"\"\"
-        # 简化的OT实现
-        # 发送方有两个消息 m0, m1
-        # 接收方选择其中一个而不让发送方知道选择
+        \"\"\"accidental transmission\"\"\"
+        # Simplified implementation of OT
+        # The sender has two messages m0, m1
+        # The receiver chooses one without informing the sender
         m0, m1 = sender_choices
         choice_bit = receiver_choice  # 0 or 1
         
-        # 使用RSA盲签名实现
+        # Implementing RSA blinding signature
         receiver_key = RSA.generate(2048)
         cipher = PKCS1_OAEP.new(receiver_key)
         
-        # 接收方生成盲化消息
+        # The receiver generates blinded message
         blind_factor = secrets.randbelow(receiver_key.n)
         blinded_choice = (choice_bit * blind_factor) % receiver_key.n
         
-        # 发送方加密两个消息
+        # The sender encrypts two messages
         encrypted_m0 = pow(m0, receiver_key.e, receiver_key.n)
         encrypted_m1 = pow(m1, receiver_key.e, receiver_key.n)
         
-        # 根据盲化选择返回对应加密消息
+        # Return the corresponding encrypted message based on the blinded choice
         if choice_bit == 0:
             return cipher.decrypt(encrypted_m0)
         else:
             return cipher.decrypt(encrypted_m1)
 
-# 使用示例
+# Usage Example
 smc = SecureMultipartyComputation(num_parties=3)
 
-# 安全求和示例
+# Example of Secure Sum
 private_values = [100, 200, 300]  # 每个参与方的秘密值
 secure_sum_result = smc.secure_sum(private_values)
 print(f\"Secure sum result: {secure_sum_result}\")  # 应该是600
 
-# 不经意传输示例
+# Example of Inadvertent Transmission
 sender_messages = [\"Secret_A\", \"Secret_B\"]
 receiver_choice = 1  # 想要接收Secret_B
 received_message = smc.oblivious_transfer(sender_messages, receiver_choice)
@@ -1041,10 +1043,10 @@ print(f\"Received message: {received_message}\")
 
 ---
 
-<!-- chunk: 五、联邦学习监控与治理 -->
-## 五、联邦学习监控与治理
 
-### 5.1 联邦学习监控系统
+## 5. Federated Learning Monitoring and Governance
+
+### 5.1 Federated Learning Monitoring System
 
 ```yaml
 # federated-learning-monitoring.yaml
@@ -1057,7 +1059,7 @@ spec:
   groups:
   - name: federated.learning.rules
     rules:
-    # 参与方健康检查
+    # Health check of participants
     - alert: ParticipantOffline
       expr: |
         federated_participant_status == 0
@@ -1068,7 +1070,7 @@ spec:
         summary: \"Federated learning participant offline\"
         description: \"Participant {{ $labels.participant_id }} is offline\"
     
-    # 联邦训练进度监控
+    # Monitoring Progress of Federated Training
     - alert: TrainingConvergenceSlow
       expr: |
         rate(federated_training_loss[30m]) > -0.001
@@ -1079,7 +1081,7 @@ spec:
         summary: \"Federated training convergence slow\"
         description: \"Training loss reduction rate is below threshold\"
     
-    # 隐私预算消耗监控
+    # Monitoring Privacy Budget Consumption
     - alert: PrivacyBudgetExhausted
       expr: |
         federated_privacy_budget_consumed / federated_privacy_budget_total > 0.9
@@ -1090,7 +1092,7 @@ spec:
         summary: \"Privacy budget nearly exhausted\"
         description: \"Privacy budget consumption reached 90% of limit\"
     
-    # 模型性能差异告警
+    # Model Performance Difference Alarm
     - alert: ModelPerformanceDivergence
       expr: |
         stddev(federated_model_accuracy) > 0.1
@@ -1166,7 +1168,7 @@ data:
     }
 ```
 
-### 5.2 联邦学习治理策略
+### 5.2 Federated Learning Governance Strategies
 
 ```python
 # federated_governance.py
@@ -1203,16 +1205,16 @@ class FederatedGovernance:
         self.audit_log: List[Dict[str, Any]] = []
         
     def register_participant(self, participant_info: Dict[str, Any]) -> bool:
-        \"\"\"注册参与方\"\"\"
-        # 验证参与方资质
+        \"\"\"register participant\"\"\"
+        # Verify Participant Credentials
         if not self._validate_participant(participant_info):
             return False
         
-        # 检查数据质量
+        # Check Data Quality
         if not self._assess_data_quality(participant_info):
             return False
         
-        # 创建参与方对象
+        # Create Participant Object
         participant = Participant(
             participant_id=participant_info['id'],
             role=participant_info['role'],
@@ -1228,30 +1230,30 @@ class FederatedGovernance:
         return True
     
     def _validate_participant(self, info: Dict[str, Any]) -> bool:
-        \"\"\"验证参与方资质\"\"\"
+        \"\"\"validate participant credentials\"\"\"
         required_fields = ['id', 'role', 'organization', 'data_size', 'security_cert']
         if not all(field in info for field in required_fields):
             return False
         
-        # 检查角色合法性
+        # Check Role Legitimacy
         valid_roles = ['guest', 'host', 'arbiter']
         if info['role'] not in valid_roles:
             return False
         
-        # 检查数据规模
+        # Check Data Size
         if info['data_size'] < self.config['minimum_data_size']:
             return False
         
         return True
     
     def _assess_data_quality(self, info: Dict[str, Any]) -> bool:
-        \"\"\"评估数据质量\"\"\"
-        # 检查数据多样性
+        \"\"\"assess data quality\"\"\"
+        # Check Data Diversity
         if 'data_diversity_score' in info:
             if info['data_diversity_score'] < self.config['min_diversity_score']:
                 return False
         
-        # 检查数据新鲜度
+        # Check Data Freshness
         if 'data_last_updated' in info:
             last_update = datetime.fromisoformat(info['data_last_updated'])
             if datetime.now() - last_update > timedelta(days=365):
@@ -1260,34 +1262,34 @@ class FederatedGovernance:
         return True
     
     def _calculate_initial_reputation(self, info: Dict[str, Any]) -> float:
-        \"\"\"计算初始声誉分数\"\"\"
+        \"\"\"compute initial reputation score\"\"\"
         base_score = 0.5
         
-        # 组织信誉加成
+        # Organizational reputation bonus
         org_reputation = self.config['organization_reputation'].get(
             info['organization'], 0.1
         )
         
-        # 数据质量加成
+        # Data quality bonus
         quality_bonus = min(info.get('data_quality_score', 0) / 100, 0.3)
         
-        # 安全认证加成
+        # Security authentication bonus
         security_bonus = 0.1 if info.get('security_cert') else 0
         
         return min(base_score + org_reputation + quality_bonus + security_bonus, 1.0)
     
     def evaluate_contribution(self, participant_id: str, contribution: Dict[str, Any]) -> float:
-        \"\"\"评估参与方贡献\"\"\"
+        \"\"\"assess participant contributions\"\"\"
         participant = next((p for p in self.participants if p.participant_id == participant_id), None)
         if not participant:
             return 0.0
         
-        # 计算贡献分数
+        # Calculate contribution score
         quality_score = contribution.get('model_quality_improvement', 0)
         timeliness_score = self._calculate_timeliness_score(contribution)
         resource_score = self._calculate_resource_efficiency(contribution)
         
-        # 加权计算最终分数
+        # Weighted calculation of final score
         weights = self.config['contribution_weights']
         final_score = (
             weights['quality'] * quality_score +
@@ -1295,7 +1297,7 @@ class FederatedGovernance:
             weights['efficiency'] * resource_score
         )
         
-        # 更新参与方声誉
+        # Update participant reputation
         participant.reputation_score = min(
             0.9 * participant.reputation_score + 0.1 * final_score,
             1.0
@@ -1311,7 +1313,7 @@ class FederatedGovernance:
         return final_score
     
     def _calculate_timeliness_score(self, contribution: Dict[str, Any]) -> float:
-        \"\"\"计算及时性分数\"\"\"
+        \"\"\"compute timeliness score\"\"\"
         expected_time = contribution.get('expected_completion_time')
         actual_time = contribution.get('actual_completion_time')
         
@@ -1327,7 +1329,7 @@ class FederatedGovernance:
             return 0.3
     
     def _calculate_resource_efficiency(self, contribution: Dict[str, Any]) -> float:
-        \"\"\"计算资源效率分数\"\"\"
+        \"\"\"compute resource efficiency score\"\"\"
         resource_usage = contribution.get('resource_usage', {})
         baseline_usage = self.config['baseline_resource_usage']
         
@@ -1340,10 +1342,10 @@ class FederatedGovernance:
         return sum(efficiency_scores) / len(efficiency_scores) if efficiency_scores else 0.5
     
     def enforce_policy(self, current_state: Dict[str, Any]) -> Dict[str, Any]:
-        \"\"\"执行治理策略\"\"\"
+        \"\"\"execute governance strategy\"\"\"
         violations = []
         
-        # 检查最小参与方数量
+        # Check minimum number of participants
         active_participants = len([p for p in self.participants if p.reputation_score > 0.3])
         if active_participants < self.policy.min_participants:
             violations.append({
@@ -1352,7 +1354,7 @@ class FederatedGovernance:
                 'required': self.policy.min_participants
             })
         
-        # 检查隐私预算
+        # Check privacy budget
         if current_state.get('privacy_budget_consumed', 0) > self.policy.privacy_budget:
             violations.append({
                 'type': 'privacy_budget_exceeded',
@@ -1360,7 +1362,7 @@ class FederatedGovernance:
                 'limit': self.policy.privacy_budget
             })
         
-        # 检查模型质量
+        # Check model quality
         avg_quality = current_state.get('average_model_quality', 0)
         if avg_quality < self.policy.quality_threshold:
             violations.append({
@@ -1369,7 +1371,7 @@ class FederatedGovernance:
                 'threshold': self.policy.quality_threshold
             })
         
-        # 生成治理决策
+        # Generate governance decision
         decision = {
             'violations': violations,
             'actions': self._determine_actions(violations),
@@ -1380,7 +1382,7 @@ class FederatedGovernance:
         return decision
     
     def _determine_actions(self, violations: List[Dict[str, Any]]) -> List[str]:
-        \"\"\"根据违规情况确定行动\"\"\"
+        \"\"\"determine action based on violations\"\"\"
         actions = []
         
         for violation in violations:
@@ -1396,7 +1398,7 @@ class FederatedGovernance:
         return actions
     
     def _log_audit_event(self, event_type: str, details: Dict[str, Any]):
-        \"\"\"记录审计事件\"\"\"
+        \"\"\"record audit events\"\"\"
         audit_entry = {
             'timestamp': datetime.now().isoformat(),
             'event_type': event_type,
@@ -1404,14 +1406,14 @@ class FederatedGovernance:
         }
         self.audit_log.append(audit_entry)
         
-        # 保存到持久化存储
+        # Save to persistent storage
         with open('/audit/federated_governance_audit.json', 'a') as f:
             f.write(json.dumps(audit_entry) + '\\n')
 
-# 使用示例
+# Usage example
 governance = FederatedGovernance('federation_config.yaml')
 
-# 注册参与方
+# Register participant
 participant_info = {
     'id': 'hospital_a',
     'role': 'guest',
@@ -1425,7 +1427,7 @@ participant_info = {
 registration_success = governance.register_participant(participant_info)
 print(f\"Registration successful: {registration_success}\")
 
-# 评估贡献
+# Evaluate contribution
 contribution = {
     'model_quality_improvement': 0.02,
     'expected_completion_time': 3600,
@@ -1439,25 +1441,25 @@ print(f\"Contribution score: {score}\")
 
 ---
 
-**维护者**: Federated Learning Team | **最后更新**: 2026-02 | **版本**: v1.0
+**Maintainers**: Federated Learning Team | **Last Updated**: 2026-02 | **Version**: v1.0
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documents
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

@@ -1,6 +1,6 @@
 ---
-title: 32 - MLOps端到端流水线
-description: '## 一、MLOps流水线架构'
+title: 32 - MLOps End-to-End Pipeline
+description: '## One,MLOps Pipeline Architecture'
 summary: 'from kfp.components import create_component_from_func'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- MLOps端到端流水线 是什么
-- 如何 MLOps端到端流水线
-- Kubernetes 11 ai infra 最佳实践
+- What is MLOps End-to-End Pipeline
+- How MLOps End-to-End Pipeline
+- Kubernetes 11 ai infra Best Practices
 trigger_keywords:
-- MLOps端到端流水线
+- MLOps End-to-End Pipeline
 - ai
 - infra
 prerequisites:
@@ -49,30 +49,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/32-mlops-pipeline.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 32 - MLOps端到端流水线
+# 32 - MLOps End-to-End Pipeline
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 高级 | **参考**: [[entities/kubeflow.md|Kubeflow]] Pipelines](https://www.kubeflow.org/docs/components/pipelines/) | [MLflow](https://mlflow.org/) | [[entities/argo.md|Argo]]go Workflows|Argo Workflows]]](https://argoproj.github.io/argo-workflows/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: [[entities/kubeflow.md|Kubeflow]] Pipelines](https://www.kubeflow.org/docs/components/pipelines/) | [MLflow](https://mlflow.org/) | [[entities/argo.md|Argo]]go Workflows|Argo Workflows]]](https://argoproj.github.io/argo-workflows/)
 
-<!-- chunk: 一、MLOps流水线架构 -->
-## 一、MLOps流水线架构
 
-### 1.1 端到端流水线概览
+## 1. Overall Pipeline Architecture
+
+### 1.1 Overview of End-to-End Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -108,23 +110,23 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 流水线组件详解
+### 1.2 Detailed Explanation of Pipeline Components
 
-| 组件 | 功能 | 技术栈 | 运维关注点 |
+| Component | Function | Technology Stack | Monitoring Focus |
 |------|------|--------|------------|
-| **数据摄取** | 数据采集、清洗、验证 | Airflow/Kafka | 数据一致性、延迟监控 |
-| **特征工程** | 特征提取、转换、存储 | Feast/TF Transform | 特征漂移、版本管理 |
-| **模型训练** | 分布式训练、超参调优 | Kubeflow/Katib | GPU利用率、训练时间 |
-| **模型评估** | 性能评估、公平性检查 | MLflow/Evidently | 评估准确性、偏差检测 |
-| **模型部署** | 打包、部署、流量切换 | [[KServe|KServe]]/Seldon | 部署成功率、延迟指标 |
-| **在线服务** | 推理服务、自动扩缩容 | Istio/Knative | QPS、错误率、SLA |
+| **Data Ingestion** | Data collection, cleaning, validation | Airflow/Kafka | Consistency, latency monitoring |
+| **Feature Engineering** | Feature extraction, transformation, storage | Feast/TF Transform | Feature drift, version management |
+| **Model Training** | Distributed training, hyperparameter tuning | Kubeflow/Katib | GPU utilization, training time |
+| **Model Evaluation** | Performance evaluation, fairness checks | MLflow/Evidently | Accuracy assessment, bias detection |
+| **Model Deployment** | Packaging, deployment, traffic switchover | [[KServe|KServe]]/Seldon | Deployment success rate, SLA metrics |
+| **Online Services** | Inference services, auto-scaling | Istio/Knative | QPS, error rate, SLA |
 
 ---
 
-<!-- chunk: 二、Kubeflow Pipelines实现 -->
-## 二、Kubeflow Pipelines实现
 
-### 2.1 流水线DSL定义
+## 2. Kubeflow Pipelines Implementation
+
+### 2.1 Definition of Pipeline DSL
 
 ```python
 # pipeline_definition.py
@@ -143,26 +145,26 @@ def data_ingestion(
     data_source: str,
     output_data_path: str
 ) -> str:
-    \"\"\"数据摄取组件\"\"\"
+    \"\"\"Data ingestion component\"\"\"
     import pandas as pd
     import boto3
     
-    # 从S3读取数据
+    # Read data from S3
     s3 = boto3.client('s3')
     bucket, key = data_source.replace('s3://', '').split('/', 1)
     s3.download_file(bucket, key, '/tmp/raw_data.csv')
     
     df = pd.read_csv('/tmp/raw_data.csv')
     
-    # 数据验证
-    assert df.shape[0] > 1000, \"数据量不足\"
-    assert 'label' in df.columns, \"缺少标签列\"
+    # Data validation
+    assert df.shape[0] > 1000, \"Data volume insufficient\"
+    assert 'label' in df.columns, \"Missing label column\"
     
-    # 数据清洗
+    # Data cleaning
     df = df.dropna()
     df.to_csv(output_data_path, index=False)
     
-    return f\"成功处理 {len(df)} 条记录\"
+    return f\"Successfully processed {len(df)} records\"
 
 @create_component_from_func
 def feature_engineering(
@@ -170,31 +172,31 @@ def feature_engineering(
     output_features_path: str,
     output_labels_path: str
 ) -> dict:
-    \"\"\"特征工程组件\"\"\"
+    \"\"\"Feature engineering component\"\"\"
     import pandas as pd
     from sklearn.preprocessing import StandardScaler, LabelEncoder
     import json
     
     df = pd.read_csv(input_data_path)
     
-    # 特征选择
+    # Feature selection
     feature_columns = [col for col in df.columns if col != 'label']
     X = df[feature_columns]
     y = df['label']
     
-    # 特征标准化
+    # Feature standardization
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # 标签编码
+    # Label encoding
     le = LabelEncoder()
     y_encoded = le.fit_transform(y)
     
-    # 保存特征和标签
+    # Save features and labels
     pd.DataFrame(X_scaled).to_csv(output_features_path, index=False, header=False)
     pd.Series(y_encoded).to_csv(output_labels_path, index=False, header=False)
     
-    # 返回特征统计信息
+    # Return feature statistics
     stats = {
         'feature_count': len(feature_columns),
         'sample_count': len(df),
@@ -214,7 +216,7 @@ def model_training(
     model_output_path: str,
     experiment_name: str
 ) -> dict:
-    \"\"\"模型训练组件\"\"\"
+    \"\"\"Model training component\"\"\"
     import pandas as pd
     import numpy as np
     from sklearn.ensemble import RandomForestClassifier
@@ -223,42 +225,42 @@ def model_training(
     import json
     import joblib
     
-    # 加载数据
+    # Load data
     X = pd.read_csv(features_path, header=None).values
     y = pd.read_csv(labels_path, header=None).values.ravel()
     
-    # 开始MLflow实验
+    # Start MLflow experiment
     mlflow.set_experiment(experiment_name)
     
     with mlflow.start_run() as run:
-        # 模型训练
+        # Model training
         model = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
             random_state=42
         )
         
-        # 交叉验证
+        # Cross-validation
         cv_scores = cross_val_score(model, X, y, cv=5)
         
-        # 最终训练
+        # Final training
         model.fit(X, y)
         
-        # 评估
+        # Evaluation
         train_accuracy = model.score(X, y)
         
-        # 记录MLflow参数
+        # Record MLflow parameters
         mlflow.log_param(\"n_estimators\", 100)
         mlflow.log_param(\"max_depth\", 10)
         mlflow.log_metric(\"train_accuracy\", train_accuracy)
         mlflow.log_metric(\"cv_mean_accuracy\", cv_scores.mean())
         mlflow.log_metric(\"cv_std_accuracy\", cv_scores.std())
         
-        # 保存模型
+        # Save model
         joblib.dump(model, model_output_path)
         mlflow.log_artifact(model_output_path)
         
-        # 返回结果
+        # Return results
         result = {
             'run_id': run.info.run_id,
             'train_accuracy': float(train_accuracy),
@@ -276,7 +278,7 @@ def model_evaluation(
     test_labels_path: str,
     evaluation_output_path: str
 ) -> dict:
-    \"\"\"模型评估组件\"\"\"
+    \"\"\"Model evaluation component\"\"\"
     import pandas as pd
     import numpy as np
     import joblib
@@ -290,16 +292,16 @@ def model_evaluation(
         ClassificationPerformanceProfileSection
     )
     
-    # 加载模型和测试数据
+    # Load model and test data
     model = joblib.load(model_path)
     X_test = pd.read_csv(test_features_path, header=None).values
     y_test = pd.read_csv(test_labels_path, header=None).values.ravel()
     
-    # 预测
+    # Prediction
     y_pred = model.predict(X_test)
     y_proba = model.predict_proba(X_test)
     
-    # 基础指标计算
+    # Baseline metric calculation
     metrics = {
         'accuracy': float(accuracy_score(y_test, y_pred)),
         'precision': float(precision_score(y_test, y_pred, average='weighted')),
@@ -307,17 +309,17 @@ def model_evaluation(
         'f1_score': float(f1_score(y_test, y_pred, average='weighted'))
     }
     
-    # 混淆矩阵
+    # Confusion Matrix
     cm = confusion_matrix(y_test, y_pred).tolist()
     metrics['confusion_matrix'] = cm
     
-    # Evidently模型分析
+    # Evidently Model Analysis
     profile = Profile(sections=[
         ClassificationPerformanceProfileSection(),
         DataDriftProfileSection()
     ])
     
-    # 创建DataFrame用于Evidently
+    # Create DataFrame for Evidently
     reference_data = pd.DataFrame({
         'prediction': y_pred,
         'target': y_test,
@@ -328,10 +330,10 @@ def model_evaluation(
     
     profile.calculate(reference_data, current_data, column_mapping=None)
     
-    # 添加Evidently指标
+    # Add Evidently Metrics
     metrics['classification_performance'] = profile.get_content()['classification_performance']
     
-    # 保存评估结果
+    # Save Evaluation Results
     with open(evaluation_output_path, 'w') as f:
         json.dump(metrics, f, indent=2)
     
@@ -339,26 +341,26 @@ def model_evaluation(
 
 @dsl.pipeline(
     name='ml-training-pipeline',
-    description='端到端机器学习训练流水线'
+    description='End-to-end machine learning training pipeline'
 )
 def ml_training_pipeline(
     data_source: str = 's3://company-data/training/dataset.csv',
     experiment_name: str = 'customer-churn-prediction'
 ):
-    # 步骤1: 数据摄取
+    # Step 1: Data Ingestion
     data_op = data_ingestion(
         data_source=data_source,
         output_data_path='/tmp/cleaned_data.csv'
     )
     
-    # 步骤2: 特征工程
+    # Step 2: Feature Engineering
     feature_op = feature_engineering(
         input_data_path=data_op.output,
         output_features_path='/tmp/features.csv',
         output_labels_path='/tmp/labels.csv'
     )
     
-    # 步骤3: 模型训练
+    # Step 3: Model Training
     train_op = model_training(
         features_path=feature_op.outputs['output'],
         labels_path='/tmp/labels.csv',
@@ -366,7 +368,7 @@ def ml_training_pipeline(
         experiment_name=experiment_name
     )
     
-    # 步骤4: 模型评估
+    # Step 4: Model Evaluation
     eval_op = model_evaluation(
         model_path=train_op.outputs['output'],
         test_features_path='/tmp/features.csv',  # 实际应使用独立测试集
@@ -374,22 +376,22 @@ def ml_training_pipeline(
         evaluation_output_path='/tmp/evaluation.json'
     )
     
-    # 设置依赖关系
+    # Set dependencies
     feature_op.after(data_op)
     train_op.after(feature_op)
     eval_op.after(train_op)
 
-# 编译流水线
+# Compile Pipeline
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(ml_training_pipeline, 'ml_training_pipeline.yaml')
 ```
 
 ---
 
-<!-- chunk: 三、CI/CD流水线集成 -->
-## 三、CI/CD流水线集成
 
-### 3.1 GitHub Actions配置
+## 3. CI/CD Pipeline Integration
+
+### 3.1 Configuration of GitHub Actions
 
 ```yaml
 # .github/workflows/ml-pipeline.yaml
@@ -475,7 +477,7 @@ jobs:
     
     - name: Deploy to staging
       run: |
-        # 更新Kubernetes部署
+        # Update Kubernetes Deployment
         kubectl set image deployment/ml-pipeline \
           data-ingestion=company/ml-pipeline:${{ github.sha }} \
           feature-engineering=company/ml-pipeline:${{ github.sha }} \
@@ -483,7 +485,7 @@ jobs:
           model-evaluation=company/ml-pipeline:${{ github.sha }} \
           -n ml-staging
         
-        # 运行测试流水线
+        # Run Test Pipeline
         kubectl create -f test-pipeline-staging.yaml
     
     - name: Wait for pipeline completion
@@ -512,21 +514,21 @@ jobs:
     
     - name: Promote to production
       run: |
-        # 蓝绿部署
+        # Blue-Green Deployment
         kubectl patch deployment ml-pipeline-blue -p \
           '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"data-ingestion\",\"image\":\"company/ml-pipeline:${{ github.sha }}\"}]}}}}'
         
-        # 流量切换
+        # Traffic Switchover
         kubectl patch service ml-pipeline -p \
           '{\"spec\":{\"selector\":{\"version\":\"blue\"}}}'
 ```
 
 ---
 
-<!-- chunk: 四、生产环境最佳实践 -->
-## 四、生产环境最佳实践
 
-### 4.1 流水线可靠性保障
+## 4. Production Environment Best Practices
+
+### 4.1 Reliability Assurance for Pipelines
 
 ```yaml
 # pipeline-reliability.yaml
@@ -544,19 +546,19 @@ spec:
         - /bin/sh
         - -c
         - |
-          # 检查各组件健康状态
+          # Check Health Status of Components
           COMPONENTS=(\"data-ingestion\" \"feature-engineering\" \"model-training\" \"model-evaluation\")
           
           for component in ${COMPONENTS[@]}; do
             echo \"Checking $component...\"
             
-            # 检查Pod状态
+            # Check Pod Status
             if ! kubectl get pods -l app=$component -n ml-pipeline | grep Running; then
               echo \"ERROR: $component is not running\"
               exit 1
             fi
             
-            # 检查最近执行状态
+            # Check Recent Execution Status
             recent_workflows=$(kubectl get workflows -l component=$component --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-5:].status.phase}')
             success_count=$(echo $recent_workflows | grep -o Succeeded | wc -l)
             
@@ -579,7 +581,7 @@ spec:
           name: kubeconfig-admin
 ```
 
-### 4.2 成本优化策略
+### 4.2 Cost Optimization Strategies
 
 ```python
 # cost_optimizer.py
@@ -593,15 +595,15 @@ class MLPipelineCostOptimizer:
         self.k8s_client = kubernetes.client.ApiClient()
         
     def optimize_spot_instances(self):
-        \"\"\"优化Spot实例使用\"\"\"
-        # 获取Spot实例价格历史
+        \"\"\"Optimize Spot instance usage\"\"\"
+        # Get Spot Instance Price History
         pricing = self.ec2_client.describe_spot_price_history(
             InstanceTypes=['p3.2xlarge', 'p3.8xlarge'],
             ProductDescriptions=['Linux/UNIX'],
             StartTime=datetime.utcnow() - timedelta(hours=24)
         )
         
-        # 选择最具性价比的实例类型
+        # Choose Most Cost-Effective Instance Type
         best_instance = min(pricing['SpotPriceHistory'], 
                           key=lambda x: float(x['SpotPrice']))
         
@@ -612,7 +614,7 @@ class MLPipelineCostOptimizer:
         }
     
     def scale_pipeline_resources(self, pipeline_demand):
-        \"\"\"根据流水线需求动态调整资源\"\"\"
+        \"\"\"Adjust resources dynamically based on pipeline needs\"\"""
         base_resources = {
             'data_ingestion': {'cpu': '1', 'memory': '2Gi'},
             'feature_engineering': {'cpu': '2', 'memory': '4Gi'},
@@ -620,7 +622,7 @@ class MLPipelineCostOptimizer:
             'model_evaluation': {'cpu': '2', 'memory': '8Gi'}
         }
         
-        # 根据需求调整资源请求
+        # Adjust resource requests according to requirements
         optimized_resources = {}
         for component, resources in base_resources.items():
             demand_factor = pipeline_demand.get(component, 1.0)
@@ -641,7 +643,7 @@ class MLPipelineCostOptimizer:
         
         return optimized_resources
 
-# 使用示例
+# Usage Example
 optimizer = MLPipelineCostOptimizer()
 spot_config = optimizer.optimize_spot_instances()
 resource_config = optimizer.scale_pipeline_resources({
@@ -652,10 +654,10 @@ resource_config = optimizer.scale_pipeline_resources({
 
 ---
 
-<!-- chunk: 五、流水线治理与安全 -->
-## 五、流水线治理与安全
 
-### 5.1 安全加固配置
+## 5. Pipeline Governance and Security
+
+### 5.1 Configuration for Security Hardening
 
 ```yaml
 # pipeline-security.yaml
@@ -664,7 +666,7 @@ kind: PipelineSecurityPolicy
 metadata:
   name: ml-pipeline-security
 spec:
-  # 数据安全
+  # Data Security
   dataProtection:
     encryption:
       atRest: true
@@ -681,7 +683,7 @@ spec:
             StringEquals:
               \"s3:prefix\": [\"training/\", \"validation/\"]
     
-    # 敏感数据脱敏
+    # Sensitive Data Masking
     dataMasking:
       enabled: true
       rules:
@@ -690,7 +692,7 @@ spec:
         - pattern: \"\\\\b1[3-9]\\\\d{9}\\\\b\"  # 手机号
           replacement: \"138****8888\"
 
-  # 模型安全
+  # Model Security
   modelSecurity:
     scanning:
       enabled: true
@@ -712,7 +714,7 @@ spec:
         enabled: true
         required: true
 
-  # 网络安全
+  # Runtime Security
   networkSecurity:
     isolation:
       enabled: true
@@ -735,7 +737,7 @@ spec:
             - protocol: TCP
               port: 5000
 
-  # 运行时安全
+  # Network Security
   runtimeSecurity:
     podSecurityStandards:
       enforce: \"restricted\"
@@ -754,25 +756,25 @@ spec:
 
 ---
 
-**维护者**: MLOps Team | **最后更新**: 2026-02 | **版本**: v1.0
+**Maintainers**: MLOps Team | **Last Updated**: 2026-02 | **Version**: v1.0
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

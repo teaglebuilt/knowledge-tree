@@ -1,7 +1,7 @@
 ---
-title: eBPF 安全运行时
-description: 'Tetragon 安全策略、Falco eBPF 驱动、KRSI 与 eBPF 审计策略实战'
-summary: 'Tetragon 安全策略、Falco eBPF 驱动、KRSI 与 eBPF 审计策略实战'
+title: eBPF Security Runtime
+description: 'Tetragon Security Strategy, Falco eBPF Driver, KRSI and eBPF Auditing Strategy in Practice'
+summary: 'Tetragon Security Strategy, Falco eBPF Driver, KRSI and eBPF Auditing Strategy in Practice'
 category: specialized-tech
 tags:
 - ebpf
@@ -17,13 +17,13 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 运维工程师
-- 平台工程师
+- Operations Engineer
+- Platform Engineer
 estimated_read_time: 15min
 intent_queries:
-- Tetragon 安全策略是什么
-- 如何使用 Falco eBPF 进行运行时安全
-- KRSI 是什么
+- What is Tetragon Security Strategy
+- How to Use Falco eBPF for Runtime Security
+- What is KRSI
 trigger_keywords:
 - tetragon
 - falco
@@ -42,42 +42,44 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/networking/ebpf/04-ebpf-security-runtime.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
-# eBPF 安全运行时
+# eBPF Security Runtime
 
-## 1. 运行时安全架构
+## 1. Runtime Security Architecture
 
 ```
-内核事件 → eBPF 传感器 → 策略引擎 → 响应动作
+Kernel event → eBPF sensor → policy engine → response action
     │              │            │          │
-    │              │            │          └── 告警/阻断/记录
+    │              │            │          └── alert/block/log
     │              │            └── TracingPolicy
-    │              └── 进程/文件/网络/安全
+    │              └── process/file/network/security
     └── kprobe/tracepoint/LSM
 ```
 
-eBPF 安全运行时优势：
+eBPF Secure Runtime Advantages:
 
-| 特性 | 传统方案 | eBPF 方案 |
+| Feature | Traditional Solution | eBPF Solution |
 |------|----------|-----------|
-| 内核模块 | 需要 | 不需要 |
-| 性能影响 | 高 | 低（<3%） |
-| 策略灵活性 | 固定 | 动态可编程 |
-| 容器感知 | 有限 | 完全支持 |
+| Kernel Module | Required | Not Required |
+| Performance Impact | High | Low (<3%) |
+| Policy Flexibility | Fixed | Dynamically Programmable |
+| Container Awareness | Limited | Fully Supported |
 
-## 2. Tetragon 安全策略
+## 2. Tetragon Security Policies
 
-### 2.1 安装
+### 2.1 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Helm 安装
+# 🟡 Medium Risk: modifies cluster/resource states; confirm target, impact scope, and authorization before execution
+# Helm Installation
 helm repo add cilium https://helm.cilium.io/
 helm repo update
 
@@ -88,10 +90,10 @@ helm install tetragon cilium/tetragon \
   --set tetragon.enableProcessCredScanning=true \
   --set tetragon.enableProcessNsScanning=true
 
-# 查看事件
+# View Events
 kubectl logs -n kube-system ds/tetragon -f
 ```
-### 2.2 进程执行监控
+### 2.2 Process Execution Monitoring
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -129,7 +131,7 @@ spec:
                 - "/root/.ssh"
 ```
 
-### 2.3 敏感文件访问控制
+### 2.3 Sensitivity File Access Control
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -168,7 +170,7 @@ spec:
               argError: -13    # EACCES
 ```
 
-### 2.4 网络连接监控
+### 2.4 Network Connection Monitoring
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -195,10 +197,10 @@ spec:
             - action: FollowFD
 ```
 
-### 2.5 Signal/Override/FollowFD 动作
+### 2.5 Signal/Override/FollowFD Actions
 
 ```yaml
-# Signal - 发送信号终止进程
+# Signal - Send Signal to Terminate Process
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -220,7 +222,7 @@ spec:
             - action: Sigkill
               rateLimit: "10/m"
 ---
-# Override - 覆盖系统调用返回值
+# Override - Override System Call Return Values
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -244,7 +246,7 @@ spec:
               argError: -1    # EPERM
 ```
 
-### 2.6 安全策略组合
+### 2.6 Policy Combinations
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -253,7 +255,7 @@ metadata:
   name: comprehensive-security
 spec:
   kprobes:
-    # 进程执行
+    # Process Execution
     - call: "security_bprm_check"
       syscall: false
       args:
@@ -268,7 +270,7 @@ spec:
         - matchActions:
             - action: Sigkill
               rateLimit: "5/m"
-    # 敏感文件写入
+    # Sensitive File Writes
     - call: "security_file_open"
       syscall: false
       args:
@@ -292,13 +294,13 @@ spec:
               argError: -13
 ```
 
-## 3. Falco eBPF 驱动
+## 3. Falco eBPF Driver
 
-### 3.1 安装
+### 3.1 Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Helm 安装
+# 🟡 Medium Risk: modifies cluster/resource states; confirm target, impact scope, and authorization before execution
+# Helm Installation
 helm repo add falcosecurity https://falcosecurity.github.io/charts
 helm repo update
 
@@ -309,7 +311,7 @@ helm install falco falcosecurity/falco \
   --set falcosidekick.enabled=true \
   --set falcosidekick.config.slack.webhookurl="https://hooks.slack.com/..."
 ```
-### 3.2 Falco 规则
+### 3.2 Falco Rules
 
 ```yaml
 # /etc/falco/falco_rules.yaml
@@ -352,10 +354,10 @@ helm install falco falcosecurity/falco \
   tags: [network, mitre_command_and_control]
 ```
 
-### 3.3 自定义 Falco 规则
+### 3.3 Custom Falco Rules
 
 ```yaml
-# 检测容器逃逸尝试
+# Detect Container Escalation Attempts
 - rule: Container Escape Attempt
   desc: Detect potential container escape
   condition: >
@@ -370,7 +372,7 @@ helm install falco falcosecurity/falco \
   priority: CRITICAL
   tags: [container, escape, mitre_privilege_escalation]
 
-# 检测加密挖矿
+# Detect Crypto Mining
 - rule: Cryptocurrency Mining Detection
   desc: Detect cryptocurrency mining activity
   condition: >
@@ -386,38 +388,38 @@ helm install falco falcosecurity/falco \
   tags: [container, mining, mitre_execution]
 ```
 
-## 4. KRSI（Kernel Runtime Security Instrumentation）
+## 4. KRSI (Kernel Runtime Security Instrumentation)
 
-### 4.1 概述
+### 4.1 Overview
 
-KRSI 是 Linux 内核的安全框架，基于 LSM（Linux Security Module）：
+KRSI is a security framework for the Linux kernel, based on LSM (Linux Security Module):
 
 ```c
-// KRSI eBPF 程序挂载点
+// KRSI eBPF Program Mount Point
 SEC("lsm/file_open")
 int BPF_PROG(file_open_audit, struct file *file, int ret) {
-    // 审计文件访问
+    // Audit File Access
     return ret;
 }
 
 SEC("lsm/bprm_creds_for_exec")
 int BPF_PROG(exec_audit, struct linux_binprm *bprm, int ret) {
-    // 审计进程执行
+    // Audit Process Execution
     return ret;
 }
 
 SEC("lsm/socket_connect")
 int BPF_PROG(connect_audit, struct socket *sock, struct sockaddr *address,
              int addrlen, int ret) {
-    // 审计网络连接
+    // Audit Network Connections
     return ret;
 }
 ```
 
-### 4.2 与 Tetragon 集成
+### 4.2 Integration with Tetragon
 
 ```yaml
-# Tetragon 使用 KRSI LSM hook
+# Tetragon Uses KRSI LSM Hook
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -440,9 +442,9 @@ spec:
               argError: -13
 ```
 
-## 5. eBPF 审计策略
+## 5. eBPF Auditing Policies
 
-### 5.1 系统调用审计
+### 5.1 System Call Auditing
 
 ```c
 // audit_syscalls.bpf.c
@@ -483,14 +485,14 @@ int audit_syscall(struct trace_event_raw_sys_enter *ctx) {
 }
 ```
 
-### 5.2 Kubernetes 审计集成
+### 5.2 Kubernetes Audit Integration
 
 ```yaml
-# 审计策略配置（与 eBPF 互补）
+# Audit Policy Configuration (Complementary to eBPF)
 apiVersion: audit.k8s.io/v1
 kind: Policy
 rules:
-  # 审计所有写操作
+  # Audit All Write Operations
   - level: RequestResponse
     resources:
       - group: ""
@@ -499,31 +501,31 @@ rules:
         resources: ["deployments", "statefulsets"]
     verbs: ["create", "update", "patch", "delete"]
 
-  # 审计认证事件
+  # Audit Authentication Events
   - level: Metadata
     resources:
       - group: "authentication.k8s.io"
         resources: ["tokenreviews", "subjectaccessreviews"]
 ```
 
-### 5.3 综合审计架构
+### 5.3 Comprehensive Auditing Architecture
 
 ```
-内核事件 → eBPF 审计 → Tetragon/Falco → SIEM/SOAR
+Kernel event → eBPF audit → Tetragon/Falco → SIEM/SOAR
     │              │           │
-    │              │           └── 告警/响应
-    │              └── 策略过滤
-    └── 系统调用/文件/网络/进程
+    │              │           └── alert/response
+    │              └── policy filter
+    └── syscall/file/network/process
 
-K8s API 审计 → Audit Sink → Webhook → 后端存储
+K8s API audit → Audit Sink → Webhook → backend storage
 ```
 
-## 6. 安全响应与自动化
+## 6. Security Response and Automation
 
-### 6.1 自动阻断
+### 6.1 Automated Blocking
 
 ```yaml
-# Tetragon 自动阻断恶意进程
+# Tetragon Automatically Blocks Malicious Processes
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy
 metadata:
@@ -547,10 +549,10 @@ spec:
               rateLimit: "5/m"
 ```
 
-### 6.2 与 Falco Talon 集成
+### 6.2 Integration with Falco Talon
 
 ```yaml
-# Falco Talon 自动响应
+# Falco Talon Automatic Response
 apiVersion: talon.falco.org/v1alpha1
 kind: ResponseRule
 metadata:
@@ -569,9 +571,9 @@ spec:
           "security.falco.org/blocked": "true"
 ```
 
-## 7. 安全策略模板
+## 7. Security Policy Templates
 
-### 7.1 基线安全策略
+### 7.1 Baseline Security Policies
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -580,7 +582,7 @@ metadata:
   name: baseline-security
 spec:
   kprobes:
-    # 禁止特权容器中的危险操作
+    # Prohibit dangerous operations in privileged containers
     - call: "__x64_sys_mount"
       syscall: true
       args:
@@ -594,7 +596,7 @@ spec:
         - matchActions:
             - action: Override
               argError: -1
-    # 监控敏感文件访问
+    # Monitor sensitive file access
     - call: "security_file_open"
       syscall: false
       args:
@@ -610,7 +612,7 @@ spec:
                 - "/root/.ssh"
 ```
 
-### 7.2 容器安全策略
+### 7.2 Container Security Policies
 
 ```yaml
 apiVersion: cilium.io/v1alpha1
@@ -619,7 +621,7 @@ metadata:
   name: container-hardening
 spec:
   kprobes:
-    # 阻止容器内提权
+    # Prevent privilege escalation in containers
     - call: "__x64_sys_setuid"
       syscall: true
       args:
@@ -634,7 +636,7 @@ spec:
         - matchActions:
             - action: Override
               argError: -1
-    # 阻止容器内加载内核模块
+    # Prevent loading kernel modules in containers
     - call: "__x64_sys_finit_module"
       syscall: true
       selectors:
@@ -647,38 +649,38 @@ spec:
               argError: -1
 ```
 
-## 8. 监控与排障
+## 8. Monitoring and Troubleshooting
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# Tetragon 状态
+# 🟢 Low Risk: Read-only/information gathering, typically with no side effects
+# Tetragon Status
 kubectl get pods -n kube-system -l app.kubernetes.io/name=tetragon
 
-# 查看 Tetragon 事件
+# View Tetragon Events
 kubectl logs -n kube-system ds/tetragon -f | tetra getevents
 
-# Falco 状态
+# Falco Status
 kubectl get pods -n falco
 
-# 查看 Falco 告警
+# View Falco Alerts
 kubectl logs -n falco ds/falco -f
 
-# 查看安全事件
+# View Security Events
 kubectl get events -A --field-selector reason=SecurityViolation
 ```
 ---
 
 ## Related
 
-- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF 开发基础]]
-- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF 可观测工具]]
-- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF 网络应用]]
+- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF Development Basics]]
+- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF Observability Tools]]
+- [[domain-15-specialized-tech/05-ebpf-programming/03-ebpf-networking-applications|eBPF Networking Applications]]
 
 ## See Also
 
-- [Tetragon 官方文档](https://tetragon.io/)
-- [Falco 官方文档](https://falco.org/docs/)
-- [KRSI 文档](https://www.kernel.org/doc/html/latest/bpf/prog_lsm.html)
+- [Tetragon Official Documentation](https://tetragon.io/)
+- [Falco Official Documentation](https://falco.org/docs/)
+- [KRSI Documentation](https://www.kernel.org/doc/html/latest/bpf/prog_lsm.html)
 
 
 <!-- risk-assessed -->

@@ -1,7 +1,7 @@
 ---
-title: 28 - AI绿色计算与可持续发展
-description: '## 一、AI绿色计算全景架构'
-summary: 'Level 4: 智能优化 (Intelligent Optimization)'
+title: 28 - AI Green Computing and Sustainability
+description: '## one,AI Green Computing Panorama Architecture'
+summary: 'Level 4: Intelligent Optimization'
 category: ai-infra
 tags:
 - k8s
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI绿色计算与可持续发展 是什么
-- 如何 AI绿色计算与可持续发展
-- Kubernetes 11 ai infra 最佳实践
+- AI Green Computing and Sustainability is what
+- How AI Green Computing and Sustainability
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI绿色计算与可持续发展
+- AI Green Computing and Sustainability
 - ai
 - infra
 prerequisites:
@@ -53,110 +53,112 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/28-green-computing-sustainability.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 28 - AI绿色计算与可持续发展
+# 28 - AI Green Computing and Sustainable Development
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **AI栈版本**: PyTorch 2.1+ | **最后更新**: 2026-02 | **质量等级**: 专家级
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **AI Stack Version**: PyTorch 2.1+ | **Last Updated**: 2026-02 | **Quality Level**: Expert
 
-<!-- chunk: 一、AI绿色计算全景架构 -->
-## 一、AI绿色计算全景架构
 
-### 1.1 绿色AI生态系统
+## 1. Overall Architecture of AI Green Computing
+
+### 1.1 Green AI Ecosystem
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       Green AI Ecosystem Architecture                   │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  🌱 绿色能源层 (Green Energy Layer)                                    │
-│  ├─ 可再生能源: 风能、太阳能、水电                                      │
-│  ├─ 绿色数据中心: LEED认证、PUE < 1.2                                   │
-│  ├─ 碳足迹追踪: 实时碳排放监控                                          │
-│  └─ 能源采购: 绿色电力证书(RECs)                                        │
+│  🌱 Green Energy Layer (Green Energy Layer)                                    │
+│  ├─ Renewable Energy: Wind, Solar, Hydroelectricity                                      │
+│  ├─ Green Data Center: LEED Certification, PUE < 1.2                                   │
+│  ├─ Carbon Footprint Tracking: Real-time Carbon Emission Monitoring                                          │
+│  └─ Energy Procurement: Green Power Certificates (RECs)                                        │
 │                                                                         │
-│  ⚡ 能耗监控层 (Energy Monitoring Layer)                               │
-│  ├─ 硬件级监控: RAPL、IPMI传感器                                        │
-│  ├─ 软件级监控: Kepler、eBPF                                            │
-│  ├─ 应用级监控: 模型能耗分析                                            │
-│  └─ 成本级监控: 能耗成本归因                                            │
+│  ⚡ Energy Monitoring Layer (Energy Monitoring Layer)                               │
+│  ├─ Hardware-Level Monitoring: RAPL, IPMI Sensors                                        │
+│  ├─ Software-Level Monitoring: Kepler, eBPF                                            │
+│  ├─ Application-Level Monitoring: Model Energy Consumption Analysis │
+│  └─ Cost-Level Monitoring: Energy Cost Attribution                                            │
 │                                                                         │
-│  🧠 AI优化层 (AI Optimization Layer)                                   │
-│  ├─ 模型压缩: 量化、蒸馏、剪枝                                          │
-│  ├─ 算法优化: 高效训练算法                                              │
-│  ├─ 资源调度: 碳感知调度器                                              │
-│  └─ 架构优化: Serverless、边缘计算                                      │
+│  🧠 AI Optimization Layer (AI Optimization Layer)                                   │
+│  ├─ Model Compression: Quantization, Distillation, Pruning                                          │
+│  ├─ Algorithm Optimization: Efficient Training Algorithms                                              │
+│  ├─ Resource Scheduling: Carbon-Aware Scheduler                                              │
+│  └─ Architecture Optimization: Serverless, Edge Computing                                      │
 │                                                                         │
-│  📊 治理管理层 (Governance & Management Layer)                         │
-│  ├─ 绿色政策: 企业ESG目标                                               │
-│  ├─ 合规监管: 碳排放法规遵循                                            │
-│  ├─ 绩效评估: 绿色KPI指标                                               │
-│  └─ 持续改进: 循环优化机制                                              │
+│  📊 Governance & Management Layer (Governance & Management Layer)                         │
+│  ├─ Green Policy: Corporate ESG Goals                                               │
+│  ├─ Compliance Regulation: Carbon Emission Regulations Follow-up                                            │
+│  ├─ Performance Evaluation: Green KPI Indicators                                               │
+│  └─ Continuous Improvement: Loop Optimization Mechanism                                      │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 AI工作负载能耗特征分析
+### 1.2 Energy Consumption Characteristics Analysis of AI Workloads
 
-| AI任务类型 | 能耗特征 | 主要影响因素 | 优化潜力 | 绿色策略 |
+| AI Task Type | Energy Characteristics | Main Influencing Factors | Optimization Potential | Green Strategy |
 |-----------|---------|-------------|---------|---------|
-| **大模型训练** | 高功耗、长时间 | 模型大小、训练轮数 | 40-60% | 混合精度、分布式训练 |
-| **模型推理** | 中等功耗、高频次 | 请求量、批处理 | 30-50% | 模型压缩、缓存优化 |
-| **数据处理** | 低到中等功耗 | 数据量、算法复杂度 | 20-40% | 向量化计算、并行处理 |
-| **实验管理** | 低功耗、间歇性 | 实验频率、资源分配 | 10-30% | 资源回收、按需分配 |
+| **Large Model Training** | High energy consumption, long duration | Model size, number of training epochs | 40-60% | Mixed precision, distributed training |
+| **Model Inference** | Moderate energy consumption, high frequency | Number of requests, batch size | 30-50% | Model compression, cache optimization |
+| **Data Processing** | Low to moderate energy consumption | Data volume, algorithm complexity | 20-40% | Vectorized computing, parallel processing |
+| **Experiment Management** | Low energy consumption, intermittent | Frequency of experiments, resource allocation | 10-30% | Resource recycling, demand-based allocation |
 
-<!-- chunk: 二、企业级绿色计算实施框架 -->
-## 二、企业级绿色计算实施框架
 
-### 2.1 绿色计算成熟度模型
+## 2. Enterprise-Level Green Computing Implementation Framework
+
+### 2.1 Green Computing Maturity Model
 
 ```
-Level 1: 基础监控 (Basic Monitoring)
-├─ 部署基础能耗监控工具
-├─ 建立能耗基线数据
-├─ 设置基本告警机制
-└─ 目标: 可见性建立
+Level 1: Basic Monitoring (Basic Monitoring)
+├─ Deploy basic energy consumption monitoring tools
+├─ Establish baseline data for energy consumption
+├─ Set up basic alert mechanisms
+└─ Goal: Visibility established
 
-Level 2: 资源优化 (Resource Optimization)
-├─ 实施自动扩缩容
-├─ 启用资源右置大小
-├─ 优化调度策略
-└─ 目标: 资源利用率提升30%
+Level 2: Resource Optimization (Resource Optimization)
+├─ Implement auto-scaling
+├─ Enable resource right-sizing
+├─ Optimize scheduling strategies
+└─ Goal: Resource utilization improved by 30%
 
-Level 3: 绿色调度 (Green Scheduling)
-├─ 部署碳感知调度器
-├─ 实施时空负载转移
-├─ 优化能源采购策略
-└─ 目标: 碳排放减少20%
+Level 3: Green Scheduling (Green Scheduling)
+├─ Deploy carbon-aware schedulers
+├─ Implement spatial-temporal load shifting
+├─ Optimize energy procurement strategies
+└─ Goal: Carbon emissions reduced by 20%
 
-Level 4: 智能优化 (Intelligent Optimization)
-├─ AI驱动的能耗优化
-├─ 预测性资源管理
-├─ 自适应绿色策略
-└─ 目标: 端到端效率提升50%
+Level 4: Intelligent Optimization (Intelligent Optimization)
+├─ AI-driven energy optimization
+├─ Predictive resource management
+├─ Adaptive green strategies
+└─ Goal: End-to-end efficiency improved by 50%
 
-Level 5: 循环经济 (Circular Economy)
-├─ 全生命周期碳管理
-├─ 可持续供应链整合
-├─ 碳中和目标达成
-└─ 目标: 碳中和运营
+Level 5: Circular Economy
+├─ Full lifecycle carbon management
+├─ Sustainable supply chain integration
+├─ Achieve carbon neutrality target
+└─ Goal: Carbon-neutral operations
 ```
 
-### 2.2 绿色计算技术栈
+### 2.2 Green Computing Technology Stack
 
 ```yaml
 # green-computing-tech-stack.yaml
@@ -170,28 +172,28 @@ data:
     monitoring_layer:
       hardware_monitoring:
         - name: "Intel RAPL"
-          purpose: "硬件能耗测量"
+          purpose: "Hardware energy measurement"
           integration: "Kernel module"
           metrics: ["power_pkg", "power_cores", "power_gpu"]
         
         - name: "NVIDIA NVML"
-          purpose: "GPU能耗监控"
+          purpose: "GPU energy monitoring"
           integration: "Driver API"
           metrics: ["power_usage", "temperature", "utilization"]
         
         - name: "IPMI Sensors"
-          purpose: "服务器级监控"
+          purpose: "Server-level monitoring"
           integration: "BMC interface"
           metrics: ["watts", "temperature", "fan_speed"]
       
       software_monitoring:
         - name: "Kepler"
-          purpose: "容器级能耗分配"
+          purpose: "Container-level energy allocation"
           integration: "eBPF + Prometheus"
           metrics: ["container_joules", "process_energy"]
         
         - name: "Green Metrics Collector"
-          purpose: "应用级能耗分析"
+          purpose: "Application-level energy analysis"
           integration: "Sidecar injection"
           metrics: ["model_energy", "request_energy"]
     
@@ -231,10 +233,10 @@ data:
           reporting: "Automated ESG reports"
 ```
 
-<!-- chunk: 三、高级能耗监控与分析 -->
-## 三、高级能耗监控与分析
 
-### 3.1 多维度能耗监控系统
+## 3. Advanced Energy Consumption Monitoring and Analysis
+
+### 3.1 Multi-Dimensional Energy Consumption Monitoring System
 
 ```python
 # advanced-energy-monitoring.py
@@ -271,25 +273,25 @@ class AdvancedEnergyMonitor:
         self.logger = logging.getLogger(__name__)
         
     async def collect_hardware_metrics(self) -> Dict[str, float]:
-        """收集硬件级能耗指标"""
+        """collect hardware-level energy metrics"""
         metrics = {}
         
-        # 模拟从RAPL接口收集CPU能耗
+        # simulate collecting CPU energy from RAPL interface
         try:
-            # 实际实现会调用 /sys/class/powercap/intel-rapl/
+            # actual implementation would call /sys/class/powercap/intel-rapl/
             metrics['cpu_energy'] = await self._read_rapl_energy('cpu')
         except Exception as e:
             self.logger.warning(f"Failed to read CPU energy: {e}")
             metrics['cpu_energy'] = 0.0
             
-        # 收集GPU能耗
+        # collect GPU energy
         try:
             metrics['gpu_energy'] = await self._read_nvml_power()
         except Exception as e:
             self.logger.warning(f"Failed to read GPU energy: {e}")
             metrics['gpu_energy'] = 0.0
             
-        # 收集其他组件能耗
+        # collect energy from other components
         metrics.update({
             'memory_energy': await self._estimate_memory_energy(),
             'network_energy': await self._calculate_network_energy(),
@@ -299,66 +301,66 @@ class AdvancedEnergyMonitor:
         return metrics
     
     async def _read_rapl_energy(self, component: str) -> float:
-        """读取RAPL能耗数据"""
-        # 简化的模拟实现
+        """read RAPL energy data"""
+        # simplified simulation implementation
         base_values = {
             'cpu': 150.0,  # Joules
             'cores': 120.0,
             'uncore': 30.0,
             'dram': 25.0
         }
-        # 添加随机波动模拟真实环境
+        # add random fluctuations to simulate real environment
         noise = np.random.normal(0, 5)
         return base_values.get(component, 0.0) + noise
     
     async def _read_nvml_power(self) -> float:
-        """读取NVIDIA GPU功率"""
-        # 模拟NVIDIA-SMI数据
+        """read NVIDIA GPU power"""
+        # simulate NVIDIA-SMI data
         power_draw_watts = 250.0 + np.random.normal(0, 20)
-        # 转换为能量 (假设采样间隔为1秒)
+        # convert to energy (assuming sample interval is 1 second)
         return power_draw_watts
     
     async def _estimate_memory_energy(self) -> float:
-        """估算内存能耗"""
-        # 基于内存使用量估算
+        """estimate memory energy consumption"""
+        # estimate based on memory usage
         memory_gb = 64.0  # 假设64GB内存
         energy_per_gb_per_second = 0.05  # Joules/GB/second
         return memory_gb * energy_per_gb_per_second
     
     async def _calculate_network_energy(self) -> float:
-        """计算网络能耗"""
-        # 基于网络流量估算
+        """calculate network energy consumption"""
+        # estimate based on network traffic
         bytes_transferred = 1000000.0  # 1MB
         energy_per_gb = 0.002  # Joules/GB (典型网络设备)
         return (bytes_transferred / 1e9) * energy_per_gb
     
     async def _calculate_storage_energy(self) -> float:
-        """计算存储能耗"""
-        # 基于I/O操作估算
+        """calculate storage energy consumption"""
+        # estimate based on I/O operations
         io_operations = 1000
         energy_per_operation = 0.001  # Joules/operation
         return io_operations * energy_per_operation
     
     def calculate_carbon_emissions(self, total_energy_joules: float, region: str = "cn-hangzhou") -> float:
-        """计算碳排放量"""
+        """calculate carbon emissions"""
         energy_kwh = total_energy_joules / 3600000  # 转换为kWh
         carbon_intensity = self.carbon_intensity_map.get(region, 0.581)
         return energy_kwh * carbon_intensity
     
     async def monitor_ai_workload_energy(self, model_name: str, batch_size: int) -> EnergyMetrics:
-        """监控AI工作负载能耗"""
+        """monitor AI workload energy consumption"""
         start_time = time.time()
         
-        # 收集开始时的能耗
+        # collect energy at the start of monitoring
         start_metrics = await self.collect_hardware_metrics()
         
-        # 模拟AI推理过程
+        # Simulate AI inference process
         await asyncio.sleep(2)  # 模拟推理时间
         
-        # 收集结束时的能耗
+        # Collect end-of-process energy consumption
         end_metrics = await self.collect_hardware_metrics()
         
-        # 计算差值
+        # Calculate difference
         energy_diff = {
             'cpu': end_metrics['cpu_energy'] - start_metrics['cpu_energy'],
             'gpu': end_metrics['gpu_energy'] - start_metrics['gpu_energy'],
@@ -370,7 +372,7 @@ class AdvancedEnergyMonitor:
         total_energy = sum(energy_diff.values())
         carbon_emissions = self.calculate_carbon_emissions(total_energy)
         
-        # 计算利用率
+        # Calculate utilization
         utilization_rates = {
             'cpu_utilization': 75.0 + np.random.normal(0, 5),
             'gpu_utilization': 85.0 + np.random.normal(0, 3),
@@ -393,23 +395,23 @@ class AdvancedEnergyMonitor:
         return metrics
     
     def generate_energy_report(self, time_window_hours: int = 24) -> Dict:
-        """生成能耗报告"""
+        """Generate energy report"""
         if not self.metrics_history:
             return {"error": "No metrics data available"}
         
-        # 过滤时间窗口内的数据
+        # Filter data within the time window
         cutoff_time = time.time() - (time_window_hours * 3600)
         recent_metrics = [m for m in self.metrics_history if m.timestamp >= cutoff_time]
         
         if not recent_metrics:
             return {"error": "No recent metrics data"}
         
-        # 计算统计信息
+        # Calculate statistical information
         total_energy = sum(m.total_energy_joules for m in recent_metrics)
         total_carbon = sum(m.carbon_emissions_kg for m in recent_metrics)
         avg_utilization = np.mean([m.utilization_rates['gpu_utilization'] for m in recent_metrics])
         
-        # 按组件分析能耗
+        # Analyze energy consumption by component
         component_energy = {
             'cpu': sum(m.cpu_energy_joules for m in recent_metrics),
             'gpu': sum(m.gpu_energy_joules for m in recent_metrics),
@@ -429,22 +431,22 @@ class AdvancedEnergyMonitor:
         }
     
     def _calculate_efficiency_score(self, metrics: List[EnergyMetrics]) -> float:
-        """计算能效评分 (0-100)"""
+        """Calculate efficiency score (0-100)"""
         if not metrics:
             return 0.0
             
-        # 基于利用率和能耗比计算
+        # Based on utilization and energy-to-utilization ratio calculate
         avg_utilization = np.mean([m.utilization_rates['gpu_utilization'] for m in metrics])
         avg_energy_per_request = np.mean([m.total_energy_joules for m in metrics])
         
-        # 简化的评分算法
+        # Simplified scoring algorithm
         utilization_score = min(avg_utilization / 100.0, 1.0) * 50
         energy_efficiency_score = max(0, (1000 - avg_energy_per_request) / 1000) * 50
         
         return utilization_score + energy_efficiency_score
     
     def _generate_recommendations(self, metrics: List[EnergyMetrics]) -> List[str]:
-        """生成优化建议"""
+        """Generate optimization suggestions"""
         recommendations = []
         
         if not metrics:
@@ -454,25 +456,25 @@ class AdvancedEnergyMonitor:
         avg_cpu_util = np.mean([m.utilization_rates['cpu_utilization'] for m in metrics])
         
         if avg_gpu_util < 60:
-            recommendations.append("GPU利用率偏低，考虑增大批次大小或合并小任务")
+            recommendations.append("GPU utilization is low, consider increasing batch size or merging small tasks")
         
         if avg_cpu_util < 50:
-            recommendations.append("CPU利用率不足，检查是否存在I/O瓶颈")
+            recommendations.append("CPU utilization is insufficient, check for I/O bottlenecks")
         
-        # 检查能耗趋势
+        # Check energy trend
         if len(metrics) > 10:
             recent_energy = np.mean([m.total_energy_joules for m in metrics[-5:]])
             older_energy = np.mean([m.total_energy_joules for m in metrics[:5]])
             if recent_energy > older_energy * 1.1:
-                recommendations.append("能耗呈上升趋势，建议检查资源分配策略")
+                recommendations.append("Energy consumption is rising, suggest checking resource allocation strategies")
         
         return recommendations
 
-# 使用示例
+# Usage Example
 async def main():
     monitor = AdvancedEnergyMonitor(cluster_name="ai-production-cluster")
     
-    # 监控多个AI工作负载
+    # Monitor multiple AI workloads
     workloads = [
         ("llama2-7b-inference", 32),
         ("stable-diffusion-xl", 8),
@@ -486,7 +488,7 @@ async def main():
         print(f"Carbon Emissions: {metrics.carbon_emissions_kg:.4f} kg")
         print("---")
     
-    # 生成报告
+    # Generate report
     report = monitor.generate_energy_report(time_window_hours=1)
     print("\nEnergy Report:")
     print(json.dumps(report, indent=2))
@@ -496,7 +498,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 3.2 碳感知调度器实现
+### 3.2 Carbon Sensing Scheduler Implementation
 
 ```yaml
 # carbon-aware-scheduler.yaml
@@ -583,37 +585,37 @@ spec:
             memory: "256Mi"
 ```
 
-<!-- chunk: 四、绿色AI最佳实践与案例 -->
-## 四、绿色AI最佳实践与案例
 
-<!-- chunk: 绿色计算指标 -->
-## 绿色计算指标
+## 4. Green AI Best Practices and Case Studies
 
-| 指标 | 描述 | 单位 | 监控方式 |
+
+## Green Computing Metrics
+
+| Metric | Description | Unit | Monitoring Method |
 |-----|------|------|---------|
-| **能耗** | 总能源消耗 | kWh | Kepler/云监控 |
-| **碳排放** | CO2排放量 | kg CO2e | 计算公式 |
-| **PUE** | 数据中心效率 | 比率 | 数据中心指标 |
-| **资源利用率** | CPU/内存使用率 | % | Prometheus |
-| **空闲资源** | 未使用资源 | 核/GB | 资源审计 |
+| **Energy Consumption** | Total energy consumption | kWh | Kepler/Cloud Monitoring |
+| **Carbon Emission** | CO2 emissions | kg CO2e | Calculation formula |
+| **PUE** | Data center efficiency | Ratio | Data center metrics |
+| **Resource Utilization** | CPU/memory usage rate | % | Prometheus |
+| **Idle Resources** | Unused resources | Cores/GB | Resource audit |
 
-<!-- chunk: Kepler(Kubernetes Energy Efficiency) -->
+
 ## Kepler(Kubernetes Energy Efficiency)
 
 ```yaml
-# Kepler部署
+# Kepler deployment
 # helm repo add kepler https://sustainable-computing-io.github.io/kepler-helm-chart
 # helm install kepler kepler/kepler -n kepler --create-namespace
 
-# Kepler指标
-# kepler_container_joules_total - 容器能耗(焦耳)
-# kepler_node_core_joules_total - 节点CPU能耗
-# kepler_node_dram_joules_total - 节点内存能耗
-# kepler_node_platform_joules_total - 节点总能耗
+# Kepler metrics
+# kepler_container_joules_total - container energy consumption (joules)
+# kepler_node_core_joules_total - node CPU energy consumption
+# kepler_node_dram_joules_total - node DRAM energy consumption
+# kepler_node_platform_joules_total - node total energy consumption
 ```
 
 ```yaml
-# Kepler DaemonSet配置
+# Kepler DaemonSet configuration
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -655,23 +657,23 @@ spec:
           path: /proc
 ```
 
-<!-- chunk: 能耗优化策略 -->
-## 能耗优化策略
 
-| 策略 | 描述 | 实施方式 | 节省潜力 |
+## Energy Consumption Optimization Strategies
+
+| Strategy | Description | Implementation Method | Savings Potential |
 |-----|------|---------|---------|
-| **资源右置** | 减少过度配置 | VPA/资源审计 | 20-40% |
-| **自动扩缩容** | 按需使用资源 | HPA/CA | 20-50% |
-| **节点整合** | 合并低利用节点 | Descheduler | 10-30% |
-| **Spot实例** | 使用闲置资源 | 节点池配置 | - |
-| **调度优化** | 优化Pod分布 | 调度策略 | 5-15% |
-| **关闭空闲节点** | 缩容到零 | CA配置 | 变化大 |
+| **Right-sizing Resources** | Reduce over-provisioning | VPA/Resource Audit | 20-40% |
+| **Auto-scaling** | Use resources on-demand | HPA/CA | 20-50% |
+| **Node Consolidation** | Merge underutilized nodes | Descheduler | 10-30% |
+| **Spot Instances** | Use idle resources | Node pool configuration | - |
+| **Scheduler Optimization** | Optimize Pod distribution | Scheduler policies | 5-15% |
+| **Close idle nodes** | Reduce to zero | CA configuration | Large change |
 
-<!-- chunk: Descheduler节点整合 -->
-## Descheduler节点整合
+
+## Descheduler Node Integration
 
 ```yaml
-# Descheduler策略
+# Descheduler strategy
 apiVersion: descheduler/v1alpha1
 kind: DeschedulerPolicy
 profiles:
@@ -703,31 +705,31 @@ profiles:
       - RemovePodsHavingTooManyRestarts
 ```
 
-<!-- chunk: 碳排放计算 -->
-## 碳排放计算
+
+## Carbon Emission Calculation
 
 ```yaml
-# 碳排放公式
+# Carbon emission formula
 # Carbon = Energy (kWh) × Carbon Intensity (kg CO2e/kWh)
 
-# 各地区碳排放系数(示例)
-# 中国平均: 0.581 kg CO2e/kWh
-# 美国平均: 0.417 kg CO2e/kWh
-# 欧洲平均: 0.276 kg CO2e/kWh
-# 可再生能源: ~0 kg CO2e/kWh
+# Carbon emissions coefficients for each region (example)
+# Average for China: 0.581 kg CO2e/kWh
+# Average for United States: 0.417 kg CO2e/kWh
+# Average for Europe: 0.276 kg CO2e/kWh
+# For renewable energy: ~0 kg CO2e/kWh
 
-# Prometheus查询示例
-# 每小时容器能耗(Wh)
+# Prometheus query example
+# Hourly container energy consumption (Wh)
 sum(increase(kepler_container_joules_total[1h])) / 3600
-# 估算碳排放(kg CO2e)
+# Estimate carbon emissions (kg CO2e)
 sum(increase(kepler_container_joules_total[24h])) / 3600000 * 0.581
 ```
 
-<!-- chunk: 绿色调度 -->
-## 绿色调度
+
+## Green Scheduling
 
 ```yaml
-# 碳感知调度器配置(示例概念)
+# Carbon-aware scheduler configuration (example concept)
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -746,11 +748,11 @@ data:
       carbonThreshold: 0.4
 ```
 
-<!-- chunk: 资源利用率优化 -->
-## 资源利用率优化
+
+## Resource Utilization Optimization
 
 ```yaml
-# 资源利用率告警规则
+# Resource utilization alert rules
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -759,7 +761,7 @@ spec:
   groups:
   - name: efficiency
     rules:
-    # 低利用率节点告警
+    # Alert for underutilized nodes
     - alert: NodeLowUtilization
       expr: |
         (1 - avg by(node) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) < 0.2
@@ -769,9 +771,9 @@ spec:
       labels:
         severity: info
       annotations:
-        summary: "节点 {{ $labels.node }} 资源利用率低"
+        summary: "Node {{ $labels.node }} resource utilization is low"
     
-    # 过度配置Pod告警
+    # Over-provisioned Pod alert
     - alert: PodOverProvisioned
       expr: |
         (sum by(namespace, pod) (container_cpu_usage_seconds_total) / 
@@ -780,51 +782,51 @@ spec:
       labels:
         severity: info
       annotations:
-        summary: "Pod {{ $labels.pod }} CPU使用率持续低于请求的20%"
+        summary: "Pod {{ $labels.pod }} CPU usage is persistently below the requested 20%"
 ```
 
-<!-- chunk: 绿色运维检查清单 -->
-## 绿色运维检查清单
 
-| 检查项 | 目标 | 当前状态 | 优化建议 |
+## Green Operations Checklist
+
+| Item | Target | Current Status | Optimization Suggestions |
 |-------|------|---------|---------|
-| **平均CPU利用率** | >50% | 检查 | 启用HPA/VPA |
-| **平均内存利用率** | >60% | 检查 | 资源审计 |
-| **Spot实例比例** | >30% | 检查 | 增加Spot节点 |
-| **空闲节点** | 0 | 检查 | 配置缩容到零 |
-| **过度配置Pod** | <10% | 检查 | VPA调整 |
-| **能耗监控** | 启用 | 检查 | 部署Kepler |
+| **Average CPU Utilization** | >50% | Check | Enable HPA/VPA |
+| **Average Memory Utilization** | >60% | Check | Resource Audit |
+| **Spot Instance Ratio** | >30% | Check | Increase Spot Nodes |
+| **Idle Nodes** | 0 | Check | Configure to reduce to zero |
+| **Over-provisioned Pods** | <10% | Check | VPA Adjustments |
+| **Energy Consumption Monitoring** | Enabled | Check | Deploy Kepler |
 
-<!-- chunk: 阿里云绿色计算 -->
-## 阿里云绿色计算
 
-| 功能 | 说明 | 配置方式 |
+## Green Operations Report Template
+
+| Function | Description | Configuration Method |
 |-----|------|---------|
-| **碳账本** | 碳排放追踪 | 云账单 |
-| **绿色实例** | 可再生能源数据中心 | 选择地域 |
-| **Spot实例** | 闲置资源利用 | 节点池配置 |
-| **弹性伸缩** | 按需使用 | ESS配置 |
+| **Carbon Ledger** | Track carbon emissions | Cloud Billing |
+| **Green Instances** | Renewable energy data center | Choose region |
+| **Spot Instances** | Utilize idle resources | Node pool configuration |
+| **Elastic Scaling** | On-demand use | ESS configuration |
 
-<!-- chunk: 绿色运维报告模板 -->
-## 绿色运维报告模板
+
+## Alibaba Cloud Green Computing
 
 ```markdown
-# 月度绿色运维报告
+# Monthly green operations report
 
-<!-- chunk: 摘要 -->
-## 摘要
+
+## Summary
 - 总能耗: XXX kWh
 - 碳排放: XXX kg CO2e
 - 平均资源利用率: XX%
 
-<!-- chunk: 优化成果 -->
-## 优化成果
+
+## Results
 - 节点整合: 减少X个节点
 - 能耗节省: XX%
 - 成本节省: XX%
 
-<!-- chunk: 改进建议 -->
-## 改进建议
+
+## Suggestions for Improvement
 1. 增加Spot实例比例
 2. 优化低利用率工作负载
 3. 考虑迁移到绿色数据中心
@@ -832,29 +834,29 @@ spec:
 
 ---
 
-**绿色原则**: 监控能耗，优化利用率，持续改进
+**Green Principles**: Monitor energy consumption, optimize utilization, continuously improve
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table bottom mark**: Kusheet Project, author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- Domain-11 AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

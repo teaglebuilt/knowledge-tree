@@ -96,7 +96,7 @@ github.com/spinkube
 ├── containerd-shim-spin # containerd Spin shim
 │ └── spin.v2 # Spin v2 runtime
 │
-├── spin-runtime-class   # RuntimeClass 管理
+├── spin-runtime-class   # RuntimeClass manages
 │   └── Helm Chart
 │
 └── docs # Documents
@@ -610,7 +610,7 @@ spin-operator workflow
 4. Generate Kubernetes resources:
    ├── Deployment (Specify runtimeClassName: spin)
    ├── Service
-   ├── ConfigMap（spin.toml）
+   ├── ConfigMap (spin.toml)
    ├── Secret (Sensitive Variable)
    └── ScaledObject/HPA (if auto-scaling is configured)
    ↓
@@ -1314,7 +1314,7 @@ fn handle_request(req: Request) -> Result<impl IntoResponse> {
 ```mermaid
 sequenceDiagram
     Participant Client as Client
-    participant KEDA_HTTP as KEDA HTTP 代理
+    participant KEDAHTTP as KEDAHTTP Proxy
     participant KEDA as KEDA Operator
     participant K8s as Kubernetes
     participant Spin as Spin Pod

@@ -1,7 +1,7 @@
 ---
-title: 33 - 模型可解释性与透明度
-description: '### 1.1 可解释性全景架构'
-summary: '### 1.1 可解释性全景架构'
+title: 33 - Model Explainability and Transparency
+description: '### 1.1 Panoramic Architecture of Explainability'
+summary: '### 1.1 Panoramic Architecture of Explainability'
 category: ai-infra
 tags:
 - k8s
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 模型可解释性与透明度 是什么
-- 如何 模型可解释性与透明度
-- Kubernetes 11 ai infra 最佳实践
+- What is model explainability and transparency
+- How is model explainability and transparency
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- 模型可解释性与透明度
+- Model Explainability and Transparency
 - ai
 - infra
 prerequisites:
@@ -48,30 +48,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/33-model-explainability.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but can usually be rolled back), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 33 - 模型可解释性与透明度
+# 33 - Model Explainability and Transparency
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 高级 | **参考**: [SHAP](https://shap.readthedocs.io/) | [LIME](https://github.com/marcotcr/lime) | [InterpretML](https://interpret.ml/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **References**: [SHAP](https://shap.readthedocs.io/) | [LIME](https://github.com/marcotcr/lime) | [InterpretML](https://interpret.ml/)
 
-<!-- chunk: 一、模型可解释性框架 -->
-## 一、模型可解释性框架
 
-### 1.1 可解释性全景架构
+## 1. Model Explainability Framework
+
+### 1.1 Explainability Panoramic Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -108,25 +110,25 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 可解释性方法分类
+### 1.2 Classification of Explainability Methods
 
-| 方法类别 | 技术名称 | 适用场景 | 优势 | 局限性 |
+| Method Category | Technical Name | Applicable Scenario | Advantage | Limitation |
 |----------|----------|----------|------|--------|
-| **全局解释** | SHAP值 | 树模型、神经网络 | 全面、理论完备 | 计算复杂度高 |
-| | 特征重要性 | 线性模型、树模型 | 简单直观 | 忽略特征交互 |
-| | 部分依赖图 | 任意模型 | 可视化交互效应 | 维度诅咒 |
-| **局部解释** | LIME | 黑盒模型 | 实例级别解释 | 不稳定性 |
-| | 决策边界 | 分类模型 | 直观理解决策 | 高维空间难可视化 |
-| | 梯度方法 | 深度学习 | 计算高效 | 对输入敏感 |
-| **对比解释** | 反事实 | 任意模型 | 业务导向 | 生成困难 |
-| | 对抗样本 | 安全检测 | 鲁棒性评估 | 可能误导 |
+| **Global Interpretation** | SHAP Values | Decision Trees, Neural Networks | Comprehensive, theoretically sound | High computational complexity |
+| | Feature Importance | Linear Models, Decision Trees | Simple and intuitive | Ignores feature interactions |
+| | Partial Dependence Plot | Any Model | Visualizes interaction effects | Curse of dimensionality |
+| **Local Interpretation** | LIME | Black-box Models | Instance-level explanation | Instability |
+| | Decision Boundary | Classification Models | Intuitive decision resolution | Visualization difficult in high-dimensional spaces |
+| | Gradient Methods | Deep Learning | Efficient computation | Sensitive to input |
+| **Comparison Interpretation** | Counterfactual | Any Model | Business-oriented | Difficult to generate |
+| | Adversarial Samples | Security Detection | Robustness assessment | May mislead |
 
 ---
 
-<!-- chunk: 二、SHAP可解释性实现 -->
-## 二、SHAP可解释性实现
 
-### 2.1 SHAP基础配置
+## 2. SHAP Explainability Implementation
+
+### 2.1 Foundation Configuration of SHAP
 
 ```python
 # shap_explainer.py
@@ -149,11 +151,11 @@ class ModelExplainer:
         self.y_train = self.training_data['target']
         
     def calculate_shap_values(self, sample_size=1000):
-        \"\"\"计算SHAP值\"\"\"
-        # 采样以提高计算效率
+        \"\"\"Calculate SHAP values\"\"\"
+        # Sample to improve computational efficiency
         X_sample = shap.utils.sample(self.X_train, sample_size)
         
-        # 创建解释器
+        # Create an interpreter
         if hasattr(self.model, 'predict_proba'):
             explainer = shap.TreeExplainer(self.model, X_sample)
             shap_values = explainer.shap_values(X_sample)
@@ -164,24 +166,24 @@ class ModelExplainer:
         return explainer, shap_values, X_sample
     
     def global_explanations(self):
-        \"\"\"生成全局解释\"\"\"
+        \"\"\"Generate global explanation\"\"\"
         explainer, shap_values, X_sample = self.calculate_shap_values()
         
-        # 特征重要性排序
+        # Feature importance ranking
         feature_importance = np.abs(shap_values).mean(0)
         importance_df = pd.DataFrame({
             'feature': self.feature_names,
             'importance': feature_importance
         }).sort_values('importance', ascending=False)
         
-        # 保存到MLflow
+        # Save to MLflow
         with mlflow.start_run():
             mlflow.log_figure(
                 self._plot_feature_importance(importance_df),
                 'feature_importance.png'
             )
             
-            # SHAP摘要图
+            # SHAP summary plot
             plt.figure(figsize=(10, 8))
             shap.summary_plot(shap_values, X_sample, show=False)
             plt.tight_layout()
@@ -191,15 +193,15 @@ class ModelExplainer:
         return importance_df
     
     def local_explanations(self, instance_idx=0):
-        \"\"\"生成局部解释\"\"\"
+        \"\"\"Generate local explanation\"\"\"
         explainer, shap_values, X_sample = self.calculate_shap_values()
         
-        # 单个预测解释
+        # Single prediction explanation
         instance = X_sample.iloc[instance_idx:instance_idx+1]
         prediction = self.model.predict(instance)[0]
         probability = self.model.predict_proba(instance)[0][1] if hasattr(self.model, 'predict_proba') else None
         
-        # SHAP力图
+        # SHAP influence
         plt.figure(figsize=(12, 6))
         shap.waterfall_plot(
             shap.Explanation(
@@ -212,7 +214,7 @@ class ModelExplainer:
         )
         plt.tight_layout()
         
-        # 保存解释结果
+        # Save explanation results
         explanation_result = {
             'instance_index': instance_idx,
             'prediction': float(prediction),
@@ -224,7 +226,7 @@ class ModelExplainer:
         return explanation_result, plt.gcf()
     
     def _plot_feature_importance(self, importance_df):
-        \"\"\"绘制特征重要性图\"\"\"
+        \"\"\"Draw feature importance plot\"\"\"
         plt.figure(figsize=(10, 8))
         sns.barplot(
             data=importance_df.head(15),
@@ -238,22 +240,22 @@ class ModelExplainer:
         plt.tight_layout()
         return plt.gcf()
 
-# 使用示例
+# Usage Example
 explainer = ModelExplainer(
     model_path='/models/churn_model.pkl',
     training_data_path='/data/training_data.csv'
 )
 
-# 全局解释
+# Global Explanation
 global_importance = explainer.global_explanations()
 print(global_importance.head(10))
 
-# 局部解释
+# Local Explanation
 local_explanation, plot = explainer.local_explanations(instance_idx=42)
 plt.show(plot)
 ```
 
-### 2.2 可解释性API服务
+### 2.2 Explainability API Service
 
 ```python
 # explainability_api.py
@@ -267,16 +269,16 @@ import logging
 
 app = Flask(__name__)
 
-# 指标定义
+# Metric Definition
 explanation_requests = Counter('explanation_requests_total', 'Total explanation requests')
 explanation_errors = Counter('explanation_errors_total', 'Explanation errors')
 explanation_duration = Histogram('explanation_duration_seconds', 'Time spent processing explanations')
 
-# 初始化模型和解释器
+# Initialize model and interpreter
 model = joblib.load('/models/production_model.pkl')
 explainer = shap.TreeExplainer(model)
 
-# 特征名称（需与训练时一致）
+# Feature names (must be consistent with training)
 FEATURE_NAMES = [
     'age', 'income', 'credit_score', 'account_balance',
     'transaction_frequency', 'product_usage', 'support_tickets',
@@ -290,24 +292,24 @@ def health_check():
 @app.route('/explain', methods=['POST'])
 @explanation_duration.time()
 def explain_prediction():
-    \"\"\"提供模型预测解释\"\"\"
+    \"\"\"Provide model prediction explanation\"\"\"
     explanation_requests.inc()
     
     try:
-        # 解析请求
+        # Parse request
         data = request.get_json()
         instance = np.array(data['features']).reshape(1, -1)
         instance_df = pd.DataFrame(instance, columns=FEATURE_NAMES)
         
-        # 计算SHAP值
+        # Calculate SHAP values
         shap_values = explainer.shap_values(instance_df)
         
-        # 生成解释
+        # Generate explanation
         base_value = explainer.expected_value
         prediction = model.predict(instance)[0]
         probability = model.predict_proba(instance)[0][1] if hasattr(model, 'predict_proba') else None
         
-        # 构造响应
+        # Construct response
         explanation = {
             'prediction': int(prediction),
             'probability': float(probability) if probability else None,
@@ -338,14 +340,14 @@ def metrics():
 
 @app.route('/feature-importance')
 def feature_importance():
-    \"\"\"获取全局特征重要性\"\"\"
+    \"\"\"Get global feature importance\"\"\"
     try:
-        # 使用训练数据计算全局重要性
+        # Calculate global importance using training data
         training_data = pd.read_csv('/data/training_sample.csv')
         X_sample = shap.utils.sample(training_data[FEATURE_NAMES], 1000)
         shap_values = explainer.shap_values(X_sample)
         
-        # 计算平均绝对SHAP值
+        # Calculate average absolute SHAP value
         importance = np.abs(shap_values).mean(0)
         importance_dict = dict(zip(FEATURE_NAMES, importance.tolist()))
         
@@ -365,7 +367,7 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
 ```
 
-### 2.3 Kubernetes部署配置
+### 2.3 Kubernetes Deployment Configuration
 
 ```yaml
 # explainability-deployment.yaml
@@ -469,10 +471,10 @@ spec:
 
 ---
 
-<!-- chunk: 三、公平性与偏见检测 -->
-## 三、公平性与偏见检测
 
-### 3.1 公平性评估框架
+## 3. Fairness and Bias Detection
+
+### 3.1 Fairness Evaluation Framework
 
 ```python
 # fairness_analyzer.py
@@ -492,7 +494,7 @@ class FairnessAnalyzer:
         self.protected_attrs = protected_attributes
         
     def calculate_disparate_impact(self, group1_condition, group2_condition):
-        \"\"\"计算差异影响比\"\"\"
+        \"\"\"Calculate difference impact ratio\"\"\"
         group1_positive = self.df[group1_condition]['prediction'].mean()
         group2_positive = self.df[group2_condition]['prediction'].mean()
         
@@ -503,15 +505,15 @@ class FairnessAnalyzer:
         return disparate_impact
     
     def demographic_parity_difference(self, group1_condition, group2_condition):
-        \"\"\"计算人口统计奇偶性差异\"\"\"
+        \"\"\"Calculate population parity difference\"\"\"
         group1_positive_rate = self.df[group1_condition]['prediction'].mean()
         group2_positive_rate = self.df[group2_condition]['prediction'].mean()
         
         return abs(group1_positive_rate - group2_positive_rate)
     
     def equal_opportunity_difference(self, group1_condition, group2_condition):
-        \"\"\"计算机会均等差异\"\"\"
-        # 只考虑正类样本
+        \"\"\"Calculate opportunity equality difference\"\"\"
+        # Consider only positive class samples
         positive_samples = self.df[self.df['true_label'] == 1]
         
         group1_tpr = positive_samples[group1_condition]['prediction'].mean()
@@ -520,14 +522,14 @@ class FairnessAnalyzer:
         return abs(group1_tpr - group2_tpr)
     
     def analyze_bias(self):
-        \"\"\"全面偏见分析\"\"\"
+        \"\"\"Comprehensive bias analysis\"\"\"
         bias_metrics = {}
         
         for attr in self.protected_attrs:
             if attr not in self.df.columns:
                 continue
                 
-            # 对于二元属性
+            # For binary attributes
             if self.df[attr].nunique() == 2:
                 values = self.df[attr].unique()
                 group1_cond = self.df[attr] == values[0]
@@ -546,13 +548,13 @@ class FairnessAnalyzer:
         return bias_metrics
     
     def plot_bias_analysis(self):
-        \"\"\"可视化偏见分析结果\"\"\"
+        \"\"\"Visualize bias analysis results\"\"\"
         bias_results = self.analyze_bias()
         
-        # 创建可视化
+        # Create visualization
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         
-        # 差异影响比
+        # Difference impact ratio
         di_metrics = {k: v for k, v in bias_results.items() if 'disparate_impact' in k}
         axes[0].bar(di_metrics.keys(), di_metrics.values())
         axes[0].axhline(y=0.8, color='r', linestyle='--', label='Fairness threshold (0.8)')
@@ -562,7 +564,7 @@ class FairnessAnalyzer:
         axes[0].tick_params(axis='x', rotation=45)
         axes[0].legend()
         
-        # 人口统计奇偶性
+        # Population parity
         dp_metrics = {k: v for k, v in bias_results.items() if 'demographic_parity' in k}
         axes[1].bar(dp_metrics.keys(), dp_metrics.values())
         axes[1].axhline(y=0.1, color='r', linestyle='--', label='Fairness threshold (0.1)')
@@ -571,7 +573,7 @@ class FairnessAnalyzer:
         axes[1].tick_params(axis='x', rotation=45)
         axes[1].legend()
         
-        # 机会均等
+        # Equal opportunity
         eo_metrics = {k: v for k, v in bias_results.items() if 'equal_opportunity' in k}
         axes[2].bar(eo_metrics.keys(), eo_metrics.values())
         axes[2].axhline(y=0.1, color='r', linestyle='--', label='Fairness threshold (0.1)')
@@ -582,13 +584,13 @@ class FairnessAnalyzer:
         
         plt.tight_layout()
         
-        # 记录到MLflow
+        # Record to MLflow
         with mlflow.start_run():
             mlflow.log_figure(fig, 'bias_analysis.png')
         
         return fig, bias_results
 
-# 使用示例
+# Usage example
 predictions_df = pd.read_csv('/data/model_predictions.csv')
 analyzer = FairnessAnalyzer(
     predictions_df=predictions_df,
@@ -596,12 +598,12 @@ analyzer = FairnessAnalyzer(
 )
 
 fig, bias_metrics = analyzer.plot_bias_analysis()
-print(\"偏见分析结果:\")
+print(\"Bias analysis results:\")
 for metric, value in bias_metrics.items():
     print(f\"{metric}: {value:.4f}\")
 ```
 
-### 3.2 偏见缓解策略
+### 3.2 Bias Mitigation Strategies
 
 ```python
 # bias_mitigation.py
@@ -618,7 +620,7 @@ class BiasMitigationPipeline:
         self.target_col = target_column
         self.protected_attr = protected_attribute
         
-        # 转换为AIF360格式
+        # Convert to AIF360 format
         self.aif_dataset = BinaryLabelDataset(
             df=dataset,
             label_names=[target_column],
@@ -626,7 +628,7 @@ class BiasMitigationPipeline:
         )
         
     def reweighing_preprocessing(self):
-        \"\"\"重加权预处理\"\"\"
+        \"\"\"Re-weight preprocessing\"\"\"
         rw = Reweighing(
             unprivileged_groups=[{self.protected_attr: 0}],
             privileged_groups=[{self.protected_attr: 1}]
@@ -636,7 +638,7 @@ class BiasMitigationPipeline:
         return transf_dataset
     
     def disparate_impact_remover(self, repair_level=1.0):
-        \"\"\"差异影响消除\"\"\"
+        \"\"\"Difference impact elimination\"\"\"
         dir = DisparateImpactRemover(
             repair_level=repair_level,
             sensitive_attribute=self.protected_attr
@@ -646,11 +648,11 @@ class BiasMitigationPipeline:
         return transf_dataset
     
     def prejudice_remover_inprocessing(self, eta=25.0):
-        \"\"\"过程内偏见消除\"\"\"
-        # 分割数据
+        \"\"\"Process-level bias elimination\"\"\"
+        # Split data
         train_data, test_data = self.aif_dataset.split([0.7], shuffle=True)
         
-        # 训练偏见消除模型
+        # Train bias mitigation model
         pr = PrejudiceRemover(
             sensitive_attr=self.protected_attr,
             eta=eta
@@ -662,16 +664,16 @@ class BiasMitigationPipeline:
         return predictions
     
     def calibrated_equalized_odds_postprocessing(self, model_predictions):
-        \"\"\"校准的平等几率后处理\"\"\"
-        # 创建预测数据集
+        \"\"\"Calibration equalized odds post-processing\"\"\"
+        # Create prediction dataset
         pred_dataset = self.aif_dataset.copy()
         pred_dataset.labels = model_predictions.reshape(-1, 1)
         
-        # 分割数据
+        # Split data
         dataset_orig_train, dataset_orig_test = self.aif_dataset.split([0.7], shuffle=True)
         dataset_pred_train, dataset_pred_test = pred_dataset.split([0.7], shuffle=True)
         
-        # 训练后处理器
+        # Train post-processor
         cpp = CalibratedEqOddsPostprocessing(
             privileged_groups=[{self.protected_attr: 1}],
             unprivileged_groups=[{self.protected_attr: 0}],
@@ -684,8 +686,8 @@ class BiasMitigationPipeline:
         return transf_predictions
     
     def evaluate_fairness(self, predictions, original_labels):
-        \"\"\"评估公平性指标\"\"\"
-        # 创建度量对象
+        \"\"\"Evaluate fairness metrics\"\"\"
+        # Create metric object
         metric = ClassificationMetric(
             self.aif_dataset,
             predictions,
@@ -703,29 +705,29 @@ class BiasMitigationPipeline:
         
         return fairness_metrics
 
-# 使用示例
+# Usage example
 mitigation = BiasMitigationPipeline(
     dataset=pd.read_csv('/data/training_data.csv'),
     target_column='loan_approved',
     protected_attribute='race'
 )
 
-# 应用不同的缓解策略
+# Apply different mitigation strategies
 reweighed_data = mitigation.reweighing_preprocessing()
 di_removed_data = mitigation.disparate_impact_remover(repair_level=0.8)
 pr_predictions = mitigation.prejudice_remover_inprocessing(eta=50.0)
 
-# 评估公平性
+# Evaluate fairness
 fairness_scores = mitigation.evaluate_fairness(pr_predictions, di_removed_data.labels)
-print(\"公平性评估结果:\", fairness_scores)
+print(\"Fairness evaluation results:\", fairness_scores)
 ```
 
 ---
 
-<!-- chunk: 四、可解释性监控与告警 -->
-## 四、可解释性监控与告警
 
-### 4.1 可解释性监控系统
+## 4. Explainable Monitoring and Alerts
+
+### 4.1 Explainability Monitoring System
 
 ```yaml
 # explainability-monitoring.yaml
@@ -738,7 +740,7 @@ spec:
   groups:
   - name: explainability.rules
     rules:
-    # 特征重要性变化告警
+    # Feature importance change alert
     - alert: FeatureImportanceDrift
       expr: |
         abs(
@@ -752,7 +754,7 @@ spec:
         summary: \"Feature importance drift detected\"
         description: \"SHAP feature importance has drifted significantly in the last hour\"
     
-    # 预测分布变化告警
+    # Prediction distribution change alert
     - alert: PredictionDistributionShift
       expr: |
         histogram_quantile(0.95, sum(rate(prediction_confidence_bucket[1h])) by (le))
@@ -766,7 +768,7 @@ spec:
         summary: \"Prediction distribution shift detected\"
         description: \"Model prediction confidence distribution has shifted significantly\"
     
-    # 公平性违规告警
+    # Fairness violation alarm
     - alert: FairnessViolation
       expr: |
         disparate_impact_ratio < 0.8 or disparate_impact_ratio > 1.2
@@ -777,7 +779,7 @@ spec:
         summary: \"Fairness constraint violation\"
         description: \"Model disparate impact ratio {{ $value }} violates fairness constraints\"
     
-    # 解释服务可用性告警
+    # Explanation of availability alert
     - alert: ExplainabilityServiceDown
       expr: |
         up{job=\"explainability-api\"} == 0
@@ -861,7 +863,7 @@ data:
     }
 ```
 
-### 4.2 自动化可解释性报告
+### 4.2 Automated Explainability Reports
 
 ```python
 # automated_explainability_report.py
@@ -885,29 +887,29 @@ class ExplainabilityReporter:
         self.report_date = datetime.now()
         
     def generate_weekly_report(self):
-        \"\"\"生成周度可解释性报告\"\"\"
-        # 收集数据
+        \"\"\"Generate weekly explainability report\"\"\"
+        # Collect data
         weekly_data = self._collect_weekly_data()
         
-        # 生成分析结果
+        # Generate analysis results
         analysis_results = self._perform_analysis(weekly_data)
         
-        # 创建报告
+        # Create report
         report_html = self._create_report_template(analysis_results)
         
-        # 生成PDF
+        # Generate PDF
         pdf_path = f'/reports/{self.model_name}_explainability_report_{self.report_date.strftime(\"%Y%m%d\")}.pdf'
         pdfkit.from_string(report_html, pdf_path)
         
-        # 发送报告
+        # Send report
         self._send_report(pdf_path)
         
         return pdf_path
     
     def _collect_weekly_data(self):
-        \"\"\"收集一周的数据\"\"\"
-        # 从监控系统获取数据
-        # 这里简化为模拟数据
+        \"\"\"Collect data for a week\"\"\"
+        # Retrieve data from monitoring system (simplified to simulated data)
+        # Here simplified to simulated data
         data = {
             'feature_importance': self._get_feature_importance_data(),
             'prediction_distribution': self._get_prediction_distribution(),
@@ -917,26 +919,26 @@ class ExplainabilityReporter:
         return data
     
     def _perform_analysis(self, data):
-        \"\"\"执行分析\"\"\"
+        "\"\"\"Perform analysis\"\"\""
         analysis = {}
         
-        # 特征重要性分析
+        # Feature importance analysis
         importance_df = pd.DataFrame(data['feature_importance'])
         analysis['top_features'] = importance_df.head(10).to_dict('records')
         analysis['importance_changes'] = self._calculate_importance_changes(importance_df)
         
-        # 公平性分析
+        # Fairness analysis
         fairness_df = pd.DataFrame(data['fairness_metrics'])
         analysis['fairness_summary'] = fairness_df.describe().to_dict()
         analysis['fairness_alerts'] = self._detect_fairness_issues(fairness_df)
         
-        # 性能分析
+        # Performance analysis
         analysis['explanation_performance'] = data['explanation_requests']
         
         return analysis
     
     def _create_report_template(self, analysis_results):
-        \"\"\"创建报告模板\"\"\"
+        "\"\"\"Create report template\"\"\""
         template_str = \"\"\"
         <!DOCTYPE html>
         <html>
@@ -1008,14 +1010,14 @@ class ExplainabilityReporter:
         )
     
     def _send_report(self, pdf_path):
-        \"\"\"发送报告\"\"\"
-        # 邮件配置
+        "\"\"\"Send report\"\"\""
+        # Email configuration
         msg = MIMEMultipart()
         msg['From'] = 'ml-governance@company.com'
         msg['To'] = 'stakeholders@company.com'
         msg['Subject'] = f'{self.model_name} Explainability Report - {self.report_date.strftime(\"%Y-%m-%d\")}'
         
-        # 邮件正文
+        # Email body
         body = f\"\"\"Dear Stakeholders,
 
 Please find attached the weekly explainability report for {self.model_name}.
@@ -1030,7 +1032,7 @@ ML Governance Team
         \"\"\"
         msg.attach(MIMEText(body, 'plain'))
         
-        # 附加PDF报告
+        # Attach PDF report
         with open(pdf_path, \"rb\") as attachment:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(attachment.read())
@@ -1042,14 +1044,14 @@ ML Governance Team
         )
         msg.attach(part)
         
-        # 发送邮件（实际使用时需要配置SMTP）
+        # Send email (SMTP configuration required for actual use)
         # server = smtplib.SMTP('smtp.company.com', 587)
         # server.starttls()
         # server.login('ml-governance@company.com', 'password')
         # server.send_message(msg)
         # server.quit()
 
-# 使用示例
+# Usage Example
 reporter = ExplainabilityReporter(
     model_name='customer_churn_model',
     data_source='production_logs'
@@ -1061,25 +1063,25 @@ print(f\"Report generated: {report_path}\")
 
 ---
 
-**维护者**: AI Ethics Team | **最后更新**: 2026-02 | **版本**: v1.0
+**Maintainer**: AI Ethics Team | **Last Updated**: 2026-02 | **Version**: v1.0
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Framework
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

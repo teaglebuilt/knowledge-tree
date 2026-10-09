@@ -1,6 +1,6 @@
 ---
-title: 31 - AI平台治理框架
-description: '## 一、AI平台治理全景架构'
+title: 31 - AI Platform Governance Framework
+description: '## One,AI Platform Governance Panoramic Architecture'
 summary: 'kubectl apply -f ai-governance-policy.yaml'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI平台治理框架 是什么
-- 如何 AI平台治理框架
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Platform Governance Framework
+- How AI Platform Governance Framework
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI平台治理框架
+- AI Platform Governance Framework
 - ai
 - infra
 prerequisites:
@@ -50,30 +50,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/31-ai-platform-governance.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Before executing, please confirm: the target cluster and Namespace are correct; you have sufficient RBAC permissions; the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 31 - AI平台治理框架
+# 31 - AI Platform Governance Framework
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 专家级 | **参考**: [[entities/kubeflow.md|Kubeflow]] Pipelines](https://www.kubeflow.org/docs/components/pipelines/) | [MLflow](https://mlflow.org/) | CNCF TAG App Delivery
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Expert Level | **Reference**: [[entities/kubeflow.md|Kubeflow]] Pipelines](https://www.kubeflow.org/docs/components/pipelines/) | [MLflow](https://mlflow.org/) | CNCF TAG App Delivery
 
-<!-- chunk: 一、AI平台治理全景架构 -->
-## 一、AI平台治理全景架构
 
-### 1.1 治理框架总览
+## 1. Overall Architecture of AI Platform Governance
+
+### 1.1 Governance Framework Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -108,29 +110,29 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 治理维度矩阵
+### 1.2 Governance Dimension Matrix
 
-| 维度 | 子维度 | 治理目标 | 技术实现 | 运维要点 |
+| Dimension | Sub-Dimension | Governance Objective | Technical Implementation | Operational Considerations |
 |------|--------|----------|----------|----------|
-| **访问控制** | 身份认证 | 统一身份管理 | [[Dex|Dex]] + LDAP | 密钥轮换、多因子认证 |
-| | 权限管理 | 最小权限原则 | RBAC + OPA | 定期权限审计 |
-| | 审计追踪 | 行为可追溯 | Falco + Audit | 日志保留策略 |
-| **资源配置** | 配额管理 | 资源合理分配 | ResourceQuota | 动态调整机制 |
-| | 成本控制 | 预算不超支 | Kubecost + OPA | 异常消费告警 |
-| | 优先级调度 | 业务优先保障 | PriorityClass | SLA保障机制 |
-| **数据治理** | 数据分类 | 敏感数据识别 | DLP扫描工具 | 自动标记策略 |
-| | 数据血缘 | 全链路追踪 | OpenLineage | 血缘关系可视化 |
-| | 数据质量 | 准确性保障 | Great Expectations | 质量门禁检查 |
-| **模型治理** | 模型准入 | 合规性检查 | Model Validator | 自动化测试套件 |
-| | 模型监控 | 性能持续跟踪 | Model Monitoring | 漂移检测告警 |
-| | 模型退役 | 生命周期管理 | Lifecycle Manager | 渐进式下线策略 |
+| **Access Control** | Authentication | Unified Identity Management | [[Dex|Dex]] + LDAP | Key rotation, multi-factor authentication |
+| | Authorization | Principle of Least Privilege | RBAC + OPA | Regular permission audits |
+| | Auditing | Traceable Behavior | Falco + Audit | Retention policy for logs |
+| **Resource Allocation** | Quota Management | Reasonable Resource Allocation | ResourceQuota | Dynamic adjustment mechanism |
+| | Cost Control | Budget Not Exceeded | Kubecost + OPA | Alert for abnormal consumption |
+| | Priority Scheduling | Business Prioritization | PriorityClass | SLA Assurance Mechanism |
+| **Data Governance** | Data Classification | Identification of Sensitive Data | DLP Scanning Tools | Automatic tagging strategy |
+| | Data Lineage | End-to-End Tracing | OpenLineage | Visualization of lineage relationships |
+| | Data Quality | Ensuring Accuracy | Great Expectations | Quality gate checks |
+| **Model Governance** | Model Admission | Compliance Check | Model Validator | Automated test suite |
+| | Model Monitoring | Continuous Performance Tracking | Model Monitoring | Drift detection alerts |
+| | Model Retirement | Lifecycle Management | Lifecycle Manager | Gradual deprecation strategy |
 
 ---
 
-<!-- chunk: 二、平台治理实施策略 -->
-## 二、平台治理实施策略
 
-### 2.1 治理策略定义
+## 2. Platform Governance Implementation Strategies
+
+### 2.1 Governance Strategy Definition
 
 ```yaml
 # ai-governance-policy.yaml
@@ -139,7 +141,7 @@ kind: AIGovernancePolicy
 metadata:
   name: enterprise-ai-governance
 spec:
-  # 访问控制策略
+  # Access Control Policy
   accessControl:
     authentication:
       enabled: true
@@ -182,7 +184,7 @@ spec:
         - type: s3
           bucket: "audit-logs-company"
 
-  # 资源配额策略
+  # Resource Quota Policy
   resourceQuota:
     namespaces:
       enabled: true
@@ -218,7 +220,7 @@ spec:
       spotInstanceRatio: 70
       reservedInstanceUtilization: 85
 
-  # 数据治理策略
+  # Data Governance Policy
   dataGovernance:
     classification:
       enabled: true
@@ -271,7 +273,7 @@ spec:
             - expectation: "expect_model_accuracy_to_be_above"
               threshold: 0.85
 
-  # 模型治理策略
+  # Model Governance Policy
   modelGovernance:
     validation:
       enabled: true
@@ -348,7 +350,7 @@ spec:
           condition: "idle_time > 72 hours"
           action: "scale-to-zero"
 
-  # 合规策略
+  # Compliance Policy
   compliance:
     enabled: true
     standards:
@@ -373,46 +375,46 @@ spec:
         - "auditor@external.com"
 ```
 
-### 2.2 治理策略实施
+### 2.2 Governance Strategy Implementation
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium-Risk Changes** — Recommend using --dry-run or diff to confirm changes to cluster resources before proceeding
+> - `kubectl apply/create/replace` : Create/Modify cluster resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 部署治理策略
+# 🟡 Medium Risk: modifies cluster/resource state, confirm target, impact scope, and authorization before proceeding
+# Deployment Governance Policy
 kubectl apply -f ai-governance-policy.yaml
 
-# 验证策略生效
+# Verify Policy Effectiveness
 kubectl get aigovernancepolicies
 kubectl describe aigovernancepolicy enterprise-ai-governance
 
-# 查看治理日志
+# View Governance Logs
 kubectl logs -n governance deployment/governance-controller
 
-# 检查合规状态
+# Check Compliance Status
 kubectl get compliancechecks -o wide
 ```
 ---
 
-<!-- chunk: 三、治理工具链集成 -->
-## 三、治理工具链集成
 
-### 3.1 OPA策略引擎配置
+## 3. Integration of Governance Toolchain
+
+### 3.1 OPA Policy Engine Configuration
 
 ```rego
 # platform-access.rego
 package platform.access
 
-# 默认拒绝
+# Default Deny
 default allow = false
 
-# 管理员允许所有操作
+# Admin allows all operations
 allow {
     input.user.roles[_] == "admin"
 }
 
-# 数据科学家只能在指定命名空间操作
+# Data Scientists can only operate within specified namespaces
 allow {
     input.user.roles[_] == "data-scientist"
     input.request.namespace == input.user.team
@@ -433,11 +435,11 @@ is_allowed_operation(verb) {
 
 is_allowed_operation(verb) {
     verb == "delete"
-    # 删除需要额外审批
+    # Requires additional approval for deletion
     input.request.approval_status == "approved"
 }
 
-# GPU资源使用限制
+# GPU resource usage limit
 deny[msg] {
     input.request.resource == "nvidia.com/gpu"
     input.user.quota.gpu_limit > 0
@@ -449,7 +451,7 @@ deny[msg] {
 }
 ```
 
-### 3.2 GitOps治理流水线
+### 3.2 GitOps Governance Pipeline
 
 ```yaml
 # .github/workflows/ai-governance.yaml
@@ -503,10 +505,10 @@ jobs:
 
 ---
 
-<!-- chunk: 四、治理监控与告警 -->
-## 四、治理监控与告警
 
-### 4.1 治理指标仪表板
+## 4. Governance Monitoring and Alerts
+
+### 4.1 Governance Dashboard
 
 ```yaml
 # governance-dashboard.yaml
@@ -566,7 +568,7 @@ data:
     }
 ```
 
-### 4.2 治理告警规则
+### 4.2 Governance Alert Rules
 
 ```yaml
 # governance-alerts.yaml
@@ -579,7 +581,7 @@ spec:
   groups:
   - name: governance.rules
     rules:
-    # 访问控制告警
+    # Access Control Alert
     - alert: UnauthorizedAccessAttempt
       expr: |
         sum(rate(governance_access_denied_total[5m])) > 0
@@ -590,7 +592,7 @@ spec:
         summary: "Unauthorized access attempt detected"
         description: "{{ $labels.user }} attempted unauthorized access to {{ $labels.resource }}"
     
-    # 资源配额告警
+    # Resource Quota Alert
     - alert: ResourceQuotaExceeded
       expr: |
         kube_resourcequota_used / kube_resourcequota_hard > 0.9
@@ -601,7 +603,7 @@ spec:
         summary: "Resource quota exceeded 90%"
         description: "Namespace {{ $labels.namespace }} exceeded quota for {{ $labels.resource }}"
     
-    # 模型治理告警
+    # Model Governance Alert
     - alert: ModelPerformanceDegradation
       expr: |
         model_accuracy < 0.8
@@ -612,7 +614,7 @@ spec:
         summary: "Model performance degradation detected"
         description: "Model {{ $labels.model }} accuracy dropped below threshold"
     
-    # 合规告警
+    # Compliance Alert
     - alert: ComplianceViolation
       expr: |
         compliance_check_failed == 1
@@ -626,89 +628,89 @@ spec:
 
 ---
 
-<!-- chunk: 五、治理最佳实践 -->
-## 五、治理最佳实践
 
-### 5.1 实施路线图
+## 5. Best Practices for Governance
+
+### 5.1 Implementation Roadmap
 
 ```
-阶段1: 基础治理 (Month 1-2)
-├── 身份认证集成
-├── 基础RBAC配置
-├── 资源配额设置
-└── 基础监控告警
+Stage 1: Foundation Governance (Month 1-2)
+├── Authentication Integration
+├── Basic RBAC Configuration
+├── Resource Quotas Setup
+└── Foundation Monitoring and Alerts
 
-阶段2: 数据治理 (Month 3-4)
-├── 数据分类标记
-├── 数据血缘追踪
-├── 数据质量检查
-└── 敏感数据保护
+Stage 2: Data Governance (Month 3-4)
+├── Data Classification and Tagging
+├── Data Lineage Tracking
+├── Data Quality Checks
+└── Sensitive Data Protection
 
-阶段3: 模型治理 (Month 5-6)
-├── 模型准入控制
-├── 模型性能监控
-├── 模型漂移检测
-└── 模型生命周期管理
+Stage 3: Model Governance (Month 5-6)
+├── Model Admission Control
+├── Model Performance Monitoring
+├── Model Drift Detection
+└── Model Lifecycle Management
 
-阶段4: 自动化治理 (Month 7-8)
-├── GitOps流水线
-├── 策略即代码
-├── 自动合规检查
-└── 智能告警系统
+Stage 4: Automation Governance (Month 7-8)
+├── GitOps Pipeline
+├── Policy as Code
+├── Automated Compliance Checks
+└── Intelligent Alert System
 ```
 
-### 5.2 运维检查清单
+### 5.2 Maintenance Checklist
 
-**每日检查:**
-- [ ] 治理策略执行状态
-- [ ] 资源配额使用情况
-- [ ] 模型性能监控指标
-- [ ] 安全日志审计
+**Daily Checks:**
+- [ ] Execution Status of Governance Policies
+- [ ] Resource Quota Usage
+- [ ] Model Performance Monitoring Metrics
+- [ ] Security Log Audits
 
-**每周检查:**
-- [ ] 合规性报告生成
-- [ ] 治理策略有效性评估
-- [ ] 用户权限审计
-- [ ] 成本治理效果分析
+**Weekly Check:**
+- [ ] Compliance Report Generation
+- [ ] Governance Strategy Effectiveness Evaluation
+- [ ] User Permission Audit
+- [ ] Cost Governance Effect Analysis
 
-**每月检查:**
-- [ ] 治理框架整体健康度
-- [ ] 新增风险项识别
-- [ ] 治理流程优化
-- [ ] 团队培训效果评估
+**Monthly Check:**
+- [ ] Overall Health of Governance Framework
+- [ ] Identification of New Risk Items
+- [ ] Governance Process Optimization
+- [ ] Team Training Effect Assessment
 
-### 5.3 常见问题处理
+### 5.3 Common Issues Resolution
 
-**Q: 如何平衡治理严格性与开发效率?**
-A: 采用渐进式治理策略，初期设置宽松阈值，随着团队成熟度逐步收紧
+**Q: How to balance governance strictness with development efficiency?**
+A: Adopt a progressive governance strategy, set loose thresholds initially, and gradually tighten them as the team matures
 
-**Q: 治理策略如何适应快速变化的业务需求?**
-A: 使用GitOps方式管理策略，支持快速迭代和回滚
+**Q: How do governance strategies adapt to changing business needs?**
+A: Use GitOps to manage strategies, supporting rapid iteration and rollback
 
-**Q: 如何处理跨团队的治理冲突?**
-A: 建立治理委员会，定期review和协调各团队需求
+**Q: How to handle governance conflicts across teams?**
+A: Establish a governance committee to regularly review and coordinate the needs of each team
 
 ---
 
-**维护者**: AI Platform Team | **最后更新**: 2026-02 | **版本**: v1.0
+**Maintainer:** AI Platform Team | **Last Updated:** 2026-02 | **Version:** v1.0
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

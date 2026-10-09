@@ -1,7 +1,7 @@
 ---
-title: eBPF 网络应用实战
-description: 'Cilium CNI 高级配置、XDP 负载均衡、TC 流量控制与高性能 Service Mesh'
-summary: 'Cilium CNI 高级配置、XDP 负载均衡、TC 流量控制与高性能 Service Mesh'
+title: eBPF Network Application Practical
+description: 'Cilium CNI Advanced Configuration, XDP Load Balancing, TC Traffic Control and High Performance Service Mesh'
+summary: 'Cilium CNI Advanced Configuration, XDP Load Balancing, TC Traffic Control and High Performance Service Mesh'
 category: specialized-tech
 tags:
 - ebpf
@@ -17,13 +17,13 @@ difficulty: advanced
 reading_level: advanced
 audience:
 - SRE
-- 运维工程师
-- 平台工程师
+- Operations Engineer
+- Platform Engineer
 estimated_read_time: 15min
 intent_queries:
-- Cilium CNI 是什么
-- 如何配置 Cilium 高级网络策略
-- XDP 负载均衡如何工作
+- What is Cilium CNI
+- How to configure advanced network policies in Cilium
+- How does XDP load balancing work
 trigger_keywords:
 - cilium
 - cni
@@ -42,43 +42,45 @@ k8s_versions:
 authors:
 - name: Dillan Teagle
   role: contributor
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/networking/ebpf/03-ebpf-networking-applications.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the command has been validated in a non-production environment. Command risk levels are annotated: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
-# eBPF 网络应用实战
+# eBPF Network Application Practical
 
-## 1. Cilium CNI 架构
+## 1. Cilium CNI Architecture
 
-Cilium 基于 eBPF 的 Kubernetes CNI 实现，替代 iptables/IPVS：
+Cilium based on eBPF's Kubernetes CNI implementation, replacing iptables/IPVS:
 
 ```
-Pod → eBPF Datapath → 网络策略 → Service 负载均衡 → 目标 Pod
+Pod → eBPF Datapath → Network Policy → Service Load Balancing → Target Pod
   │                      │              │
-  │                      └── L3/L4/L7   └── Maglev/随机/轮询
+  │                      └── L3/L4/L7   └── Maglev/random/polling
   └── veth pair / ipvlan
 ```
 
-核心特性：
+Core features:
 
-| 特性 | 说明 |
+| Feature | Description |
 |------|------|
-| **eBPF Datapath** | 替代 iptables，O(1) 性能 |
-| **Network Policy** | L3/L4/L7 网络策略 |
+| **eBPF Datapath** | Replaces iptables, O(1) performance |
+| **Network Policy** | Layer 3/4/7 network policies |
 | **Service Mesh** | Sidecar-free Service Mesh |
-| **Hubble** | 网络可观测平台 |
-| **Cluster Mesh** | 多集群网络 |
+| **Hubble** | Network observability platform |
+| **Cluster Mesh** | Multi-cluster networking |
 
-## 2. Cilium 安装与配置
+## 2. Cilium Installation and Configuration
 
-### 2.1 基础安装
+### 2.1 Basic Installation
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Helm 安装
+# 🔴 Medium Risk: modifies cluster/resource status, confirm target, impact scope, and authorization before proceeding
+# Helm Installation
 helm repo add cilium https://helm.cilium.io/
 helm repo update
 
@@ -91,7 +93,7 @@ helm install cilium cilium/cilium \
   --set hubble.relay.enabled=true \
   --set hubble.ui.enabled=true
 ```
-### 2.2 高级配置
+### 2.2 Advanced Configuration
 
 ```yaml
 # values-cilium.yaml
@@ -99,21 +101,21 @@ kubeProxyReplacement: strict
 k8sServiceHost: "10.0.0.10"
 k8sServicePort: "6443"
 
-# eBPF 配置
+# eBPF Configuration
 bpf:
   hostLegacyRouting: false
   masquerade: true
   tproxy: true
   preallocateMaps: true
 
-# IPAM 配置
+# IPAM Configuration
 ipam:
   mode: "kubernetes"
   operator:
     clusterPoolIPv4PodCIDR: "10.244.0.0/16"
     clusterPoolIPv4MaskSize: "24"
 
-# Hubble 可观测
+# Hubble Observability
 hubble:
   enabled: true
   listenAddress: ":4244"
@@ -130,11 +132,11 @@ hubble:
   ui:
     enabled: true
 
-# 网络策略
+# Network Policies
 policyEnforcement: "default"
 policyAuditMode: false
 
-# 高级特性
+# Advanced Features
 enableIPv4Masquerade: true
 enableIPv6Masquerade: false
 enableHostLegacyRouting: false
@@ -142,10 +144,10 @@ tunnel: "disabled"    # native routing 模式
 autoDirectNodeRoutes: true
 ```
 
-### 2.3 带宽管理（BBR）
+### 2.3 Bandwidth Management (BBR)
 
 ```yaml
-# 启用 BBR 拥塞控制
+# Enable BBR Congestion Control
 bandwidthManager:
   enabled: true
   bbr: true
@@ -153,7 +155,7 @@ bandwidthManager:
 
 ## 3. Cilium Network Policy
 
-### 3.1 L3/L4 策略
+### 3.1 Layer 3/Layer 4 Policies
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -196,7 +198,7 @@ spec:
               protocol: TCP
 ```
 
-### 3.2 L7 策略（HTTP）
+### 3.2 Layer 7 Policies (HTTP)
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -225,7 +227,7 @@ spec:
                 path: "/healthz"
 ```
 
-### 3.3 DNS 策略
+### 3.3 DNS Policies
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -257,12 +259,12 @@ spec:
               protocol: TCP
 ```
 
-## 4. XDP 负载均衡
+## 4. XDP Load Balancing
 
-### 4.1 XDP 程序示例
+### 4.1 XDP Program Example
 
 ```c
-// xdp_lb.c - 简单的 XDP 负载均衡器
+// xdp_lb.c - Simple XDP Load Balancer
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
@@ -290,60 +292,60 @@ int xdp_load_balancer(struct xdp_md *ctx) {
     if ((void *)(iph + 1) > data_end)
         return XDP_PASS;
 
-    // 只处理 TCP
+    // Only handle TCP
     if (iph->protocol != IPPROTO_TCP)
         return XDP_PASS;
 
-    // 查找后端
+    // Lookup backend
     __u32 vip = iph->daddr;
     __u32 *backend = bpf_map_lookup_elem(&backends, &vip);
     if (!backend)
         return XDP_PASS;
 
-    // 替换目标 IP
+    // Replace target IP
     iph->daddr = *backend;
 
-    // 重新计算校验和
+    // Recalculate checksum
     iph->check = 0;
     iph->check = bpf_csum_diff(0, 0, (__be32 *)iph, sizeof(*iph), 0);
 
-    // 修改 MAC 地址（简化）
+    // Simplify MAC address modification
     // ...
 
     return XDP_TX;
 }
 ```
 
-### 4.2 Katran（Facebook XDP 负载均衡器）
+### 4.2 Katran (Facebook XDP Load Balancer)
 
 ```bash
-# Katran 架构
-# 用户态：管理后端池、健康检查、配置更新
-# 内核态：XDP 程序处理每个数据包
+# Katran Architecture
+# User Space: Manage backend pool, health checks, configuration updates
+# Kernel Space: XDP program processes each packet
 
-# Katran 核心特性：
-# - Maglev 一致性哈希
-# - GUE/GIP 封装
-# - 健康检查
-# - DDoS 防护
+# Katran Core Features:
+# - Maglev Consistent Hashing
+# - GUE/GIP Encapsulation
+# Health Checks
+# DDoS Protection
 ```
 
-### 4.3 XDP 与 Cilium 集成
+### 4.3 XDP Integration with Cilium
 
 ```yaml
-# Cilium 使用 XDP 加速 Service 负载均衡
+# Cilium uses XDP to Accelerate Service Load Balancing
 # values-cilium.yaml
 loadBalancer:
   algorithm: maglev    # 一致性哈希
   acceleration: native # XDP 加速
 ```
 
-## 5. TC 流量控制
+## 5. TC Traffic Control
 
-### 5.1 TC 与 eBPF 集成
+### 5.1 TC Integration with eBPF
 
 ```c
-// tc_mark.c - 使用 TC eBPF 标记流量
+// tc_mark.c - Uses TC eBPF to Mark Traffic
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 
@@ -363,13 +365,13 @@ int tc_mark_priority(struct __sk_buff *skb) {
     if ((void *)(iph + 1) > data_end)
         return TC_ACT_OK;
 
-    // 标记高优先级流量
+    // Mark High-Priority Traffic
     if (iph->protocol == IPPROTO_TCP) {
         struct tcphdr *tcp = (void *)(iph + 1);
         if ((void *)(tcp + 1) > data_end)
             return TC_ACT_OK;
 
-        // HTTPS 流量标记为高优先级
+        // Mark HTTPS Traffic as High-Priority
         if (tcp->dest == bpf_htons(443)) {
             skb->priority = 100;
         }
@@ -379,58 +381,58 @@ int tc_mark_priority(struct __sk_buff *skb) {
 }
 ```
 
-### 5.2 TC 命令配置
+### 5.2 TC Command Configuration
 
 ```bash
-# 加载 eBPF TC 程序
+# Load eBPF TC Program
 tc qdisc add dev eth0 clsact
 tc filter add dev eth0 ingress bpf da obj tc_mark.o sec tc
 tc filter add dev eth0 egress bpf da obj tc_mark.o sec tc
 
-# 查看已加载的 TC 程序
+# View Loaded TC Programs
 tc filter show dev eth0 ingress
 ```
 
-## 6. IPVS 替代方案
+## 6. IPVS Alternatives
 
-### 6.1 Cilium 替代 kube-proxy
+### 6.1 Cilium Alternative to kube-proxy
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 禁用 kube-proxy，使用 Cilium eBPF
+# 🟡 Medium Risk: Modifies cluster/resource state; confirm target, impact scope, and authorization before execution
+# Disable kube-proxy, use Cilium eBPF
 helm upgrade cilium cilium/cilium \
   --namespace kube-system \
   --set kubeProxyReplacement=strict \
   --set k8sServiceHost=10.0.0.10 \
   --set k8sServicePort=6443
 
-# 验证
+# Verify
 cilium status
 cilium service list
 ```
-### 6.2 性能对比
+### 6.2 Performance Comparison
 
-| 方案 | 每秒连接数 | 延迟 P99 | CPU 开销 |
+| Solution | Connections per second | 99th percentile latency | CPU overhead |
 |------|-----------|----------|----------|
-| iptables | 50K | 5ms | 高 |
-| IPVS | 200K | 2ms | 中 |
-| Cilium eBPF | 500K | 0.5ms | 低 |
+| iptables | 50K | 5ms | High |
+| IPVS | 200K | 2ms | Medium |
+| Cilium eBPF | 500K | 0.5ms | Low |
 
-### 6.3 DSR（Direct Server Return）
+### 6.3 DSR (Direct Server Return)
 
 ```yaml
-# 启用 DSR 模式
+# Enable DSR Mode
 loadBalancer:
   mode: dsr    # 直接服务器返回
   dsrEncapsulation: geneve
 ```
 
-## 7. 高性能 Service Mesh
+## 7. High Performance Service Mesh
 
-### 7.1 Cilium Service Mesh（Sidecar-free）
+### 7.1 Cilium Service Mesh(Sidecar-free)
 
 ```yaml
-# 启用 Cilium Service Mesh
+# Enable Cilium Service Mesh
 kubeProxyReplacement: strict
 hubble:
   enabled: true
@@ -440,7 +442,7 @@ hubble:
     enabled: true
 ```
 
-### 7.2 L7 负载均衡
+### 7.2 Layer 7 Load Balancing
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -477,20 +479,20 @@ spec:
                   - name: envoy.filters.http.router
 ```
 
-### 7.3 mTLS 加密
+### 7.3 mTLS Encryption
 
 ```yaml
-# 启用 WireGuard 加密
+# Enable WireGuard Encryption
 encryption:
   enabled: true
   type: wireguard
   nodeEncryption: true
 ```
 
-### 7.4 SPIFFE/SPIRE 集成
+### 7.4 SPIFFE/SPIRE Integration
 
 ```yaml
-# SPIRE 集成
+# SPIRE Integration
 authentication:
   enabled: true
   mutual:
@@ -500,13 +502,13 @@ authentication:
         enabled: true
 ```
 
-## 8. 多集群网络（Cluster Mesh）
+## 8. Multi-cluster Networking (Cluster Mesh)
 
-### 8.1 配置
+### 8.1 Configuration
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 集群 1
+# 🟡 Medium Risk: Modifies cluster/resource state; confirm target, impact scope, and authorization before execution
+# Cluster 1
 helm install cilium cilium/cilium \
   --namespace kube-system \
   --set cluster.name=cluster1 \
@@ -514,7 +516,7 @@ helm install cilium cilium/cilium \
   --set etcd.enabled=true \
   --set etcd.managed=true
 
-# 集群 2
+# Cluster 2
 helm install cilium cilium/cilium \
   --namespace kube-system \
   --set cluster.name=cluster2 \
@@ -522,7 +524,7 @@ helm install cilium cilium/cilium \
   --set etcd.enabled=true \
   --set etcd.managed=true
 ```
-### 8.2 跨集群服务发现
+### 8.2 Cross-cluster Service Discovery
 
 ```yaml
 apiVersion: cilium.io/v2
@@ -540,24 +542,24 @@ spec:
             app: frontend
 ```
 
-## 9. 监控与排障
+## 9. Monitoring and Troubleshooting
 
 ```bash
-# Cilium 状态
+# Cilium Status
 cilium status
 
-# 查看 eBPF 程序
+# View eBPF Programs
 cilium bpf lb list
 cilium bpf endpoint list
 
-# Hubble 网络流
+# Hubble Network Flow
 hubble observe --namespace production --since 1h
 
-# 策略审计
+# Policy Audit
 cilium monitor --type drop
 cilium monitor --type policy-verdict
 
-# 端到端延迟
+# End-to-End Latency
 cilium connectivity test
 ```
 
@@ -565,13 +567,13 @@ cilium connectivity test
 
 ## Related
 
-- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF 开发基础]]
-- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF 可观测工具]]
-- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF 安全运行时]]
+- [[domain-15-specialized-tech/05-ebpf-programming/01-ebpf-programming-fundamentals|eBPF Development Basics]]
+- [[domain-15-specialized-tech/05-ebpf-programming/02-ebpf-observability-tools|eBPF Observability Tools]]
+- [[domain-15-specialized-tech/05-ebpf-programming/04-ebpf-security-runtime|eBPF Security Runtime]]
 
 ## See Also
 
-- [Cilium 官方文档](https://docs.cilium.io/)
+- [Cilium Official Documentation](https://docs.cilium.io/)
 - [Cilium Network Policy](https://docs.cilium.io/en/stable/network/kubernetes/policy/)
 - [Hubble](https://docs.cilium.io/en/stable/observability/)
 

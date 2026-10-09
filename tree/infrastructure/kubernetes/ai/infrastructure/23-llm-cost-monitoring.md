@@ -1,7 +1,7 @@
 ---
-title: LLM 成本监控与 FinOps
-description: '# LLM 成本监控与 FinOps'
-summary: 'LLM 工作负载的成本结构与传统应用显著不同,GPU 计算成本占主导地位。本文档详细介绍 LLM 成本监控体系、优化策略和 FinOps 实践。'
+title: LLM Cost Monitoring and FinOps
+description: '# LLM Cost Monitoring and FinOps'
+summary: 'The cost structure of LLM workloads is significantly different from traditional applications, with GPU computing costs being predominant. This document details the LLM cost monitoring system, optimization strategies, and FinOps practices.'
 category: ai-infra
 tags:
 - k8s
@@ -20,17 +20,17 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM 成本监控与 FinOps 是什么
-- 如何 LLM 成本监控与 FinOps
-- Kubernetes 11 ai infra 最佳实践
+- What is LLM Cost Monitoring and FinOps
+- How is LLM Cost Monitoring and FinOps
+- Kubernetes 11 AI Infrastructure Best Practices
 trigger_keywords:
 - LLM
-- 成本监控与
+- Cost Monitoring and
 - FinOps
 - ai
 - infra
@@ -53,72 +53,74 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: fta
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/monitoring-fta.md
-  label: '故障树: monitoring'
+  label: 'Fault Tree: monitoring'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/23-llm-cost-monitoring.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and successful validation in a non-production environment. Risk levels for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# LLM 成本监控与 FinOps
+# LLM Cost Monitoring and FinOps
 
-<!-- chunk: 概述 -->
-## 概述
 
-LLM 工作负载的成本结构与传统应用显著不同,GPU 计算成本占主导地位。本文档详细介绍 LLM 成本监控体系、优化策略和 FinOps 实践。
+## Overview
 
-<!-- chunk: 成本架构 -->
-## 成本架构
+LLM workloads have a significantly different cost structure compared to traditional applications, with GPU computing being dominant. This document details the LLM cost monitoring system, optimization strategies, and FinOps practices.
 
-### LLM 成本构成模型
+
+## Cost Architecture
+
+### LLM Cost Composition Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              LLM 成本构成模型                                        │
+│                              LLM Cost Composition Model                               │
 │                                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                           总成本 (Total Cost)                                │   │
+│   │                           Total Cost (Total Cost)                                │   │
 │   │                                                                              │   │
 │   │   ┌─────────────────────────────────────────────────────────────────────┐   │   │
-│   │   │                      GPU 计算成本 (65-80%)                           │   │   │
+│   │   │                      GPU Compute Cost (65-80%)                           │   │   │
 │   │   │                                                                      │   │   │
 │   │   │   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐               │   │   │
-│   │   │   │   训练成本   │   │   推理成本   │   │  微调成本   │               │   │   │
+│   │   │   │   Training Cost   │   │   Inference Cost   │   │   Fine-tuning Cost   │               │   │   │
 │   │   │   │             │   │             │   │             │               │   │   │
-│   │   │   │ • 大批量    │   │ • 持续运行  │   │ • 中等批量  │               │   │   │
-│   │   │   │ • 高显存    │   │ • 低延迟    │   │ • 周期性    │               │   │   │
-│   │   │   │ • 可中断    │   │ • 弹性伸缩  │   │ • 可中断    │               │   │   │
+│   │   │   │ • Batch Size Large    │   │ • Continuous Run  │   │ • Medium Batch  │               │   │   │
+│   │   │   │ • High Memory    │   │ • Low Latency    │   │ • Periodic  │               │   │   │
+│   │   │   │ • Non-Interruptible    │   │ • Elastic Scaling  │   │ • Non-Interruptible  │               │   │   │
 │   │   │   └─────────────┘   └─────────────┘   └─────────────┘               │   │   │
 │   │   │                                                                      │   │   │
 │   │   └──────────────────────────────────────────────────────────────────────┘   │   │
 │   │                                                                              │   │
 │   │   ┌────────────────────────┐   ┌────────────────────────┐                   │   │
-│   │   │     存储成本 (15-20%)   │   │     网络成本 (5-10%)    │                   │   │
+│   │   │     Storage Cost (15-20%)   │   │     Network Cost (5-10%)    │                   │   │
 │   │   │                        │   │                        │                   │   │
-│   │   │  • 模型存储 (大)       │   │  • 跨区域传输          │                   │   │
-│   │   │  • 检查点存储          │   │  • 推理请求流量        │                   │   │
-│   │   │  • 数据集存储          │   │  • 模型分发            │                   │   │
-│   │   │  • 缓存存储            │   │  • API 网关流量        │                   │   │
+│   │   │  • Model Storage (Large)       │   │  • Cross-AZ Transfer          │                   │   │
+│   │   │  • Checkpoint Storage          │   │  • Inference Request Traffic          │                   │   │
+│   │   │  • Dataset Storage          │   │  • Model Distribution          │                   │   │
+│   │   │  • Cache Storage            │   │  • API Gateway Traffic          │                   │   │
 │   │   └────────────────────────┘   └────────────────────────┘                   │   │
 │   │                                                                              │   │
 │   │   ┌────────────────────────┐   ┌────────────────────────┐                   │   │
-│   │   │     管理成本 (3-5%)     │   │     其他成本 (2-5%)     │                   │   │
+│   │   │     Management Cost (3-5%)     │   │     Other Costs (2-5%)     │                   │   │
 │   │   │                        │   │                        │                   │   │
-│   │   │  • 监控/可观测性       │   │  • 日志存储            │                   │   │
-│   │   │  • 编排调度            │   │  • 安全审计            │                   │   │
-│   │   │  • MLOps 工具          │   │  • 备份/DR             │                   │   │
+│   │   │  • Monitoring/Observability       │   │  • Log Storage            │                   │   │
+│   │   │  • Orchestration Scheduling            │   │  • Security Audits            │                   │   │
+│   │   │  • MLOps Tools            │   │  • Backups/DR            │                   │   │
 │   │   └────────────────────────┘   └────────────────────────┘                   │   │
 │   │                                                                              │   │
 │   └─────────────────────────────────────────────────────────────────────────────┘   │
@@ -126,29 +128,29 @@ LLM 工作负载的成本结构与传统应用显著不同,GPU 计算成本占�
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 成本监控架构
+### Cost Monitoring Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              LLM 成本监控架构                                        │
+│                              LLM Cost Monitoring Architecture                               │
 │                                                                                      │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                           数据采集层 (Collection)                            │   │
+│   │                           Data Collection Layer (Collection)                            │   │
 │   │                                                                              │   │
 │   │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐ │   │
-│   │   │   Kubecost   │   │   DCGM       │   │   云厂商     │   │   自定义     │ │   │
+│   │   │   Kubecost   │   │   DCGM       │   │   Cloud Vendor     │   │   Custom     │ │   │
 │   │   │   Exporter   │   │   Exporter   │   │   Billing    │   │   Metrics    │ │   │
 │   │   │              │   │              │   │   API        │   │              │ │   │
-│   │   │ • Pod 成本   │   │ • GPU 利用率 │   │ • 按需价格   │   │ • Token 数   │ │   │
-│   │   │ • 节点成本   │   │ • 显存使用   │   │ • Spot 价格  │   │ • 请求数     │ │   │
-│   │   │ • 存储成本   │   │ • 功耗       │   │ • RI/SP 信息 │   │ • 模型调用   │ │   │
+│   │   │ • Pod Cost   │   │ • GPU Utilization │   │ • On-Demand Pricing  │   │ • Token Count  │ │   │
+│   │   │ • node cost   │   │ • GPU usage   │   │ • Spot price   │   │ • request count   │ │   │
+│   │   │ • storage cost   │   │ • power consumption   │   │ • RI/SP information   │   │ • model invocation   │ │   │
 │   │   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘ │   │
 │   │                                                                              │   │
 │   └──────────────────────────────────┬──────────────────────────────────────────┘   │
 │                                      │                                              │
 │                                      ▼                                              │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                           存储层 (Storage)                                   │   │
+│   │                           Storage Layer (Storage)                                   │   │
 │   │                                                                              │   │
 │   │   ┌──────────────────────────────────────────────────────────────────────┐  │   │
 │   │   │                         Prometheus                                    │  │   │
@@ -160,25 +162,25 @@ LLM 工作负载的成本结构与传统应用显著不同,GPU 计算成本占�
 │                                      │                                              │
 │                                      ▼                                              │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          分析层 (Analysis)                                   │   │
+│   │                          Analysis Layer (Analysis)                                   │   │
 │   │                                                                              │   │
 │   │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐ │   │
-│   │   │   成本分配   │   │   趋势预测   │   │   异常检测   │   │   优化建议   │ │   │
+│   │   │   Cost Allocation   │   │   Trend Forecasting   │   │   Anomaly Detection   │   │   Optimization Recommendations   │ │   │
 │   │   │              │   │              │   │              │   │              │ │   │
-│   │   │ • 按团队     │   │ • 日/周/月   │   │ • 成本飙升   │   │ • 资源调整   │ │   │
-│   │   │ • 按项目     │   │ • 预算预测   │   │ • GPU 闲置   │   │ • 实例选择   │ │   │
-│   │   │ • 按模型     │   │ • 容量规划   │   │ • 资源浪费   │   │ • 调度优化   │ │   │
+│   │   │ • by team     │   │ • by day/week/month   │   │ • cost escalation   │   │ • resource adjustment   │ │   │
+│   │   │ • project     │   │ • budget forecast   │   │ • idle GPU   │   │ • instance selection   │ │   │
+│   │   │ • according to the model     │   │ • capacity planning   │   │ • waste of resources   │   │ • schedule optimization   │ │   │
 │   │   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘ │   │
 │   │                                                                              │   │
 │   └──────────────────────────────────┬──────────────────────────────────────────┘   │
 │                                      │                                              │
 │                                      ▼                                              │
 │   ┌─────────────────────────────────────────────────────────────────────────────┐   │
-│   │                          展示层 (Visualization)                              │   │
+│   │                          Visualization Layer (Visualization)                              │   │
 │   │                                                                              │   │
 │   │   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐ │   │
-│   │   │   Grafana    │   │   Kubecost   │   │   自定义     │   │   告警通知   │ │   │
-│   │   │   Dashboard  │   │   UI         │   │   报表       │   │   Slack/邮件 │ │   │
+│   │   │   Grafana    │   │   Kubecost   │   │   Custom     │   │   Alert Notification   │ │   │
+│   │   │   Dashboard  │   │   UI         │   │   Report     │   │   Slack/Mail │ │   │
 │   │   └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘ │   │
 │   │                                                                              │   │
 │   └─────────────────────────────────────────────────────────────────────────────┘   │
@@ -186,63 +188,63 @@ LLM 工作负载的成本结构与传统应用显著不同,GPU 计算成本占�
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-<!-- chunk: 成本构成详解 -->
-## 成本构成详解
 
-### 各类成本占比
+## Cost Composition Details
 
-| 成本类型 | 占比范围 | 主要因素 | 优化方向 |
+### Proportion of Various Costs
+
+| Cost Type | Ratio Range | Main Factors | Optimization Direction |
 |---------|---------|---------|---------|
-| **GPU 计算** | 65-80% | 实例类型、利用率、运行时长 | Spot 实例、批处理、量化 |
-| **存储** | 15-20% | 模型大小、检查点、数据集 | 分层存储、压缩、清理策略 |
-| **网络** | 5-10% | 跨区域传输、API 流量 | CDN、区域优化、压缩 |
-| **管理** | 3-5% | 监控、编排、MLOps | 工具整合、自动化 |
-| **其他** | 2-5% | 日志、审计、备份 | 保留策略、采样 |
+| **GPU Computing** | 65-80% | Instance type, utilization, runtime | Spot instances, batch processing, quantization |
+| **Storage** | 15-20% | Model size, checkpoints, dataset | Layered storage, compression, cleanup strategy |
+| **Network** | 5-10% | Cross-region transfers, API traffic | CDN, regional optimization, compression |
+| **Management** | 3-5% | Monitoring, orchestration, MLOps | Tool integration, automation |
+| **Other** | 2-5% | Logs, audits, backups | Retention policies, sampling |
 
-### GPU 实例价格对比
+### GPU Instance Price Comparison
 
-| GPU 类型 | 显存 | 按需价格/小时 | Spot 价格/小时 | 节省比例 | 适用场景 |
+| GPU Type | Memory | On-demand price/hour | Spot price/hour | Savings ratio | Applicable scenarios |
 |---------|------|-------------|--------------|---------|---------|
-| **NVIDIA A100 80GB** | 80GB | $32.77 | ~$10.00 | 70% | 大模型训练、多卡训练 |
-| **NVIDIA A100 40GB** | 40GB | $22.00 | ~$6.50 | 70% | 中型模型训练 |
-| **NVIDIA A10G** | 24GB | $1.006 | ~$0.30 | 70% | 推理、微调 |
-| **NVIDIA L4** | 24GB | $0.81 | ~$0.25 | 69% | 推理优化 |
-| **NVIDIA T4** | 16GB | $0.526 | ~$0.16 | 70% | 轻量推理、开发 |
-| **NVIDIA V100** | 16/32GB | $3.06 | ~$0.92 | 70% | 通用训练 |
-| **NVIDIA H100** | 80GB | $50.00+ | ~$15.00 | 70% | 超大模型、高性能 |
+| **NVIDIA A100 80GB** | 80GB | $32.77 | ~$10.00 | 70% | Large model training, multi-GPU training |
+| **NVIDIA A100 40GB** | 40GB | $22.00 | ~$6.50 | 70% | Medium-sized model training |
+| **NVIDIA A10G** | 24GB | $1.006 | ~$0.30 | 70% | Inference, fine-tuning |
+| **NVIDIA L4** | 24GB | $0.81 | ~$0.25 | 69% | Inference optimization |
+| **NVIDIA T4** | 16GB | $0.526 | ~$0.16 | 70% | Lightweight inference, development |
+| **NVIDIA V100** | 16/32GB | $3.06 | ~$0.92 | 70% | General training |
+| **NVIDIA H100** | 80GB | $50.00+ | ~$15.00 | 70% | Super large models, high performance |
 
-### 存储成本细分
+### Storage Cost Segmentation
 
-| 存储类型 | 单价参考 | 典型用量 | 月成本估算 | 优化策略 |
+| Storage Type | Price Reference | Typical Usage | Monthly Cost Estimate | Optimization Strategies |
 |---------|---------|---------|-----------|---------|
-| **模型存储** | $0.023/GB | 500GB-5TB | $12-$115 | 压缩、去重 |
-| **检查点存储** | $0.023/GB | 1TB-10TB | $23-$230 | 定期清理、保留策略 |
-| **数据集存储** | $0.023/GB | 1TB-50TB | $23-$1150 | 分层存储、归档 |
-| **缓存存储** | $0.10/GB | 100GB-1TB | $10-$100 | TTL 策略、LRU |
-| **日志存储** | $0.50/GB | 50GB-500GB | $25-$250 | 采样、压缩 |
+| **Model Storage** | $0.023/GB | 500GB-5TB | $12-$115 | Compression, deduplication |
+| **Checkpoint Storage** | $0.023/GB | 1TB-10TB | $23-$230 | Regular cleanup, retention policies |
+| **Data Set Storage** | $0.023/GB | 1TB-50TB | $23-$1150 | Tiered storage, archiving |
+| **Cache Storage** | $0.10/GB | 100GB-1TB | $10-$100 | TTL policy, LRU |
+| **Log Storage** | $0.50/GB | 50GB-500GB | $25-$250 | Sampling, compression |
 
-<!-- chunk: Kubecost 部署与配置 -->
-## Kubecost 部署与配置
 
-### 完整部署配置
+## Kubecost Deployment and Configuration
+
+### Complete Deployment Configuration
 
 ```yaml
 # kubecost-values.yaml
-# Kubecost Helm values 配置
+# Kubecost Helm values configuration
 
 global:
-  # 启用 GPU 成本监控
+  # Enable GPU cost monitoring
   prometheus:
     enabled: true
     nodeExporter:
       enabled: true
 
-# Kubecost 核心配置
+# Core configuration for Kubecost
 kubecostModel:
-  # 自定义 GPU 定价
+  # Custom GPU pricing
   gpuCost:
     enabled: true
-    # 按 GPU 类型设置价格
+    # Set prices by GPU type
     gpuTypeCosts:
       nvidia-tesla-a100: "32.77"
       nvidia-tesla-a10g: "1.006"
@@ -250,14 +252,14 @@ kubecostModel:
       nvidia-tesla-v100: "3.06"
       nvidia-tesla-h100: "50.00"
       
-  # 自定义定价
+  # Custom pricing
   customPricing:
     enabled: true
     configPath: "/var/configs/pricing.json"
     
-  # 成本分配配置
+  # Cost allocation configuration
   allocation:
-    # 按标签分配成本
+    # Allocate costs by label
     labelConfig:
       enabled: true
       labels:
@@ -267,7 +269,7 @@ kubecostModel:
         - environment
         - cost-center
         
-# Prometheus 集成
+# Integration with Prometheus
 prometheus:
   server:
     retention: "30d"
@@ -279,28 +281,28 @@ prometheus:
         cpu: "2"
         memory: "8Gi"
         
-# DCGM Exporter 集成 (GPU 监控)
+# DCGM Exporter integration (GPU monitoring)
 dcgmExporter:
   enabled: true
   
-# 网络成本
+# Network cost
 networkCosts:
   enabled: true
-  # 跨区域流量成本
+  # Cross-region traffic cost
   zoneCost: "0.01"
   regionCost: "0.02"
   internetCost: "0.12"
 
-# 存储配置
+# Storage configuration
 persistentVolume:
   enabled: true
   size: "32Gi"
   storageClass: "gp3"
 
-# 告警配置
+# Alert configuration
 alerts:
   enabled: true
-  # 预算告警
+  # Budget alert
   budget:
     enabled: true
     
@@ -316,89 +318,89 @@ serviceAccount:
     # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/kubecost-role
 ```
 
-### 部署命令
+### Deployment Command
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
-> - `kubectl apply/create/replace`：创建/变更集群资源
+> ⚠️ **🟡 Medium Risk Change** — Change cluster resource state, suggest to first use --dry-run or diff to confirm
+> - `helm upgrade/install`: Deploy/upgrade release
+> - `kubectl apply/create/replace`: Create/modify cluster resources
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🟡 Medium risk: Will modify cluster/resource state, please confirm target, impact scope, and authorization before execution
 #!/bin/bash
 # deploy-kubecost.sh
-# Kubecost 部署脚本
+# Kubecost deployment script
 
 set -e
 
 NAMESPACE="kubecost"
 RELEASE_NAME="kubecost"
 
-echo "=== 部署 Kubecost ==="
+message: "Kubecost deployment ==="
 
-# 添加 Helm repo
+# Add Helm repository
 helm repo add kubecost https://kubecost.github.io/cost-analyzer/
 helm repo update
 
-# 创建命名空间
+# Create namespace
 kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
-# 部署 Kubecost
+# Deploy Kubecost
 helm upgrade --install $RELEASE_NAME kubecost/cost-analyzer \
   --namespace $NAMESPACE \
   --values kubecost-values.yaml \
   --set kubecostToken="${KUBECOST_TOKEN}" \
   --wait
 
-# 等待 Pod 就绪
+# Wait for Pod to be ready
 kubectl wait --for=condition=Ready pod \
   -l app=cost-analyzer \
   -n $NAMESPACE \
   --timeout=300s
 
-echo "=== 部署完成 ==="
-echo "访问: kubectl port-forward -n $NAMESPACE svc/kubecost-cost-analyzer 9090:9090"
+message: "Kubecost deployment complete ==="
+message: "Access: kubectl port-forward -n $NAMESPACE svc/kubecost-cost-analyzer 9090:9090"
 ```
-<!-- chunk: 成本标签体系 -->
-## 成本标签体系
 
-### 推荐标签规范
+## Cost Tagging System
+
+### Recommended Tagging Norms
 
 ```yaml
 # cost-labels-convention.yaml
-# LLM 工作负载成本标签规范
+# LLM Workload Cost Label Specification
 
 ---
-# 训练任务 Pod
+# Training Task Pod
 apiVersion: v1
 kind: Pod
 metadata:
   name: llama2-70b-training
   namespace: ml-training
   labels:
-    # 组织标签
+    # Organizational Tag
     team: ml-research
     department: ai-platform
     cost-center: "CC-12345"
     
-    # 项目标签
+    # Project Tag
     project: llama2-finetuning
     model: llama2-70b
     task-type: training
     
-    # 环境标签
+    # Project Environment Tag
     environment: production
     
-    # 资源标签
+    # Resource Tag
     gpu-type: a100-80g
     gpu-count: "8"
     
   annotations:
-    # Kubecost 成本分配注解
+    # Kubecost Cost Allocation Annotation
     cost.kubernetes.io/team: "ml-research"
     cost.kubernetes.io/project: "llama2-finetuning"
     cost.kubernetes.io/environment: "production"
     
-    # 任务元信息
+    # Task Metadata
     ml.kubernetes.io/experiment-id: "exp-20240115-001"
     ml.kubernetes.io/run-id: "run-abc123"
     
@@ -420,7 +422,7 @@ spec:
       value: "job-20240115-001"
 
 ---
-# 推理服务 Deployment
+# Inference Service Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -461,11 +463,11 @@ spec:
             nvidia.com/gpu: 1
 ```
 
-### 成本标签验证策略
+### Cost Tagging Verification Strategy
 
 ```yaml
 # cost-label-policy.yaml
-# 使用 Kyverno 强制成本标签
+# Use Kyverno to enforce cost labels
 
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
@@ -485,7 +487,7 @@ spec:
                 - ml-*
                 - ai-*
       validate:
-        message: "ML 工作负载必须包含 team 标签"
+        message: "ML workload must contain team tag"
         pattern:
           metadata:
             labels:
@@ -501,7 +503,7 @@ spec:
                 - ml-*
                 - ai-*
       validate:
-        message: "ML 工作负载必须包含 project 标签"
+        message: "ML workload must contain project tag"
         pattern:
           metadata:
             labels:
@@ -517,21 +519,21 @@ spec:
                 matchLabels:
                   task-type: training
       validate:
-        message: "训练任务必须包含 cost-center 标签"
+        message: "Training task must contain cost-center tag"
         pattern:
           metadata:
             labels:
               cost-center: "?*"
 ```
 
-<!-- chunk: 成本监控 API -->
-## 成本监控 API
 
-### Python 成本监控客户端
+## Cost Monitoring API
+
+### Python Cost Monitoring Client
 
 ```python
 # llm_cost_monitor.py
-# LLM 成本监控客户端
+# LLM Cost Monitoring Client
 
 import requests
 import pandas as pd
@@ -540,7 +542,7 @@ from typing import Dict, List, Optional
 import json
 
 class KubecostClient:
-    """Kubecost API 客户端"""
+    """Kubecost API client"""
     
     def __init__(self, base_url: str = "http://kubecost-cost-analyzer.kubecost:9090"):
         self.base_url = base_url
@@ -552,7 +554,7 @@ class KubecostClient:
         aggregate: str = "namespace",
         filter_labels: Optional[Dict] = None
     ) -> Dict:
-        """获取成本分配数据"""
+        """get cost allocation data"""
         url = f"{self.base_url}/model/allocation"
         params = {
             "window": window,
@@ -573,7 +575,7 @@ class KubecostClient:
         label: str,
         window: str = "7d"
     ) -> Dict:
-        """按标签获取成本"""
+        """get cost by tag"""
         url = f"{self.base_url}/model/allocation"
         params = {
             "window": window,
@@ -589,7 +591,7 @@ class KubecostClient:
         namespace: Optional[str] = None,
         window: str = "7d"
     ) -> Dict:
-        """获取 GPU 成本"""
+        """get GPU cost"""
         url = f"{self.base_url}/model/allocation"
         params = {
             "window": window,
@@ -606,7 +608,7 @@ class KubecostClient:
 
 
 class LLMCostMonitor:
-    """LLM 成本监控器"""
+    """LLM Cost Monitor"""
     
     def __init__(self, kubecost_url: str = "http://kubecost:9090"):
         self.kubecost = KubecostClient(kubecost_url)
@@ -616,7 +618,7 @@ class LLMCostMonitor:
         project: str,
         window: str = "30d"
     ) -> Dict:
-        """获取训练任务成本"""
+        """get training task cost"""
         data = self.kubecost.get_allocation(
             window=window,
             aggregate="label:project",
@@ -630,7 +632,7 @@ class LLMCostMonitor:
         model: str,
         window: str = "30d"
     ) -> Dict:
-        """获取推理服务成本"""
+        """Get inference service cost"""
         data = self.kubecost.get_allocation(
             window=window,
             aggregate="label:model",
@@ -643,7 +645,7 @@ class LLMCostMonitor:
         self,
         window: str = "30d"
     ) -> pd.DataFrame:
-        """获取团队成本汇总"""
+        """Get team cost summary"""
         data = self.kubecost.get_cost_by_label("team", window)
         
         results = []
@@ -669,11 +671,11 @@ class LLMCostMonitor:
         namespace: str,
         window: str = "7d"
     ) -> Dict:
-        """获取 GPU 利用率与成本"""
-        # 获取成本数据
+        """Get GPU utilization and cost"""
+        # Get cost data
         cost_data = self.kubecost.get_gpu_cost(namespace, window)
         
-        # 计算 GPU 效率
+        # Calculate GPU efficiency
         gpu_cost = sum([
             alloc.get("gpuCost", 0) 
             for alloc in cost_data.get("data", [{}])[0].values()
@@ -688,7 +690,7 @@ class LLMCostMonitor:
         }
     
     def _parse_allocation(self, data: Dict, key: str) -> Dict:
-        """解析分配数据"""
+        """Parse allocation data"""
         allocations = data.get("data", [{}])[0]
         allocation = allocations.get(key, {})
         
@@ -705,7 +707,7 @@ class LLMCostMonitor:
 
 
 class BudgetManager:
-    """预算管理器"""
+    """Budget Manager"""
     
     def __init__(
         self,
@@ -721,28 +723,28 @@ class BudgetManager:
         current_spend: float,
         days_elapsed: int
     ) -> Dict:
-        """检查预算状态"""
-        # 计算预计月支出
+        """Check budget status"""
+        # Calculate expected monthly spend
         daily_avg = current_spend / max(days_elapsed, 1)
         projected_monthly = daily_avg * 30
         
-        # 计算预算使用率
+        # Calculate budget usage rate
         budget_used = current_spend / self.monthly_budget
         projected_usage = projected_monthly / self.monthly_budget
         
-        # 确定状态
+        # Determine status
         if projected_usage > 1.1:
             status = "CRITICAL"
-            message = f"预计超支 {(projected_usage - 1) * 100:.1f}%"
+            message: "ML workload exceeds budget by {(projected_usage - 1) * 100:.1f}%"
         elif projected_usage > 1.0:
             status = "WARNING"
-            message = "预计超出预算"
+            message: "Budget overrun"
         elif projected_usage > 0.9:
             status = "CAUTION"
-            message = "接近预算上限"
+            message: "Approaching budget limit"
         else:
             status = "OK"
-            message = "预算使用正常"
+            message: "Budget usage normal"
             
         return {
             "status": status,
@@ -760,7 +762,7 @@ class BudgetManager:
         self,
         current_spend: float
     ) -> List[Dict]:
-        """获取预算告警"""
+        """Get budget alert"""
         alerts = []
         budget_used = current_spend / self.monthly_budget
         
@@ -775,35 +777,35 @@ class BudgetManager:
         return alerts
 
 
-# 使用示例
+# Usage Example
 if __name__ == "__main__":
-    # 初始化监控器
+    # Initialize monitor
     monitor = LLMCostMonitor("http://kubecost:9090")
     
-    # 获取团队成本汇总
+    # Get team cost summary
     team_costs = monitor.get_team_cost_summary(window="30d")
-    print("=== 团队成本汇总 ===")
+    print("=== Team cost summary ===")
     print(team_costs.to_markdown())
     
-    # 获取训练成本
+    # Get training cost
     training_cost = monitor.get_training_cost("llama2-finetuning", "30d")
-    print(f"\n=== 训练成本 ===")
-    print(f"GPU 成本: ${training_cost['gpu_cost']:.2f}")
-    print(f"总成本: ${training_cost['total_cost']:.2f}")
+    print(f"\n=== Training cost ===")
+    print(f"GPU cost: ${training_cost['gpu_cost']:.2f}")
+    print(f"Total cost: ${training_cost['total_cost']:.2f}")
     
-    # 预算检查
+    # Budget check
     budget = BudgetManager(monthly_budget=50000)
     status = budget.check_budget_status(current_spend=25000, days_elapsed=15)
-    print(f"\n=== 预算状态 ===")
-    print(f"状态: {status['status']}")
-    print(f"已使用: {status['budget_used_percent']:.1f}%")
-    print(f"预计月支出: ${status['projected_monthly']:.2f}")
+    print(f"\n=== Budget status ===")
+    print(f"Status: {status['status']}")
+    print(f"Used: {status['budget_used_percent']:.1f}%")
+    print(f"Monthly expenditure: ${status['projected_monthly']:.2f}")
 ```
 
-<!-- chunk: 成本告警规则 -->
-## 成本告警规则
 
-### Prometheus 告警规则
+## Cost Alert Rules
+
+### Prometheus Alert Rules
 
 ```yaml
 # llm-cost-alerting-rules.yaml
@@ -818,7 +820,7 @@ metadata:
 spec:
   groups:
     # =================================================================
-    # 成本阈值告警
+    # Cost threshold alert
     # =================================================================
     - name: llm.cost.thresholds
       interval: 5m
@@ -831,7 +833,7 @@ spec:
             severity: warning
             team: finops
           annotations:
-            summary: "LLM 日成本超过 $1000"
+            summary: "LLM daily cost exceeds $1000"
             description: |
               过去 24 小时 LLM 工作负载成本: ${{ $value | printf "%.2f" }}
               阈值: $1000
@@ -845,7 +847,7 @@ spec:
             severity: critical
             team: finops
           annotations:
-            summary: "LLM 日成本严重超标 (>$5000)"
+            summary: "LLM daily cost severely overruns (> $5000)"
             description: |
               过去 24 小时 LLM 工作负载成本: ${{ $value | printf "%.2f" }}
               需要立即检查和优化
@@ -861,13 +863,13 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "LLM 成本突然激增 200%"
+            summary: "LLM cost suddenly surged 200%"
             description: |
               当前小时成本相比 24 小时平均值增长 {{ $value | printf "%.1f" }}x
               请检查是否有异常任务运行
               
     # =================================================================
-    # GPU 利用率成本告警
+    # GPU utilization cost alert
     # =================================================================
     - name: llm.gpu.efficiency
       interval: 1m
@@ -883,7 +885,7 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "GPU 利用率低但成本高"
+            summary: "Low GPU utilization but high cost"
             description: |
               GPU 利用率: {{ $value | printf "%.1f" }}%
               GPU 处于低利用率状态超过 1 小时,造成成本浪费
@@ -903,13 +905,13 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "GPU 显存利用率低"
+            summary: "Low GPU memory utilization"
             description: |
               GPU 显存利用率: {{ $value | printf "%.1f" }}%
               建议考虑使用更小显存的 GPU 实例以节省成本
               
     # =================================================================
-    # 预算告警
+    # Budget alert
     # =================================================================
     - name: llm.budget
       interval: 15m
@@ -924,8 +926,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "月度预算已使用 75%"
-            description: "当前月度支出已达预算的 {{ $value | printf \"%.1f\" }}%"
+            summary: "Monthly budget has been used at 75%"
+            description: "Current monthly expenses have reached {{ $value | printf \"%.1f\" }}% of the budget"
             
         - alert: MonthlyBudget90Percent
           expr: |
@@ -937,8 +939,8 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "月度预算已使用 90%"
-            description: "当前月度支出已达预算的 {{ $value | printf \"%.1f\" }}%,需要立即控制支出"
+            summary: "Monthly budget has been used at 90%"
+            description: "Current monthly expenses have reached {{ $value | printf \"%.1f\" }}%, immediate expense control is needed"
             
         - alert: ProjectedOverBudget
           expr: |
@@ -951,12 +953,12 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "预计月度支出将超预算 10%"
+            summary: "Expected monthly cost will exceed budget by 10%"
             description: |
               基于过去 7 天趋势,预计月度支出将达 ${{ $value | printf "%.2f" }}
               
     # =================================================================
-    # 资源浪费告警
+    # Resource waste alert
     # =================================================================
     - name: llm.waste
       interval: 30m
@@ -973,8 +975,8 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "存在闲置 GPU 节点"
-            description: "有 {{ $value }} 个 GPU 节点没有运行任何 GPU Pod,建议缩容"
+            summary: "Idle GPU nodes exist"
+            description: "There are {{ $value }} GPU nodes running no GPU Pods, suggest resizing"
             
         - alert: OverprovisionedInference
           expr: |
@@ -987,42 +989,42 @@ spec:
           labels:
             severity: info
           annotations:
-            summary: "推理服务可能过度配置"
-            description: "推理服务副本数可能过多,请检查 HPA 配置"
+            summary: "Inference service may be over-provisioned"
+            description: "The number of inference service replicas may be too high, check the HPA configuration"
 ```
 
-<!-- chunk: 成本优化策略 -->
-## 成本优化策略
 
-### 训练成本优化矩阵
+## Cost Optimization Strategies
 
-| 优化策略 | 实现方式 | 预期节省 | 复杂度 | 适用场景 |
+### Training Cost Optimization Matrix
+
+| Optimization Strategy | Implementation Method | Expected Savings | Complexity | Applicable Scenarios |
 |---------|---------|---------|-------|---------|
-| **Spot/抢占实例** | Karpenter 配置优先 Spot | 60-70% | 低 | 可中断训练 |
-| **混合精度训练** | FP16/BF16 + 动态损失缩放 | 30-40% | 低 | 大多数模型 |
-| **梯度累积** | 小批量 + 累积更新 | 20-30% | 低 | 显存受限场景 |
-| **梯度检查点** | 时间换显存 | 20-30% | 中 | 大模型训练 |
-| **Early Stopping** | 验证集监控 | 15-25% | 低 | 过拟合检测 |
-| **模型并行** | Tensor/Pipeline 并行 | - | 高 | 超大模型 |
-| **数据并行优化** | FSDP/DeepSpeed | 20-30% | 中 | 多卡训练 |
+| **Spot/Affordable Instances** | Karpenter configure priority spot | 60-70% | Low | Interruptible training |
+| **Mixed Precision Training** | FP16/BF16 + Dynamic Loss Scaling | 30-40% | Low | Most models |
+| **Gradient Accumulation** | Small Batch + Accumulated Update | 20-30% | Low | Memory-limited scenarios |
+| **Gradient Checkpointing** | Time for Memory | 20-30% | Medium | Large model training |
+| **Early Stopping** | Validation Set Monitoring | 15-25% | Low | Overfitting detection |
+| **Model Parallelism** | Tensor/Pipeline Parallelism | - | High | Ultra-large models |
+| **Data Parallel Optimization** | FSDP/DeepSpeed | 20-30% | Medium | Multi-GPU training |
 
-### 推理成本优化矩阵
+### Inference Cost Optimization Matrix
 
-| 优化策略 | 实现方式 | 预期节省 | 复杂度 | 适用场景 |
+| Optimization Strategy | Implementation Method | Expected Savings | Complexity | Applicable Scenarios |
 |---------|---------|---------|-------|---------|
-| **动态批处理** | vLLM continuous batching | 60-80% | 中 | 高并发推理 |
-| **模型量化** | INT8/INT4 量化 | 50-75% | 中 | 推理部署 |
-| **KV Cache 优化** | PagedAttention | 30-50% | 低 | 长序列生成 |
-| **推测解码** | Speculative Decoding | 20-40% | 高 | 延迟敏感场景 |
-| **自动扩缩容** | HPA/KEDA | 30-50% | 低 | 负载波动大 |
-| **请求缓存** | Semantic Cache | 20-40% | 中 | 重复请求多 |
-| **模型蒸馏** | 小模型替代 | 60-80% | 高 | 特定任务 |
+| **Dynamic Batch Processing** | vLLM continuous batching | 60-80% | Medium | High-concurrency inference |
+| **Model Quantization** | INT8/INT4 Quantization | 50-75% | Medium | Inference deployment |
+| **KV Cache Optimization** | PagedAttention | 30-50% | Low | Long sequence generation |
+| **Speculative Decoding** | Speculative Decoding | 20-40% | High | Delay-sensitive scenarios |
+| **Auto Scaling** | HPA/KEDA | 30-50% | Low | Large load fluctuations |
+| **Semantic Cache** | Semantic Cache | 20-40% | Medium | Frequent Requests |
+| **Model Distillation** | Model Distillation | 60-80% | High | Specific Tasks |
 
-### 成本优化配置示例
+### Cost Optimization Configuration Example
 
 ```yaml
 # cost-optimized-training.yaml
-# 成本优化的训练任务配置
+# Optimized training task configuration
 
 apiVersion: batch/v1
 kind: Job
@@ -1042,7 +1044,7 @@ spec:
         project: llama2-finetuning
         spot-tolerant: "true"
     spec:
-      # 优先使用 Spot 实例
+      # Prioritize Spot Instances
       nodeSelector:
         node.kubernetes.io/instance-type: p4d.24xlarge
       tolerations:
@@ -1054,7 +1056,7 @@ spec:
           operator: "Exists"
           effect: "NoSchedule"
           
-      # 检查点存储 (支持中断恢复)
+      # Checkpoint storage (supports interruption recovery)
       volumes:
         - name: checkpoint
           persistentVolumeClaim:
@@ -1100,7 +1102,7 @@ spec:
 
 ---
 # cost-optimized-inference.yaml
-# 成本优化的推理服务配置
+# Cost-optimized inference service configuration
 
 apiVersion: apps/v1
 kind: Deployment
@@ -1143,7 +1145,7 @@ spec:
             - containerPort: 8000
 
 ---
-# HPA 配置
+# HPA configuration
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -1179,14 +1181,14 @@ spec:
           periodSeconds: 15
 ```
 
-<!-- chunk: 成本报告生成 -->
-## 成本报告生成
 
-### 自动化报告脚本
+## Cost Report Generation
+
+### Automated Report Script
 
 ```python
 # generate_cost_report.py
-# 成本报告生成脚本
+# Cost report generation script
 
 import pandas as pd
 from datetime import datetime, timedelta
@@ -1196,32 +1198,32 @@ import io
 import base64
 
 class CostReportGenerator:
-    """成本报告生成器"""
+    """Cost Report Generator"""
     
     def __init__(self, kubecost_client, output_dir: str = "/reports"):
         self.kubecost = kubecost_client
         self.output_dir = output_dir
         
     def generate_monthly_report(self, year: int, month: int) -> str:
-        """生成月度成本报告"""
+        """Generate Monthly Cost Report"""
         
-        # 获取数据
+        # Get data
         team_costs = self._get_team_costs(f"{year}-{month:02d}")
         project_costs = self._get_project_costs(f"{year}-{month:02d}")
         gpu_costs = self._get_gpu_costs(f"{year}-{month:02d}")
         trends = self._get_cost_trends(f"{year}-{month:02d}")
         
-        # 生成报告
+        # Generate report
         report = f"""
-# LLM 成本月度报告
+# Monthly LLM Cost Report
 
-<!-- chunk: 报告信息 -->
-## 报告信息
+
+## Report Information
 - **报告期间**: {year}年{month}月
 - **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
-<!-- chunk: 执行摘要 -->
-## 执行摘要
+
+## Executive Summary
 
 | 指标 | 本月值 | 环比变化 | 状态 |
 |-----|-------|---------|-----|
@@ -1229,46 +1231,46 @@ class CostReportGenerator:
 | GPU 成本 | ${gpu_costs['total']:.2f} | {trends['gpu_change']:.1f}% | {'⚠️' if trends['gpu_change'] > 25 else '✅'} |
 | 平均 GPU 利用率 | {gpu_costs['avg_utilization']:.1f}% | - | {'⚠️' if gpu_costs['avg_utilization'] < 50 else '✅'} |
 
-<!-- chunk: 团队成本分布 -->
-## 团队成本分布
+
+## Team Cost Distribution
 
 {self._format_team_table(team_costs['by_team'])}
 
-<!-- chunk: 项目成本 Top 10 -->
-## 项目成本 Top 10
+
+## Top 10 Project Costs
 
 {self._format_project_table(project_costs['top_10'])}
 
-<!-- chunk: GPU 使用分析 -->
-## GPU 使用分析
 
-### 按 GPU 类型
+## GPU Usage Analysis
+
+### By GPU Type
 {self._format_gpu_table(gpu_costs['by_type'])}
 
-### GPU 利用率分布
+### Distribution of GPU Utilization
 - 高利用率 (>70%): {gpu_costs['high_util_percent']:.1f}%
 - 中等利用率 (30-70%): {gpu_costs['medium_util_percent']:.1f}%
 - 低利用率 (<30%): {gpu_costs['low_util_percent']:.1f}%
 
-<!-- chunk: 优化建议 -->
-## 优化建议
+
+## Optimization Recommendations
 
 {self._generate_recommendations(team_costs, gpu_costs)}
 
-<!-- chunk: 下月预测 -->
-## 下月预测
+
+## Next Month's Forecast
 
 基于当前趋势,预计下月成本: **${trends['next_month_forecast']:.2f}**
 
 ---
-*报告由 LLM 成本监控系统自动生成*
+*Report generated by the LLM Cost Monitoring System*
 """
         
         return report
     
     def _format_team_table(self, data: List[Dict]) -> str:
-        """格式化团队成本表格"""
-        header = "| 团队 | 总成本 | GPU成本 | 占比 |\n|-----|-------|--------|-----|"
+        """Format the team cost table"""
+        header = "| Team | Total Cost | GPU Cost | Ratio |\n|-----|-----------|----------|-----|"
         rows = []
         total = sum(d['total'] for d in data)
         for d in data:
@@ -1277,44 +1279,44 @@ class CostReportGenerator:
         return header + "\n" + "\n".join(rows)
     
     def _format_project_table(self, data: List[Dict]) -> str:
-        """格式化项目成本表格"""
-        header = "| 项目 | 成本 | GPU小时 | 效率 |\n|-----|------|--------|-----|"
+        """Format the project cost table"""
+        header = "| Project | Cost | GPU Hours | Efficiency |\n|-----|------|--------|-----|"
         rows = []
         for d in data:
             rows.append(f"| {d['project']} | ${d['cost']:.2f} | {d['gpu_hours']:.1f} | {d['efficiency']:.1f}% |")
         return header + "\n" + "\n".join(rows)
     
     def _format_gpu_table(self, data: List[Dict]) -> str:
-        """格式化 GPU 成本表格"""
-        header = "| GPU类型 | 成本 | 使用时长 | 平均利用率 |\n|--------|------|---------|----------|"
+        """Format the GPU cost table"""
+        header = "| GPU Type | Cost | Usage Time | Average Utilization |\n|--------|------|---------|----------|"
         rows = []
         for d in data:
             rows.append(f"| {d['type']} | ${d['cost']:.2f} | {d['hours']:.1f}h | {d['util']:.1f}% |")
         return header + "\n" + "\n".join(rows)
     
     def _generate_recommendations(self, team_costs: Dict, gpu_costs: Dict) -> str:
-        """生成优化建议"""
+        """Generate optimization suggestions"""
         recommendations = []
         
         if gpu_costs['avg_utilization'] < 50:
             recommendations.append(
-                "1. **提高 GPU 利用率**: 当前平均利用率仅 {:.1f}%,建议:\n"
-                "   - 启用动态批处理\n"
-                "   - 使用更小的 GPU 实例\n"
-                "   - 配置自动缩容".format(gpu_costs['avg_utilization'])
+                "1. **Improve GPU Utilization**: Current average utilization is only {:.1f}%, suggest:\n"
+                "   - Enable dynamic batch processing\n"
+                "   - Use smaller GPU instances\n"
+                "   - Configure automatic scaling"
             )
             
         if gpu_costs['low_util_percent'] > 30:
             recommendations.append(
-                "2. **减少低效 GPU 使用**: {:.1f}% 的 GPU 时间处于低利用率状态,建议:\n"
-                "   - 审查长时间运行的任务\n"
-                "   - 设置 GPU 空闲超时".format(gpu_costs['low_util_percent'])
+                "2. **Reduce inefficient GPU usage**: {:.1f}% of GPU time is in low utilization state, suggest:\n"
+                "   - review long-running tasks\n"
+                "   - set GPU idle timeout".format(gpu_costs['low_util_percent'])
             )
             
-        return "\n\n".join(recommendations) if recommendations else "当前成本使用效率良好,无特别优化建议。"
+        return "\n\n".join(recommendations) if recommendations else "Current cost efficiency is good, no special optimization suggestions."
     
     def _get_team_costs(self, period: str) -> Dict:
-        # 模拟数据获取
+        # Simulate data retrieval
         return {
             'total': 45000,
             'by_team': [
@@ -1354,59 +1356,59 @@ class CostReportGenerator:
         }
 ```
 
-<!-- chunk: 版本变更记录 -->
-## 版本变更记录
 
-| 版本 | 变更内容 | 影响 |
+## Version Change Log
+
+| Version | Change Content | Impact |
 |-----|---------|------|
-| **Kubecost 2.0** | 新增 GPU 成本追踪 | 更精确的 LLM 成本分析 |
-| **[[OpenCost|OpenCost]] 1.0** | CNCF 毕业项目 | 开源替代方案 |
-| **v1.28** | 原生 GPU 监控增强 | 更好的 Device Plugin 支持 |
+| **Kubecost 2.0** | Add GPU Cost Tracking | More Precise LLM Cost Analysis |
+| **[[OpenCost|OpenCost]] 1.0** | Graduated from CNCF | Open Source Alternative |
+| **v1.28** | Enhance Native GPU Monitoring | Better Device Plugin Support |
 
-<!-- chunk: 最佳实践总结 -->
-## 最佳实践总结
 
-### 成本监控检查清单
+## Summary of Best Practices
 
-- [ ] 部署 Kubecost 或 OpenCost
-- [ ] 配置 DCGM Exporter 监控 GPU
-- [ ] 建立成本标签规范并强制执行
-- [ ] 配置成本告警规则
-- [ ] 设置团队/项目预算
-- [ ] 定期生成成本报告
-- [ ] 持续优化高成本工作负载
+### Cost Monitoring Checklist
 
-### 关键监控指标
+- [ ] Deploy Kubecost or OpenCost
+- [ ] Configure DCGM Exporter to Monitor GPUs
+- [ ] Establish a cost tagging standard and enforce it
+- [ ] Configure cost alert rules
+- [ ] Set up team/project budgets
+- [ ] Generate cost reports regularly
+- [ ] Continuously optimize high-cost workloads
 
-- `kubecost_cluster_cost_total` - 集群总成本
-- `kubecost_pod_gpu_cost` - Pod GPU 成本
-- `DCGM_FI_DEV_GPU_UTIL` - GPU 利用率
-- `DCGM_FI_DEV_FB_USED` - GPU 显存使用
+### Key Monitoring Metrics
 
----
-
-**参考资料**:
-- [Kubecost 文档](https://docs.kubecost.com/)
-- [OpenCost 项目](https://www.opencost.io/)
-- [FinOps 基金会](https://www.finops.org/)
+- `kubecost_cluster_cost_total` - Total Cluster Cost
+- `kubecost_pod_gpu_cost` - Pod GPU Cost
+- `DCGM_FI_DEV_GPU_UTIL` - GPU Utilization
+- `DCGM_FI_DEV_FB_USED` - GPU Memory Usage
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**References**:
+- [Kubecost Documentation](https://docs.kubecost.com/)
+- [OpenCost Project](https://www.opencost.io/)
+- [FinOps Foundation](https://www.finops.org/)
+
+---
+
+
+## Obsidian Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 
@@ -1417,7 +1419,7 @@ class CostReportGenerator:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

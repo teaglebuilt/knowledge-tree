@@ -1,6 +1,6 @@
 ---
-title: 143 - LLM微调技术与实践 (LLM Fine-tuning Techniques & Practices)
-description: '# 143 - LLM微调技术与实践 (LLM Fine-tuning Techniques & Practices)'
+title: 143 - LLM Fine-tuning Techniques & Practices
+description: '# 143 - LLM uned techniques and practices (LLM Fine-tuning Techniques & Practices)'
 summary: 'parser.add_argument("--gradient_accumulation_steps", type=int, default=4)'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers - AI Engineers
+- MLOps Engineers - MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM微调技术与实践 (LLM Fine-tuning Techniques & Practices) 是什么
-- 如何 LLM微调技术与实践 (LLM Fine-tuning Techniques & Practices)
-- Kubernetes 11 ai infra 最佳实践
+- LLM Fine-tuning Techniques & Practices is what
+- How LLM Fine-tuning Techniques & Practices (LLM Fine-tuning Techniques & Practices)
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- LLM微调技术与实践
+- LLMS Tuning Technology and Practice
 - LLM
 - Fine-tuning
 - Techniques
@@ -51,144 +51,146 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/16-llm-finetuning.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether these commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 143 - LLM微调技术与实践 (LLM Fine-tuning Techniques & Practices)
+# 143 - LLM Fine-tuning Techniques & Practices
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **最后更新**: 2026-01 | **参考**: [PEFT](https://huggingface.co/docs/peft/), [TRL](https://huggingface.co/docs/trl/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25-v1.32 | **Last Updated**: 2026-01 | **Reference**: [PEFT](https://huggingface.co/docs/peft/), [TRL](https://huggingface.co/docs/trl/)
 
 ---
 
-<!-- chunk: 一、微调技术全景 (Fine-tuning Landscape) -->
-## 一、微调技术全景 (Fine-tuning Landscape)
 
-### 1.1 微调方法分类
+## 1. Overall Fine-tuning Landscape (Fine-tuning Landscape)
+
+### 1.1 Tuning Methods Classification
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      LLM 微调技术全景                                        │
+│                      LLM Fine-tuning Technology Overview                                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                    全参数微调 (Full Fine-tuning)                       │ │
+│  │                    Full Parameter Fine-tuning                       │ │
 │  │  ┌─────────────────────────────────────────────────────────────────┐ │ │
-│  │  │  更新所有参数 | 显存需求极高 | 效果最佳 | 适合领域垂直化           │ │ │
-│  │  │  典型场景: 预训练续训、领域适配、多语言扩展                       │ │ │
+│  │  │  Update all parameters | High memory requirement | Best effect | Suitable for verticalization           │ │ │
+│  │  │  Typical scenarios: Pre-training resuming, domain adaptation, multi-language expansion                       │ │ │
 │  │  └─────────────────────────────────────────────────────────────────┘ │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                    参数高效微调 (PEFT)                                 │ │
+│  │                    Parameter Efficient Fine-tuning (PEFT)                                 │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │ │
 │  │  │    LoRA      │  │   QLoRA      │  │   Adapter    │               │ │
-│  │  │  低秩分解    │  │ 量化+LoRA    │  │  适配器层    │               │ │
-│  │  │  0.1%参数    │  │  4-bit量化   │  │  插入模块    │               │ │
+│  │  │ Rank-Sparse Decomposition    │  │ Quantization+LoRA    │  │ Adapter Layer    │               │ │
+│  │  │  0.1% Parameter  │  │  4-bit Quantization  │  │  Insert Module  │               │ │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │ │
 │  │  │  IA³         │  │  Prefix      │  │  P-Tuning    │               │ │
-│  │  │  激活缩放    │  │  前缀微调    │  │  软提示词    │               │ │
-│  │  │  0.01%参数   │  │  虚拟token   │  │  可学习嵌入  │               │ │
+│  │  │  Activate Scaling  │  │  Prefix Tuning  │  │  Soft Prompt  │               │ │
+│  │  │  0.01% parameter  │  │  virtual token  │  │  learnable embedding  │               │ │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │                    对齐微调 (Alignment)                                │ │
+│  │                    Alignment Tuning                                │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │ │
 │  │  │    SFT       │  │    RLHF      │  │    DPO       │               │ │
-│  │  │  监督微调    │  │ 人类反馈强化  │  │ 直接偏好优化  │               │ │
-│  │  │  指令-响应   │  │  奖励模型    │  │  无需RM      │               │ │
+│  │  │  Supervised Fine-tuning  │  │ Human Feedback Reinforcement  │  │ Direct Preference Optimization  │               │ │
+│  │  │  Command-response  │  │  Reward model  │  │  No RM        │               │ │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │ │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐               │ │
 │  │  │    PPO       │  │    ORPO      │  │    KTO       │               │ │
-│  │  │  近端策略    │  │ 奇异比偏好   │  │ Kahneman-T   │               │ │
-│  │  │  复杂但稳定  │  │  无需参考模型│  │  单边数据    │               │ │
+│  │  │  Near-end Policy  │  │ Odd Ratio Preference  │  │ Kahneman-T  │               │ │
+│  │  │  Complex but stable  │  │  No reference model required│  │  Unilateral data    │               │ │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘               │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 微调方法对比
+### 1.2 Tuning Methods Comparison
 
-| 方法 | 可训练参数 | 显存需求(7B) | 训练速度 | 效果 | 适用场景 |
+| Method | Number of Trainable Parameters | Memory Requirement (7B) | Training Speed | Effect | Applicable Scenario |
 |-----|-----------|-------------|---------|------|---------|
-| **Full FT** | 100% | 112GB+ | 慢 | 最佳 | 领域垂直化 |
-| **LoRA** | 0.1-1% | 16-24GB | 快 | 优秀 | 通用指令微调 |
-| **QLoRA** | 0.1-1% | 6-12GB | 中 | 优秀 | 资源受限场景 |
-| **Adapter** | 1-5% | 20-30GB | 快 | 良好 | 多任务适配 |
-| **IA³** | 0.01% | 14-16GB | 极快 | 良好 | 轻量级适配 |
-| **Prefix Tuning** | <0.1% | 14-16GB | 极快 | 中等 | Few-shot增强 |
-| **P-Tuning v2** | <0.1% | 14-16GB | 极快 | 良好 | NLU任务 |
+| **Full FT** | 100% | 112GB+ | Slow | Best | Vertical domain specialization |
+| **LoRA** | 0.1-1% | 16-24GB | Fast | Excellent | General instruction fine-tuning |
+| **QLoRA** | 0.1-1% | 6-12GB | Moderate | Excellent | Resource-constrained scenarios |
+| **Adapter** | 1-5% | 20-30GB | Fast | Good | Multi-task adaptation |
+| **IA³** | 0.01% | 14-16GB | Very fast | Good | Lightweight adaptation |
+| **Prefix Tuning** | <0.1% | 14-16GB | Very fast | Good | Few-shot enhancement |
+| **P-Tuning v2** | <0.1% | 14-16GB | Very fast | Good | NLU tasks |
 
-### 1.3 显存估算公式
+### 1.3 Memory Estimation Formula
 
-| 组件 | 计算公式 | 7B模型估算 |
+| Component | Formula | Estimation for 7B Model |
 |-----|---------|-----------|
-| **模型权重** | 参数量 × 精度字节 | 7B × 2B = 14GB (FP16) |
-| **梯度** | 参数量 × 4B | 7B × 4B = 28GB |
-| **优化器状态** | 参数量 × 8B (AdamW) | 7B × 8B = 56GB |
-| **激活值** | batch × seq × hidden × layers | ~10-20GB |
-| **LoRA显存** | 基础模型 + rank × hidden × 2 | 14GB + 1GB |
+| **Model Weights** | Parameter Quantity × Precision Bytes | 7B × 2B = 14GB (FP16) |
+| **Gradients** | Parameter Quantity × 4B | 7B × 4B = 28GB |
+| **Optimizer State** | Parameter Quantity × 8B (AdamW) | 7B × 8B = 56GB |
+| **Activation Values** | Batch × Sequence × Hidden × Layers | ~10-20GB |
+| **LoRA Memory** | Base Model + rank × Hidden × 2 | 14GB + 1GB |
 
 ---
 
-<!-- chunk: 二、LoRA微调详解 (LoRA Fine-tuning) -->
-## 二、LoRA微调详解 (LoRA Fine-tuning)
 
-### 2.1 LoRA原理
+## 2. LoRA Fine-tuning Explained (LoRA Fine-tuning)
+
+### 2.1 LoRA Principle
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         LoRA 低秩分解原理                                    │
+│                         LoRA Low-rank Decomposition Principle                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  原始权重矩阵 W (d × k)                                                     │
+│  Original weight matrix W (d × k)                                                     │
 │  ┌───────────────────────────────┐                                         │
 │  │                               │                                         │
-│  │           W₀ (冻结)           │                                         │
+│  │           Frozen W₀           │                                         │
 │  │         (d × k)               │                                         │
 │  │                               │                                         │
 │  └───────────────────────────────┘                                         │
 │                  +                                                          │
 │  ┌───────────────────────────────┐                                         │
-│  │  LoRA 增量: ΔW = B × A        │                                         │
+│  │  LoRA Increment: ΔW = B × A        │                                         │
 │  │  ┌─────┐     ┌───────────┐   │                                         │
 │  │  │  B  │  ×  │     A     │   │                                         │
 │  │  │(d×r)│     │   (r×k)   │   │                                         │
 │  │  └─────┘     └───────────┘   │                                         │
 │  │                               │                                         │
-│  │  r << min(d, k), 如 r=8      │                                         │
-│  │  可训练参数: r×(d+k)          │                                         │
+│  │  r << min(d, k), such as r=8      │                                         │
+│  │  Trainable parameters: r×(d+k)          │                                         │
 │  └───────────────────────────────┘                                         │
 │                                                                             │
-│  前向计算: h = W₀x + ΔWx = W₀x + BAx                                       │
-│  缩放因子: h = W₀x + (α/r) × BAx                                           │
+│  Forward calculation: h = W₀x + ΔWx = W₀x + BAx                                       │
+│  Scaling factor: h = W₀x + (α/r) × BAx                                           │
 │                                                                             │
-│  参数量对比 (Llama-7B, Attention):                                          │
-│  - 原始: 4096 × 4096 = 16.8M/层                                            │
-│  - LoRA(r=8): 8 × (4096 + 4096) = 65K/层 (节省99.6%)                       │
+│  Parameter comparison (Llama-7B, Attention):                                          │
+│  - Original: 4096 × 4096 = 16.8M/layer                                            │
+│  - LoRA(r=8): 8 × (4096 + 4096) = 65K/layer (saved 99.6%)                       │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 LoRA配置最佳实践
+### 2.2 LoRA Configuration Best Practices
 
 ```yaml
-# LoRA微调Kubernetes Job
+# LoRA Fine-Tuning Kubernetes Job
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -290,7 +292,7 @@ spec:
           claimName: hf-cache-pvc
 ```
 
-### 2.3 LoRA训练脚本
+### 2.3 LoRA Training Script
 
 ```python
 # train_lora.py
@@ -334,12 +336,12 @@ def main():
     parser.add_argument("--report_to", type=str, default="wandb")
     args = parser.parse_args()
 
-    # 加载tokenizer
+    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    # 加载模型
+    # Load model
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         torch_dtype=torch.bfloat16 if args.bf16 else torch.float16,
@@ -347,12 +349,12 @@ def main():
         trust_remote_code=True
     )
 
-    # 启用梯度检查点
+    # Enable gradient checkpointing
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
         model.enable_input_require_grads()
 
-    # LoRA配置
+    # LORA configuration
     lora_config = LoraConfig(
         r=args.lora_r,
         lora_alpha=args.lora_alpha,
@@ -362,14 +364,14 @@ def main():
         task_type=TaskType.CAUSAL_LM
     )
 
-    # 应用LoRA
+    # Apply LORA
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
 
-    # 加载数据集
+    # Load dataset
     dataset = load_from_disk(args.dataset_path)
 
-    # 训练参数
+    # Training parameters
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.per_device_train_batch_size,
@@ -389,7 +391,7 @@ def main():
         dataloader_pin_memory=True
     )
 
-    # 数据整理器
+    # Data preparer
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
         mlm=False
@@ -404,10 +406,10 @@ def main():
         data_collator=data_collator
     )
 
-    # 开始训练
+    # Start training
     trainer.train()
 
-    # 保存模型
+    # Save model
     trainer.save_model()
     tokenizer.save_pretrained(args.output_dir)
 
@@ -417,27 +419,27 @@ if __name__ == "__main__":
 
 ---
 
-<!-- chunk: 三、QLoRA量化微调 (QLoRA) -->
-## 三、QLoRA量化微调 (QLoRA)
 
-### 3.1 QLoRA配置
+## 3. QLoRA Quantized Fine-tuning (QLoRA)
+
+### 3.1 QLoRA Configuration
 
 ```yaml
-# QLoRA微调配置
+# QLoRA Fine-Tuning Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: qlora-config
 data:
   qlora_config.yaml: |
-    # 量化配置
+    # Quantization configuration
     quantization:
       load_in_4bit: true
       bnb_4bit_compute_dtype: bfloat16
       bnb_4bit_use_double_quant: true
       bnb_4bit_quant_type: nf4
       
-    # LoRA配置
+    # LORA configuration
     lora:
       r: 64
       lora_alpha: 16
@@ -453,7 +455,7 @@ data:
       bias: none
       task_type: CAUSAL_LM
       
-    # 训练配置
+    # Training configuration
     training:
       per_device_train_batch_size: 1
       gradient_accumulation_steps: 16
@@ -500,7 +502,7 @@ spec:
           name: qlora-config
 ```
 
-### 3.2 QLoRA训练脚本
+### 3.2 QLoRA Training Script
 
 ```python
 # train_qlora.py
@@ -527,7 +529,7 @@ def load_config(config_path):
 def main(args):
     config = load_config(args.config)
     
-    # 4bit量化配置
+    # 4bit quantization configuration
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=config['quantization']['load_in_4bit'],
         bnb_4bit_compute_dtype=getattr(
@@ -538,7 +540,7 @@ def main(args):
         bnb_4bit_quant_type=config['quantization']['bnb_4bit_quant_type']
     )
     
-    # 加载量化模型
+    # Load quantized model
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name,
         quantization_config=bnb_config,
@@ -546,10 +548,10 @@ def main(args):
         trust_remote_code=True
     )
     
-    # 准备量化训练
+    # Prepare for quantized training
     model = prepare_model_for_kbit_training(model)
     
-    # LoRA配置
+    # LORA configuration
     lora_config = LoraConfig(
         r=config['lora']['r'],
         lora_alpha=config['lora']['lora_alpha'],
@@ -562,13 +564,13 @@ def main(args):
     model = get_peft_model(model, lora_config)
     model.print_trainable_parameters()
     
-    # 加载tokenizer和数据
+    # Load tokenizer and data
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     tokenizer.pad_token = tokenizer.eos_token
     
     dataset = load_from_disk(args.dataset)
     
-    # 训练参数
+    # Training Parameters
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=config['training']['per_device_train_batch_size'],
@@ -612,13 +614,13 @@ if __name__ == "__main__":
 
 ---
 
-<!-- chunk: 四、对齐微调 (Alignment Fine-tuning) -->
-## 四、对齐微调 (Alignment Fine-tuning)
 
-### 4.1 SFT监督微调
+## 4. Alignment Fine-tuning
+
+### 4.1 SFT Supervised Fine-tuning
 
 ```yaml
-# SFT训练Job
+# SFT Training Job
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
@@ -659,24 +661,24 @@ spec:
                 nvidia.com/gpu: 8
 ```
 
-### 4.2 DPO直接偏好优化
+### 4.2 Direct Preference Optimization
 
 ```python
-# DPO训练配置
+# DPO Training Configuration
 from trl import DPOTrainer, DPOConfig
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import LoraConfig
 from datasets import load_from_disk
 
 def train_dpo():
-    # 加载SFT模型
+    # Load SFT Model
     model = AutoModelForCausalLM.from_pretrained(
         "llama2-7b-sft",
         torch_dtype=torch.bfloat16,
         device_map="auto"
     )
     
-    # 参考模型 (冻结的SFT模型)
+    # Reference Model (frozen SFT model)
     ref_model = AutoModelForCausalLM.from_pretrained(
         "llama2-7b-sft",
         torch_dtype=torch.bfloat16,
@@ -686,7 +688,7 @@ def train_dpo():
     tokenizer = AutoTokenizer.from_pretrained("llama2-7b-sft")
     tokenizer.pad_token = tokenizer.eos_token
     
-    # LoRA配置 (可选)
+    # LoRA Configuration (optional)
     peft_config = LoraConfig(
         r=16,
         lora_alpha=32,
@@ -696,7 +698,7 @@ def train_dpo():
         task_type="CAUSAL_LM"
     )
     
-    # DPO配置
+    # DPO Configuration
     dpo_config = DPOConfig(
         output_dir="llama2-7b-dpo",
         beta=0.1,                      # KL散度系数
@@ -715,8 +717,8 @@ def train_dpo():
         report_to="wandb"
     )
     
-    # 加载偏好数据集
-    # 格式: {"prompt": str, "chosen": str, "rejected": str}
+    # Load Preference Dataset
+    # Format: {"prompt": str, "chosen": str, "rejected": str}
     dataset = load_from_disk("/data/dpo_dataset")
     
     # DPO Trainer
@@ -737,10 +739,10 @@ if __name__ == "__main__":
     train_dpo()
 ```
 
-### 4.3 RLHF训练Pipeline
+### 4.3 RLHF Training Pipeline
 
 ```yaml
-# RLHF三阶段训练Pipeline
+# RLHF Three-Stage Training Pipeline
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -757,12 +759,12 @@ spec:
       - name: sft-training
         template: sft
         
-      # Stage 2: 奖励模型训练
+      # Stage 2: Reward Model Training
       - name: reward-model-training
         template: reward-model
         dependencies: [sft-training]
         
-      # Stage 3: PPO训练
+      # Stage 3: PPO Training
       - name: ppo-training
         template: ppo
         dependencies: [reward-model-training]
@@ -799,13 +801,13 @@ spec:
 
 ---
 
-<!-- chunk: 五、分布式微调 (Distributed Fine-tuning) -->
-## 五、分布式微调 (Distributed Fine-tuning)
 
-### 5.1 DeepSpeed ZeRO配置
+## 5. Distributed Fine-tuning (Distributed Fine-tuning)
+
+### 5.1 DeepSpeed ZeRO Configuration
 
 ```yaml
-# DeepSpeed配置
+# DeepSpeed Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -874,10 +876,10 @@ data:
     }
 ```
 
-### 5.2 多节点训练
+### 5.2 Multi-node Training
 
 ```yaml
-# PyTorchJob多节点微调
+# PyTorchJob Multi-node Fine-tuning
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
@@ -934,25 +936,25 @@ spec:
 
 ---
 
-<!-- chunk: 六、微调监控与评估 (Monitoring & Evaluation) -->
-## 六、微调监控与评估 (Monitoring & Evaluation)
 
-### 6.1 训练监控指标
+## 6. Tuning Monitoring & Evaluation (Monitoring & Evaluation)
 
-| 指标 | 说明 | 告警阈值 |
+### 6.1 Train Monitoring Metrics
+
+| Metric | Description | Alert Threshold |
 |-----|------|---------|
-| **train_loss** | 训练损失 | 停滞>1000步 |
-| **eval_loss** | 验证损失 | 持续上升 |
-| **learning_rate** | 学习率 | 异常归零 |
-| **grad_norm** | 梯度范数 | > 10 (梯度爆炸) |
-| **gpu_util** | GPU利用率 | < 50% |
-| **gpu_memory** | 显存使用 | > 95% |
-| **throughput** | 样本/秒 | 下降>20% |
+| **train_loss** | Training Loss | Stagnation >1000 steps |
+| **eval_loss** | Evaluation Loss | Rising continuously |
+| **learning_rate** | Learning Rate | Zeroes Out Abnormalities |
+| **grad_norm** | Gradient Norm | > 10 (Gradient Explosion) |
+| **gpu_util** | GPU Utilization | < 50% |
+| **gpu_memory** | GPU Memory Usage | > 95% |
+| **throughput** | Samples/Second | Decreases >20% |
 
-### 6.2 评估Pipeline
+### 6.2 Evaluate Pipeline
 
 ```yaml
-# 模型评估Job
+# Model Evaluation Job
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -993,22 +995,22 @@ spec:
 
 ---
 
-<!-- chunk: 七、成本优化 (Cost Optimization) -->
-## 七、成本优化 (Cost Optimization)
 
-### 7.1 成本对比
+## 7. Cost Optimization (Cost Optimization)
 
-| 配置 | GPU | 7B模型训练成本 | 70B模型训练成本 |
+### 7.1 Cost Comparison
+
+| Parameter | GPU | Cost for Training a 7B Model | Cost for Training an 70B Model |
 |-----|-----|---------------|----------------|
-| **Full FT** | 2×A100 80GB | $200/天 | $1,600/天 |
-| **LoRA** | 1×A100 40GB | $50/天 | $400/天 |
-| **QLoRA** | 1×A10G 24GB | $8/天 | $64/天 |
-| **Spot + QLoRA** | 1×A10G Spot | $2.4/天 | $19/天 |
+| **Full FT** | 2×A100 80GB | $200/day | $1,600/day |
+| **LoRA** | 1×A100 40GB | $50/day | $400/day |
+| **QLoRA** | 1×A10G 24GB | $8/day | $64/day |
+| **Spot + QLoRA** | 1×A10G Spot | $2.4/day | $19/day |
 
-### 7.2 Spot实例策略
+### 7.2 Spot Instance Strategy
 
 ```yaml
-# Spot实例微调配置
+# Spot Instance Fine-tuning Configuration
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -1029,7 +1031,7 @@ spec:
   ttlSecondsAfterEmpty: 30
   
 ---
-# 训练中断恢复
+# Resume Training
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1057,65 +1059,65 @@ spec:
 
 ---
 
-<!-- chunk: 八、快速参考 (Quick Reference) -->
-## 八、快速参考 (Quick Reference)
 
-### 8.1 LoRA参数选择
+## 8. Quick Reference (Quick Reference)
 
-| 参数 | 小模型(<7B) | 中模型(7-13B) | 大模型(>30B) |
+### 8.1 LoRA Parameter Selection
+
+| Parameter | Small Models (<7B) | Medium Models (7-13B) | Large Models (>30B) |
 |-----|------------|--------------|-------------|
 | **r (rank)** | 8-16 | 16-32 | 32-64 |
 | **alpha** | 16-32 | 32-64 | 64-128 |
 | **dropout** | 0.05-0.1 | 0.05-0.1 | 0.05 |
 | **target_modules** | q,v | q,k,v,o | all linear |
-| **学习率** | 1e-4 - 3e-4 | 1e-4 - 2e-4 | 5e-5 - 1e-4 |
+| **learning_rate** | 1e-4 - 3e-4 | 1e-4 - 2e-4 | 5e-5 - 1e-4 |
 
-### 8.2 常用命令
+### 8.2 Common Commands
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+> ⚠️ **Yellow Alert Change** — Change cluster resource status, suggest first using --dry-run or diff to confirm
+> - `kubectl exec`: Enter container to execute commands, may change container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# 查看训练状态
+# 🟡 Medium Risk: Modifies cluster/resource state, confirm target, impact scope, and authorization before execution
+# Check Training Status
 kubectl logs -f job/lora-training -n ml-training
 
-# 查看GPU使用
+# Check GPU Usage
 kubectl exec -it <pod> -- nvidia-smi
 
-# 加载LoRA权重
+# Load LoRA weights
 from peft import PeftModel
 model = PeftModel.from_pretrained(base_model, "path/to/lora")
 
-# 合并LoRA到基础模型
+# Merge LoRA to the base model
 merged_model = model.merge_and_unload()
 merged_model.save_pretrained("merged_model")
 ```
 ---
 
-**微调最佳实践**: 从QLoRA开始 → 验证效果后升级LoRA → 必要时Full FT → 持续评估
+**Micro-Fine Tuning Best Practices**: Start from QLoRA → Validate effects before upgrading LoRA → Necessary then Full FT → Continuously Evaluate
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table Bottom Markers**: Kusheet Project, Author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## 9. Obsidian Documentation (Obsidian Documentation)
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Index of Open Source Projects
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
 
 ## See Also
 

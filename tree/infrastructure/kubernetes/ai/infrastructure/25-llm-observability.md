@@ -1,6 +1,6 @@
 ---
-title: 25 - LLM可观测性与监控体系
-description: '# 25 - LLM可观测性与监控体系'
+title: 25 - LLM Observability and Monitoring System
+description: '# 25 - LLM Observability and Monitoring System'
 summary: 'from prometheus_client import Counter, Histogram, Gauge, Summary'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM可观测性与监控体系 是什么
-- 如何 LLM可观测性与监控体系
-- Kubernetes 11 ai infra 最佳实践
+- What is LLM Observability and Monitoring System
+- How to implement LLM Observability and Monitoring System
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- LLM可观测性与监控体系
+- LLM Observability and Monitoring System
 - ai
 - infra
 prerequisites:
@@ -51,30 +51,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/25-llm-observability.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; and that they have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# 25 - LLM可观测性与监控体系
+# 25 - LLM Observability and Monitoring System
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 专家级 | **参考**: [[entities/prometheus.md|Prometheus]]](https://prometheus.io/) | [[entities/opentelemetry.md|OpenTelemetry]]](https://opentelemetry.io/) | [Grafana](https://grafana.com/) | [Elasticsearch](https://www.elastic.co/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Expert Level | **References**: [[entities/prometheus.md|Prometheus]](https://prometheus.io/) | [[entities/opentelemetry.md|OpenTelemetry]](https://opentelemetry.io/) | [Grafana](https://grafana.com/) | [Elasticsearch](https://www.elastic.co/)
 
-<!-- chunk: 一、企业级LLM可观测性架构 -->
-## 一、企业级LLM可观测性架构
 
-### 1.1 五维可观测性模型
+## 1. Enterprise-Level LLM Observability Architecture
+
+### 1.1 Five-Dimensional Observability Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -96,7 +98,7 @@ cross_refs:
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │ Application │  │ System      │  │ Audit       │  │ Security    │          │  │
 │  │  │ Logs        │  │ Logs        │  │ Logs        │  │ Logs        │          │  │
-│  │  │ (业务逻辑)  │  │ (系统状态)  │  │ (操作审计)  │  │ (安全事件)  │          │  │
+│  │  │ (business logic)  │  │ (system state)  │  │ (operation audit)  │  │ (security event)  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
 │                                       │                                             │
@@ -106,7 +108,7 @@ cross_refs:
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │ Request     │  │ Model       │  │ Data        │  │ User        │          │  │
 │  │  │ Tracing     │  │ Inference   │  │ Processing  │  │ Experience  │          │  │
-│  │  │ (调用链路)  │  │ (推理过程)  │  │ (数据流)    │  │ (用户体验)  │          │  │
+│  │  │ (call chain)  │  │ (inference process)  │  │ (data flow)    │  │ (user experience)  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
 │                                       │                                             │
@@ -116,36 +118,36 @@ cross_refs:
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │ Real-time   │  │ Automated   │  │ Human       │  │ Escalation  │          │  │
 │  │  │ Alerts      │  │ Remediation │  │ Review      │  │ Process     │          │  │
-│  │  │ (实时告警)  │  │ (自动修复)  │  │ (人工审核)  │  │ (升级流程)  │          │  │
+│  │  │ (real-time alert)  │  │ (automatic repair)  │  │ (manual review)  │  │ (upgrade process)  │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 关键可观测性指标体系
+### 1.2 Key Observability Metric Framework
 
-| 指标类别 | 核心指标 | 监控阈值 | 告警级别 | 业务影响 |
+| Metric Category | Core Metrics | Monitoring Thresholds | Alert Level | Business Impact |
 |----------|----------|----------|----------|----------|
-| **性能指标** | P50/P95/P99延迟 | P99<2s | Critical | 用户体验 |
-| | QPS/TPS | 根据SLA | Warning | 系统容量 |
-| | 吞吐量 | tokens/sec | Info | 效率监控 |
-| **质量指标** | 准确率 | >90% | Critical | 业务正确性 |
-| | 相关性得分 | >0.8 | Warning | 结果质量 |
-| | 幻觉率 | <5% | Critical | 可信度 |
-| **资源指标** | GPU利用率 | 70-90% | Warning | 资源效率 |
-| | 内存使用率 | <85% | Critical | 系统稳定 |
-| | 显存占用 | <90% | Warning | OOM风险 |
-| **成本指标** | $/1K tokens | 预算阈值 | Info | 成本控制 |
-| | 实例成本 | 预算阈值 | Warning | 财务监控 |
-| | Spot中断率 | <10% | Info | 成本优化 |
-| **用户体验** | 首token时间 | <300ms | Warning | 响应速度 |
-| | 生成速率 | >10 tokens/sec | Info | 流畅度 |
-| | 错误率 | <1% | Critical | 服务可用性 |
+| **Performance Metrics** | P50/P95/P99 latency | P99<2s | Critical | User Experience |
+| | Queries Per Second/Transactions Per Second | According to SLA | Warning | System Capacity |
+| | Throughput | tokens/sec | Info | Efficiency Monitoring |
+| **Quality Metrics** | Accuracy | >90% | Critical | Business Correctness |
+| | Correlation Score | >0.8 | Warning | Result Quality |
+| | Phantom Rate | <5% | Critical | Trustworthiness |
+| **Resource Metrics** | GPU Utilization | 70-90% | Warning | Resource Efficiency |
+| | Memory Usage | <85% | Critical | System Stability |
+| | Memory usage | <90% | Warning | OOM risk |
+| **Cost Metrics** | Cost per 1K tokens | Budget Threshold | Info | Cost Control |
+| | Instance Cost | Budget Threshold | Warning | Financial Monitoring |
+| | Spot Interruption Rate | <10% | Info | Cost Optimization |
+| **User Experience** | First token time | <300ms | Warning | Response Speed |
+| | Generation Rate | >10 tokens/sec | Info | Smoothness |
+| | Error Rate | <1% | Critical | Service Availability |
 
-<!-- chunk: 二、Prometheus指标体系实现 -->
-## 二、Prometheus指标体系实现
 
-### 2.1 核心指标定义
+## 2. Prometheus Metric Implementation
+
+### 2.1 Core Metric Definitions
 
 ```python
 # llm_metrics.py
@@ -158,14 +160,14 @@ class LLMMetricsCollector:
     def __init__(self, model_name: str = "default"):
         self.model_name = model_name
         
-        # 请求计数器
+        # Request Counter
         self.requests_total = Counter(
             'llm_requests_total',
             'Total number of LLM requests',
             ['model', 'status', 'endpoint']
         )
         
-        # 延迟直方图
+        # Delay Histogram
         self.request_duration = Histogram(
             'llm_request_duration_seconds',
             'LLM request duration in seconds',
@@ -173,14 +175,14 @@ class LLMMetricsCollector:
             buckets=[0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
         )
         
-        # Token计数器
+        # Token Counter
         self.tokens_processed = Counter(
             'llm_tokens_processed_total',
             'Total number of tokens processed',
             ['model', 'token_type']  # input/output
         )
         
-        # GPU指标
+        # GPU Metrics
         self.gpu_utilization = Gauge(
             'llm_gpu_utilization_percent',
             'GPU utilization percentage',
@@ -199,7 +201,7 @@ class LLMMetricsCollector:
             ['model', 'gpu_id']
         )
         
-        # 模型质量指标
+        # Model Quality Metrics
         self.model_accuracy = Gauge(
             'llm_model_accuracy_score',
             'Model accuracy score (0-1)',
@@ -212,7 +214,7 @@ class LLMMetricsCollector:
             ['model']
         )
         
-        # 用户体验指标
+        # User Experience Metrics
         self.time_to_first_token = Histogram(
             'llm_time_to_first_token_seconds',
             'Time to first token in seconds',
@@ -226,7 +228,7 @@ class LLMMetricsCollector:
             ['model']
         )
         
-        # 成本指标
+        # Cost Metrics
         self.cost_per_thousand_tokens = Gauge(
             'llm_cost_per_thousand_tokens',
             'Cost per thousand tokens in USD',
@@ -240,7 +242,7 @@ class LLMMetricsCollector:
         )
 
     def record_request(self, endpoint: str, status: str = "success"):
-        """记录请求"""
+        """Record requests"""
         self.requests_total.labels(
             model=self.model_name,
             status=status,
@@ -248,14 +250,14 @@ class LLMMetricsCollector:
         ).inc()
     
     def record_duration(self, endpoint: str, duration: float):
-        """记录请求持续时间"""
+        """Record request duration"""
         self.request_duration.labels(
             model=self.model_name,
             endpoint=endpoint
         ).observe(duration)
     
     def record_tokens(self, input_tokens: int, output_tokens: int):
-        """记录token使用"""
+        """Record token usage"""
         self.tokens_processed.labels(
             model=self.model_name,
             token_type="input"
@@ -268,7 +270,7 @@ class LLMMetricsCollector:
     
     def record_gpu_metrics(self, gpu_id: str, utilization: float, 
                           memory_used: int, temperature: float):
-        """记录GPU指标"""
+        """Record GPU metrics"""
         self.gpu_utilization.labels(
             model=self.model_name,
             gpu_id=gpu_id
@@ -285,24 +287,24 @@ class LLMMetricsCollector:
         ).set(temperature)
     
     def record_model_quality(self, accuracy: float, hallucination_rate: float):
-        """记录模型质量指标"""
+        """Record model quality metrics"""
         self.model_accuracy.labels(model=self.model_name).set(accuracy)
         self.hallucination_rate.labels(model=self.model_name).set(hallucination_rate)
     
     def record_user_experience(self, time_to_first_token: float, tokens_per_sec: float):
-        """记录用户体验指标"""
+        """Record user experience metrics"""
         self.time_to_first_token.labels(model=self.model_name).observe(time_to_first_token)
         self.tokens_per_second.labels(model=self.model_name).set(tokens_per_sec)
     
     def record_cost(self, cost_per_1k_tokens: float, instance_cost: float, instance_type: str):
-        """记录成本指标"""
+        """Record cost metrics"""
         self.cost_per_thousand_tokens.labels(model=self.model_name).set(cost_per_1k_tokens)
         self.instance_cost_hourly.labels(
             model=self.model_name,
             instance_type=instance_type
         ).set(instance_cost)
 
-# 使用示例
+# Usage Example
 metrics_collector = LLMMetricsCollector("llama2-7b-chat")
 
 class LLMService:
@@ -311,34 +313,34 @@ class LLMService:
         self.model_name = model_name
     
     async def generate_response(self, prompt: str, max_tokens: int = 1000) -> Dict:
-        """生成响应并记录指标"""
+        """Generate response and record metrics"""
         start_time = time.time()
         
         try:
-            # 模拟模型推理
+            # Simulate model inference
             response = await self._inference(prompt, max_tokens)
             
-            # 记录性能指标
+            # Record performance metrics
             duration = time.time() - start_time
             self.metrics.record_duration("generate", duration)
             self.metrics.record_request("generate", "success")
             
-            # 记录token使用
+            # Record token usage
             input_tokens = len(prompt.split())
             output_tokens = len(response["text"].split())
             self.metrics.record_tokens(input_tokens, output_tokens)
             
-            # 记录用户体验指标
+            # Record user experience metrics
             ttft = response.get("time_to_first_token", 0.1)
             tps = output_tokens / (duration - ttft) if duration > ttft else 0
             self.metrics.record_user_experience(ttft, tps)
             
-            # 记录模型质量（模拟）
+            # Record model quality (simulation)
             accuracy = response.get("accuracy_score", 0.95)
             hallucination_rate = response.get("hallucination_rate", 0.02)
             self.metrics.record_model_quality(accuracy, hallucination_rate)
             
-            # 记录成本（模拟）
+            # Record cost (simulation)
             cost_per_1k = 0.002  # $0.002 per 1K tokens
             instance_cost = 1.5  # $1.5/hour
             self.metrics.record_cost(cost_per_1k, instance_cost, "g5.2xlarge")
@@ -350,8 +352,8 @@ class LLMService:
             raise
     
     async def _inference(self, prompt: str, max_tokens: int) -> Dict:
-        """模拟推理过程"""
-        # 模拟推理延迟
+        """Simulate inference process"""
+        # Simulate inference latency
         await asyncio.sleep(0.1 + max_tokens * 0.001)
         
         return {
@@ -361,7 +363,7 @@ class LLMService:
             "hallucination_rate": 0.02
         }
 
-# FastAPI集成示例
+# FastAPI Integration Example
 from fastapi import FastAPI, HTTPException
 import uvicorn
 
@@ -385,7 +387,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-### 2.2 高级告警规则配置
+### 2.2 Advanced Alert Rule Configurations
 
 ```yaml
 # llm-alerting-rules.yaml
@@ -398,7 +400,7 @@ spec:
   groups:
   - name: llm-performance.rules
     rules:
-    # 性能告警
+    # Performance alert
     - alert: HighLLMLatency
       expr: |
         histogram_quantile(0.99, rate(llm_request_duration_seconds_bucket[5m])) > 2
@@ -407,8 +409,8 @@ spec:
         severity: critical
         team: ml-platform
       annotations:
-        summary: "LLM P99延迟超过2秒"
-        description: "模型 {{ $labels.model }} 在端点 {{ $labels.endpoint }} 的P99延迟为 {{ $value }}秒，超过阈值2秒"
+        summary: "LLM P99 delay exceeds 2 seconds"
+        description: "Model {{ $labels.model }} at endpoint {{ $labels.endpoint }} has a P99 delay of {{ $value }} seconds, exceeding the threshold of 2 seconds"
         runbook_url: "https://wiki.company.com/ml-ops/llm-performance-troubleshooting"
     
     - alert: LowLLMThroughput
@@ -419,8 +421,8 @@ spec:
         severity: warning
         team: ml-platform
       annotations:
-        summary: "LLM请求吞吐量偏低"
-        description: "模型 {{ $labels.model }} 的请求率 {{ $value | printf \"%.2f\" }}/分钟，低于阈值10/min"
+        summary: "LLM request throughput is low"
+        description: "Model {{ $labels.model }} has a request rate of {{ $value | printf \"%#.2f\" }}/minute, below the threshold of 10/min"
     
     - alert: HighErrorRate
       expr: |
@@ -431,12 +433,12 @@ spec:
         severity: critical
         team: ml-platform
       annotations:
-        summary: "LLM错误率超过1%"
-        description: "模型 {{ $labels.model }} 错误率为 {{ $value | printf \"%.4f\" }}，超过阈值1%"
+        summary: "LLM error rate exceeds 1%"
+        description: "Model {{ $labels.model }} has an error rate of {{ $value | printf \"%#.4f\" }}, exceeding the threshold of 1%"
 
   - name: llm-quality.rules
     rules:
-    # 质量告警
+    # Quality alert
     - alert: LowModelAccuracy
       expr: |
         llm_model_accuracy_score < 0.85
@@ -445,8 +447,8 @@ spec:
         severity: critical
         team: data-science
       annotations:
-        summary: "模型准确率低于85%"
-        description: "模型 {{ $labels.model }} 准确率为 {{ $value | printf \"%.4f\" }}，低于阈值85%"
+        summary: "Model accuracy is below 85%"
+        description: "Model {{ $labels.model }} has an accuracy rate of {{ $value | printf \"%#.4f\" }}, below the threshold of 85%"
     
     - alert: HighHallucinationRate
       expr: |
@@ -456,12 +458,12 @@ spec:
         severity: critical
         team: data-science
       annotations:
-        summary: "模型幻觉率超过5%"
-        description: "模型 {{ $labels.model }} 幻觉率为 {{ $value | printf \"%.2f\" }}%，超过阈值5%"
+        summary: "Model hallucination rate exceeds 5%"
+        description: "Model {{ $labels.model }} has a hallucination rate of {{ $value | printf \"%#.2f\" }}%, exceeding the threshold of 5%"
 
   - name: llm-resource.rules
     rules:
-    # 资源告警
+    # Resource alert
     - alert: HighGPUUtilization
       expr: |
         llm_gpu_utilization_percent > 95
@@ -470,8 +472,8 @@ spec:
         severity: warning
         team: ml-platform
       annotations:
-        summary: "GPU利用率超过95%"
-        description: "模型 {{ $labels.model }} GPU {{ $labels.gpu_id }} 利用率为 {{ $value | printf \"%.1f\" }}%"
+        summary: "GPU utilization exceeds 95%"
+        description: "Model {{ $labels.model }}'s GPU {{ $labels.gpu_id }} utilization is {{ $value | printf \"%#.1f\" }}%"
     
     - alert: HighGPUMemoryUsage
       expr: |
@@ -481,8 +483,8 @@ spec:
         severity: critical
         team: ml-platform
       annotations:
-        summary: "GPU显存使用超过20GB"
-        description: "模型 {{ $labels.model }} GPU {{ $labels.gpu_id }} 显存使用 {{ $value | printf \"%.2f\" }}GB"
+        summary: "GPU memory usage exceeds 20GB"
+        description: "Model {{ $labels.model }}'s GPU {{ $labels.gpu_id }} memory usage is {{ $value | printf \"%#.2f\" }}GB"
     
     - alert: HighGPUTemperature
       expr: |
@@ -492,12 +494,12 @@ spec:
         severity: warning
         team: ml-platform
       annotations:
-        summary: "GPU温度超过80°C"
-        description: "模型 {{ $labels.model }} GPU {{ $labels.gpu_id }} 温度为 {{ $value | printf \"%.1f\" }}°C"
+        summary: "GPU temperature exceeds 80°C"
+        description: "Model {{ $labels.model }}'s GPU {{ $labels.gpu_id }} temperature is {{ $value | printf \"%#.1f\" }}°C"
 
   - name: llm-cost.rules
     rules:
-    # 成本告警
+    # Cost alert
     - alert: HighCostPerToken
       expr: |
         llm_cost_per_thousand_tokens > 5
@@ -506,8 +508,8 @@ spec:
         severity: info
         team: finance
       annotations:
-        summary: "每千token成本超过$5"
-        description: "模型 {{ $labels.model }} 每千token成本为 ${{ $value | printf \"%.2f\" }}"
+        summary: "Cost per thousand tokens exceeds $5"
+        description: "Model {{ $labels.model }}'s cost per thousand tokens is ${{ $value | printf \"%#.2f\" }}"
     
     - alert: HighInstanceCost
       expr: |
@@ -517,12 +519,12 @@ spec:
         severity: warning
         team: finance
       annotations:
-        summary: "实例小时成本超过$5"
-        description: "模型 {{ $labels.model }} 实例 {{ $labels.instance_type }} 小时成本为 ${{ $value | printf \"%.2f\" }}"
+        summary: "Instance hour cost exceeds $5"
+        description: "Model {{ $labels.model }}'s instance {{ $labels.instance_type }} hourly cost is ${{ $value | printf \"%#.2f\" }}"
 
   - name: llm-user-experience.rules
     rules:
-    # 用户体验告警
+    # User experience alert
     - alert: SlowTimeToFirstToken
       expr: |
         histogram_quantile(0.95, rate(llm_time_to_first_token_seconds_bucket[5m])) > 0.5
@@ -531,8 +533,8 @@ spec:
         severity: warning
         team: product
       annotations:
-        summary: "首token时间超过500ms"
-        description: "模型 {{ $labels.model }} P95首token时间为 {{ $value | printf \"%.3f\" }}秒"
+        summary: "First token time exceeds 500ms"
+        description: "Model {{ $labels.model }} P95 first token time is {{ $value | printf \"%.3f\" }} seconds"
     
     - alert: LowTokensPerSecond
       expr: |
@@ -542,14 +544,14 @@ spec:
         severity: warning
         team: product
       annotations:
-        summary: "生成速率低于5 tokens/sec"
-        description: "模型 {{ $labels.model }} 生成速率为 {{ $value | printf \"%.1f\" }} tokens/sec"
+        summary: "Generation rate below 5 tokens/sec"
+        description: "Model {{ $labels.model }} generation rate is {{ $value | printf \"%.1f\" }} tokens/sec"
 ```
 
-<!-- chunk: 三、Grafana仪表板配置 -->
-## 三、Grafana仪表板配置
 
-### 3.1 核心仪表板JSON
+## 3. Grafana Dashboard Configuration
+
+### 3.1 Core Dashboard JSON
 
 ```json
 {
@@ -701,10 +703,10 @@ spec:
 }
 ```
 
-<!-- chunk: 四、分布式追踪实现 -->
-## 四、分布式追踪实现
 
-### 4.1 OpenTelemetry集成
+## 4. Distributed Tracing Implementation
+
+### 4.1 OpenTelemetry Integration
 
 ```python
 # opentelemetry_tracing.py
@@ -718,7 +720,7 @@ import asyncio
 import time
 from typing import Dict
 
-# 初始化追踪器
+# Initialize tracer
 trace.set_tracer_provider(TracerProvider())
 otlp_exporter = OTLPSpanExporter(endpoint="http://otel-collector:4317", insecure=True)
 span_processor = BatchSpanProcessor(otlp_exporter)
@@ -732,20 +734,20 @@ class LLMTracer:
         self.tracer = tracer
     
     def trace_inference(self, prompt: str, max_tokens: int) -> Dict:
-        """追踪推理过程"""
+        """Trace inference process"""
         with self.tracer.start_as_current_span("llm_inference") as span:
             span.set_attribute("model.name", self.model_name)
             span.set_attribute("input.prompt_length", len(prompt))
             span.set_attribute("input.max_tokens", max_tokens)
             
-            # Tokenization阶段
+            # Tokenization stage
             with self.tracer.start_as_current_span("tokenization") as token_span:
                 start_time = time.time()
                 tokens = self._tokenize(prompt)
                 token_span.set_attribute("processing.time_ms", (time.time() - start_time) * 1000)
                 token_span.set_attribute("output.token_count", len(tokens))
             
-            # 模型推理阶段
+            # Model inference stage
             with self.tracer.start_as_current_span("model_inference") as inference_span:
                 start_time = time.time()
                 model_output = self._model_forward(tokens, max_tokens)
@@ -754,14 +756,14 @@ class LLMTracer:
                 inference_span.set_attribute("output.token_count", len(model_output["tokens"]))
                 inference_span.set_attribute("throughput.tokens_per_sec", len(model_output["tokens"]) / inference_time)
             
-            # 解码阶段
+            # Decoding stage
             with self.tracer.start_as_current_span("decoding") as decode_span:
                 start_time = time.time()
                 response_text = self._decode(model_output["tokens"])
                 decode_span.set_attribute("processing.time_ms", (time.time() - start_time) * 1000)
                 decode_span.set_attribute("output.text_length", len(response_text))
             
-            # 记录整体指标
+            # Record overall metrics
             span.set_attribute("output.text", response_text[:100] + "..." if len(response_text) > 100 else response_text)
             span.set_attribute("total.processing_time_ms", (time.time() - span.start_time) * 1000)
             
@@ -772,21 +774,21 @@ class LLMTracer:
             }
     
     def trace_user_interaction(self, user_id: str, session_id: str, prompt: str) -> Dict:
-        """追踪用户交互"""
+        """Trace user interaction"""
         with self.tracer.start_as_current_span("user_interaction") as span:
             span.set_attribute("user.id", user_id)
             span.set_attribute("session.id", session_id)
             span.set_attribute("input.prompt", prompt[:200] + "..." if len(prompt) > 200 else prompt)
             
-            # 记录用户上下文
+            # Record user context
             with self.tracer.start_as_current_span("context_retrieval") as context_span:
                 context = self._retrieve_context(user_id, session_id)
                 context_span.set_attribute("context.size", len(context))
             
-            # 生成响应
+            # Generate response
             response = self.trace_inference(prompt, max_tokens=500)
             
-            # 记录用户反馈追踪点
+            # Record user feedback trace points
             span.add_event("response_generated", {
                 "response_length": len(response["text"]),
                 "tokens_generated": response["tokens_generated"]
@@ -795,32 +797,32 @@ class LLMTracer:
             return response
     
     def _tokenize(self, prompt: str) -> list:
-        """模拟分词"""
+        """Simulate tokenization"""
         time.sleep(0.01)  # 模拟处理时间
         return prompt.split()
     
     def _model_forward(self, tokens: list, max_tokens: int) -> Dict:
-        """模拟模型前向传播"""
+        """Simulate forward propagation of the model"""
         time.sleep(0.1 + max_tokens * 0.001)  # 模拟推理时间
         return {"tokens": ["token"] * min(max_tokens, 100)}
     
     def _decode(self, tokens: list) -> str:
-        """模拟解码"""
+        """Simulate decoding"""
         time.sleep(0.005)  # 模拟处理时间
         return " ".join(tokens)
     
     def _retrieve_context(self, user_id: str, session_id: str) -> str:
-        """模拟上下文检索"""
+        """Simulate context retrieval"""
         time.sleep(0.02)  # 模拟检索时间
         return f"Context for user {user_id} in session {session_id}"
 
-# FastAPI集成
+# Integrate FastAPI
 from fastapi import FastAPI, Request
 import uvicorn
 
 app = FastAPI(title="LLM Tracing Service")
 
-# 仪器化FastAPI
+# Instrument FastAPI
 FastAPIInstrumentor.instrument_app(app)
 RequestsInstrumentor().instrument()
 
@@ -833,7 +835,7 @@ async def chat(request: Request):
     user_id = body.get("user_id", "anonymous")
     session_id = body.get("session_id", "default")
     
-    # 追踪用户交互
+    # Track user interaction
     response = llm_tracer.trace_user_interaction(user_id, session_id, prompt)
     
     return {
@@ -850,10 +852,10 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-<!-- chunk: 五、SLO和错误预算管理 -->
-## 五、SLO和错误预算管理
 
-### 5.1 SLO定义和实现
+## 5. SLO and Error Budget Management
+
+### 5.1 SLO Definition and Implementation
 
 ```yaml
 # llm-slos.yaml
@@ -866,7 +868,7 @@ spec:
   groups:
   - name: llm-slos
     rules:
-    # 可用性SLO (99.9%)
+    # Availability SLO (99.9%)
     - record: slo:availability:ratio
       expr: |
         sum(rate(llm_requests_total{status="success"}[30d]))
@@ -880,10 +882,10 @@ spec:
         severity: critical
         slo: "availability"
       annotations:
-        summary: "LLM服务可用性SLO违规"
-        description: "30天可用性 {{ $value | printf \"%.4f\" }} 低于目标 99.9%"
+        summary: "LLM service availability SLI violation"
+        description: "30-day availability {{ $value | printf \"%.4f\" }} is below target 99.9%"
     
-    # 延迟SLO (P95 < 1s)
+    # Latency SLO (P95 < 1s)
     - record: slo:latency:p95
       expr: |
         histogram_quantile(0.95, rate(llm_request_duration_seconds_bucket[30d]))
@@ -896,10 +898,10 @@ spec:
         severity: warning
         slo: "latency"
       annotations:
-        summary: "LLM服务延迟SLO违规"
-        description: "30天P95延迟 {{ $value | printf \"%.3f\" }}s 超过目标 1s"
+        summary: "LLM service latency SLI violation"
+        description: "30-day P95 latency {{ $value | printf \"%.3f\" }}s exceeds target 1s"
     
-    # 质量SLO (准确率 > 90%)
+    # Quality SLO (accuracy > 90%)
     - record: slo:quality:accuracy
       expr: |
         avg_over_time(llm_model_accuracy_score[30d])
@@ -912,12 +914,12 @@ spec:
         severity: critical
         slo: "quality"
       annotations:
-        summary: "LLM服务质量SLO违规"
-        description: "30天平均准确率 {{ $value | printf \"%.4f\" }} 低于目标 90%"
+        summary: "LLM service quality SLI violation"
+        description: "30-day average accuracy {{ $value | printf \"%.4f\" }} is below target 90%"
 
   - name: error-budget
     rules:
-    # 错误预算计算
+    # Error budget calculation
     - record: error_budget:availability:remaining
       expr: |
         0.001 - (1 - slo:availability:ratio)  # 0.1% error budget
@@ -928,7 +930,7 @@ spec:
     
     - alert: ErrorBudget-BurnRate
       expr: |
-        # 快速燃烧率：1小时错误率预估30天错误预算的2%
+        # Quick burn rate: 1-hour error rate estimates 2% of the 30-day error budget
         (1 - avg(rate(llm_requests_total{status="success"}[1h])) / avg(rate(llm_requests_total[1h])))
         > (0.001 * 2 * 30)  # 2% of monthly error budget
       for: 2m
@@ -936,40 +938,40 @@ spec:
         severity: critical
         budget: "fast-burn"
       annotations:
-        summary: "LLM错误预算快速燃烧"
-        description: "错误率异常升高，可能影响SLO达成"
+        summary: "LLM service error budget quickly exhausted"
+        description: "Error rate abnormally rises, may affect SLO achievement"
 ```
 
 ---
 
-**维护者**: LLM Observability Team | **最后更新**: 2026-02 | **版本**: v2.0
+**Maintainers**: LLM Observability Team | **Last Updated**: 2026-02 | **Version**: v2.0
 
-<!-- chunk: 一、监控指标体系 -->
-## 一、监控指标体系
 
-| 类型 | 指标 | 阈值 | 告警 |
+## 1. Monitoring Metric Framework
+
+| type | metric | threshold | alert |
 |-----|------|------|------|
-| **性能** | P99延迟 | <2s | 高 |
-| **吞吐** | QPS | >100 | 中 |
-| **质量** | 错误率 | <1% | 高 |
-| **资源** | GPU利用率 | >70% | 低 |
-| **成本** | $/1M tokens | 监控 | 信息 |
+| **performance** | P99 latency | <2s | high |
+| **throughput** | QPS | >100 | medium |
+| **quality** | error rate | <1% | high |
+| **resources** | GPU utilization | >70% | low |
+| **cost** | $/1M tokens | monitoring | information |
 
-<!-- chunk: 二、Prometheus指标 -->
-## 二、Prometheus指标
+
+## 2. Prometheus Metrics
 
 ```python
 from prometheus_client import Counter, Histogram, Gauge
 import time
 
-# 请求计数
+# Request counting
 request_count = Counter(
     'llm_requests_total',
     'Total LLM requests',
     ['model', 'status']
 )
 
-# 延迟分布
+# Delay distribution
 request_latency = Histogram(
     'llm_request_duration_seconds',
     'LLM request latency',
@@ -977,21 +979,21 @@ request_latency = Histogram(
     buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
 )
 
-# Token计数
+# Token counting
 token_count = Counter(
     'llm_tokens_total',
     'Total tokens processed',
     ['model', 'type']  # type: input/output
 )
 
-# GPU利用率
+# GPU utilization
 gpu_utilization = Gauge(
     'llm_gpu_utilization_percent',
     'GPU utilization',
     ['gpu_id']
 )
 
-# 使用示例
+# Usage example
 @app.post("/v1/chat/completions")
 async def chat(request: dict):
     start = time.time()
@@ -999,7 +1001,7 @@ async def chat(request: dict):
     try:
         response = llm.generate(request["messages"])
         
-        # 记录指标
+        # Record metrics
         request_count.labels(model=model_name, status="success").inc()
         token_count.labels(model=model_name, type="input").inc(input_tokens)
         token_count.labels(model=model_name, type="output").inc(output_tokens)
@@ -1013,8 +1015,8 @@ async def chat(request: dict):
         request_latency.labels(model=model_name).observe(duration)
 ```
 
-<!-- chunk: 三、告警规则 -->
-## 三、告警规则
+
+## 3. Alert Rules
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1031,7 +1033,7 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "LLM P99延迟>2秒"
+        summary: "LLM P99 latency > 2 seconds"
     
     - alert: HighErrorRate
       expr: |
@@ -1042,7 +1044,7 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "错误率>1%"
+        summary: "Error rate > 1%"
     
     - alert: LowGPUUtilization
       expr: avg(llm_gpu_utilization_percent) < 30
@@ -1050,11 +1052,11 @@ spec:
       labels:
         severity: info
       annotations:
-        summary: "GPU利用率<30%，资源浪费"
+        summary: "GPU utilization < 30%, resource waste"
 ```
 
-<!-- chunk: 四、Grafana Dashboard -->
-## 四、Grafana Dashboard
+
+## 4. Grafana Dashboard
 
 ```json
 {
@@ -1086,20 +1088,20 @@ spec:
 }
 ```
 
-<!-- chunk: 五、分布式追踪 -->
-## 五、分布式追踪
+
+## 5. Distributed Tracing
 
 ```python
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-# 初始化追踪
+# Initialize tracing
 tracer = trace.get_tracer(__name__)
 
 @app.post("/v1/chat/completions")
 async def chat(request: dict):
     with tracer.start_as_current_span("llm_inference") as span:
-        # 记录输入
+        # Record input
         span.set_attribute("input_tokens", len(request["messages"]))
         span.set_attribute("model", model_name)
         
@@ -1107,11 +1109,11 @@ async def chat(request: dict):
         with tracer.start_as_current_span("tokenization"):
             tokens = tokenizer.encode(request["messages"])
         
-        # 推理
+        # Inference
         with tracer.start_as_current_span("generation"):
             output = model.generate(tokens)
         
-        # 解码
+        # Decoding
         with tracer.start_as_current_span("decoding"):
             response = tokenizer.decode(output)
         
@@ -1120,8 +1122,8 @@ async def chat(request: dict):
         return response
 ```
 
-<!-- chunk: 六、日志聚合 -->
-## 六、日志聚合
+
+## 6. Log Aggregation
 
 ```yaml
 apiVersion: v1
@@ -1157,8 +1159,8 @@ data:
     </match>
 ```
 
-<!-- chunk: 七、用户体验监控 -->
-## 七、用户体验监控
+
+## 7. User Experience Monitoring
 
 ```python
 class UserExperienceMetrics:
@@ -1191,8 +1193,8 @@ class UserExperienceMetrics:
         self.token_generation_rate.observe(tokens_per_second)
 ```
 
-<!-- chunk: 八、成本监控 -->
-## 八、成本监控
+
+## 8. Cost Monitoring
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1211,8 +1213,8 @@ spec:
         ) / (rate(llm_tokens_total[1h]) / 1000000)
 ```
 
-<!-- chunk: 九、SLO定义 -->
-## 九、SLO定义
+
+## 9. SLO Definition
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1227,42 +1229,42 @@ spec:
       expr: |
         sum(rate(llm_requests_total{status="success"}[30d]))
         / sum(rate(llm_requests_total[30d]))
-      # 目标: 99.9% (允许43分钟/月问题)
+      # Goal: 99.9% (allowing 43 minutes/month issues)
     
     - record: slo:latency:p99
       expr: histogram_quantile(0.99, rate(llm_request_duration_seconds_bucket[30d]))
-      # 目标: P99 < 2秒
+      # Goal: P99 < 2 seconds
 ```
 
-<!-- chunk: 十、最佳实践 -->
-## 十、最佳实践
 
-1. **关键指标**: 延迟、吞吐、错误率、资源利用率
-2. **告警分级**: Critical/Warning/Info三级
-3. **追踪采样**: 1-10%采样率平衡性能与可见性
-4. **日志保留**: 30天热存储 + 90天冷存储
-5. **Dashboard**: 为不同角色定制Dashboard
+## 10. Best Practices
 
----
-**相关**: [114-GPU监控](../04-gpu-monitoring.md) | **版本**: Prometheus 2.45+
+1. **key metrics**: latency, throughput, error rate, resource utilization
+2. **alert grading**: Critical/Warning/Information three levels
+3. **tracing sampling**: balance performance and visibility with a 1-10% sampling rate
+4. **log retention**: 30 days hot storage + 90 days cold storage
+5. **dashboard**: customize dashboards for different roles
 
 ---
+**related**: [114-GPU monitoring](../04-gpu-monitoring.md) | **version**: Prometheus 2.45+
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+---
+
+
+## Obsidian Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]] - index.md|Domain-11 AI Infrastructure — Open Source Project Index] - AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Framework
+- AI Data Processing Pipeline and Feature Engineering
+- Distributed training framework
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry Center and Version Management
 
 ## See Also
 
@@ -1273,7 +1275,7 @@ spec:
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/observability-index.md|Observability 可观测性知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/observability-index.md|Observability Index]]
 
 
 <!-- risk-assessed -->

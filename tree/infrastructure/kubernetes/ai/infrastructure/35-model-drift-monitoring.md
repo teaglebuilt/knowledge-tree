@@ -1,6 +1,6 @@
 ---
-title: 35 - 模型漂移监控与预警
-description: '# 35 - 模型漂移监控与预警'
+title: 35 - Model Drift Monitoring and Warning
+description: '\# 35 - Model Drift Monitoring and Warning'
 summary: 'def population_stability_index(self, current_data, bins=10):'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 模型漂移监控与预警 是什么
-- 如何 模型漂移监控与预警
-- Kubernetes 11 ai infra 最佳实践
+- What is model drift monitoring and warning
+- How to model drift monitoring and warning
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- 模型漂移监控与预警
+- Model Drift Monitoring and Warning
 - ai
 - infra
 prerequisites:
@@ -50,33 +50,35 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: fta
   path: ../domain-10-troubleshooting-diagnostics/topic-fta/list/monitoring-fta.md
-  label: '故障树: monitoring'
+  label: 'Fault Tree: monitoring'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/35-model-drift-monitoring.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that these commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-# 35 - 模型漂移监控与预警
+# 35 - Model Drift Monitoring and Warning
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 高级 | **参考**: [Evidently AI](https://www.evidentlyai.com/) | [WhyLabs](https://whylabs.ai/) | [Arize AI](https://arize.com/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: [Evidently AI](https://www.evidentlyai.com/) | [WhyLabs](https://whylabs.ai/) | [Arize AI](https://arize.com/)
 
-<!-- chunk: 一、模型漂移监控架构 -->
-## 一、模型漂移监控架构
 
-### 1.1 漂移监控全景架构
+## 1. Model Drift Monitoring Architecture
+
+### 1.1 Model Drift Monitoring Panoramic Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -113,21 +115,21 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 漂移类型分类
+### 1.2 Types of Drift Classification
 
-| 漂移类型 | 定义 | 检测方法 | 影响 | 应对策略 |
+| **Drift Type** | **Definition** | **Detection Method** | **Impact** | **Mitigation Strategy** |
 |----------|------|----------|------|----------|
-| **协变量漂移** | 输入特征分布变化 | PSI, KL散度 | 模型性能下降 | 重新训练 |
-| **先验概率漂移** | 目标变量分布变化 | 卡方检验 | 决策阈值失效 | 调整阈值 |
-| **概念漂移** | 输入输出关系变化 | DDM, ADWIN | 模型完全失效 | 紧急重训练 |
-| **特征漂移** | 单个特征分布变化 | 单变量统计检验 | 局部性能下降 | 特征工程 |
+| **Co-variable Drift** | Changes in the distribution of input features | PSI, KL divergence | Decreased model performance | Re-training |
+| **Prior Probability Drift** | Changes in the distribution of the target variable | Chi-square test | Decision thresholds fail | Adjust thresholds |
+| **Concept Drift** | Changes in the relationship between inputs and outputs | DDM, ADWIN | Complete model failure | Emergency re-training |
+| **Feature Drift** | Changes in the distribution of a single feature | Single-variable statistical tests | Local performance degradation | Feature engineering |
 
 ---
 
-<!-- chunk: 二、实时漂移检测系统 -->
-## 二、实时漂移检测系统
 
-### 2.1 漂移检测核心组件
+## 2. Real-time Drift Detection System
+
+### 2.1 Core Components of Drift Detection
 
 ```python
 # drift_detector.py
@@ -145,18 +147,18 @@ class DriftDetector:
         self.drift_statistics = {}
         
     def population_stability_index(self, current_data, bins=10):
-        \"\"\"计算群体稳定性指数(PSI)\"\"\"
+        \"\"\"calculate population stability index(PSI)\"\"\"
         def psi(expected, actual, buckets):
-            # 创建分箱
+            # Create bins
             breakpoints = np.quantile(expected, np.linspace(0, 1, buckets + 1))
             expected_counts = np.histogram(expected, breakpoints)[0]
             actual_counts = np.histogram(actual, breakpoints)[0]
             
-            # 避免除零
+            # Avoid division by zero
             expected_pct = np.where(expected_counts == 0, 0.0001, expected_counts / len(expected))
             actual_pct = np.where(actual_counts == 0, 0.0001, actual_counts / len(actual))
             
-            # 计算PSI
+            # Calculate PSI
             psi_value = np.sum((actual_pct - expected_pct) * np.log(actual_pct / expected_pct))
             return psi_value
         
@@ -174,7 +176,7 @@ class DriftDetector:
         return psi_results
     
     def kolmogorov_smirnov_test(self, current_data):
-        \"\"\"Kolmogorov-Smirnov检验\"\"\"
+        \"\"\"Kolmogorov-Smirnov test\"\"\"
         ks_results = {}
         for column in self.reference_data.columns:
             if self.reference_data[column].dtype in ['int64', 'float64']:
@@ -192,22 +194,22 @@ class DriftDetector:
         return ks_results
     
     def chi_square_test(self, current_data, bins=10):
-        \"\"\"卡方检验（适用于分类变量）\"\"\"
+        \"\"\"chi-square test (for categorical variables)\"\"\"
         chi2_results = {}
         for column in self.reference_data.columns:
             if self.reference_data[column].dtype == 'object' or \
                self.reference_data[column].nunique() < bins:
                 
-                # 创建列联表
+                # Create contingency table
                 ref_counts = self.reference_data[column].value_counts()
                 curr_counts = current_data[column].value_counts()
                 
-                # 对齐类别
+                # Align categories
                 all_categories = set(ref_counts.index) | set(curr_counts.index)
                 ref_aligned = ref_counts.reindex(all_categories, fill_value=0)
                 curr_aligned = curr_counts.reindex(all_categories, fill_value=0)
                 
-                # 卡方检验
+                # Chi-squared test
                 chi2, p_value = stats.chisquare(curr_aligned.values, ref_aligned.values)
                 chi2_results[column] = {
                     'chi2_statistic': chi2,
@@ -219,7 +221,7 @@ class DriftDetector:
         return chi2_results
     
     def _classify_severity(self, value):
-        \"\"\"分类漂移严重程度\"\"\"
+        \"\"\"severity of concept drift\"\"\"
         if value < self.threshold * 0.5:
             return 'low'
         elif value < self.threshold:
@@ -237,21 +239,21 @@ class ConceptDriftDetector:
         self.warning_detected = False
         
     def detect_ddm(self, predictions, actuals):
-        \"\"\"使用DDM算法检测概念漂移\"\"\"
+        \"\"\"detect concept drift using DDM algorithm\"\"\"
         errors = (predictions != actuals).astype(int)
         
-        # 计算累积错误率和标准差
+        # Calculate cumulative error rate and standard deviation
         cum_error_rate = np.cumsum(errors) / np.arange(1, len(errors) + 1)
         cum_std = np.sqrt(cum_error_rate * (1 - cum_error_rate) / np.arange(1, len(errors) + 1))
         
-        # DDM检测逻辑
+        # DDM detection logic
         min_error_rate = np.min(cum_error_rate)
         min_std = np.min(cum_std[np.argmin(cum_error_rate):])
         
         current_error_rate = cum_error_rate[-1]
         current_std = cum_std[-1]
         
-        # 检测条件
+        # Detection condition
         if current_error_rate > min_error_rate + self.threshold + min_std:
             return {
                 'drift_detected': True,
@@ -276,7 +278,7 @@ class ConceptDriftDetector:
             }
     
     def detect_adwin(self, predictions, actuals):
-        \"\"\"使用ADWIN算法检测概念漂移\"\"\"
+        \"\"\"detect concept drift using ADWIN algorithm\"\"\"
         from river import drift
         
         adwin = drift.ADWIN(delta=self.threshold)
@@ -300,21 +302,21 @@ class ConceptDriftDetector:
             'severity': 'critical' if len(drift_points) > 0 else 'medium' if len(warning_points) > 0 else 'low'
         }
 
-# 使用示例
-# 初始化检测器
+# Usage example
+# Initialize detector
 reference_data = pd.read_csv('/data/reference_dataset.csv')
 detector = DriftDetector(reference_data, threshold=0.1)
 
-# 检测新数据
+# Detect new data
 current_data = pd.read_csv('/data/current_batch.csv')
 psi_results = detector.population_stability_index(current_data)
 ks_results = detector.kolmogorov_smirnov_test(current_data)
 
-print(\"PSI检测结果:\", psi_results)
-print(\"KS检测结果:\", ks_results)
+print(\"PSI detection result:\", psi_results)
+print(\"KS detection result:\", ks_results)
 ```
 
-### 2.2 实时监控服务
+### 2.2 Real-time Monitoring Service
 
 ```python
 # realtime_monitoring_service.py
@@ -330,12 +332,12 @@ import time
 
 app = Flask(__name__)
 
-# Prometheus指标
+# Prometheus metrics
 drift_events = Counter('model_drift_events_total', 'Total drift events detected', ['feature', 'severity'])
 prediction_latency = Histogram('prediction_latency_seconds', 'Prediction response time')
 model_accuracy = Gauge('model_current_accuracy', 'Current model accuracy')
 
-# Redis连接
+# Redis connection
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
 
 class RealtimeDriftMonitor:
@@ -351,8 +353,8 @@ class RealtimeDriftMonitor:
         self.monitoring_window = 1000  # 样本窗口大小
         
     def process_prediction(self, features, prediction, actual=None):
-        \"\"\"处理单个预测请求\"\"\"
-        # 记录特征数据
+        \"\"\"handle single prediction request\"\"\"
+        # Record feature data
         timestamp = datetime.now().isoformat()
         record = {
             'features': features,
@@ -361,13 +363,13 @@ class RealtimeDriftMonitor:
             'timestamp': timestamp
         }
         
-        # 存储到特征存储
+        # Store to feature store
         self._store_features(record)
         
-        # 实时漂移检测
+        # Real-time drift detection
         drift_analysis = self._analyze_drift()
         
-        # 性能监控
+        # Performance monitoring
         if actual is not None:
             accuracy = int(prediction == actual)
             model_accuracy.set(accuracy)
@@ -375,33 +377,33 @@ class RealtimeDriftMonitor:
         return drift_analysis
     
     def _store_features(self, record):
-        \"\"\"存储特征数据到Redis\"\"\"
+        \"\"\"store feature data to Redis\"\"\"
         key = f\"{self.model_name}:predictions:{record['timestamp']}\"
         redis_client.setex(key, 3600, json.dumps(record))  # 1小时过期
         
-        # 维护滑动窗口
+        # Maintain sliding window
         window_key = f\"{self.model_name}:window\"
         redis_client.lpush(window_key, json.dumps(record))
         redis_client.ltrim(window_key, 0, self.monitoring_window - 1)
     
     def _analyze_drift(self):
-        \"\"\"分析漂移情况\"\"\"
-        # 获取窗口数据
+        \"\"\"analyze drift situation\"\"\"
+        # Get window data
         window_key = f\"{self.model_name}:window\"
         window_data = redis_client.lrange(window_key, 0, -1)
         
         if len(window_data) < 100:  # 数据不足
             return {'status': 'insufficient_data'}
         
-        # 转换为DataFrame
+        # Convert to DataFrame
         records = [json.loads(record) for record in window_data]
         current_df = pd.DataFrame([r['features'] for r in records])
         
-        # 统计漂移检测
+        # Drift detection statistics
         drift_detector = DriftDetector(self.reference_data)
         psi_results = drift_detector.population_stability_index(current_df)
         
-        # 概念漂移检测（如果有真实标签）
+        # Concept drift detection (if real labels available)
         if all('actual' in r and r['actual'] is not None for r in records[-100:]):
             recent_records = records[-100:]
             predictions = [r['prediction'] for r in recent_records]
@@ -412,7 +414,7 @@ class RealtimeDriftMonitor:
         else:
             concept_drift = {'drift_detected': False, 'severity': 'low'}
         
-        # 聚合结果
+        # Aggregate results
         drift_summary = {
             'timestamp': datetime.now().isoformat(),
             'statistical_drift': psi_results,
@@ -420,21 +422,21 @@ class RealtimeDriftMonitor:
             'overall_status': self._assess_overall_status(psi_results, concept_drift)
         }
         
-        # 触发告警
+        # Trigger alert
         self._trigger_alerts(drift_summary)
         
         return drift_summary
     
     def _assess_overall_status(self, statistical_drift, concept_drift):
-        \"\"\"评估整体漂移状态\"\"\"
-        # 统计漂移严重程度
+        \"\"\"evaluate overall drift status\"\"\"
+        # Statistic drift severity
         stat_severities = [result['severity'] for result in statistical_drift.values()]
         max_stat_severity = max(stat_severities, default='low')
         
-        # 概念漂移严重程度
+        # Concept drift severity
         concept_severity = concept_drift.get('severity', 'low')
         
-        # 综合评估
+        # Comprehensive evaluation
         severity_order = ['low', 'medium', 'high', 'critical']
         overall_severity = max(max_stat_severity, concept_severity, 
                              key=lambda x: severity_order.index(x))
@@ -446,7 +448,7 @@ class RealtimeDriftMonitor:
         }
     
     def _get_recommendation(self, severity):
-        \"\"\"根据严重程度提供建议\"\"\"
+        \"\"\"provide recommendations based on severity\"\"\"
         recommendations = {
             'low': 'Continue monitoring',
             'medium': 'Increase monitoring frequency',
@@ -456,17 +458,17 @@ class RealtimeDriftMonitor:
         return recommendations.get(severity, 'Unknown')
     
     def _trigger_alerts(self, drift_summary):
-        \"\"\"触发告警\"\"\"
+        \"\"\"trigger alert\"\"\"
         overall_status = drift_summary['overall_status']
         
         if overall_status['requires_attention']:
-            # 记录Prometheus指标
+            # Record Prometheus metrics
             drift_events.labels(
                 feature='overall',
                 severity=overall_status['severity']
             ).inc()
             
-            # 发送告警（简化实现）
+            # Send alert (simplified implementation)
             alert_message = {
                 'model': self.model_name,
                 'severity': overall_status['severity'],
@@ -474,19 +476,19 @@ class RealtimeDriftMonitor:
                 'recommendation': overall_status['recommended_action']
             }
             
-            # 发送到告警系统
+            # Send to alert system
             self._send_alert(alert_message)
     
     def _send_alert(self, alert_message):
-        \"\"\"发送告警到外部系统\"\"\"
-        # 这里可以集成到PagerDuty, Slack, Email等
+        \"\"\"send alert to external system\"\"\"
+        # Here can be integrated into PagerDuty, Slack, Email, etc.
         print(f\"ALERT: {alert_message}\")
         
-        # 存储告警历史
+        # Store alert history
         alert_key = f\"alerts:{self.model_name}:{datetime.now().strftime('%Y%m%d')}\"
         redis_client.lpush(alert_key, json.dumps(alert_message))
 
-# 初始化监控器
+# Initialize monitor
 monitor = RealtimeDriftMonitor(
     model_name='churn_prediction_model',
     reference_data_path='/data/reference_features.csv'
@@ -494,20 +496,20 @@ monitor = RealtimeDriftMonitor(
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    \"\"\"预测接口（带漂移监控）\"\"\"
+    \"\"\"prediction interface (with drift monitoring)\"\"\"
     start_time = time.time()
     
     try:
         data = request.get_json()
         features = data['features']
         
-        # 模拟模型预测
+        # Simulate model prediction
         prediction = np.random.choice([0, 1])  # 实际应调用真实模型
         
-        # 处理预测并监控漂移
+        # Process predictions and monitor drift
         drift_analysis = monitor.process_prediction(features, prediction)
         
-        # 记录延迟
+        # Record latency
         latency = time.time() - start_time
         prediction_latency.observe(latency)
         
@@ -522,12 +524,12 @@ def predict():
 
 @app.route('/metrics')
 def metrics():
-    \"\"\"Prometheus指标端点\"\"\"
+    \"\"\"Prometheus metric endpoint\"\"\"
     return generate_latest()
 
 @app.route('/health')
 def health_check():
-    \"\"\"健康检查\"\"\"
+    \"\"\"health check\"\"\"
     return jsonify({'status': 'healthy', 'model': monitor.model_name})
 
 if __name__ == '__main__':
@@ -536,10 +538,10 @@ if __name__ == '__main__':
 
 ---
 
-<!-- chunk: 三、批量漂移分析系统 -->
-## 三、批量漂移分析系统
 
-### 3.1 批量数据分析管道
+## 3. Batch Drift Analysis System
+
+### 3.1 Batch Data Analysis Pipeline
 
 ```python
 # batch_drift_analysis.py
@@ -567,13 +569,13 @@ class BatchDriftAnalyzer:
         self.s3_client = boto3.client('s3')
         
     def fetch_batch_data(self, date_range):
-        \"\"\"获取批处理数据\"\"\"
+        \"\"\"get batch data\"\"\"
         data_frames = []
         
         for date in pd.date_range(date_range[0], date_range[1], freq='D'):
             date_str = date.strftime('%Y-%m-%d')
             try:
-                # 从S3下载数据
+                # Download data from S3
                 obj = self.s3_client.get_object(
                     Bucket=self.s3_bucket,
                     Key=f\"predictions/{self.model_name}/{date_str}.csv\"
@@ -587,30 +589,30 @@ class BatchDriftAnalyzer:
         return pd.concat(data_frames, ignore_index=True) if data_frames else pd.DataFrame()
     
     def analyze_data_drift(self, reference_data, current_data, output_path=None):
-        \"\"\"分析数据漂移\"\"\"
-        # 创建Evidently配置文件
+        \"\"\"analyze data drift\"\"\"
+        # Create Evidently configuration file
         profile = Profile(sections=[DataDriftProfileSection()])
         
-        # 生成分析报告
+        # Generate analysis report
         profile.calculate(reference_data, current_data, column_mapping=None)
         
-        # 提取漂移结果
+        # Extract drift results
         drift_results = profile.get_content()['data_drift']
         
-        # 详细分析
+        # Detailed analysis
         detailed_analysis = self._extract_detailed_drift_info(drift_results)
         
-        # 可视化
+        # Visualization
         if output_path:
             self._generate_drift_visualizations(detailed_analysis, output_path)
         
         return detailed_analysis
     
     def analyze_target_drift(self, reference_data, current_data, target_column, output_path=None):
-        \"\"\"分析目标变量漂移\"\"\"
+        \"\"\"Analyze target variable drift\"\"\"
         profile = Profile(sections=[CatTargetDriftProfileSection()])
         
-        # 准备数据
+        # Prepare data
         ref_with_target = reference_data.copy()
         ref_with_target['target'] = reference_data[target_column]
         
@@ -629,13 +631,13 @@ class BatchDriftAnalyzer:
     
     def analyze_model_performance_drift(self, reference_predictions, current_predictions, 
                                       target_column, problem_type='classification', output_path=None):
-        \"\"\"分析模型性能漂移\"\"\"
+        \"\"\"Analyze model performance drift\"\"\"
         if problem_type == 'classification':
             profile = Profile(sections=[ClassificationPerformanceProfileSection()])
         else:
             profile = Profile(sections=[RegressionPerformanceProfileSection()])
         
-        # 准备数据
+        # Prepare data
         ref_data = reference_predictions.copy()
         ref_data['target'] = reference_predictions[target_column]
         
@@ -652,7 +654,7 @@ class BatchDriftAnalyzer:
         return performance_drift
     
     def _extract_detailed_drift_info(self, drift_results):
-        \"\"\"提取详细的漂移信息\"\"\"
+        \"\"\"Extract detailed drift information\"\"\"
         detailed_info = {
             'overall_drift_score': drift_results['data_drift_score'],
             'drift_detected': drift_results['data_drift_detected'],
@@ -660,7 +662,7 @@ class BatchDriftAnalyzer:
             'timestamp': datetime.now().isoformat()
         }
         
-        # 分析各个特征
+        # Analyze each feature
         for feature_name, feature_info in drift_results['columns'].items():
             detailed_info['feature_drifts'][feature_name] = {
                 'drift_score': feature_info['drift_score'],
@@ -672,10 +674,10 @@ class BatchDriftAnalyzer:
         return detailed_info
     
     def _generate_drift_visualizations(self, drift_analysis, output_path):
-        \"\"\"生成漂移可视化图表\"\"\"
+        \"\"\"Generate drift visualization charts\"\"\"
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
         
-        # 1. 特征漂移分数分布
+        # 1. Feature drift score distribution
         feature_scores = [info['drift_score'] for info in drift_analysis['feature_drifts'].values()]
         feature_names = list(drift_analysis['feature_drifts'].keys())
         
@@ -686,7 +688,7 @@ class BatchDriftAnalyzer:
         axes[0, 0].axhline(y=0.5, color='r', linestyle='--', label='Threshold')
         axes[0, 0].legend()
         
-        # 2. 漂移检测结果
+        # 2. Drift detection results
         drift_detected = [info['drift_detected'] for info in drift_analysis['feature_drifts'].values()]
         colors = ['red' if detected else 'green' for detected in drift_detected]
         axes[0, 1].scatter(range(len(drift_detected)), drift_detected, c=colors)
@@ -696,13 +698,13 @@ class BatchDriftAnalyzer:
         axes[0, 1].set_yticks([0, 1])
         axes[0, 1].set_yticklabels(['No', 'Yes'])
         
-        # 3. 统计测试分布
+        # 3. Statistical test distribution
         stat_tests = [info['stat_test'] for info in drift_analysis['feature_drifts'].values()]
         test_counts = pd.Series(stat_tests).value_counts()
         axes[1, 0].pie(test_counts.values, labels=test_counts.index, autopct='%1.1f%%')
         axes[1, 0].set_title('Statistical Tests Used')
         
-        # 4. 时间趋势（如果有多天数据）
+        # 4. Time trend (if multiple days of data)
         axes[1, 1].text(0.5, 0.5, 'Time Trend Analysis\n(Requires temporal data)', 
                        ha='center', va='center', transform=axes[1, 1].transAxes)
         axes[1, 1].set_title('Temporal Drift Trend')
@@ -712,17 +714,17 @@ class BatchDriftAnalyzer:
         plt.close()
 
 def run_batch_drift_analysis(**context):
-    \"\"\"Airflow任务函数\"\"\"
-    # 参数获取
+    \"\"\"Apache Airflow task function\"\"\"
+    # Parameter retrieval
     model_name = context['params']['model_name']
     s3_bucket = context['params']['s3_bucket']
     reference_date = context['params']['reference_date']
     analysis_date = context['params']['analysis_date']
     
-    # 初始化分析器
+    # Initialize analyzer
     analyzer = BatchDriftAnalyzer(model_name, s3_bucket)
     
-    # 获取参考数据和当前数据
+    # Retrieve reference data and current data
     reference_end = datetime.strptime(reference_date, '%Y-%m-%d')
     reference_start = reference_end - timedelta(days=30)
     
@@ -735,14 +737,14 @@ def run_batch_drift_analysis(**context):
     if reference_data.empty or current_data.empty:
         raise ValueError(\"Insufficient data for drift analysis\")
     
-    # 执行漂移分析
+    # Execute drift analysis
     drift_results = analyzer.analyze_data_drift(
         reference_data, 
         current_data,
         output_path=f\"/tmp/reports/{model_name}\"
     )
     
-    # 记录到MLflow
+    # Record to MLflow
     with mlflow.start_run():
         mlflow.log_param(\"model_name\", model_name)
         mlflow.log_param(\"reference_period\", f\"{reference_start} to {reference_end}\")
@@ -751,13 +753,13 @@ def run_batch_drift_analysis(**context):
         mlflow.log_metric(\"drift_detected\", int(drift_results['drift_detected']))
         mlflow.log_artifact(f\"/tmp/reports/{model_name}/drift_analysis.png\")
         
-        # 记录特征级漂移
+        # Record feature-level drift
         for feature, info in drift_results['feature_drifts'].items():
             mlflow.log_metric(f\"drift_score_{feature}\", info['drift_score'])
     
     return drift_results
 
-# Airflow DAG定义
+# Airflow DAG definition
 default_args = {
     'owner': 'ml-team',
     'depends_on_past': False,
@@ -793,10 +795,10 @@ drift_analysis_task
 
 ---
 
-<!-- chunk: 四、自动重训练触发机制 -->
-## 四、自动重训练触发机制
 
-### 4.1 重训练决策引擎
+## 4. Auto-Retraining Trigger Mechanism
+
+### 4.1 Retraining Decision Engine
 
 ```python
 # auto_retraining_trigger.py
@@ -815,13 +817,13 @@ class RetrainingTrigger:
         self.drift_history = []
         self.performance_history = []
         
-        # Kubernetes配置
+        # Kubernetes configuration
         config.load_kube_config()
         self.batch_v1 = client.BatchV1Api()
         
     def evaluate_retraining_need(self, drift_analysis, performance_metrics):
-        \"\"\"评估是否需要重训练\"\"\"
-        # 记录历史数据
+        \"\"\"Evaluate whether retraining is needed\"\"\"
+        # Record historical data
         self.drift_history.append({
             'timestamp': datetime.now().isoformat(),
             'drift_score': drift_analysis.get('overall_drift_score', 0),
@@ -835,12 +837,12 @@ class RetrainingTrigger:
             'recall': performance_metrics.get('recall', 0)
         })
         
-        # 多维度评估
+        # Multi-dimensional evaluation
         drift_trigger = self._evaluate_drift_trigger(drift_analysis)
         performance_trigger = self._evaluate_performance_trigger(performance_metrics)
         business_trigger = self._evaluate_business_trigger()
         
-        # 综合决策
+        # Comprehensive decision
         should_retrain = drift_trigger or performance_trigger or business_trigger
         
         decision = {
@@ -857,22 +859,22 @@ class RetrainingTrigger:
             'timestamp': datetime.now().isoformat()
         }
         
-        # 记录决策到MLflow
+        # Record decision to MLflow
         self._log_decision(decision)
         
         return decision
     
     def _evaluate_drift_trigger(self, drift_analysis):
-        \"\"\"评估漂移触发条件\"\"\"
+        \"\"\"Evaluate drift trigger conditions\"\"\"
         if not drift_analysis:
             return False
             
-        # 检查整体漂移分数
+        # Check overall drift score
         overall_drift = drift_analysis.get('overall_drift_score', 0)
         if overall_drift > self.config['drift_threshold']:
             return True
             
-        # 检查关键特征漂移
+        # Check key feature drift
         critical_features = self.config.get('critical_features', [])
         feature_drifts = drift_analysis.get('feature_drifts', {})
         
@@ -881,7 +883,7 @@ class RetrainingTrigger:
                 if feature_drifts[feature]['drift_score'] > self.config['feature_drift_threshold']:
                     return True
         
-        # 检查持续漂移趋势
+        # Check continuous drift trend
         if len(self.drift_history) >= 3:
             recent_drifts = [entry['drift_score'] for entry in self.drift_history[-3:]]
             if all(drift > self.config['drift_threshold'] * 0.8 for drift in recent_drifts):
@@ -890,11 +892,11 @@ class RetrainingTrigger:
         return False
     
     def _evaluate_performance_trigger(self, performance_metrics):
-        \"\"\"评估性能触发条件\"\"\"
+        \"\"\"Evaluate performance trigger conditions\"\"\"
         if not performance_metrics:
             return False
             
-        # 检查准确率下降
+        # Check accuracy decline
         current_accuracy = performance_metrics.get('accuracy', 1.0)
         if len(self.performance_history) >= 2:
             previous_accuracy = self.performance_history[-2]['accuracy']
@@ -903,7 +905,7 @@ class RetrainingTrigger:
             if accuracy_drop > self.config['accuracy_drop_threshold']:
                 return True
         
-        # 检查精确率/召回率平衡
+        # Check imbalanced precision/recall
         precision = performance_metrics.get('precision', 1.0)
         recall = performance_metrics.get('recall', 1.0)
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
@@ -914,9 +916,9 @@ class RetrainingTrigger:
         return False
     
     def _evaluate_business_trigger(self):
-        \"\"\"评估业务触发条件\"\"\"
-        # 检查业务指标异常
-        # 例如：错误成本增加、客户投诉增多等
+        \"\"\"Evaluate business trigger conditions\"\"\"
+        # Check abnormal business metrics
+        # For example: increased error cost, increased customer complaints
         business_metrics = self._fetch_business_metrics()
         
         if business_metrics.get('error_cost_increase', 0) > self.config['max_error_cost_increase']:
@@ -928,15 +930,15 @@ class RetrainingTrigger:
         return False
     
     def _fetch_business_metrics(self):
-        \"\"\"获取业务指标（模拟实现）\"\"\"
-        # 实际实现中应从业务系统获取真实数据
+        \"\"\"Get business metrics (mock implementation)\"\"\"
+        # In actual implementation, real data should be obtained from the business system
         return {
             'error_cost_increase': np.random.uniform(0, 0.2),
             'customer_complaints': np.random.poisson(5)
         }
     
     def _calculate_decision_confidence(self, drift_trigger, performance_trigger, business_trigger):
-        \"\"\"计算决策置信度\"\"\"
+        \"\"\"Compute decision confidence\"\"\"
         trigger_count = sum([drift_trigger, performance_trigger, business_trigger])
         total_triggers = 3
         
@@ -950,11 +952,11 @@ class RetrainingTrigger:
             return 0.95
     
     def _get_recommended_action(self, should_retrain):
-        \"\"\"获取推荐行动\"\"\"
+        \"\"\"Get recommended action\"\"\"
         if not should_retrain:
             return \"continue_monitoring\"
         
-        # 根据触发类型推荐具体行动
+        # Recommend specific actions based on trigger type
         if len(self.drift_history) >= 3 and \
            all(entry['drift_detected'] for entry in self.drift_history[-3:]):
             return \"immediate_retraining\"
@@ -967,26 +969,26 @@ class RetrainingTrigger:
             return \"scheduled_retraining\"
     
     def _log_decision(self, decision):
-        \"\"\"记录决策到MLflow\"\"\"
+        \"\"\"Record decision to MLflow\"\"\"
         with mlflow.start_run():
             mlflow.log_param(\"model_name\", self.model_name)
             mlflow.log_param(\"decision_timestamp\", decision['timestamp'])
             mlflow.log_metric(\"should_retrain\", int(decision['should_retrain']))
             mlflow.log_metric(\"decision_confidence\", decision['confidence'])
             
-            # 记录触发条件
+            # Record trigger conditions
             for trigger_type, triggered in decision['triggers'].items():
                 mlflow.log_metric(f\"{trigger_type}_trigger\", int(triggered))
     
     def trigger_retraining_job(self, decision):
-        \"\"\"触发重训练作业\"\"\"
+        \"\"\"Trigger retraining job\"\"\"
         if not decision['should_retrain']:
             return None
             
-        # 创建Kubernetes Job配置
+        # Create Kubernetes Job configuration
         job_config = self._create_training_job_config(decision)
         
-        # 提交Job
+        # Submit Job
         try:
             job = self.batch_v1.create_namespaced_job(
                 namespace=\"ml-training\",
@@ -1000,7 +1002,7 @@ class RetrainingTrigger:
             return None
     
     def _create_training_job_config(self, decision):
-        \"\"\"创建训练作业配置\"\"\"
+        \"\"\"Create training job configuration\"\"\"
         job_template = {
             \"apiVersion\": \"batch/v1\",
             \"kind\": \"Job\",
@@ -1059,7 +1061,7 @@ class RetrainingTrigger:
         
         return job_template
 
-# 使用示例
+# Usage Example
 trigger_config = {
     'drift_threshold': 0.5,
     'feature_drift_threshold': 0.3,
@@ -1080,7 +1082,7 @@ trigger_config = {
 
 retrainer = RetrainingTrigger('customer_churn_model', trigger_config)
 
-# 模拟漂移分析结果
+# Simulate Drift Analysis Results
 drift_analysis = {
     'overall_drift_score': 0.65,
     'drift_detected': True,
@@ -1091,18 +1093,18 @@ drift_analysis = {
     }
 }
 
-# 模拟性能指标
+# Simulate Performance Metrics
 performance_metrics = {
     'accuracy': 0.82,
     'precision': 0.78,
     'recall': 0.85
 }
 
-# 评估重训练需求
+# Evaluate retraining requirements
 decision = retrainer.evaluate_retraining_need(drift_analysis, performance_metrics)
 print(\"Retraining decision:\", json.dumps(decision, indent=2))
 
-# 如果需要重训练，则触发作业
+# If retraining is needed, trigger job
 if decision['should_retrain']:
     job_name = retrainer.trigger_retraining_job(decision)
     print(f\"Retraining job triggered: {job_name}\")
@@ -1110,10 +1112,10 @@ if decision['should_retrain']:
 
 ---
 
-<!-- chunk: 五、漂移监控告警系统 -->
-## 五、漂移监控告警系统
 
-### 5.1 多层级告警配置
+## 5. Drift Monitoring Alert System
+
+### 5.1 Multi-level Alarm Configuration
 
 ```yaml
 # drift-alerting-config.yaml
@@ -1126,7 +1128,7 @@ spec:
   groups:
   - name: model.drift.rules
     rules:
-    # 紧急告警 - 高严重性漂移
+    # Emergency Alert - High Severity Drift
     - alert: CriticalModelDrift
       expr: |
         model_drift_score{severity=\"critical\"} > 0
@@ -1139,7 +1141,7 @@ spec:
         description: \"Model {{ $labels.model }} has critical drift (score: {{ $value }}). Immediate attention required.\"
         runbook_url: \"https://wiki.company.com/ml-ops/model-drift-runbook\"
     
-    # 警告告警 - 中等严重性漂移
+    # Warning alert - Moderate drift severity
     - alert: SignificantModelDrift
       expr: |
         model_drift_score{severity=\"high\"} > 0
@@ -1151,7 +1153,7 @@ spec:
         summary: \"Significant model drift detected\"
         description: \"Model {{ $labels.model }} showing significant drift. Investigation recommended.\"
     
-    # 通知告警 - 轻微漂移
+    # Notification alert - Minor drift
     - alert: ModelDriftDetected
       expr: |
         model_drift_score{severity=\"medium\"} > 0
@@ -1163,7 +1165,7 @@ spec:
         summary: \"Model drift detected\"
         description: \"Model {{ $labels.model }} showing minor drift. Monitor closely.\"
 
-    # 性能相关告警
+    # Performance-related alert
     - alert: ModelAccuracyDrop
       expr: |
         model_accuracy < 0.8
@@ -1243,7 +1245,7 @@ data:
         html: '{{ template \"email.default.html\" . }}'
 ```
 
-### 5.2 漂移仪表板配置
+### 5.2 Drift Dashboard Configuration
 
 ```json
 {
@@ -1339,25 +1341,25 @@ data:
 
 ---
 
-**维护者**: Model Operations Team | **最后更新**: 2026-02 | **版本**: v1.0
+**Maintainer**: Model Operations Team | **Last Updated**: 2026-02 | **Version**: v1.0
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

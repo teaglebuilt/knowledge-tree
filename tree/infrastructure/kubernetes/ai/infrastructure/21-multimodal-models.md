@@ -1,6 +1,6 @@
 ---
-title: 21 - 多模态模型融合与部署
-description: '# 21 - 多模态模型融合与部署'
+title: 21 - Multi-modal Model Fusion and Deployment
+description: '# 21 - Multi-modal Model Fusion and Deployment'
 summary: 'requiredDuringSchedulingIgnoredDuringExecution:'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- 多模态模型融合与部署 是什么
-- 如何 多模态模型融合与部署
-- Kubernetes 11 ai infra 最佳实践
+- What is multi-modal model fusion and deployment
+- How to do multi-modal model fusion and deployment
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- 多模态模型融合与部署
+- Multi-modal model fusion and deployment
 - ai
 - infra
 prerequisites:
@@ -50,30 +50,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/21-multimodal-models.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands in this document are executable directly. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk levels for commands are marked: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 21 - 多模态模型融合与部署
+# 21 - Multi-modal Model Fusion and Deployment
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 高级 | **参考**: [CLIP](https://github.com/openai/CLIP) | [LLaVA](https://github.com/haotian-liu/LLaVA) | [Whisper](https://github.com/openai/whisper) | [ImageBind](https://github.com/facebookresearch/ImageBind)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: [CLIP](https://github.com/openai/CLIP) | [LLaVA](https://github.com/haotian-liu/LLaVA) | [Whisper](https://github.com/openai/whisper) | [ImageBind](https://github.com/facebookresearch/ImageBind)
 
-<!-- chunk: 一、多模态AI架构全景 -->
-## 一、多模态AI架构全景
 
-### 1.1 多模态融合架构
+## 1. Overall Multi-modal AI Architecture Overview
+
+### 1.1 Multi-modal Fusion Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -113,32 +115,32 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 多模态模型对比矩阵
+### 1.2 Multi-modal Model Comparison Matrix
 
-| 模型 | 模态 | 参数量 | 显存需求 | 推理延迟 | 适用场景 | 技术特点 |
+| Model | Modality | Parameters | GPU Memory | Inference Delay | Use Case | Technical Features |
 |------|------|--------|----------|----------|----------|----------|
-| **CLIP** | 图像+文本 | 400M-1.2B | 2-8GB | 50-200ms | 图像检索、零样本分类 | 对比学习、双编码器 |
-| **LLaVA** | 图像+文本 | 7B-34B | 15-60GB | 200-800ms | 视觉问答、图像理解 | 指令微调、多模态LLM |
-| **Whisper** | 音频+文本 | 150M-1.5B | 1-6GB | 100-500ms | 语音识别、翻译 | 编码器-解码器、多任务 |
-| **ImageBind** | 6模态 | 1.2B | 8-12GB | 150-300ms | 跨模态检索、内容理解 | 统一嵌入空间、零样本迁移 |
-| **BLIP-2** | 图像+文本 | 7B-175B | 20-300GB | 300-1500ms | 图像生成、视觉对话 | Q-Former、大型语言模型 |
-| **AudioLDM** | 音频+文本 | 1.5B | 10-15GB | 500-2000ms | 音频生成、音效合成 | 扩散模型、条件生成 |
+| **CLIP** | Image + Text | 400M-1.2B | 2-8GB | 50-200ms | Image Retrieval, Zero-Shot Classification | Contrastive Learning, Dual Encoder |
+| **LLaVA** | Image + Text | 7B-34B | 15-60GB | 200-800ms | Visual Questioning, Image Understanding | Command Fine-Tuning, Multi-modal LLM |
+| **Whisper** | Audio + Text | 150M-1.5B | 1-6GB | 100-500ms | Speech Recognition, Translation | Encoder-Decoder, Multi-task |
+| **ImageBind** | 6 Modalities | 1.2B | 8-12GB | 150-300ms | Cross-modal Retrieval, Content Understanding | Unified Embedding Space, Zero-Shot Transfer |
+| **BLIP-2** | Image + Text | 7B-175B | 20-300GB | 300-1500ms | Image Generation, Visual Dialog | Q-Former, Large Language Model |
+| **AudioLDM** | Audio + Text | 1.5B | 10-15GB | 500-2000ms | Audio Generation, Sound Effect Synthesis | Diffusion Model, Conditional Generation |
 
-<!-- chunk: 一、多模态模型对比 -->
-## 一、多模态模型对比
 
-| 模型 | 模态 | 参数量 | 显存 | 适用场景 |
+## 1. Multi-modal Model Comparison
+
+| Model | Modality | Parameters | GPU Memory | Use Case |
 |-----|------|-------|------|---------|
-| **CLIP** | 图像+文本 | 400M | 4GB | 图像检索/分类 |
-| **LLaVA** | 图像+文本 | 7B-13B | 18-26GB | 视觉问答 |
-| **Whisper** | 音频+文本 | 1.5B | 6GB | 语音识别 |
-| **ImageBind** | 6模态 | 1.2B | 8GB | 跨模态检索 |
-| **GPT-4V** | 图像+文本 | 未知 | API | 通用视觉理解 |
+| **CLIP** | Image + Text | 400M | 4GB | Image Retrieval/Classification |
+| **LLaVA** | Image + Text | 7B-13B | 18-26GB | Visual Questioning |
+| **Whisper** | Audio + Text | 1.5B | 6GB | Speech Recognition |
+| **ImageBind** | 6 Modalities | 1.2B | 8GB | Cross-modal Retrieval |
+| **GPT-4V** | Image + Text | Unknown | API | General Visual Understanding |
 
-<!-- chunk: 二、CLIP图像文本匹配系统 -->
-## 二、CLIP图像文本匹配系统
 
-### 2.1 CLIP生产级部署架构
+## 2. CLIP Image-Text Matching System
+
+### 2.1 CLIP Production-Level Deployment Architecture
 
 ```yaml
 # clip-production-deployment.yaml
@@ -285,7 +287,7 @@ spec:
         periodSeconds: 60
 ```
 
-### 2.2 CLIP服务核心实现
+### 2.2 Core Implementation of CLIP Services
 
 ```python
 # clip_server.py
@@ -303,7 +305,7 @@ import base64
 import redis.asyncio as redis
 import logging
 
-# Prometheus指标
+# Prometheus metrics
 REQUEST_COUNT = Counter('clip_requests_total', 'Total CLIP requests', ['endpoint', 'status'])
 REQUEST_LATENCY = Histogram('clip_request_duration_seconds', 'CLIP request latency', ['endpoint'])
 GPU_UTILIZATION = Gauge('clip_gpu_utilization_percent', 'GPU utilization')
@@ -331,16 +333,16 @@ class CLIPService:
         self.logger = logging.getLogger(__name__)
         
     async def encode_image(self, image_data: str) -> torch.Tensor:
-        """编码图像"""
+        """encode image"""
         try:
-            # 解码base64图像
+            # decode base64 image
             image_bytes = base64.b64decode(image_data)
             image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
             
-            # 预处理
+            # preprocessing
             inputs = self.processor(images=image, return_tensors="pt").to(self.device)
             
-            # 编码
+            # encode
             with torch.no_grad():
                 image_features = self.model.get_image_features(**inputs)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
@@ -351,7 +353,7 @@ class CLIPService:
             raise HTTPException(status_code=400, detail="Invalid image data")
     
     async def encode_texts(self, texts: list[str]) -> torch.Tensor:
-        """编码文本"""
+        """encode text"""
         try:
             inputs = self.processor(text=texts, return_tensors="pt", padding=True).to(self.device)
             
@@ -365,18 +367,18 @@ class CLIPService:
             raise HTTPException(status_code=400, detail="Text encoding failed")
     
     async def search_similarities(self, image_features: torch.Tensor, text_features: torch.Tensor) -> list[float]:
-        """计算相似度"""
-        # 计算余弦相似度
+        """calculate similarity"""
+        # calculate cosine similarity
         similarities = torch.matmul(image_features, text_features.T)
         return similarities.squeeze().tolist()
 
-# 初始化服务
+# Initialize service
 clip_service = CLIPService()
 
 @app.on_event("startup")
 async def startup_event():
-    """服务启动初始化"""
-    # 预热模型
+    """Service initialization startup"""
+    # Warm-up model
     dummy_image = torch.randn(1, 3, 224, 224).to(clip_service.device)
     dummy_text = clip_service.processor(text=["warmup"], return_tensors="pt", padding=True).to(clip_service.device)
     
@@ -393,7 +395,7 @@ async def health_check():
 @app.get("/ready")
 async def readiness_check():
     try:
-        # 简单的就绪检查
+        # simple readiness check
         torch.cuda.synchronize() if torch.cuda.is_available() else None
         return {"status": "ready"}
     except Exception:
@@ -402,18 +404,18 @@ async def readiness_check():
 @app.post("/search", response_model=SearchResult)
 @REQUEST_LATENCY.labels(endpoint='search').time()
 async def search_similarities(request: ImageTextRequest):
-    """图像-文本相似度搜索"""
+    """image-text similarity search"""
     start_time = time.time()
     
     try:
-        # 编码图像和文本
+        # encode image and text
         image_features = await clip_service.encode_image(request.image_data)
         text_features = await clip_service.encode_texts(request.texts)
         
-        # 计算相似度
+        # calculate similarity
         similarities = await clip_service.search_similarities(image_features, text_features)
         
-        # 找到最佳匹配
+        # find best match
         best_idx = np.argmax(similarities)
         result = SearchResult(
             similarities=similarities,
@@ -439,7 +441,7 @@ async def search_similarities(request: ImageTextRequest):
 
 @app.get("/metrics")
 async def metrics():
-    """Prometheus指标端点"""
+    """Prometheus metrics endpoint"""
     return generate_latest()
 
 if __name__ == "__main__":
@@ -447,7 +449,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-### 2.3 CLIP生产运维最佳实践
+### 2.3 Production Operations Best Practices for CLIP
 
 ```yaml
 # clip-monitoring-config.yaml
@@ -460,15 +462,15 @@ spec:
   groups:
   - name: clip.rules
     rules:
-    # 性能指标
+    # performance metrics
     - alert: HighClipLatency
       expr: histogram_quantile(0.99, rate(clip_request_duration_seconds_bucket[5m])) > 0.5
       for: 2m
       labels:
         severity: warning
       annotations:
-        summary: "CLIP P99延迟超过500ms"
-        description: "CLIP服务响应时间异常，请检查GPU资源和模型状态"
+        summary: "CLIP P99 latency exceeds 500ms"
+        description: "CLIP service response time anomaly, please check GPU resources and model status"
     
     - alert: LowClipAccuracy
       expr: |
@@ -477,10 +479,10 @@ spec:
       labels:
         severity: warning
       annotations:
-        summary: "CLIP相似度得分偏低"
-        description: "模型准确性下降，可能需要重新训练或调整"
+        summary: "CLIP similarity score is too low"
+        description: "Model accuracy has declined, may require retraining or adjustment"
     
-    # 资源指标
+    # resource metrics
     - alert: HighGPUMemoryUsage
       expr: |
         avg(clip_gpu_memory_utilization_percent) > 90
@@ -488,8 +490,8 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "CLIP GPU内存使用率过高"
-        description: "GPU内存接近上限，可能导致OOM错误"
+        summary: "CLIP GPU memory usage is too high"
+        description: "GPU memory is approaching the limit, which may cause OOM errors"
     
     - alert: LowCacheHitRate
       expr: |
@@ -498,8 +500,8 @@ spec:
       labels:
         severity: info
       annotations:
-        summary: "CLIP缓存命中率偏低"
-        description: "缓存效率不佳，考虑调整缓存策略或增加缓存容量"
+        summary: "CLIP cache hit rate is too low"
+        description: "Cache efficiency is poor, consider adjusting the cache strategy or increasing cache capacity"
 
 ---
 apiVersion: v1
@@ -566,8 +568,8 @@ data:
     }
 ```
 
-<!-- chunk: 三、LLaVA视觉问答 -->
-## 三、LLaVA视觉问答
+
+## 3. LLaVA Visual Questioning
 
 ```yaml
 apiVersion: apps/v1
@@ -585,7 +587,7 @@ spec:
             nvidia.com/gpu: 1
             memory: "32Gi"
 ---
-# 调用示例
+# Example invocation
 curl -X POST http://llava-service/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -602,8 +604,8 @@ curl -X POST http://llava-service/v1/chat/completions \
   }'
 ```
 
-<!-- chunk: 四、Whisper语音识别 -->
-## 四、Whisper语音识别
+
+## 4. Whisper Speech Recognition
 
 ```yaml
 apiVersion: apps/v1
@@ -640,30 +642,30 @@ async def transcribe(audio: UploadFile = File(...)):
     }
 ```
 
-<!-- chunk: 五、性能优化 -->
-## 五、性能优化
 
-| 优化项 | 方法 | 效果 |
+## 5. Performance Optimization
+
+| Optimization Item | Method | Effect |
 |--------|------|------|
-| **批处理** | 批量处理图像/音频 | 吞吐↑5x |
-| **TensorRT** | 模型编译优化 | 速度↑3x |
-| **量化** | INT8量化 | 显存↓50% |
-| **缓存** | 缓存embeddings | 命中率20% |
+| **Batch Processing** | Batch process images/audio | Throughput ↑5x |
+| **TensorRT** | Model compilation optimization | Speed ↑3x |
+| **Quantization** | INT8 quantization | GPU Memory ↓50% |
+| **Cache** | Cache embeddings | Hit rate 20% |
 
-<!-- chunk: 六、成本分析 -->
-## 六、成本分析
 
-**CLIP图像检索 (1M图像库, 1000 QPS):**
-- GPU: 10×T4 = $1,200/月
-- 存储: 1M×512维×4字节 = 2GB = $0.05/月
-- 总成本: ~$1,200/月
+## 6. Cost Analysis
 
-**Whisper语音转录 (100并发):**
-- GPU: 5×T4 = $600/月
-- Spot优化: $180/月 (节省70%)
+**CLIP Image Retrieval (1M image library, 1000 QPS):**
+- GPU: 10×T4 = $1,200/month
+- Storage: 1M×512-dim×4 bytes = 2GB = $0.05/month
+- Total cost: ~$1,200/month
 
-<!-- chunk: 七、监控指标 -->
-## 七、监控指标
+**Whisper Speech-to-Text (100 concurrent):**
+- GPU: 5×T4 = $600/month
+- Spot optimization: $180/month (70% savings)
+
+
+## 7. Monitoring Metrics
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -677,46 +679,46 @@ spec:
     - alert: HighEmbeddingLatency
       expr: histogram_quantile(0.99, rate(clip_embedding_duration_seconds_bucket[5m])) > 1
       annotations:
-        summary: "CLIP embedding延迟>1秒"
+        summary: "CLIP embedding latency > 1 second"
 ```
 
-<!-- chunk: 八、最佳实践 -->
-## 八、最佳实践
 
-1. **模型选择**:
-   - 图像检索: CLIP ViT-B/32
-   - 视觉问答: LLaVA-1.5-13B
-   - 语音识别: Whisper Large-v3
+## 8. Best Practices
 
-2. **批处理配置**:
-   - CLIP: 批次64
-   - Whisper: 批次16
-   - LLaVA: 批次4
+1. **Model Selection**:
+   - Image Retrieval: CLIP ViT-B/32
+   - Visual QA: LLaVA-1.5-13B
+   - Speech Recognition: Whisper Large-v3
 
-3. **缓存策略**:
-   - 图像embeddings: Redis缓存1小时
-   - 热门查询: 缓存24小时
+2. **Batch Configuration**:
+   - CLIP: batch size 64
+   - Whisper: batch size 16
+   - LLaVA: batch size 4
 
----
-**相关**: [116-LLM Serving](../18-llm-serving-architecture.md) | **版本**: transformers 4.36+
+3. **Caching Strategy**:
+   - Image embeddings: Redis cache for 1 hour
+   - Hot queries: cache for 24 hours
 
 ---
+**Related**: [116-LLM Serving](../18-llm-serving-architecture.md) | **Version**: transformers 4.36+
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+---
+
+
+## 8. Obsidian Documentation
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- index.md|Domain-11 AI Infrastructure — Open Source Project Index]]
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

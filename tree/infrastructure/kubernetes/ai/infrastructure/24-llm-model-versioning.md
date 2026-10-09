@@ -1,6 +1,6 @@
 ---
-title: 24 - LLM模型版本管理与治理
-description: '# 24 - LLM模型版本管理与治理'
+title: 24 - LLM Model Version Management and Governance
+description: '# 24 - LLM Model Version Management and Governance'
 summary: 'preferredDuringSchedulingIgnoredDuringExecution:'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM模型版本管理与治理 是什么
-- 如何 LLM模型版本管理与治理
-- Kubernetes 11 ai infra 最佳实践
+- What is LLM Model Version Management and Governance
+- How to manage LLM Model Version Management and Governance
+- Kubernetes 11 AI Infrastructure Best Practices
 trigger_keywords:
-- LLM模型版本管理与治理
+- LLM Model Version Management and Governance
 - ai
 - infra
 prerequisites:
@@ -49,30 +49,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/24-llm-model-versioning.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before execution, please confirm: whether the target cluster and namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 24 - LLM模型版本管理与治理
+# 24 - LLM Model Version Management and Governance
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **难度**: 专家级 | **参考**: [MLflow](https://mlflow.org/) | [DVC](https://dvc.org/) | [HuggingFace Hub](https://huggingface.co/) | CNCF Model Registry
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Difficulty**: Expert Level | **Reference**: [MLflow](https://mlflow.org/) | [DVC](https://dvc.org/) | [HuggingFace Hub](https://huggingface.co/) | CNCF Model Registry
 
-<!-- chunk: 一、企业级模型版本治理体系 -->
-## 一、企业级模型版本治理体系
 
-### 1.1 模型生命周期管理架构
+## 1. Enterprise-Level Model Version Governance System
+
+### 1.1 Model Lifecycle Management Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -110,21 +112,21 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 企业级版本管理策略
+### 1.2 Enterprise-Level Version Management Strategies
 
-| 策略维度 | 实施要点 | 技术实现 | 运维考虑 |
+| Strategy Dimension | Implementation Points | Technical Implementation | Operational Considerations |
 |----------|----------|----------|----------|
-| **语义化版本** | MAJOR.MINOR.PATCH | Git标签 + MLflow版本 | 自动化版本生成 |
-| **分支策略** | Git Flow + 模型分支 | feature/model-*分支 | 分支合并审查 |
-| **环境隔离** | dev/staging/prod三环境 | 命名空间隔离 | 资源配额管理 |
-| **审批流程** | 多级审批机制 | GitOps + Approvals | 审批时效控制 |
-| **回滚机制** | 一键回滚 + 渐进式 | Blue/Green + Canary | 回滚时间窗 |
-| **审计追踪** | 完整变更日志 | Git提交 + MLflow日志 | 合规性要求 |
+| **Semantic Versioning** | MAJOR.MINOR.PATCH | Git tag + MLflow version | Automated version generation |
+| **Branch Strategy** | Git Flow + model branch | feature/model-* branches | Branch merging review |
+| **Environment Isolation** | dev/staging/prod three environments | Namespace isolation | Resource quota management |
+| **Approval Process** | Multi-level approval mechanism | GitOps + Approvals | Approval time control |
+| **Rollback Mechanism** | One-click rollback + progressive | Blue/Green + Canary | Rollback window time |
+| **Audit Tracing** | Complete change logs | Git commits + MLflow logs | Compliance requirements |
 
-<!-- chunk: 二、MLflow企业级部署 -->
-## 二、MLflow企业级部署
 
-### 2.1 高可用MLflow架构
+## 2. MLflow Enterprise Deployment
+
+### 2.1 High-Availability MLflow Architecture
 
 ```yaml
 # mlflow-production-deployment.yaml
@@ -332,7 +334,7 @@ spec:
               number: 80
 ```
 
-### 2.2 模型注册与元数据管理
+### 2.2 Model Registration and Metadata Management
 
 ```python
 # enterprise_model_registry.py
@@ -348,7 +350,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelMetadata:
-    """模型元数据结构"""
+    """model metadata structure"""
     model_name: str
     version: str
     description: str
@@ -376,27 +378,27 @@ class EnterpriseModelRegistry:
                                      model_uri: str, 
                                      model_name: str,
                                      metadata: ModelMetadata) -> str:
-        """注册模型并应用治理策略"""
+        """register the model and apply governance policies"""
         
-        # 开始注册流程
+        # start the registration process
         with mlflow.start_run() as run:
-            # 记录模型元数据
+            # record model metadata
             self._log_model_metadata(metadata)
             
-            # 记录性能指标
+            # record performance metrics
             for metric_name, value in metadata.performance_metrics.items():
                 mlflow.log_metric(metric_name, value)
             
-            # 记录超参数
+            # record hyperparameters
             mlflow.log_params(metadata.hyperparameters)
             
-            # 记录依赖项
+            # record dependencies
             mlflow.log_dict(
                 {"dependencies": metadata.dependencies},
                 "requirements.json"
             )
             
-            # 注册模型
+            # register the model
             model_info = mlflow.register_model(
                 model_uri=model_uri,
                 name=model_name,
@@ -408,14 +410,14 @@ class EnterpriseModelRegistry:
                 }
             )
             
-            # 创建模型卡片
+            # create the model card
             self._create_model_card(model_info, metadata)
             
-            # 触发治理检查
+            # trigger governance checks
             governance_passed = self._run_governance_checks(model_info, metadata)
             
             if governance_passed:
-                # 自动晋级到Staging
+                # automatically advance to Staging
                 self.client.transition_model_version_stage(
                     name=model_name,
                     version=model_info.version,
@@ -428,24 +430,24 @@ class EnterpriseModelRegistry:
             return f"{model_name}/{model_info.version}"
     
     def _log_model_metadata(self, metadata: ModelMetadata):
-        """记录模型元数据"""
-        # 记录核心元数据
+        """record model metadata"""
+        # record core metadata
         mlflow.set_tag("model.description", metadata.description)
         mlflow.set_tag("model.author", metadata.author)
         mlflow.set_tag("model.team", metadata.team)
         mlflow.set_tag("model.dataset", metadata.training_dataset)
         mlflow.set_tag("model.dataset_version", metadata.dataset_version)
         
-        # 记录硬件需求
+        # record hardware requirements
         mlflow.set_tag("hardware.cpu", metadata.hardware_requirements.get("cpu", "unknown"))
         mlflow.set_tag("hardware.memory", metadata.hardware_requirements.get("memory", "unknown"))
         mlflow.set_tag("hardware.gpu", metadata.hardware_requirements.get("gpu", "none"))
         
-        # 记录合规标签
+        # record compliance tags
         mlflow.set_tag("compliance.tags", ",".join(metadata.compliance_tags))
         
     def _create_model_card(self, model_info, metadata: ModelMetadata):
-        """创建模型卡片"""
+        """create the model card"""
         model_card = {
             "model_identity": {
                 "name": metadata.model_name,
@@ -495,33 +497,33 @@ class EnterpriseModelRegistry:
             }
         }
         
-        # 保存模型卡片
+        # save the model card
         mlflow.log_dict(model_card, "model_card.json")
         
     def _run_governance_checks(self, model_info, metadata: ModelMetadata) -> bool:
-        """运行治理检查"""
+        """run governance checks"""
         checks_passed = []
         
-        # 1. 性能基线检查
+        # 1. baseline performance check
         baseline_checks = self._check_performance_baseline(metadata)
         checks_passed.append(("performance_baseline", baseline_checks))
         
-        # 2. 合规性检查
+        # 2. compliance check
         compliance_checks = self._check_compliance(metadata)
         checks_passed.append(("compliance", compliance_checks))
         
-        # 3. 安全扫描
+        # 3. Security Scan
         security_checks = self._check_security(model_info)
         checks_passed.append(("security", security_checks))
         
-        # 4. 依赖项检查
+        # 4. Dependency Check
         dependency_checks = self._check_dependencies(metadata)
         checks_passed.append(("dependencies", dependency_checks))
         
-        # 汇总结果
+        # Summarize Results
         all_passed = all(check["passed"] for _, check in checks_passed)
         
-        # 记录检查结果
+        # Record Check Results
         mlflow.set_tag("governance.checks", json.dumps({
             "timestamp": datetime.now().isoformat(),
             "results": checks_passed,
@@ -531,7 +533,7 @@ class EnterpriseModelRegistry:
         return all_passed
     
     def _check_performance_baseline(self, metadata: ModelMetadata) -> Dict:
-        """检查性能基线"""
+        """Check Performance Baseline"""
         required_metrics = ["accuracy", "precision", "recall", "f1_score"]
         actual_metrics = list(metadata.performance_metrics.keys())
         
@@ -552,7 +554,7 @@ class EnterpriseModelRegistry:
         }
     
     def _check_compliance(self, metadata: ModelMetadata) -> Dict:
-        """合规性检查"""
+        """Compliance Check"""
         required_compliance = ["GDPR", "SOC2"]
         has_required = all(tag in metadata.compliance_tags for tag in required_compliance)
         
@@ -566,8 +568,8 @@ class EnterpriseModelRegistry:
         }
     
     def _check_security(self, model_info) -> Dict:
-        """安全检查"""
-        # 模拟安全扫描
+        """Security Check"""
+        # Simulate Security Scan
         vulnerabilities_found = []  # 实际应该调用安全扫描工具
         
         return {
@@ -579,8 +581,8 @@ class EnterpriseModelRegistry:
         }
     
     def _check_dependencies(self, metadata: ModelMetadata) -> Dict:
-        """依赖项检查"""
-        # 检查是否有已知的安全漏洞依赖
+        """Dependency Check"""
+        # Check for known security vulnerabilities dependencies
         insecure_deps = []  # 实际应该检查CVE数据库
         
         return {
@@ -592,12 +594,12 @@ class EnterpriseModelRegistry:
         }
     
     def promote_to_production(self, model_name: str, version: str) -> bool:
-        """将模型晋级到生产环境"""
+        """Promote the model to production environment"""
         try:
-            # 获取当前生产版本
+            # Get the current production version
             current_prod = self.client.get_latest_versions(model_name, stages=["Production"])
             
-            # 降级当前生产版本到归档
+            # Rollback the current production version to archive
             if current_prod:
                 self.client.transition_model_version_stage(
                     name=model_name,
@@ -605,7 +607,7 @@ class EnterpriseModelRegistry:
                     stage="Archived"
                 )
             
-            # 晋级新版本到生产
+            # Promote the new version to production
             self.client.transition_model_version_stage(
                 name=model_name,
                 version=version,
@@ -620,11 +622,11 @@ class EnterpriseModelRegistry:
             return False
     
     def get_model_lineage(self, model_name: str, version: str) -> Dict:
-        """获取模型血缘关系"""
+        """Get the model lineage information"""
         model_version = self.client.get_model_version(model_name, version)
         run_id = model_version.run_id
         
-        # 获取训练运行信息
+        # Get training run information
         run = self.client.get_run(run_id)
         
         lineage = {
@@ -650,15 +652,15 @@ class EnterpriseModelRegistry:
         
         return lineage
 
-# 使用示例
+# Usage Example
 if __name__ == "__main__":
-    # 初始化注册表
+    # Initialize Registry
     registry = EnterpriseModelRegistry(
         tracking_uri="http://mlflow.company.com",
         registry_uri="models://mlflow.company.com"
     )
     
-    # 创建模型元数据
+    # Create Model Metadata
     metadata = ModelMetadata(
         model_name="customer-churn-predictor",
         version="2.1.0",
@@ -691,7 +693,7 @@ if __name__ == "__main__":
         model_card=""
     )
     
-    # 注册模型
+    # Register the Model
     model_uri = "runs:/abc123/model"
     registered_model = registry.register_model_with_governance(
         model_uri=model_uri,
@@ -702,7 +704,7 @@ if __name__ == "__main__":
     print(f"Registered model: {registered_model}")
 ```
 
-### 2.3 自动化A/B测试框架
+### 2.3 Automated A/B Testing Framework
 
 ```python
 # automated_ab_testing.py
@@ -725,14 +727,14 @@ class AutomatedABTesting:
                               baseline_version: str,
                               candidate_version: str,
                               traffic_split: float = 0.1) -> str:
-        """设置金丝雀部署"""
+        """Set Canary Deployment"""
         
-        # 创建A/B测试实验
+        # Create A/B Test Experiment
         experiment_name = f"ab-test-{model_name}-{datetime.now().strftime('%Y%m%d')}"
         experiment_id = mlflow.create_experiment(experiment_name)
         
         with mlflow.start_run(experiment_id=experiment_id) as run:
-            # 记录测试配置
+            # Record test configuration
             mlflow.log_params({
                 "model_name": model_name,
                 "baseline_version": baseline_version,
@@ -742,7 +744,7 @@ class AutomatedABTesting:
                 "success_criteria": "candidate_accuracy > baseline_accuracy + 0.02"
             })
             
-            # 部署金丝雀配置
+            # Deploy Canary Configuration
             canary_config = {
                 "baseline": {
                     "model_name": model_name,
@@ -763,13 +765,13 @@ class AutomatedABTesting:
             
             mlflow.log_dict(canary_config, "canary_config.json")
             
-            # 启动监控
+            # Start monitoring
             self._start_monitoring(run.info.run_id, canary_config)
             
             return run.info.run_id
     
     def _start_monitoring(self, run_id: str, config: Dict):
-        """启动A/B测试监控"""
+        """Start A/B Test Monitoring"""
         baseline_metrics = []
         candidate_metrics = []
         
@@ -778,14 +780,14 @@ class AutomatedABTesting:
         start_time = time.time()
         
         while time.time() - start_time < monitoring_duration:
-            # 模拟收集指标
+            # Simulate collecting metrics
             baseline_acc = self._collect_metrics(config["baseline"])
             candidate_acc = self._collect_metrics(config["candidate"])
             
             baseline_metrics.append(baseline_acc)
             candidate_metrics.append(candidate_acc)
             
-            # 记录指标到MLflow
+            # Record metrics to MLflow
             with mlflow.start_run(run_id=run_id):
                 mlflow.log_metrics({
                     "baseline_accuracy": baseline_acc,
@@ -793,7 +795,7 @@ class AutomatedABTesting:
                     "traffic_split": config["candidate"]["weight"]
                 }, step=int((time.time() - start_time) / check_interval))
             
-            # 检查早期停止条件
+            # Check early stop conditions
             if len(baseline_metrics) >= 10:  # 至少10个样本点
                 if self._should_stop_early(baseline_metrics, candidate_metrics):
                     print("Early stopping criteria met")
@@ -801,31 +803,31 @@ class AutomatedABTesting:
             
             time.sleep(check_interval)
         
-        # 评估最终结果
+        # Evaluate final result
         self._evaluate_ab_test(run_id, baseline_metrics, candidate_metrics)
     
     def _collect_metrics(self, model_config: Dict) -> float:
-        """收集模型指标（模拟）"""
-        # 实际实现中应该从监控系统获取真实指标
+        """Collect Model Metrics (Simulated)"""
+        # In actual implementation, real metrics should be collected from the monitoring system
         base_accuracy = 0.85 if "baseline" in model_config["version"] else 0.87
         noise = np.random.normal(0, 0.02)
         return max(0, min(1, base_accuracy + noise))
     
     def _should_stop_early(self, baseline_metrics: List[float], 
                           candidate_metrics: List[float]) -> bool:
-        """检查是否应该提前停止"""
+        """Check if early stopping should occur"""
         if len(baseline_metrics) < 10:
             return False
             
-        # 计算最近10个点的平均值
+        # Calculate the average of the last 10 points
         recent_baseline = np.mean(baseline_metrics[-10:])
         recent_candidate = np.mean(candidate_metrics[-10:])
         
-        # 如果候选模型显著优于基线模型，提前结束
+        # If the candidate model significantly outperforms the baseline model, stop early
         if recent_candidate > recent_baseline + 0.03:
             return True
             
-        # 如果候选模型显著劣于基线模型，提前结束
+        # If the candidate model significantly underperforms the baseline model, stop early
         if recent_candidate < recent_baseline - 0.05:
             return True
             
@@ -834,21 +836,21 @@ class AutomatedABTesting:
     def _evaluate_ab_test(self, run_id: str, 
                          baseline_metrics: List[float],
                          candidate_metrics: List[float]):
-        """评估A/B测试结果"""
+        """Evaluate A/B Test Results"""
         baseline_mean = np.mean(baseline_metrics)
         candidate_mean = np.mean(candidate_metrics)
         baseline_std = np.std(baseline_metrics)
         candidate_std = np.std(candidate_metrics)
         
-        # 统计显著性检验（简化版）
+        # Simplified statistical significance test
         pooled_std = np.sqrt((baseline_std**2 + candidate_std**2) / 2)
         effect_size = (candidate_mean - baseline_mean) / pooled_std
         sample_size = len(baseline_metrics)
         
-        # 简化的显著性判断
+        # Simplified significance judgment
         is_significant = abs(effect_size) > 2.0 and sample_size > 30
         
-        # 记录结果
+        # Record results
         with mlflow.start_run(run_id=run_id):
             mlflow.log_metrics({
                 "baseline_final_accuracy": baseline_mean,
@@ -858,7 +860,7 @@ class AutomatedABTesting:
                 "samples_collected": sample_size
             })
             
-            # 决策逻辑
+            # Decision logic
             if is_significant and candidate_mean > baseline_mean:
                 decision = "promote_candidate"
                 recommendation = "Promote candidate model to production"
@@ -878,11 +880,11 @@ class AutomatedABTesting:
             print(f"Effect size: {effect_size:.4f}")
             print(f"Decision: {recommendation}")
 
-# 使用示例
+# Usage example
 if __name__ == "__main__":
     ab_tester = AutomatedABTesting("http://mlflow.company.com")
     
-    # 设置A/B测试
+    # Set A/B test
     run_id = ab_tester.setup_canary_deployment(
         model_name="customer-churn-predictor",
         baseline_version="1.2.0",
@@ -893,18 +895,18 @@ if __name__ == "__main__":
     print(f"A/B test started with run ID: {run_id}")
 ```
 
-<!-- chunk: 一、版本管理系统 -->
-## 一、版本管理系统
 
-| 系统 | 特性 | 集成 | 适用场景 |
+## 1. Version Management System
+
+| System | Feature | Integration | Applicable Scenarios |
 |-----|------|------|---------|
-| **MLflow** | 实验追踪、模型注册 | Python SDK | 通用ML |
-| **DVC** | Git-like版本控制 | CLI/Python | 数据+模型 |
-| **Weights & Biases** | 可视化、协作 | Python SDK | 研究团队 |
-| **HuggingFace Hub** | 模型托管 | transformers | HF模型 |
+| **MLflow** | Experiment tracking, model registration | Python SDK | General ML |
+| **DVC** | Git-like version control | CLI/Python | Data + models |
+| **Weights & Biases** | Visualization, collaboration | Python SDK | Research teams |
+| **HuggingFace Hub** | Model hosting | transformers | HF models |
 
-<!-- chunk: 二、MLflow部署 -->
-## 二、MLflow部署
+
+## 2. MLflow Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -944,35 +946,35 @@ spec:
         - containerPort: 5000
 ```
 
-<!-- chunk: 三、模型注册 -->
-## 三、模型注册
+
+## 3. Model Registry
 
 ```python
 import mlflow
 from transformers import AutoModelForCausalLM
 
-# 设置MLflow URI
+# Set MLflow URI
 mlflow.set_tracking_uri("http://mlflow-server:5000")
 mlflow.set_experiment("llama2-finetuning")
 
 with mlflow.start_run(run_name="llama2-7b-alpaca"):
-    # 记录参数
+    # Record parameters
     mlflow.log_params({
         "model": "llama-2-7b",
         "learning_rate": 3e-4,
         "lora_r": 8
     })
     
-    # 训练
+    # Train
     model = train_model()
     
-    # 记录指标
+    # Record metrics
     mlflow.log_metrics({
         "val_loss": 0.45,
         "val_accuracy": 0.92
     })
     
-    # 注册模型
+    # Register model
     mlflow.pytorch.log_model(
         model,
         "model",
@@ -980,25 +982,25 @@ with mlflow.start_run(run_name="llama2-7b-alpaca"):
     )
 ```
 
-<!-- chunk: 四、版本管理 -->
-## 四、版本管理
+
+## 4. Version Management
 
 ```python
 from mlflow.tracking import MlflowClient
 
 client = MlflowClient("http://mlflow-server:5000")
 
-# 获取模型版本
+# Get model version
 versions = client.search_model_versions("name='llama2-7b-alpaca'")
 
-# 版本晋级
+# Version promotion
 client.transition_model_version_stage(
     name="llama2-7b-alpaca",
     version=3,
     stage="Production"
 )
 
-# 版本对比
+# Version comparison
 version_1 = client.get_model_version("llama2-7b-alpaca", 1)
 version_3 = client.get_model_version("llama2-7b-alpaca", 3)
 
@@ -1006,8 +1008,8 @@ print(f"v1 accuracy: {version_1.run_data.metrics['accuracy']}")
 print(f"v3 accuracy: {version_3.run_data.metrics['accuracy']}")
 ```
 
-<!-- chunk: 五、模型元数据 -->
-## 五、模型元数据
+
+## 5. Model Metadata
 
 ```yaml
 model_card:
@@ -1015,7 +1017,7 @@ model_card:
   version: "3.0.0"
   date: "2024-01-15"
   
-  description: "Llama2-7B微调模型，使用Alpaca指令数据集"
+  description: "Llama2-7B fine-tuning model, using Alpaca instruction dataset"
   
   training:
     dataset: "tatsu-lab/alpaca"
@@ -1033,12 +1035,12 @@ model_card:
     cost: "$36"
     
   limitations:
-    - "仅支持英文"
-    - "上下文长度2048"
+    - "Only supports English"
+    - "Context length 2048"
 ```
 
-<!-- chunk: 六、A/B测试 -->
-## 六、A/B测试
+
+## 6. A/B Testing
 
 ```yaml
 apiVersion: serving.kserve.io/v1beta1
@@ -1056,7 +1058,7 @@ spec:
       - name: model-v3
         image: model-registry/llama2-7b-alpaca:v3
 ---
-# 监控A/B测试
+# Monitor A/B test
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -1071,8 +1073,8 @@ spec:
         / sum(rate(model_total_predictions[5m])) by (version)
 ```
 
-<!-- chunk: 七、回滚策略 -->
-## 七、回滚策略
+
+## 7. Rollback Strategy
 
 ```python
 class ModelRollback:
@@ -1080,21 +1082,21 @@ class ModelRollback:
         self.client = mlflow_client
     
     def rollback_to_version(self, model_name, target_version):
-        """回滚到指定版本"""
-        # 获取当前生产版本
+        """Roll back to a specified version"""
+        # Get current production version
         current = self.client.get_latest_versions(
             model_name, 
             stages=["Production"]
         )[0]
         
-        # 降级当前版本
+        # Downgrade current version
         self.client.transition_model_version_stage(
             name=model_name,
             version=current.version,
             stage="Archived"
         )
         
-        # 晋升目标版本
+        # Promote target version
         self.client.transition_model_version_stage(
             name=model_name,
             version=target_version,
@@ -1104,7 +1106,7 @@ class ModelRollback:
         print(f"Rolled back from v{current.version} to v{target_version}")
     
     def auto_rollback_if_degraded(self, model_name, threshold=0.05):
-        """指标下降时自动回滚"""
+        """Auto roll back when metrics decrease"""
         current = self.client.get_latest_versions(model_name, ["Production"])[0]
         previous = self.client.get_model_version(model_name, current.version - 1)
         
@@ -1117,68 +1119,68 @@ class ModelRollback:
         
         return False
 
-# 使用
+# Usage
 rollback = ModelRollback(client)
 if rollback.auto_rollback_if_degraded("llama2-7b-alpaca", threshold=0.05):
     print("Auto rollback triggered!")
 ```
 
-<!-- chunk: 八、版本生命周期 -->
-## 八、版本生命周期
+
+## 8. Version Lifespan
 
 ```
 Staging → Production → Archived
    ↑          ↓
-   └──────回滚────────┘
+   └──────Rollback────────┘
 
-生命周期规则:
-- Staging: 新版本测试，保留30天
-- Production: 当前服务版本，保留90天
-- Archived: 历史版本，保留365天后删除
+Life cycle rules:
+- Staging: New version testing, retained for 30 days
+- Production: Current service version, retained for 90 days
+- Archived: Historical versions, retained for 365 days before deletion
 ```
 
-<!-- chunk: 九、最佳实践 -->
-## 九、最佳实践
 
-1. **版本命名**: 使用语义化版本 (major.minor.patch)
-2. **实验命名**: 包含日期和关键参数
-3. **指标记录**: 记录训练/验证/测试指标
-4. **Artifact保存**: 模型、配置、checkpoint全部保存
-5. **元数据**: 记录Git commit、数据集版本、训练环境
+## 9. Best Practices
 
-<!-- chunk: 十、成本优化 -->
-## 十、成本优化
+1. **Version Naming**: Use semantic versioning (major.minor.patch)
+2. **Experiment Naming**: Include date and key parameters
+3. **Metric Recording**: Record training/validation/test metrics
+4. **Artifact Saving**: Save all models, configurations, checkpoints
+5. **Metadata**: Record Git commit, dataset versions, training environment
 
-**存储策略:**
-- 活跃版本: S3 Standard
-- 归档版本: S3 Glacier (节省80%)
-- 删除策略: 1年后删除Archived版本
 
-**示例成本 (100个模型版本, 每个7GB):**
-- Standard: 700GB × $0.023 = $16/月
-- Glacier: 700GB × $0.004 = $2.8/月
-- 节省: 82%
+## 10. Cost Optimization
 
----
-**相关**: [113-AI模型注册中心](../09-ai-model-registry.md) | **版本**: MLflow 2.9+
+**Storage Policies:**
+- Active Version: S3 Standard
+- Archived Version: S3 Glacier (80% savings)
+- Delete Policy: Archive versions deleted 1 year later
+
+**Example Cost (100 model versions, each 7GB):**
+- Standard: 700GB × $0.023 = $16/month
+- Glacier: 700GB × $0.004 = $2.8/month
+- Savings: 82%
 
 ---
+**Related:** [113-AI model registry](../09-ai-model-registry.md) | **Version**: MLflow 2.9+
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+---
+
+
+## Obsidian Related Documents
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- index.md|Domain-11 AI 基础设施 — 开源项目索引]]
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]] - index.md|Domain-11 AI Infrastructure — Open Source Project Index] - AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations) - GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipelines and Feature Engineering
+- AI Experiment Management and MLOps Platforms
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

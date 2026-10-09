@@ -1,6 +1,6 @@
 ---
-title: LLM模型Serving架构与推理优化
-description: '# LLM模型Serving架构与推理优化'
+title: LLM Model Serving Architecture and Inference Optimization
+description: '# LLM Model Serving Architecture and Inference Optimization'
 summary: 'python -m vllm.entrypoints.openai.api_server \'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM模型Serving架构与推理优化 是什么
-- 如何 LLM模型Serving架构与推理优化
-- Kubernetes 11 ai infra 最佳实践
+- What is LLM Model Serving Architecture and Inference Optimization
+- How to optimize LLM Model Serving Architecture and Inference Optimization
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- LLM模型Serving架构与推理优化
+- LLM Model Serving Architecture and Inference Optimization
 - ai
 - infra
 prerequisites:
@@ -53,75 +53,77 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/18-llm-serving-architecture.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Execute them only after confirming: the correct target cluster and namespace; sufficient RBAC permissions; validation in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-# LLM模型Serving架构与推理优化
+# LLM Model Serving Architecture and Inference Optimization
 
-<!-- chunk: 一、LLM推理架构全景 -->
-## 一、LLM推理架构全景
+
+## 1. LLM Inference Architecture Overview
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                        LLM Serving完整架构                                │
+│                        LLM Serving complete architecture                                │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  ┌────────────┐       ┌────────────┐       ┌────────────┐               │
-│  │  负载均衡   │──────▶│  路由层     │──────▶│  推理引擎   │               │
+│  │  Load Balancing   │──────▶│  Routing Layer     │──────▶│  Inference Engine   │               │
 │  │ Istio/Nginx│       │ KServe     │       │ vLLM/TGI   │               │
 │  └────────────┘       │ Seldon Core│       │ TensorRT   │               │
 │       │               └────────────┘       │ Triton     │               │
 │       │                     │              └────────────┘               │
 │       ▼                     ▼                    │                       │
 │  ┌────────────┐       ┌────────────┐            ▼                       │
-│  │  认证鉴权   │       │  模型管理   │       ┌────────────┐               │
-│  │  API Key   │       │  版本控制   │       │  GPU调度    │               │
-│  │  OAuth2    │       │  A/B测试   │       │  MIG/MPS   │               │
+│  │  Authentication   │       │  Model Management   │       ┌────────────┐               │
+│  │  API Key   │       │  Version Control   │       │  GPU Scheduling    │               │
+│  │  OAuth2    │       │  A/B Testing   │       │  MIG/MPS   │               │
 │  └────────────┘       └────────────┘       │  Time-Slice│               │
 │                                             └────────────┘               │
 │  ┌────────────┐       ┌────────────┐       ┌────────────┐               │
-│  │  请求队列   │──────▶│  批处理层   │──────▶│  缓存层     │               │
-│  │  优先级     │       │ Continuous │       │  Redis     │               │
-│  │  限流       │       │  Batching  │       │  KV Cache  │               │
+│  │  Request Queue   │──────▶│  Batch Processing Layer   │──────▶│  Cache Layer     │               │
+│  │  Priority     │       │ Continuous │       │  Redis     │               │
+│  │  Rate Limiting   │       │  Batching  │       │  KV Cache  │               │
 │  └────────────┘       └────────────┘       └────────────┘               │
 │                                                                            │
 │  ┌────────────────────────────────────────────────────────┐              │
-│  │              可观测性层                                 │              │
-│  │  • Prometheus指标  • Jaeger链路追踪  • 日志聚合        │              │
+│  │              Observability Layer                                 │              │
+│  │  • Prometheus Metrics  • Jaeger Trace  • Log Aggregation        │              │
 │  └────────────────────────────────────────────────────────┘              │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-<!-- chunk: 二、vLLM高性能推理引擎 -->
-## 二、vLLM高性能推理引擎
 
-### 2.1 vLLM核心技术
+## 2. vLLM High-Performance Inference Engine
 
-**PagedAttention机制：**
-- 将KV Cache分页存储，类似操作系统虚拟内存
-- 显存利用率提升至95%（传统方式仅60%）
-- 支持动态批处理，吞吐量提升10-20倍
+### 2.1 vLLM Core Technologies
 
-**Continuous Batching：**
-- 传统批处理：等待批次内所有请求完成
-- Continuous Batching：请求完成立即替换新请求，GPU利用率最大化
+**PagedAttention mechanism:**
+- Store KV Cache in pages, similar to operating system virtual memory
+- Memory utilization increases to 95% (traditional method at 60%)
+- Supports dynamic batching, throughput improves by 10-20 times
 
-### 2.2 vLLM部署配置
+**Continuous Batching:**
+- Traditional batching: waits for all requests in a batch to complete
+- Continuous Batching: replaces new requests immediately upon completion, maximizing GPU utilization
+
+### 2.2 vLLM Deployment Configuration
 
 ```yaml
 apiVersion: v1
@@ -160,11 +162,11 @@ spec:
         app: vllm-server
         model: llama2-13b
     spec:
-      # 绑定到GPU节点
+      # Bind to GPU node
       nodeSelector:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-80GB
       
-      # 反亲和性：不同节点提高可用性
+      # Anti-affinity: improve availability across different nodes
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -193,7 +195,7 @@ spec:
         - name: CUDA_VISIBLE_DEVICES
           value: "0,1,2,3"  # 4卡张量并行
         
-        # GPU资源请求
+        # GPU resource request
         resources:
           requests:
             cpu: "16"
@@ -204,7 +206,7 @@ spec:
             memory: "128Gi"
             nvidia.com/gpu: 4
         
-        # 健康检查
+        # Health check
         livenessProbe:
           httpGet:
             path: /health
@@ -259,10 +261,10 @@ spec:
     model: llama2-13b
 ```
 
-### 2.3 vLLM客户端调用
+### 2.3 vLLM Client Calls
 
 ```python
-# OpenAI兼容API调用
+# OpenAI compatible API call
 from openai import OpenAI
 
 client = OpenAI(
@@ -270,7 +272,7 @@ client = OpenAI(
     api_key="dummy-key"  # vLLM默认不需要真实key
 )
 
-# 流式生成
+# Stream generation
 stream = client.chat.completions.create(
     model="llama-2-13b",
     messages=[
@@ -286,7 +288,7 @@ for chunk in stream:
     if chunk.choices[0].delta.content:
         print(chunk.choices[0].delta.content, end="", flush=True)
 
-# 批量推理（非流式）
+# Batch inference (non-streaming)
 responses = client.completions.create(
     model="llama-2-13b",
     prompt=[
@@ -302,10 +304,10 @@ for resp in responses.choices:
     print(resp.text)
 ```
 
-### 2.4 vLLM性能优化
+### 2.4 vLLM Performance Optimization
 
 ```python
-# vLLM高级配置
+# vLLM advanced configuration
 """
 关键参数调优：
 
@@ -340,33 +342,33 @@ for resp in responses.choices:
    • CUDA Graph可再提速10-15%
 """
 
-# 性能监控
+# Performance monitoring
 import requests
 response = requests.get("http://vllm-server:8000/metrics")
 print(response.text)
-# 关键指标：
-# - vllm:num_requests_running（当前请求数）
-# - vllm:gpu_cache_usage_perc（KV Cache使用率）
-# - vllm:time_to_first_token（TTFT）
-# - vllm:time_per_output_token（TPOT）
+# Key metrics:
+# - vllm:num_requests_running(current request count)
+# - vllm:gpu_cache_usage_perc(KV Cache usage rate)
+# - vllm:time_to_first_token(TTFT)
+# - vllm:time_per_output_token(TPOT)
 ```
 
 ---
 
-<!-- chunk: 三、Text Generation Inference (TGI) -->
-## 三、Text Generation Inference (TGI)
 
-### 3.1 TGI特性
+## 3. Text Generation Inference (TGI)
 
-Hugging Face官方推理框架，专为生成式模型优化。
+### 3.1 TGI Features
 
-**核心优势：**
-- Flash Attention 2集成（速度提升2倍）
-- Paged Attention支持
-- 量化推理（GPTQ、AWQ、bitsandbytes）
-- 原生支持Hugging Face Hub
+Hugging Face official inference framework, optimized specifically for generative models.
 
-### 3.2 TGI部署
+**Core Advantages:**
+- Flash Attention 2 integration (speedup by 2x)
+- Paged Attention support
+- Quantized inference (GPTQ, AWQ, bitsandbytes)
+- Native support for Hugging Face Hub
+
+### 3.2 TGI Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -444,7 +446,7 @@ spec:
           medium: Memory
           sizeLimit: 16Gi
 ---
-# HorizontalPodAutoscaler实现自动扩缩容
+# HorizontalPodAutoscaler implements automatic scaling
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -458,7 +460,7 @@ spec:
   minReplicas: 2
   maxReplicas: 10
   metrics:
-  # 基于自定义指标扩缩容
+  # Scale based on custom metrics
   - type: Pods
     pods:
       metric:
@@ -487,11 +489,11 @@ spec:
         periodSeconds: 30
 ```
 
-### 3.3 TGI量化推理
+### 3.3 TGI Quantized Inference
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# GPTQ 4-bit量化推理
+# 🟢 Low risk: read-only/information gathering, typically with no side effects
+# GPTQ 4-bit quantized inference
 docker run --gpus all \
   -p 8080:80 \
   -e MODEL_ID=TheBloke/Llama-2-13B-chat-GPTQ \
@@ -500,21 +502,21 @@ docker run --gpus all \
   -e MAX_TOTAL_TOKENS=8192 \
   ghcr.io/huggingface/text-generation-inference:1.4.0
 
-# 量化效果对比
+# Quantization effect comparison
 # Llama-2-13B:
-# - FP16: 26GB显存, 30 tokens/s
-# - INT8: 13GB显存, 28 tokens/s (速度-7%)
-# - INT4(GPTQ): 7GB显存, 25 tokens/s (速度-17%)
-# - NF4(bitsandbytes): 7GB显存, 22 tokens/s (速度-27%)
+# - FP16: 26GB memory, 30 tokens/s
+# - INT8: 13GB memory, 28 tokens/s (speed-7%)
+# - INT4(GPTQ): 7GB memory, 25 tokens/s (speed-17%)
+# - NF4(bitsandbytes): 7GB memory, 22 tokens/s (speed-27%)
 ```
 ---
 
-<!-- chunk: 四、NVIDIA Triton Inference Server -->
-## 四、NVIDIA Triton Inference Server
 
-### 4.1 Triton多模型Serving
+## 4. NVIDIA Triton Inference Server
 
-Triton支持同时部署多个模型，共享GPU资源。
+### 4.1 Triton Multi-model Serving
+
+Triton supports deploying multiple models simultaneously, sharing GPU resources.
 
 ```
 ┌─────────────────────────────────────┐
@@ -527,20 +529,20 @@ Triton支持同时部署多个模型，共享GPU资源。
 │        │            │               │
 │  ┌─────────────────────────┐       │
 │  │   Dynamic Batching      │       │
-│  │   GPU资源调度            │       │
+│  │   GPU Resource Scheduling            │       │
 │  └─────────────────────────┘       │
 │              GPU                    │
 └─────────────────────────────────────┘
 ```
 
-### 4.2 Triton模型仓库结构
+### 4.2 Triton Model Repository Structure
 
 ```bash
 model_repository/
 ├── llama2_13b/
-│   ├── config.pbtxt          # 模型配置
-│   └── 1/                    # 版本1
-│       └── model.plan        # TensorRT引擎
+│   ├── config.pbtxt          # Model Configuration
+│   └── 1/                    # Version 1
+│       └── model.plan        # TensorRT Engine
 ├── bert_base/
 │   ├── config.pbtxt
 │   └── 1/
@@ -552,19 +554,19 @@ model_repository/
         └── model_weights/
 ```
 
-**config.pbtxt示例（Llama2-13B）：**
+**config.pbtxt example (Llama2-13B):**
 ```protobuf
 name: "llama2_13b"
 backend: "tensorrtllm"
 max_batch_size: 128
 
-# 动态批处理配置
+# Dynamic batch configuration
 dynamic_batching {
   preferred_batch_size: [8, 16, 32]
   max_queue_delay_microseconds: 5000
 }
 
-# 实例组配置
+# Instance group configuration
 instance_group [
   {
     count: 2  # 2个模型实例
@@ -573,7 +575,7 @@ instance_group [
   }
 ]
 
-# 输入输出
+# Input output
 input [
   {
     name: "input_ids"
@@ -595,7 +597,7 @@ output [
   }
 ]
 
-# 模型参数
+# Model parameters
 parameters: {
   key: "max_tokens"
   value: { string_value: "512" }
@@ -606,7 +608,7 @@ parameters: {
 }
 ```
 
-### 4.3 Triton Kubernetes部署
+### 4.3 Triton Kubernetes Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -681,7 +683,7 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 10
 ---
-# ServiceMonitor采集Triton指标
+# ServiceMonitor collects Triton metrics
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -697,22 +699,22 @@ spec:
     path: /metrics
 ```
 
-### 4.4 Triton客户端调用
+### 4.4 Triton Client Calls
 
 ```python
 import tritonclient.http as httpclient
 import numpy as np
 
-# 初始化客户端
+# Initialize client
 client = httpclient.InferenceServerClient(
     url="triton-server.ai-platform.svc.cluster.local:8000"
 )
 
-# 检查模型状态
+# Check model status
 if client.is_model_ready("llama2_13b"):
-    print("模型已就绪")
+    print("Model is ready")
 
-# 准备输入
+# Prepare input
 input_ids = np.array(1, 2, 3, 4, 5, dtype=np.int32)
 attention_mask = np.array(1, 1, 1, 1, 1, dtype=np.int32)
 
@@ -723,10 +725,10 @@ inputs = [
 inputs[0].set_data_from_numpy(input_ids)
 inputs[1].set_data_from_numpy(attention_mask)
 
-# 指定输出
+# Specify output
 outputs = [httpclient.InferRequestedOutput("output_ids")]
 
-# 推理请求
+# Inference request
 response = client.infer(
     model_name="llama2_13b",
     inputs=inputs,
@@ -734,40 +736,40 @@ response = client.infer(
     request_id="123"
 )
 
-# 获取结果
+# Get results
 output_ids = response.as_numpy("output_ids")
 print(f"Generated IDs: {output_ids}")
 
-# 查询模型统计信息
+# Query model statistics
 stats = client.get_inference_statistics(model_name="llama2_13b")
 print(stats)
 ```
 
 ---
 
-<!-- chunk: 五、TensorRT-LLM加速 -->
-## 五、TensorRT-LLM加速
 
-### 5.1 模型转换为TensorRT引擎
+## 5. TensorRT-LLM Acceleration
+
+### 5.1 Converting Models to TensorRT Engines
 
 ```bash
-# 1. 安装TensorRT-LLM
+# 1. Install TensorRT-LLM
 pip install tensorrt-llm==0.7.1
 
-# 2. 转换Llama2-7B模型
+# 2. Convert Llama2-7B model
 git clone https://github.com/NVIDIA/TensorRT-LLM.git
 cd TensorRT-LLM/examples/llama
 
-# 下载原始权重
+# Download original weights
 huggingface-cli download meta-llama/Llama-2-7b-hf --local-dir ./llama-2-7b-hf
 
-# 转换为TensorRT-LLM格式（FP16）
+# Convert to TensorRT-LLM format (FP16)
 python convert_checkpoint.py \
   --model_dir ./llama-2-7b-hf \
   --output_dir ./llama-2-7b-trtllm \
   --dtype float16
 
-# 构建TensorRT引擎（单GPU）
+# Build TensorRT engine (single GPU)
 trtllm-build \
   --checkpoint_dir ./llama-2-7b-trtllm \
   --output_dir ./llama-2-7b-engine \
@@ -777,7 +779,7 @@ trtllm-build \
   --max_output_len 512 \
   --max_beam_width 1
 
-# 构建TensorRT引擎（4-GPU张量并行）
+# Build TensorRT engine (4-GPU tensor parallelism)
 trtllm-build \
   --checkpoint_dir ./llama-2-7b-trtllm \
   --output_dir ./llama-2-7b-engine-tp4 \
@@ -788,26 +790,26 @@ trtllm-build \
   --tp_size 4 \
   --workers 4
 
-# 性能对比（Llama2-7B, A100 80GB）：
+# Performance comparison (Llama2-7B, A100 80GB):
 # PyTorch FP16:           45 tokens/s
 # vLLM FP16:             180 tokens/s  (4x)
 # TensorRT-LLM FP16:     280 tokens/s  (6.2x)
 # TensorRT-LLM INT8:     420 tokens/s  (9.3x)
 ```
 
-### 5.2 TensorRT-LLM推理脚本
+### 5.2 TensorRT-LLM Inference Scripts
 
 ```python
 import tensorrt_llm
 from tensorrt_llm.runtime import ModelRunner
 
-# 加载TensorRT引擎
+# Load TensorRT engine
 runner = ModelRunner.from_dir(
     engine_dir="./llama-2-7b-engine",
     rank=0  # 多GPU时指定rank
 )
 
-# 推理
+# Inference
 input_text = "Once upon a time"
 output = runner.generate(
     input_text,
@@ -823,10 +825,10 @@ print(output)
 
 ---
 
-<!-- chunk: 六、KServe模型服务编排 -->
-## 六、KServe模型服务编排
 
-### 6.1 InferenceService定义
+## 6. KServe Model Service Orchestration
+
+### 6.1 InferenceService definition
 
 ```yaml
 apiVersion: serving.kserve.io/v1beta1
@@ -839,7 +841,7 @@ spec:
     minReplicas: 2
     maxReplicas: 10
     
-    # 自动扩缩容配置
+    # Auto-scaling configuration
     scaleTarget: 80  # 目标并发请求数
     scaleMetric: concurrency
     
@@ -878,7 +880,7 @@ spec:
       persistentVolumeClaim:
         claimName: llama2-13b-pvc
   
-  # Transformer预处理（可选）
+  # Transformer preprocessing (optional)
   transformer:
     containers:
     - name: transformer
@@ -887,7 +889,7 @@ spec:
       - name: PREDICTOR_HOST
         value: "llama2-13b-inference-predictor-default"
 ---
-# 流量分割（金丝雀发布）
+# Traffic splitting (canary release)
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
@@ -900,16 +902,16 @@ spec:
     containers:
     - name: kserve-container
       image: vllm/vllm-openai:v0.3.1  # 新版本
-      # ... 其他配置同上
+      # ... other configurations as above
 ```
 
-### 6.2 KServe请求路由
+### 6.2 KServe request routing
 
 ```python
 import requests
 import json
 
-# InferenceService自动生成的URL
+# InferenceService automatically generated URL
 url = "http://llama2-13b-inference.ai-platform.example.com/v1/chat/completions"
 
 headers = {
@@ -932,10 +934,10 @@ print(result['choices'][0]['message']['content'])
 
 ---
 
-<!-- chunk: 七、推理性能优化技术 -->
-## 七、推理性能优化技术
 
-### 7.1 KV Cache优化
+## 7. Inference Performance Optimization Techniques
+
+### 7.1 KV Cache optimization
 
 ```python
 """
@@ -955,11 +957,11 @@ PagedAttention解决方案：
 - 共享KV Cache（相同前缀的请求共享）
 """
 
-# vLLM自动管理KV Cache，无需手动配置
-# 显存分配：
-# - 模型权重: ~26GB (FP16)
+# vLLM automatically manages KV Cache, no manual configuration required
+# Memory allocation:
+# - Model weights: ~26GB (FP16)
 # - KV Cache: 80GB * 0.95 - 26GB = 50GB
-# - 支持并发: 50GB / (1.6MB * 4096) ≈ 8个长上下文请求
+# - Concurrent support: 50GB / (1.6MB * 4096) ≈ 8 long context requests
 ```
 
 ### 7.2 Flash Attention 2
@@ -978,8 +980,8 @@ Context Length | Standard | Flash Attn | Flash Attn 2
     4096       | 1920ms   |  640ms     |   400ms
 """
 
-# TGI默认启用Flash Attention 2
-# vLLM需手动编译支持：
+# TGI defaults to Flash Attention 2
+# vLLM requires manual compilation for support:
 # pip install vllm[flashinfer]
 ```
 
@@ -998,7 +1000,7 @@ Context Length | Standard | Flash Attn | Flash Attn 2
 - 适用于推理密集型任务
 """
 
-# vLLM支持Speculative Decoding（实验性）
+# vLLM supports Speculative Decoding (experimental)
 from vllm import LLM, SamplingParams
 
 llm = LLM(
@@ -1015,32 +1017,32 @@ outputs = llm.generate(prompts, sampling_params)
 
 ---
 
-<!-- chunk: 八、成本优化策略 -->
-## 八、成本优化策略
 
-### 8.1 GPU共享方案对比
+## 8. Cost Optimization Strategies
 
-| 方案 | 隔离性 | 显存利用率 | 适用场景 | 实现复杂度 |
+### 8.1 GPU sharing solution comparison
+
+| Solution | Isolation | Memory Utilization | Applicable Scenario | Implementation Complexity |
 |-----|-------|-----------|---------|-----------|
-| **Time-Slicing** | 弱（时间片） | 低（60%） | 开发测试 | 低 |
-| **MPS** | 中（进程隔离） | 中（75%） | 小模型推理 | 中 |
-| **MIG** | 强（硬件隔离） | 高（90%） | 生产多租户 | 高（仅A100/H100） |
-| **vGPU** | 强（虚拟化） | 高（85%） | 云服务商 | 高（需License） |
+| **Time-Slicing** | Weak (time slices) | Low (60%) | Development/Test | Low |
+| **MPS** | Moderate (process isolation) | Moderate (75%) | Small model inference | Moderate |
+| **MIG** | Strong (hardware isolation) | High (90%) | Production multi-tenancy | High (only A100/H100) |
+| **vGPU** | Strong (virtualization) | High (85%) | Cloud service provider | High (requires License) |
 
-### 8.2 MIG配置实践
+### 8.2 MIG configuration practice
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# A100 80GB MIG配置
-# 切分为 3 * 3g.40gb 实例
+# 🟢 Low-risk: read-only/information gathering, typically no side effects
+# A100 80GB MIG configuration
+# Split into 3 * 3g.40gb instances
 
-# 启用MIG模式
+# Enable MIG mode
 sudo nvidia-smi -mig 1
 
-# 创建GPU实例
+# Create GPU instance
 sudo nvidia-smi mig -cgi 19,19,19 -C
 
-# 验证
+# Verify
 nvidia-smi mig -lgi
 # +-------------------------------------------------------+
 # | GPU instance profiles:                                |
@@ -1052,12 +1054,12 @@ nvidia-smi mig -lgi
 # |        2      MIG 3g.40gb                   8:4       |
 # +-------------------------------------------------------+
 
-# Kubernetes设备插件识别MIG
+# Kubernetes device plugin identifies MIG
 kubectl get node gpu-node-01 -o yaml | grep nvidia.com/mig
 #  nvidia.com/mig-3g.40gb: 3
 ```
 ```yaml
-# Pod使用MIG实例
+# Pod uses MIG instance
 apiVersion: v1
 kind: Pod
 metadata:
@@ -1071,10 +1073,10 @@ spec:
         nvidia.com/mig-3g.40gb: 1  # 请求一个MIG实例
 ```
 
-### 8.3 Spot实例混合部署
+### 8.3 Spot instances mixed deployment
 
 ```yaml
-# Karpenter自动扩容配置
+# Karpenter auto-scaling configuration
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
@@ -1090,10 +1092,10 @@ spec:
   - key: nvidia.com/gpu
     operator: Exists
   
-  # Spot实例权重（优先使用）
+  # Spot instance weight (give priority to)
   weight: 100
   
-  # Spot中断处理
+  # Spot interruption handling
   ttlSecondsAfterEmpty: 30
   ttlSecondsUntilExpired: 604800  # 7天
   
@@ -1101,7 +1103,7 @@ spec:
     resources:
       nvidia.com/gpu: 100
 ---
-# 关键服务使用On-Demand，非关键使用Spot
+# Critical services use On-Demand, non-critical use Spot
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1130,20 +1132,20 @@ spec:
                 values: ["spot"]  # 开发环境优先Spot
 ```
 
-**成本节省：**
-- Spot实例折扣：60-90% off On-Demand价格
-- MIG提升利用率：3个7B模型共享A100，成本降低65%
-- 推理优化（vLLM）：吞吐10倍提升 = 所需GPU数降低90%
+**Cost Savings:**
+- Spot instances discount: 60-90% off On-Demand price
+- MIG improves utilization: 3 7B models share an A100, cost reduction by 65%
+- Inference optimization (vLLM): throughput 10 times higher = required GPUs reduced by 90%
 
 ---
 
-<!-- chunk: 九、监控与可观测性 -->
-## 九、监控与可观测性
 
-### 9.1 关键推理指标
+## 9. Monitoring and Observability
+
+### 9.1 Key inference metrics
 
 ```yaml
-# Prometheus告警规则
+# Prometheus alert rules
 groups:
 - name: llm_inference
   interval: 15s
@@ -1154,8 +1156,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "LLM推理P99延迟 > 5秒"
-      description: "模型: {{ $labels.model }}, 当前P99: {{ $value }}s"
+      summary: "LLM inference P99 latency > 5s"
+      description: "Model: {{ $labels.model }}, current P99: {{ $value }}s"
   
   - alert: HighQueueSize
     expr: vllm_num_requests_waiting > 50
@@ -1163,8 +1165,8 @@ groups:
     labels:
       severity: warning
     annotations:
-      summary: "vLLM请求队列积压 > 50"
-      description: "考虑扩容实例"
+      summary: "vLLM request queue backlog > 50"
+      description: "Consider scaling up instances"
   
   - alert: LowGPUUtilization
     expr: avg_over_time(DCGM_FI_DEV_GPU_UTIL[10m]) < 30
@@ -1172,7 +1174,7 @@ groups:
     labels:
       severity: info
     annotations:
-      summary: "GPU利用率 < 30%，资源浪费"
+      summary: "GPU utilization < 30%, resource waste"
   
   - alert: OOMRisk
     expr: (vllm_gpu_cache_usage_perc > 95)
@@ -1180,7 +1182,7 @@ groups:
     labels:
       severity: critical
     annotations:
-      summary: "KV Cache使用率 > 95%，OOM风险"
+      summary: "KV Cache usage rate > 95%, OOM risk"
 ```
 
 ### 9.2 Grafana Dashboard
@@ -1246,39 +1248,39 @@ groups:
 
 ---
 
-<!-- chunk: 十、生产环境Checklist -->
-## 十、生产环境Checklist
 
-### 10.1 部署前检查
+## 10. Production Environment Checklist
 
-- [ ] **模型选择**：根据任务选择合适模型大小
-  - 简单任务：7B模型（Mistral-7B, Llama2-7B）
-  - 复杂推理：13B-70B（Llama2-70B, Mixtral-8x7B）
-- [ ] **量化策略**：权衡精度与性能
-  - 生产环境：FP16或INT8（GPTQ）
-  - 资源受限：INT4（AWQ, NF4）
-- [ ] **推理框架**：
-  - 通用：vLLM（最佳吞吐）
-  - HF生态：TGI（原生集成）
-  - 多模型：Triton（企业级）
-  - 极致性能：TensorRT-LLM（NVIDIA GPU）
-- [ ] **GPU配置**：
-  - 单模型大小 > 单卡显存：张量并行
-  - 多模型共享GPU：MIG或Time-Slicing
-  - 成本敏感：Spot实例 + 自动扩缩容
-- [ ] **高可用**：
-  - 最少2副本
-  - 跨可用区部署
-  - 健康检查与自动重启
-- [ ] **可观测性**：
-  - Prometheus指标采集
+### 10.1 Pre-deployment checks
+
+- [ ] **Model Selection**: Choose appropriate model size based on task
+  - Simple tasks: 7B model (Mistral-7B, Llama2-7B)
+  - Complex inference: 13B-70B (Llama2-70B, Mixtral-8x7B)
+- [ ] **Quantization Strategy**: Balance between accuracy and performance
+  - Production environment: FP16 or INT8 (GPTQ)
+  - Resource-constrained: INT4 (AWQ, NF4)
+- [ ] **Inference Framework**:
+  - General: vLLM (best throughput)
+  - HF ecosystem: TGI (native integration)
+  - Multi-model: Triton (enterprise-level)
+  - Extreme performance: TensorRT-LLM (NVIDIA GPU)
+- [ ] **GPU Configuration**:
+  - Single model size > single card memory: tensor parallelism
+  - Share GPU among multiple models: MIG or Time-Slicing
+  - cost-sensitive: Spot instances + auto-scaling
+- [ ] **high availability**:
+  - at least 2 replicas
+  - deployed across AZs
+  - health checks and automatic restarts
+- [ ] **observability**:
+  - Prometheus metric collection
   - Grafana Dashboard
-  - 分布式追踪（[[Jaeger|Jaeger]]）
-  - 日志聚合（ELK/Loki）
+  - distributed tracing ([[Jaeger|Jaeger]])
+  - log aggregation (ELK/Loki)
 
-### 10.2 性能基准
+### 10.2 Performance benchmarks
 
-| 模型 | 框架 | GPU | 批次大小 | 吞吐量(tokens/s) | P99延迟(ms) | 成本($/1M tokens) |
+| model | framework | GPU | batch size | throughput(tokens/s) | P99 latency(ms) | cost($/1M tokens) |
 |-----|------|-----|---------|----------------|------------|------------------|
 | Llama2-7B | vLLM | A100 40GB | 128 | 4800 | 850 | $0.12 |
 | Llama2-7B | TensorRT-LLM | A100 40GB | 256 | 7200 | 620 | $0.08 |
@@ -1288,84 +1290,84 @@ groups:
 
 ---
 
-<!-- chunk: 十一、故障排查 -->
-## 十一、故障排查
 
-### 11.1 常见问题
+## 11. Fault Diagnosis
 
-**问题1：OOM (Out of Memory)**
+### 11.1 Common issues
+
+**Problem 1: OOM (Out of Memory)**
 ```
-错误：CUDA out of memory
-原因：KV Cache或模型权重超出GPU显存
+Error: CUDA out of memory
+Reason: KV Cache or model weights exceed GPU memory
 
-解决方案：
-1. 降低--gpu-memory-utilization（从0.95→0.90）
-2. 减少--max-num-seqs并发数
-3. 降低--max-model-len上下文长度
-4. 使用量化（INT8/INT4）
-5. 增加张量并行GPU数量
-```
-
-**问题2：推理吞吐量低**
-```
-症状：GPU利用率 < 50%
-
-排查步骤：
-1. 检查批次大小：max_batch_size是否过小
-2. 检查队列深度：请求是否足够（<10并发无法发挥批处理优势）
-3. 检查CPU瓶颈：tokenization是否成为瓶颈
-4. 检查网络带宽：模型从S3加载速度
-5. 启用CUDA Graph：vLLM移除--enforce-eager
-
-优化：
-- 增加max_num_seqs到256+
-- 使用Triton Dynamic Batching
-- 客户端批量请求而非单个请求
+Solution:
+1. Reduce --gpu-memory-utilization (from 0.95→0.90)
+2. Decrease the number of concurrent --max-num-seqs
+3. Reduce --max-model-len context length
+4. Use quantization (INT8/INT4)
+5. Increase the number of GPU for tensor parallelism
 ```
 
-**问题3：首Token延迟高（TTFT）**
+**Problem 2: low inference throughput**
 ```
-症状：TTFT > 3秒
+Symptoms: GPU utilization < 50%
 
-原因：
-1. Prefill阶段计算量大（长上下文）
-2. 批处理导致等待
-3. 模型加载到GPU慢
+Examination steps:
+1. Check batch size: is max_batch_size too small
+2. Check queue depth: are there enough requests (<10 concurrent requests cannot leverage batching advantages)
+3. Check CPU bottleneck: is tokenization a bottleneck
+4. Check network bandwidth: how fast does the model load from S3
+5. Enable CUDA Graph: vLLM remove --enforce-eager
 
-优化：
-- 使用FlashAttention 2
-- 分离Prefill和Decode服务
-- 预热模型（启动时发送dummy请求）
-- 增加优先级队列（付费用户优先）
+Optimization:
+- Increase max_num_seqs to 256+
+- Use Triton Dynamic Batching
+- Batch client requests instead of single requests
 ```
 
-### 11.2 日志分析
+**Problem 3: high first token delay (TTFT)**
+```
+symptom: TTFT > 3 seconds
+
+Reason:
+1. Prefill stage has large computation (long context)
+2. Batch processing causes waiting
+3. Model loading to GPU is slow
+
+Optimization:
+- Use FlashAttention 2
+- Separate Prefill and Decode services
+- Warm up the model (send dummy requests at startup)
+- Add a priority queue (higher priority for paid users)
+```
+
+### 11.2 Log analysis
 
 ``` bash
-# 🟢 低风险：只读/信息收集，通常无副作用
-# vLLM调试日志
+# 🟢 Low risk: read-only/information collection, usually no side effects
+# vLLM debug logs
 kubectl logs -f vllm-pod --namespace ai-platform | grep -E "ERROR|WARNING|OOM"
 
-# 关键日志示例：
+# Key log example:
 # [WARNING] KV cache is full. The request will be blocked until some requests finish.
-#   → 需要扩容或降低并发
+#   → Need to scale up or reduce concurrency
 
 # [ERROR] CUDA out of memory. Tried to allocate 20.00 GiB
-#   → OOM，调整配置
+#   → OOM, adjust configuration
 
 # [INFO] Avg prompt throughput: 1234.5 tokens/s, generation: 45.6 tokens/s
-#   → 性能基准参考
+#   → Performance benchmark reference
 ```
 ---
 
-**相关表格：**
-- [111-AI基础设施架构](./01-ai-infrastructure.md)
-- [112-分布式训练框架](./05-distributed-training-frameworks.md)
-- [113-AI模型注册中心](./09-model-registry.md)
-- [114-GPU监控与可观测性](./04-gpu-monitoring.md)
-- [115-AI数据处理Pipeline](./06-ai-data-pipeline.md)
+**Related tables:**
+- [111-AI Infrastructure Architecture](./01-ai-infrastructure.md)
+- [112-Distributed Training Frameworks](./05-distributed-training-frameworks.md)
+- [113-AI Model Registry](./09-model-registry.md)
+- [114-GPU Monitoring and Observability](./04-gpu-monitoring.md)
+- [115-AI Data Processing Pipeline](./06-ai-data-pipeline.md)
 
-**版本信息：**
+**Version Information:**
 - vLLM: v0.3.0+
 - Text Generation Inference: v1.4.0+
 - Triton Inference Server: 23.12+
@@ -1375,21 +1377,21 @@ kubectl logs -f vllm-pod --namespace ai-platform | grep -E "ERROR|WARNING|OOM"
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian related documents
 
 - domain-11-ai-infra KUDIG Database — Global MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 
@@ -1400,7 +1402,7 @@ kubectl logs -f vllm-pod --namespace ai-platform | grep -E "ERROR|WARNING|OOM"
 
 ## Related
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

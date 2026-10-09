@@ -1,6 +1,6 @@
 ---
-title: AI平台安全加固与合规
-description: '# AI平台安全加固与合规'
+title: AI Platform Security Hardening and Compliance
+description: '# AI Platform Security Hardening and Compliance'
 summary: 'requiredDuringSchedulingIgnoredDuringExecution:'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI平台安全加固与合规 是什么
-- 如何 AI平台安全加固与合规
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Platform Security Hardening and Compliance
+- How to do AI Platform Security Hardening and Compliance
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI平台安全加固与合规
+- AI Platform Security Hardening and Compliance
 - ai
 - infra
 prerequisites:
@@ -50,30 +50,32 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/30-ai-security-compliance.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Before executing, please confirm: the target cluster and namespace are correct; you have sufficient RBAC permissions; and the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-# AI平台安全加固与合规
+# AI Platform Security Hardening and Compliance
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **最后更新**: 2026-02 | **参考**: [NIST AI RMF](https://csrc.nist.gov/publications/detail/white-paper/2023/03/01/artificial-intelligence-risk-management-framework-ai-rmf-10/final) | [OWASP LLM Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **Last Updated**: 2026-02 | **Reference**: [NIST AI RMF](https://csrc.nist.gov/publications/detail/white-paper/2023/03/01/artificial-intelligence-risk-management-framework-ai-rmf-10/final) | [OWASP LLM Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
 
-<!-- chunk: 一、AI平台安全架构 -->
-## 一、AI平台安全架构
 
-### 1.1 分层安全防护体系
+## 1. AI Platform Security Architecture
+
+### 1.1 Layered Security Protection System
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -81,58 +83,58 @@ cross_refs:
 ├─────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                      │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                            访问控制层 (Access Control)                         │  │
+│  │                            Access Control Layer (Access Control)                            │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   IAM       │  │   RBAC      │  │   ABAC      │  │   mTLS      │          │  │
 │  │  │  (Identity) │  │ (Kubernetes)│  │ (Attribute) │  │ (Transport) │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 用户认证   │  │ • 权限控制   │  │ • 属性策略   │  │ • 服务间加密 │          │  │
-│  │  │ • 多因子     │  │ • 角色分离   │  │ • 动态授权   │  │ • 证书轮换   │          │  │
-│  │  │ • SSO集成    │  │ • 最小权限   │  │ • 上下文感知 │  │ • 双向认证   │          │  │
+│  │  │ • User Authentication   │  │ • Permission Control   │  │ • Attribute Policy   │  │ • Service-to-Service Encryption │          │  │
+│  │  │ • Multi-Factor   │  │ • Role Separation   │  │ • Dynamic Authorization   │  │ • Certificate Rotation   │          │  │
+│  │  │ • SSO Integration    │  │ • Least Privilege   │  │ • Context-Aware   │  │ • Bidirectional Authentication   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          数据保护层 (Data Protection)                         │  │
+│  │                            Data Protection Layer (Data Protection)                            │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   Encryption│  │   Masking   │  │   Auditing  │  │   Retention │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 静态加密   │  │ • 数据脱敏   │  │ • 操作审计   │  │ • 生命周期   │          │  │
-│  │  │ • 传输加密   │  │ • PII保护    │  │ • 变更追踪   │  │ • 自动清理   │          │  │
-│  │  │ • 密钥管理   │  │ • Token化    │  │ • 合规报告   │  │ • 归档策略   │          │  │
+│  │  │ • Static Encryption   │  │ • Data Masking   │  │ • Auditing Operations   │  │ • Lifecycle   │          │  │
+│  │  │ • Transport Encryption   │  │ • PII Protection    │  │ • Change Tracking   │  │ • Automatic Cleanup   │          │  │
+│  │  │ • Key Management   │  │ • Tokenization    │  │ • Compliance Reporting   │  │ • Archiving Strategy   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          模型安全部 (Model Security)                          │  │
+│  │                            Model Security Layer (Model Security)                            │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   Integrity │  │   Privacy   │  │   Fairness  │  │   Robustness│          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 模型签名   │  │ • 差分隐私   │  │ • 偏见检测   │  │ • 对抗攻击   │          │  │
-│  │  │ • 版本控制   │  │ • 联邦学习   │  │ • 公平性测试 │  │ • 输入验证   │          │  │
-│  │  │ • 血缘追踪   │  │ • 同态加密   │  │ • 包容性审查 │  │ • 异常检测   │          │  │
+│  │  │ • Model Signing   │  │ • Differential Privacy   │  │ • Bias Detection   │  │ • Adversarial Attacks   │          │  │
+│  │  │ • Version Control   │  │ • Federated Learning   │  │ • Fairness Testing │  │ • Input Validation   │          │  │
+│  │  │ • Lineage Tracing   │  │ • Homomorphic Encryption   │  │ • Inclusivity Review │  │ • Anomaly Detection   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └─────────────────────────────────────┬─────────────────────────────────────────┘  │
 │                                       │                                             │
 │                                       ▼                                             │
 │  ┌───────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          威胁防护层 (Threat Protection)                       │  │
+│  │                            Threat Protection Layer (Threat Protection)                        │  │
 │  │                                                                               │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │  │
 │  │  │   Runtime   │  │   Network   │  │   Container │  │   Supply    │          │  │
 │  │  │   Security  │  │   Security  │  │   Security  │  │   Chain     │          │  │
 │  │  │             │  │             │  │             │  │             │          │  │
-│  │  │ • 运行时防护 │  │ • 网络策略   │  │ • 镜像扫描   │  │ • 依赖检查   │          │  │
-│  │  │ • 恶意行为检测│  │ • 零信任网络 │  │ • 漏洞扫描   │  │ • SBOM生成   │          │  │
-│  │  │ • 进程监控   │  │ • 流量加密   │  │ • 基线检查   │  │ • 许可证合规 │          │  │
+│  │  │ • Runtime Protection │  │ • Network Policies   │  │ • Image Scanning   │  │ • Dependency Checks   │          │  │
+│  │  │ • Malicious Behavior Detection│  │ • Zero Trust Network │  │ • Vulnerability Scanning   │  │ • SBOM Generation   │          │  │
+│  │  │ • Process Monitoring   │  │ • Traffic Encryption   │  │ • Baseline Checks   │  │ • License Compliance   │          │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘          │  │
 │  │                                                                               │  │
 │  └───────────────────────────────────────────────────────────────────────────────┘  │
@@ -140,23 +142,23 @@ cross_refs:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 安全控制矩阵
+### 1.2 Security Control Matrix
 
-| 安全领域 | 控制措施 | 实施组件 | 合规要求 | 重要程度 |
+| Security Domain | Control Measures | Implementation Component | Compliance Requirement | Importance |
 |----------|----------|----------|----------|----------|
-| **身份认证** | 多因子认证、SSO集成 | [[Keycloak|Keycloak]]、LDAP | GDPR、SOC2 | ⭐⭐⭐⭐⭐ |
-| **访问控制** | RBAC、ABAC、网络策略 | Kubernetes RBAC、OPA | HIPAA、ISO27001 | ⭐⭐⭐⭐⭐ |
-| **数据加密** | 静态加密、传输加密 | Vault、cert-manager | PCI-DSS、GDPR | ⭐⭐⭐⭐⭐ |
-| **模型安全** | 模型签名、差分隐私 | Sigstore、OpenDP | AI Act、NIST AI RMF | ⭐⭐⭐⭐ |
-| **威胁检测** | 运行时防护、异常检测 | [[Falco|Falco]]、Sysdig | NIST CSF | ⭐⭐⭐⭐ |
-| **合规审计** | 操作审计、合规报告 | Auditbeat、ELK | SOX、FINRA | ⭐⭐⭐ |
+| **Authentication** | Multi-factor authentication, SSO integration | [[Keycloak|Keycloak]], LDAP | GDPR, SOC2 | ⭐⭐⭐⭐⭐ |
+| **Access Control** | RBAC, ABAC, network policies | Kubernetes RBAC, OPA | HIPAA, ISO27001 | ⭐⭐⭐⭐⭐ |
+| **Data Encryption** | Static encryption, transport encryption | Vault, cert-manager | PCI-DSS, GDPR | ⭐⭐⭐⭐⭐ |
+| **Model Safety** | Model signing, differential privacy | Sigstore, OpenDP | AI Act, NIST AI RMF | ⭐⭐⭐⭐ |
+| **Threat Detection** | Runtime protection, anomaly detection | [[Falco|Falco]], Sysdig | NIST CSF | ⭐⭐⭐⭐ |
+| **Compliance Auditing** | Operational auditing, compliance reporting | Auditbeat, ELK | SOX, FINRA | ⭐⭐⭐ |
 
 ---
 
-<!-- chunk: 二、身份认证与访问控制 -->
-## 二、身份认证与访问控制
 
-### 2.1 企业级IAM集成
+## 2. Authentication and Access Control
+
+### 2.1 Enterprise IAM Integration
 
 ```yaml
 # keycloak-ai-platform.yaml
@@ -165,7 +167,7 @@ kind: Namespace
 metadata:
   name: ai-security
 ---
-# Keycloak部署
+# Keycloak Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -232,7 +234,7 @@ spec:
             cpu: "1"
             memory: "2Gi"
 ---
-# AI平台Realm配置
+# AI Platform Realm Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -255,23 +257,23 @@ data:
         "realm": [
           {
             "name": "ai-admin",
-            "description": "AI平台管理员"
+            "description": "AI platform administrator"
           },
           {
             "name": "ai-developer",
-            "description": "AI开发人员"
+            "description": "AI developer"
           },
           {
             "name": "ai-ml-engineer",
-            "description": "机器学习工程师"
+            "description": "machine learning engineer"
           },
           {
             "name": "ai-data-scientist",
-            "description": "数据科学家"
+            "description": "data scientist"
           },
           {
             "name": "ai-auditor",
-            "description": "AI审计员"
+            "description": "AI auditor"
           }
         ]
       },
@@ -330,7 +332,7 @@ data:
     }
 ```
 
-### 2.2 Kubernetes RBAC精细化配置
+### 2.2 Fine-grained Configuration of Kubernetes RBAC
 
 ```yaml
 # ai-platform-rbac.yaml
@@ -341,29 +343,29 @@ metadata:
   labels:
     name: ai-platform
 ---
-# 核心角色定义
+# Core Role Definition
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: ai-model-operator
   namespace: ai-platform
 rules:
-# 模型部署权限
+# Model Deployment Permissions
 - apiGroups: ["serving.kserve.io"]
   resources: ["inferenceservices", "trainedmodels"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
   
-# 配置管理权限
+# Configuration Management Permissions
 - apiGroups: [""]
   resources: ["configmaps", "secrets"]
   verbs: ["get", "list", "watch", "create", "update", "patch"]
   
-# 监控查看权限
+# Monitoring View Permissions
 - apiGroups: [""]
   resources: ["pods", "services", "endpoints"]
   verbs: ["get", "list", "watch"]
   
-# 日志查看权限
+# Log Viewing Permissions
 - apiGroups: [""]
   resources: ["pods/log"]
   verbs: ["get"]
@@ -374,22 +376,22 @@ metadata:
   name: ai-security-auditor
   namespace: ai-platform
 rules:
-# 只读权限
+# Read Only Permissions
 - apiGroups: ["*"]
   resources: ["*"]
   verbs: ["get", "list", "watch"]
   
-# 审计日志访问
+# Audit Log Access
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["get", "list", "watch"]
   
-# 安全日志查看
+# Security Log View
 - apiGroups: ["security.istio.io"]
   resources: ["authorizationpolicies"]
   verbs: ["get", "list", "watch"]
 ---
-# 角色绑定
+# Role Binding
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -421,10 +423,10 @@ roleRef:
 
 ---
 
-<!-- chunk: 三、数据保护与隐私 -->
-## 三、数据保护与隐私
 
-### 3.1 数据加密配置
+## 3. Data Protection and Privacy
+
+### 3.1 Data Encryption Configuration
 
 ```yaml
 # vault-ai-encryption.yaml
@@ -433,7 +435,7 @@ kind: Namespace
 metadata:
   name: ai-security
 ---
-# HashiCorp Vault部署
+# HashiCorp Vault Deployment
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -526,7 +528,7 @@ spec:
         requests:
           storage: 10Gi
 ---
-# Vault配置
+# Vault Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -558,7 +560,7 @@ data:
     disable_mlock = true
 ```
 
-### 3.2 差分隐私实施
+### 3.2 Differential Privacy Implementation
 
 ```python
 # differential_privacy.py
@@ -582,73 +584,73 @@ class DifferentialPrivacyEngine:
         self.delta = delta
         
     def add_laplace_noise(self, data: np.ndarray, sensitivity: float) -> np.ndarray:
-        """添加拉普拉斯噪声"""
+        """add Laplacian noise"""
         scale = sensitivity / self.epsilon
         noise = np.random.laplace(0, scale, data.shape)
         return data + noise
         
     def add_gaussian_noise(self, data: np.ndarray, sensitivity: float) -> np.ndarray:
-        """添加高斯噪声（适用于ε,δ-DP）"""
-        # 计算高斯噪声的标准差
+        """Add Gaussian noise (for ε,δ-DP)"""
+        # Calculate the standard deviation of Gaussian noise
         sigma = sensitivity * np.sqrt(2 * np.log(1.25 / self.delta)) / self.epsilon
         noise = np.random.normal(0, sigma, data.shape)
         return data + noise
         
     def private_mean(self, data: np.ndarray, bounds: tuple) -> float:
-        """计算满足差分隐私的均值"""
-        # 裁剪数据到指定范围
+        """Calculate the mean while satisfying differential privacy"""
+        # Clip data to specified range
         clipped_data = np.clip(data, bounds[0], bounds[1])
         
-        # 计算敏感度（对于均值查询）
+        # Compute sensitivity (for mean query)
         sensitivity = (bounds[1] - bounds[0]) / len(data)
         
-        # 添加噪声
+        # Add Noise
         true_mean = np.mean(clipped_data)
         private_mean = self.add_laplace_noise(np.array([true_mean]), sensitivity)[0]
         
         return float(private_mean)
         
     def private_histogram(self, data: np.ndarray, bins: int, range_vals: tuple) -> np.ndarray:
-        """计算满足差分隐私的直方图"""
-        # 计算真实直方图
+        """Calculate histogram satisfying differential privacy"""
+        # Calculate true histogram
         hist, bin_edges = np.histogram(data, bins=bins, range=range_vals)
         
-        # 敏感度为1（每个个体最多影响一个桶）
+        # Sensitivity is 1 (each individual affects at most one bin)
         sensitivity = 1.0
         
-        # 添加噪声到每个桶
+        # Add noise to each bin
         private_hist = self.add_laplace_noise(hist.astype(float), sensitivity)
         
-        # 确保非负
+        # Ensure non-negative
         private_hist = np.maximum(private_hist, 0)
         
         return private_hist
 
-# AI模型训练中的差分隐私应用
+# Differential Privacy Application in AI Model Training
 class PrivateAITraining:
     def __init__(self, privacy_engine: DifferentialPrivacyEngine):
         self.privacy_engine = privacy_engine
         
     def train_with_dp_sgd(self, model, dataloader, optimizer, epochs: int):
-        """使用差分隐私SGD训练模型"""
+        """Train model using differential privacy SGD"""
         for epoch in range(epochs):
             epoch_loss = 0.0
             for batch_idx, (data, target) in enumerate(dataloader):
-                # 前向传播
+                # Forward propagation
                 output = model(data)
                 loss = self.compute_loss(output, target)
                 
-                # 计算梯度
+                # Compute gradient
                 optimizer.zero_grad()
                 loss.backward()
                 
-                # 添加梯度噪声（实现DP-SGD）
+                # Add gradient noise (implement DP-SGD)
                 self._add_gradient_noise(optimizer)
                 
-                # 梯度裁剪
+                # Gradient clipping
                 self._clip_gradients(optimizer)
                 
-                # 更新参数
+                # Update parameters
                 optimizer.step()
                 
                 epoch_loss += loss.item()
@@ -656,11 +658,11 @@ class PrivateAITraining:
             print(f"Epoch {epoch+1}, Average Loss: {epoch_loss/len(dataloader)}")
             
     def _add_gradient_noise(self, optimizer):
-        """向梯度添加噪声"""
+        """Add noise to the gradient"""
         for param_group in optimizer.param_groups:
             for param in param_group['params']:
                 if param.grad is not None:
-                    # 计算L2敏感度
+                    # Compute L2 sensitivity
                     sensitivity = 1.0  # 假设已进行梯度裁剪
                     noise = self.privacy_engine.add_gaussian_noise(
                         param.grad.data.cpu().numpy(), 
@@ -669,28 +671,28 @@ class PrivateAITraining:
                     param.grad.data += torch.from_numpy(noise).to(param.device)
                     
     def _clip_gradients(self, optimizer, max_norm: float = 1.0):
-        """梯度裁剪"""
+        """Gradient clipping"""
         torch.nn.utils.clip_grad_norm_(optimizer.param_groups[0]['params'], max_norm)
 
-# 使用示例
+# Usage Example
 dp_engine = DifferentialPrivacyEngine(epsilon=0.1, delta=1e-5)
 private_trainer = PrivateAITraining(dp_engine)
 
-# 训练模型（满足差分隐私）
+# Train model (satisfying differential privacy)
 private_trainer.train_with_dp_sgd(model, train_loader, optimizer, epochs=10)
 
-# 发布统计信息时保护隐私
+# Protect privacy when publishing statistics
 sensitive_data = np.array([85, 92, 78, 96, 88, 73, 91, 87])
 dp_mean = dp_engine.private_mean(sensitive_data, bounds=(0, 100))
-print(f"差分隐私保护的平均分: {dp_mean}")
+print(f"Differential privacy protection score: {dp_mean}")
 ```
 
 ---
 
-<!-- chunk: 四、模型安全防护 -->
-## 四、模型安全防护
 
-### 4.1 模型完整性保护
+## 4. Model Security Protection
+
+### 4.1 Model Integrity Protection
 
 ```yaml
 # model-integrity-protection.yaml
@@ -699,7 +701,7 @@ kind: Namespace
 metadata:
   name: model-security
 ---
-# Sigstore Cosign部署
+# Sigstore Cosign Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -746,7 +748,7 @@ spec:
         secret:
           secretName: cosign-keys
 ---
-# 模型签名策略
+# Model Signature Strategy
 apiVersion: policy.sigstore.dev/v1beta1
 kind: ClusterImagePolicy
 metadata:
@@ -772,7 +774,7 @@ spec:
           }
 ```
 
-### 4.2 对抗样本检测
+### 4.2 Adversarial Sample Detection
 
 ```python
 # adversarial_detection.py
@@ -790,14 +792,14 @@ class AdversarialDetector:
         self.detector = None
         
     def fit_statistical_detector(self, clean_inputs, labels):
-        """训练统计异常检测器"""
-        # 提取特征（激活值、梯度等）
+        """Training anomaly detector"""
+        # Extract features (activations, gradients etc.)
         features = self._extract_features(clean_inputs, labels)
         
-        # 标准化特征
+        # Standardize features
         normalized_features = self.scaler.fit_transform(features)
         
-        # 训练孤立森林检测器
+        # Train Isolation Forest detector
         self.detector = IsolationForest(
             contamination=0.1,  # 预期异常比例
             random_state=42
@@ -805,7 +807,7 @@ class AdversarialDetector:
         self.detector.fit(normalized_features)
         
     def _extract_features(self, inputs, labels):
-        """提取输入样本的特征"""
+        """Extract features from input samples"""
         features = []
         
         with torch.no_grad():
@@ -813,46 +815,46 @@ class AdversarialDetector:
                 input_tensor = torch.tensor(input_batch, dtype=torch.float32)
                 label_tensor = torch.tensor(label_batch)
                 
-                # 前向传播获取中间层激活
+                # Forward propagation to get intermediate activations
                 activations = []
                 hooks = []
                 
                 def hook_fn(module, input, output):
                     activations.append(output.flatten())
                 
-                # 注册钩子到关键层
+                # Register hooks to key layers
                 for name, module in self.model.named_modules():
                     if isinstance(module, (nn.Linear, nn.Conv2d)):
                         hook = module.register_forward_hook(hook_fn)
                         hooks.append(hook)
                 
-                # 执行前向传播
+                # Execute forward propagation
                 output = self.model(input_tensor.unsqueeze(0))
                 
-                # 移除钩子
+                # Remove hooks
                 for hook in hooks:
                     hook.remove()
                 
-                # 组合特征
+                # Combine features
                 sample_features = torch.cat(activations).numpy()
                 features.append(sample_features)
                 
         return np.array(features)
         
     def detect_adversarial(self, inputs):
-        """检测对抗样本"""
+        """Detect adversarial samples"""
         if self.detector is None:
             raise ValueError("Detector not trained yet")
             
-        # 提取特征
+        # Extract features
         features = self._extract_features(inputs, None)
         normalized_features = self.scaler.transform(features)
         
-        # 检测异常
+        # Detect anomalies
         anomaly_scores = self.detector.decision_function(normalized_features)
         predictions = self.detector.predict(normalized_features)
         
-        # 返回结果 (-1表示异常，1表示正常)
+        # Return result (-1 for anomaly, 1 for normal)
         return {
             'is_adversarial': predictions == -1,
             'anomaly_scores': anomaly_scores,
@@ -865,7 +867,7 @@ class InputValidation:
         self.validation_rules = validation_rules or self._default_rules()
         
     def _default_rules(self):
-        """默认验证规则"""
+        """Default validation rule"""
         return {
             'min_value': -10.0,
             'max_value': 10.0,
@@ -874,10 +876,10 @@ class InputValidation:
         }
         
     def validate_input(self, input_tensor, reference_tensor=None):
-        """验证输入的有效性"""
+        """Validate input validity"""
         results = {}
         
-        # 基本范围检查
+        # Basic range check
         min_val = torch.min(input_tensor).item()
         max_val = torch.max(input_tensor).item()
         results['range_check'] = (
@@ -885,11 +887,11 @@ class InputValidation:
             max_val <= self.validation_rules['max_value']
         )
         
-        # L2范数检查
+        # L2 norm check
         l2_norm = torch.norm(input_tensor).item()
         results['norm_check'] = l2_norm <= self.validation_rules['max_l2_norm']
         
-        # 如果提供了参考输入，检查扰动大小
+        # Check perturbation size if reference input is provided
         if reference_tensor is not None:
             perturbation = torch.norm(input_tensor - reference_tensor).item()
             results['perturbation_check'] = (
@@ -898,34 +900,34 @@ class InputValidation:
         else:
             results['perturbation_check'] = True
             
-        # 综合验证结果
+        # Synthesize validation results
         results['is_valid'] = all(results.values())
         
         return results
 
-# 对抗训练防御
+# Adversarial Training Defense
 class AdversarialTraining:
     def __init__(self, model, epsilon: float = 0.03):
         self.model = model
         self.epsilon = epsilon
         
     def pgd_attack(self, images, labels, num_steps=10):
-        """投影梯度下降攻击"""
+        """Projection Gradient Descent Attack"""
         images = images.clone().detach()
         images.requires_grad = True
         
-        # PGD迭代
+        # PGD iteration
         for _ in range(num_steps):
             outputs = self.model(images)
             loss = nn.CrossEntropyLoss()(outputs, labels)
             
-            # 计算梯度
+            # Compute gradient
             grad = torch.autograd.grad(loss, images, retain_graph=False, create_graph=False)[0]
             
-            # 更新图像
+            # Update image
             images = images.detach() + self.epsilon * grad.sign()
             
-            # 投影到epsilon球内
+            # Project into epsilon ball
             delta = torch.clamp(images - images, min=-self.epsilon, max=self.epsilon)
             images = torch.clamp(images + delta, min=0, max=1).detach()
             images.requires_grad = True
@@ -933,7 +935,7 @@ class AdversarialTraining:
         return images.detach()
         
     def train_with_adversarial_examples(self, train_loader, optimizer, epochs: int):
-        """使用对抗样本进行训练"""
+        """Use adversarial samples for training"""
         self.model.train()
         
         for epoch in range(epochs):
@@ -944,18 +946,18 @@ class AdversarialTraining:
             for batch_idx, (data, target) in enumerate(train_loader):
                 data, target = data.cuda(), target.cuda()
                 
-                # 生成对抗样本
+                # Generate adversarial sample
                 adv_data = self.pgd_attack(data, target)
                 
-                # 正常和对抗样本混合训练
+                # Mix normal and adversarial samples for training
                 combined_data = torch.cat([data, adv_data], dim=0)
                 combined_target = torch.cat([target, target], dim=0)
                 
-                # 前向传播
+                # Forward propagation
                 outputs = self.model(combined_data)
                 loss = nn.CrossEntropyLoss()(outputs, combined_target)
                 
-                # 反向传播
+                # Backward propagation
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -968,32 +970,32 @@ class AdversarialTraining:
             accuracy = 100. * correct / total
             print(f'Epoch {epoch+1}: Loss={total_loss/len(train_loader):.4f}, Accuracy={accuracy:.2f}%')
 
-# 使用示例
-# 1. 训练对抗检测器
+# Usage Example
+# 1. Train an adversarial detector
 detector = AdversarialDetector(model)
 detector.fit_statistical_detector(clean_training_data, labels)
 
-# 2. 验证输入
+# 2. Validate input
 validator = InputValidation(input_shape=(3, 224, 224))
 validation_result = validator.validate_input(test_input, clean_input)
 
-# 3. 对抗训练
+# 3. Adversarial training
 adv_trainer = AdversarialTraining(model, epsilon=0.03)
 adv_trainer.train_with_adversarial_examples(train_loader, optimizer, epochs=20)
 
-# 4. 在线检测
+# 4. Online detection
 detection_result = detector.detect_adversarial(suspicious_input)
 if detection_result['is_adversarial']:
-    print("检测到对抗样本！")
-    # 拒绝服务或采取其他措施
+    print("Detected adversarial samples!")
+    # Deny service or take other measures
 ```
 
 ---
 
-<!-- chunk: 五、合规审计与监控 -->
-## 五、合规审计与监控
 
-### 5.1 审计日志配置
+## 5. Compliance Audits and Monitoring
+
+### 5.1 Audit Log Configuration
 
 ```yaml
 # audit-logging.yaml
@@ -1002,7 +1004,7 @@ kind: Namespace
 metadata:
   name: ai-audit
 ---
-# Auditbeat部署
+# Auditbeat Deployment
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -1071,7 +1073,7 @@ spec:
           path: /var/run/audit
           type: Directory
 ---
-# Auditbeat配置
+# Auditbeat Configuration
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -1082,20 +1084,20 @@ data:
     auditbeat.modules:
     - module: auditd
       audit_rules: |
-        # AI模型文件访问监控
+        # Monitor access to AI model files
         -w /models -p rwxa -k model_access
         -w /training-data -p rwxa -k data_access
         -w /model-registry -p rwxa -k registry_access
         
-        # 敏感配置文件监控
+        # Monitoring of sensitive configuration files
         -w /etc/kubernetes -p rwxa -k k8s_config
         -w /var/lib/kubelet -p rwxa -k kubelet_data
         
-        # 用户权限变更监控
+        # Monitoring of user permission changes
         -a always,exit -F arch=b64 -S chmod -F auid>=1000 -F auid!=4294967295 -k perm_mod
         -a always,exit -F arch=b64 -S chown -F auid>=1000 -F auid!=4294967295 -k perm_mod
         
-        # 网络连接监控
+        # Network connection monitoring
         -a always,exit -F arch=b64 -S connect -F auid>=1000 -F auid!=4294967295 -k network
         
     - module: file_integrity
@@ -1131,7 +1133,7 @@ data:
       index.number_of_shards: 1
 ```
 
-### 5.2 合规报告生成
+### 5.2 Compliance Report Generation
 
 ```python
 # compliance_reporter.py
@@ -1150,7 +1152,7 @@ class ComplianceReporter:
         self.report_date = datetime.now()
         
     def generate_ai_compliance_report(self) -> Dict[str, Any]:
-        """生成AI平台合规报告"""
+        """Generate compliance report for the AI platform"""
         
         report = {
             'report_date': self.report_date.isoformat(),
@@ -1160,46 +1162,46 @@ class ComplianceReporter:
             'recommendations': []
         }
         
-        # GDPR合规检查
+        # GDPR compliance check
         report['compliance_status']['gdpr'] = self._check_gdpr_compliance()
         
-        # SOC2合规检查
+        # SOC2 compliance check
         report['compliance_status']['soc2'] = self._check_soc2_compliance()
         
-        # AI特定法规检查
+        # Compliance check for specific AI regulations
         report['compliance_status']['ai_act'] = self._check_ai_act_compliance()
         
-        # 安全事件统计
+        # Security event statistics
         report['findings']['security_incidents'] = self._analyze_security_incidents()
         
-        # 访问控制审计
+        # Access control audit
         report['findings']['access_control'] = self._analyze_access_patterns()
         
-        # 数据保护检查
+        # Data protection check
         report['findings']['data_protection'] = self._analyze_data_protection()
         
-        # 生成建议
+        # Generate recommendations
         report['recommendations'] = self._generate_recommendations(report)
         
         return report
         
     def _check_gdpr_compliance(self) -> Dict[str, Any]:
-        """检查GDPR合规性"""
+        """Check GDPR compliance"""
         
-        # 检查数据处理记录
+        # Check data processing records
         data_processing_logs = self._query_audit_logs(
             query="kubernetes.labels.app:model-registry AND event.action:data_access",
             time_range=self.report_period
         )
         
-        # 检查用户同意记录
+        # Check consent records
         consent_records = self._query_elasticsearch(
             index="consent-records-*",
             query={"exists": {"field": "user_consent"}},
             time_range=self.report_period
         )
         
-        # 检查数据主体权利请求
+        # Check data subject rights requests
         subject_requests = self._query_elasticsearch(
             index="subject-requests-*",
             query={"term": {"request_type": "data_deletion"}},
@@ -1215,23 +1217,23 @@ class ComplianceReporter:
         }
         
     def _check_soc2_compliance(self) -> Dict[str, Any]:
-        """检查SOC2合规性"""
+        """Check SOC2 compliance"""
         
-        # 安全性检查
+        # Check security
         security_findings = self._query_elasticsearch(
             index="security-findings-*",
             query={"range": {"severity": {"gte": "medium"}}},
             time_range=self.report_period
         )
         
-        # 可用性监控
+        # Availability monitoring
         uptime_data = self._query_monitoring_metrics(
             metric="up",
             labels={"job": "ai-services"},
             time_range=self.report_period
         )
         
-        # 配置变更审计
+        # Configuration change audit
         config_changes = self._query_audit_logs(
             query="event.category:configuration AND event.type:change",
             time_range=self.report_period
@@ -1245,19 +1247,19 @@ class ComplianceReporter:
         }
         
     def _check_ai_act_compliance(self) -> Dict[str, Any]:
-        """检查AI法案合规性"""
+        """Check AI act compliance"""
         
-        # 高风险AI系统登记
+        # High-Risk AI System Registration
         high_risk_models = self._query_model_registry(
             filters={"risk_level": "high"}
         )
         
-        # 透明度要求检查
+        # Transparency Check Requirement
         transparency_docs = self._query_documentation(
             category="model-transparency"
         )
         
-        # 人类监督记录
+        # Record of Human Oversight
         human_oversight_logs = self._query_audit_logs(
             query="event.category:human_oversight",
             time_range=self.report_period
@@ -1275,9 +1277,9 @@ class ComplianceReporter:
         }
         
     def _analyze_security_incidents(self) -> Dict[str, Any]:
-        """分析安全事件"""
+        """Analyze security incidents"""
         
-        # 查询各类安全事件
+        # Query Various Security Events
         incident_types = {
             'unauthorized_access': 'event.category:authentication AND event.outcome:failure',
             'data_breach': 'event.category:data_security AND event.type:breach',
@@ -1301,18 +1303,18 @@ class ComplianceReporter:
         return incidents_summary
         
     def _analyze_access_patterns(self) -> Dict[str, Any]:
-        """分析访问控制模式"""
+        """Analyze access control models"""
         
-        # 异常访问检测
+        # Abnormal Access Detection
         access_logs = self._query_audit_logs(
             query="event.category:access",
             time_range=timedelta(days=7)  # 近期活动分析
         )
         
-        # 用户行为分析
+        # User Behavior Analysis
         user_behaviors = self._analyze_user_behavior(access_logs)
         
-        # 权限漂移检测
+        # Detection of Permission Drift
         permission_changes = self._detect_permission_drift()
         
         return {
@@ -1322,17 +1324,17 @@ class ComplianceReporter:
         }
         
     def _generate_recommendations(self, report: Dict) -> List[str]:
-        """基于报告生成改进建议"""
+        """Generate improvement suggestions based on reports"""
         
         recommendations = []
         
-        # GDPR相关建议
+        # GDPR Recommendations
         gdpr_status = report['compliance_status']['gdpr']
         if not gdpr_status['compliant']:
-            recommendations.append("建立完整的数据处理记录系统")
-            recommendations.append("实施数据主体权利请求处理流程")
+            recommendations.append("Establish a complete data processing record system")
+            recommendations.append("Implement a process for handling data subject rights requests")
             
-        # 安全建议
+        # Security Recommendations
         security_findings = report['findings']['security_incidents']
         high_severity_count = sum(
             findings['count'] 
@@ -1341,19 +1343,19 @@ class ComplianceReporter:
         )
         
         if high_severity_count > 0:
-            recommendations.append(f"立即处理{high_severity_count}个高严重性安全事件")
-            recommendations.append("加强入侵检测和响应能力")
+            recommendations.append(f"Immediately handle {high_severity_count} high-severity security incidents")
+            recommendations.append("Enhance intrusion detection and response capabilities")
             
-        # AI治理建议
+        # AI Governance Recommendations
         ai_act_status = report['compliance_status']['ai_act']
         if ai_act_status['compliance_score'] < 80:
-            recommendations.append("完善高风险AI系统登记制度")
-            recommendations.append("加强模型透明度文档管理")
+            recommendations.append("Perfect the registration system for high-risk AI systems")
+            recommendations.append("Enhance model transparency document management")
             
         return recommendations
         
     def export_report(self, report: Dict, format: str = "pdf") -> str:
-        """导出合规报告"""
+        """Export compliance report"""
         
         if format == "json":
             filename = f"ai_compliance_report_{self.report_date.strftime('%Y%m%d')}.json"
@@ -1362,103 +1364,103 @@ class ComplianceReporter:
             return filename
             
         elif format == "csv":
-            # 转换为CSV格式
+            # Convert to CSV Format
             df = pd.json_normalize(report)
             filename = f"ai_compliance_report_{self.report_date.strftime('%Y%m%d')}.csv"
             df.to_csv(filename, index=False)
             return filename
             
-        # 可以扩展支持PDF、HTML等格式
+        # Can Extend Support for Formats Such as PDF, HTML, etc.
         return ""
 
-# 使用示例
+# Usage Example
 reporter = ComplianceReporter(elasticsearch_client, report_period_days=30)
 compliance_report = reporter.generate_ai_compliance_report()
 
-# 导出报告
+# Export Report
 json_file = reporter.export_report(compliance_report, format="json")
-print(f"合规报告已生成: {json_file}")
+print(f"Compliance report has been generated: {json_file}")
 
-# 定期报告任务
+# Scheduled Report Task
 def scheduled_compliance_report():
-    """定期生成合规报告的任务"""
+    """Generate compliance report periodically"""
     reporter = ComplianceReporter(es_client)
     report = reporter.generate_ai_compliance_report()
     
-    # 发送报告给相关人员
+    # Send report to relevant personnel
     send_email_report(report, recipients=["security-team@company.com"])
     
-    # 存储到合规系统
+    # Store to compliance system
     store_compliance_record(report)
 
-# 配置定时任务（例如每月1号执行）
-# 可以使用Kubernetes CronJob或Celery Beat等调度器
+# Configure scheduled task (for example, execute on January 1st)
+# Can use Kubernetes CronJob or Celery Beat etc. scheduler
 ```
 
 ---
 
-<!-- chunk: 六、安全运维最佳实践 -->
-## 六、安全运维最佳实践
 
-### 6.1 安全检查清单
+## 6. Best Practices for Security Operations
 
-✅ **部署前安全检查**
-- [ ] 代码安全扫描完成（SAST/DAST）
-- [ ] 第三方依赖漏洞扫描通过
-- [ ] 容器镜像安全基线检查
-- [ ] Kubernetes安全配置审查
-- [ ] 模型安全性和偏见评估
-- [ ] 数据隐私影响评估完成
+### 6.1 Security Checklist
 
-✅ **运行时安全监控**
-- [ ] 实时威胁检测系统运行正常
-- [ ] 异常行为分析规则生效
-- [ ] 安全事件响应流程测试通过
-- [ ] 访问日志审计配置正确
-- [ ] 漏洞扫描定期执行
-- [ ] 安全补丁及时更新
+✅ **Pre-deployment Security Checks**
+- [ ] Code security scanning completed (SAST/DAST)
+- [ ] Third-party dependency vulnerability scans passed
+- [ ] Container image security baseline checks
+- [ ] Kubernetes security configuration review
+- [ ] Model safety and bias assessment
+- [ ] Data privacy impact assessment completed
 
-✅ **合规性持续监控**
-- [ ] 定期合规性评估执行
-- [ ] 审计日志完整性验证
-- [ ] 隐私保护措施有效运行
-- [ ] 安全培训定期开展
-- [ ] 第三方审计配合完成
-- [ ] 改进措施跟踪落实
+✅ **Runtime Security Monitoring**
+- [ ] Real-time threat detection system operates normally
+- [ ] Anomaly behavior analysis rules are effective
+- [ ] Security Incident Response Process Tested Successfully
+- [ ] Access Log Audits Configured Correctly
+- [ ] Vulnerability Scans Performed Regularly
+- [ ] Security Patches Updated Timely
 
-### 6.2 应急响应流程
+✅ **Compliance Continuous Monitoring**
+- [ ] Regular Compliance Assessments Executed
+- [ ] Audit Logs Integrity Verified
+- [ ] Privacy Protection Measures Operate Effectively
+- [ ] Security Training Conducted Regularly
+- [ ] Third-Party Audits Coordinated
+- [ ] Improvement Measures Followed Up
 
-**安全事件分类**
-- 🔴 **紧急**: 数据泄露、系统被攻破、模型投毒
-- 🟡 **高危**: 未授权访问、恶意软件感染、拒绝服务
-- 🟢 **中低**: 配置错误、轻微违规、可疑活动
+### 6.2 Emergency Response Process
 
-**响应步骤**
-1. **检测与确认** - 验证事件真实性
-2. **遏制与隔离** - 限制影响范围
-3. **调查与分析** - 确定根本原因
-4. **清除与恢复** - 移除威胁并恢复正常
-5. **总结与改进** - 文档化教训并改进防护
+**Security Event Categorization**
+- 🔴 **Urgent**: Data Leakage, System Compromised, Model Poisoning
+- 🟡 **High Risk**: Unauthorized Access, Malware Infection, Denial of Service
+- 🟢 **Low/Moderate**: Configuration Errors, Minor Violations, Suspicious Activity
 
----
+**Response Steps**
+1. **Detection and Confirmation** - Validate Event Authenticity
+2. **Containment and Isolation** - Limit Impact Scope
+3. **Investigation and Analysis** - Determine Root Cause
+4. **Removal and Recovery** - Remove Threat and Restore Normalcy
+5. **Summarize and Improve** - Document lessons learned and improve defenses
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+---
+
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — List of Open Source Projects
+- AI Infrastructure Architecture
+- 132 - AI/ML Workloads Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipeline and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 

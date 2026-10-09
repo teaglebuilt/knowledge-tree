@@ -1,6 +1,7 @@
----title: 144 - LLM推理服务部署
-description: 'title: 144 - LLM推理服务部署'
-summary: 'title: 144 - LLM推理服务部署'
+---
+title: 144 - LLM Inference Service Deployment
+description: 'title: 144 - LLM Inference Service Deployment'
+summary: 'title: 144 - LLM Inference Service Deployment'
 category: general
 tags:
 - k8s
@@ -19,14 +20,14 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 1h
 intent_queries:
-- llm-inference-serving是什么？
-- llm-inference-serving的使用方法
-- llm-inference-serving的最佳实践
+- What is llm-inference-serving?
+- How to use llm-inference-serving
+- Best practices for llm-inference-serving
 trigger_keywords:
-- LLM推理服务部署
+- Deployment of LLM Inference Service
 - ai
 - ml
 - infra
@@ -43,17 +44,19 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/17-llm-inference-serving.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains executable operational commands. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that these commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 144 - LLM推理服务部署
-description: '# 144 - LLM推理服务部署'
+title: 144 - LLM Inference Service Deployment
+description: '# 144 - LLM Inference Service Deployment'
 category: ai-infra
 tags:
 - k8s
@@ -70,28 +73,28 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineer
+- MLOps Engineer
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- LLM推理服务部署 是什么
-- 如何 LLM推理服务部署
-- [[Kubernetes|Kubernetes]] 11 ai infra 最佳实践
+- What is LLM Inference Service Deployment
+- How to deploy LLM Inference Service Deployment
+- [[Kubernetes|Kubernetes]] 11 ai infra best practices
 trigger_keywords:
-- LLM推理服务部署
+- LLM Inference Service Deployment
 - ai
 - infra
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
 authors:
 - name: Dillan Teagle
   role: contributor
@@ -103,14 +106,14 @@ k8s_versions:
 - '1.32'
 ---
 
-# 144 - LLM推理服务部署
+# 144 - LLM inference service deployment
 
-> **适用版本**: Kubernetes v1.25 - v1.32 | **难度**: 高级 | **参考**: [vLLM](https://docs.vllm.ai/) | [TGI](https://huggingface.co/docs/text-generation-inference) | [TensorRT-LLM](https://nvidia.github.io/TensorRT-LLM/)
+> **Applicable Versions**: Kubernetes v1.25 - v1.32 | **Difficulty**: Advanced | **Reference**: [vLLM](https://docs.vllm.ai/) | [TGI](https://huggingface.co/docs/text-generation-inference) | [TensorRT-LLM](https://nvidia.github.io/TensorRT-LLM/)
 
-<!-- chunk: 一、推理服务架构概览 -->
-## 一、推理服务架构概览
 
-### 1.1 生产级LLM推理架构
+## 1. Overall Inference Service Architecture Overview
+
+### 1.1 Production-Level LLM Inference Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -155,21 +158,21 @@ k8s_versions:
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 推理引擎全面对比
+### 1.2 Comprehensive Comparison of Inference Engines
 
-| 推理引擎 | 吞吐量 | 延迟 | 显存效率 | 量化支持 | 分布式推理 | 流式输出 | 适用GPU | 生产就绪 |
+| Inference Engine | Throughput | Latency | Memory Efficiency | Quantization Support | Distributed Inference | Stream Output | Suitable GPU | Production Ready |
 |---------|--------|------|----------|----------|-----------|----------|---------|---------|
-| **vLLM** | ★★★★★ | 中 | 95% | AWQ/GPTQ/FP8 | TP | ✓ | A100/H100/A10G | ✓ |
-| **TGI** | ★★★★☆ | 低 | 90% | GPTQ/AWQ/EETQ | TP | ✓ | 全系列 | ✓ |
-| **TensorRT-LLM** | ★★★★★ | 极低 | 98% | INT8/FP8/INT4 | TP+PP | ✓ | NVIDIA专用 | ✓ |
-| **llama.cpp** | ★★☆☆☆ | 中 | 85% | GGUF Q2-Q8 | ✗ | ✓ | CPU/低端GPU | ✓ |
-| **DeepSpeed-MII** | ★★★★☆ | 低 | 92% | ZeroQuant | TP | ✓ | A100/H100 | ✓ |
-| **SGLang** | ★★★★★ | 极低 | 95% | AWQ/GPTQ | TP | ✓ | A100/H100 | ✓ |
-| **LMDeploy** | ★★★★☆ | 低 | 93% | W4A16/W8A8 | TP | ✓ | 全系列 | ✓ |
+| **vLLM** | ★★★★★ | Medium | 95% | AWQ/GPTQ/FP8 | TP | ✓ | A100/H100/A10G | ✓ |
+| **TGI** | ★★★★☆ | Low | 90% | GPTQ/AWQ/EETQ | TP | ✓ | All series | ✓ |
+| **TensorRT-LLM** | ★★★★★ | Very Low | 98% | INT8/FP8/INT4 | TP+PP | ✓ | NVIDIA-specific | ✓ |
+| **llama.cpp** | ★★☆☆☆ | Medium | 85% | GGUF Q2-Q8 | ✗ | ✓ | CPU/low-end GPU | ✓ |
+| **DeepSpeed-MII** | ★★★★☆ | Low | 92% | ZeroQuant | TP | ✓ | A100/H100 | ✓ |
+| **SGLang** | ★★★★★ | Very Low | 95% | AWQ/GPTQ | TP | ✓ | A100/H100 | ✓ |
+| **LMDeploy** | ★★★★☆ | low | 93% | W4A16/W8A8 | TP | ✓ | All series | ✓ |
 
-### 1.3 关键技术特性对比
+### 1.3 Comprehensive Comparison of Key Technology Features
 
-| 技术特性 | vLLM | TGI | TensorRT-LLM | SGLang |
+| Technical Features | vLLM | TGI | TensorRT-LLM | SGLang |
 |---------|------|-----|--------------|--------|
 | **PagedAttention** | ✓ | ✓ | ✓ | ✓ |
 | **Continuous Batching** | ✓ | ✓ | ✓ | ✓ |
@@ -184,10 +187,10 @@ k8s_versions:
 
 ---
 
-<!-- chunk: 二、vLLM生产部署 -->
-## 二、vLLM生产部署
 
-### 2.1 完整Deployment配置
+## 2. vLLM Production Deployment
+
+### 2.1 Complete Deployment Configuration
 
 ```yaml
 apiVersion: v1
@@ -203,29 +206,29 @@ metadata:
   name: vllm-config
   namespace: llm-inference
 data:
-  # vLLM服务器配置
+  # vLLM Server Configuration
   VLLM_HOST: "0.0.0.0"
   VLLM_PORT: "8000"
   
-  # 性能优化
+  # Performance Optimization
   VLLM_GPU_MEMORY_UTILIZATION: "0.90"
   VLLM_MAX_MODEL_LEN: "8192"
   VLLM_MAX_NUM_SEQS: "256"
   VLLM_MAX_NUM_BATCHED_TOKENS: "32768"
   
-  # 并行配置
+  # Parallel Configuration
   VLLM_TENSOR_PARALLEL_SIZE: "1"
   VLLM_PIPELINE_PARALLEL_SIZE: "1"
   
-  # 量化配置
+  # Quantization Configuration
   VLLM_QUANTIZATION: "awq"
   VLLM_DTYPE: "float16"
   
-  # 缓存配置
+  # Cache Configuration
   VLLM_ENABLE_PREFIX_CACHING: "true"
   VLLM_BLOCK_SIZE: "16"
   
-  # 日志配置
+  # Log Configuration
   VLLM_LOG_LEVEL: "info"
 ---
 apiVersion: v1
@@ -235,9 +238,9 @@ metadata:
   namespace: llm-inference
 type: Opaque
 stringData:
-  # HuggingFace Token (私有模型访问)
+  # HuggingFace Token (Private Model Access)
   HF_TOKEN: "hf_xxxxxxxxxxxxxxxxxxxx"
-  # API密钥 (可选)
+  # API Key (Optional)
   VLLM_API_KEY: "sk-xxxxxxxxxxxxxxxxxxxx"
 ---
 apiVersion: apps/v1
@@ -271,7 +274,7 @@ spec:
         prometheus.io/port: "8000"
         prometheus.io/path: "/metrics"
     spec:
-      # 调度约束
+      # Scheduling Constraints
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -291,7 +294,7 @@ spec:
                   app: vllm
               topologyKey: kubernetes.io/hostname
       
-      # 容忍GPU节点污点
+      # Tolerate GPU Node Scrubbing
       tolerations:
       - key: nvidia.com/gpu
         operator: Exists
@@ -301,7 +304,7 @@ spec:
         value: gpu-inference
         effect: NoSchedule
       
-      # 初始化容器 - 模型预热
+      # Initialization Container - Model Warmup
       initContainers:
       - name: model-downloader
         image: python:3.11-slim
@@ -347,7 +350,7 @@ spec:
         - --served-model-name=llama3-70b
         - --host=0.0.0.0
         - --port=8000
-        # 性能参数
+        # Performance Parameters
         - --tensor-parallel-size=4
         - --dtype=float16
         - --quantization=awq
@@ -355,12 +358,12 @@ spec:
         - --max-model-len=8192
         - --max-num-seqs=256
         - --max-num-batched-tokens=32768
-        # 优化参数
+        # Optimization Parameters
         - --enable-prefix-caching
         - --block-size=16
         - --swap-space=16
         - --disable-log-requests
-        # API参数
+        # API Parameters
         - --api-key=$(VLLM_API_KEY)
         - --chat-template=/etc/vllm/chat_template.jinja
         
@@ -384,7 +387,7 @@ spec:
           name: http
           protocol: TCP
         
-        # 资源配置 - 4x A100 80GB
+        # Resource Configuration - 4x A100 80GB
         resources:
           requests:
             cpu: "16"
@@ -395,7 +398,7 @@ spec:
             memory: "128Gi"
             nvidia.com/gpu: "4"
         
-        # 健康检查
+        # Health Checks
         startupProbe:
           httpGet:
             path: /health
@@ -468,7 +471,7 @@ data:
     <|start_header_id|>assistant<|end_header_id|>
 ```
 
-### 2.2 Service与Ingress配置
+### 2.2 Service and Ingress Configuration
 
 ```yaml
 apiVersion: v1
@@ -503,10 +506,10 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
-    # WebSocket支持 (流式输出)
+    # WebSocket Support (Streaming Output)
     nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
     nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
-    # SSL配置
+    # SSL Configuration
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   tls:
@@ -525,7 +528,7 @@ spec:
             port:
               number: 8000
 ---
-# Istio VirtualService (可选)
+# Istio VirtualService (Optional)
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -552,7 +555,7 @@ spec:
     - retryOn="5xx,reset,connect-failure"
 ```
 
-### 2.3 自动扩缩容配置
+### 2.3 Auto Scaling Configuration
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -586,7 +589,7 @@ spec:
         periodSeconds: 120
       selectPolicy: Min
   metrics:
-  # GPU利用率
+  # GPU Utilization
   - type: External
     external:
       metric:
@@ -597,7 +600,7 @@ spec:
       target:
         type: AverageValue
         averageValue: "70"
-  # 请求队列深度
+  # Request queue depth
   - type: Pods
     pods:
       metric:
@@ -605,7 +608,7 @@ spec:
       target:
         type: AverageValue
         averageValue: "10"
-  # 正在处理的请求数
+  # Number of requests being processed
   - type: Pods
     pods:
       metric:
@@ -614,7 +617,7 @@ spec:
         type: AverageValue
         averageValue: "50"
 ---
-# KEDA ScaledObject (更精细控制)
+# KEDA ScaledObject (more precise control)
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -628,7 +631,7 @@ spec:
   pollingInterval: 15
   cooldownPeriod: 300
   triggers:
-  # Prometheus指标
+  # Prometheus metric
   - type: prometheus
     metadata:
       serverAddress: http://prometheus.monitoring:9090
@@ -637,7 +640,7 @@ spec:
       query: |
         sum(vllm_num_requests_waiting{namespace="llm-inference"}) / 
         count(vllm_num_requests_waiting{namespace="llm-inference"})
-  # GPU显存利用率
+  # GPU Memory Utilization
   - type: prometheus
     metadata:
       serverAddress: http://prometheus.monitoring:9090
@@ -645,7 +648,7 @@ spec:
       threshold: "85"
       query: |
         avg(DCGM_FI_DEV_MEM_COPY_UTIL{namespace="llm-inference"})
-  # 推理延迟
+  # Inference latency
   - type: prometheus
     metadata:
       serverAddress: http://prometheus.monitoring:9090
@@ -657,10 +660,10 @@ spec:
 
 ---
 
-<!-- chunk: 三、TensorRT-LLM高性能部署 -->
-## 三、TensorRT-LLM高性能部署
 
-### 3.1 TensorRT-LLM引擎构建
+## 3. TensorRT-LLM High-Performance Deployment
+
+### 3.1 TensorRT-LLM Engine Build
 
 ```yaml
 apiVersion: batch/v1
@@ -682,11 +685,11 @@ spec:
         - |
           set -ex
           
-          # 下载模型
+          # Download model
           huggingface-cli download meta-llama/Meta-Llama-3-70B-Instruct \
             --local-dir /models/llama3-70b-hf
           
-          # 转换为TensorRT-LLM格式
+          # Convert to TensorRT-LLM format
           python /opt/tensorrt_llm/examples/llama/convert_checkpoint.py \
             --model_dir /models/llama3-70b-hf \
             --output_dir /models/llama3-70b-ckpt \
@@ -694,7 +697,7 @@ spec:
             --tp_size 4 \
             --pp_size 1
           
-          # 构建TensorRT引擎
+          # Build TensorRT engine
           trtllm-build \
             --checkpoint_dir /models/llama3-70b-ckpt \
             --output_dir /engines/llama3-70b \
@@ -745,7 +748,7 @@ spec:
         nvidia.com/gpu.product: NVIDIA-A100-SXM4-80GB
 ```
 
-### 3.2 Triton Inference Server部署
+### 3.2 Triton Inference Server Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -835,10 +838,10 @@ spec:
         nvidia.com/gpu.product: NVIDIA-H100-SXM5-80GB
 ```
 
-### 3.3 Triton模型配置
+### 3.3 Triton Model Configuration
 
 ```protobuf
-# config.pbtxt - Triton模型配置
+# config.pbtxt - Triton Model Configuration
 name: "llama3-70b"
 backend: "tensorrtllm"
 max_batch_size: 64
@@ -959,10 +962,10 @@ parameters: {
 
 ---
 
-<!-- chunk: 四、Text Generation Inference (TGI) 部署 -->
-## 四、Text Generation Inference (TGI) 部署
 
-### 4.1 TGI完整部署配置
+## 4. Text Generation Inference (TGI) Deployment
+
+### 4.1 Complete Deployment Configuration for TGI
 
 ```yaml
 apiVersion: apps/v1
@@ -990,28 +993,28 @@ spec:
         image: ghcr.io/huggingface/text-generation-inference:2.0.3
         
         args:
-        # 模型配置
+        # Model configuration
         - --model-id=meta-llama/Meta-Llama-3-70B-Instruct
         - --quantize=awq
         - --dtype=float16
         
-        # 并行配置
+        # Parallel configuration
         - --num-shard=4
         - --sharded=true
         
-        # 性能配置
+        # Performance configuration
         - --max-batch-size=64
         - --max-batch-prefill-tokens=4096
         - --max-total-tokens=8192
         - --max-input-length=4096
         - --max-concurrent-requests=256
         
-        # 优化配置
+        # Optimize configuration
         - --enable-cuda-graphs
         - --cuda-memory-fraction=0.90
         - --waiting-served-ratio=0.3
         
-        # 服务配置
+        # Service configuration
         - --hostname=0.0.0.0
         - --port=80
         - --json-output
@@ -1090,10 +1093,10 @@ spec:
 
 ---
 
-<!-- chunk: 五、Multi-LoRA动态加载 -->
-## 五、Multi-LoRA动态加载
 
-### 5.1 LoRA Adapter管理
+## 5. Multi-LoRA Dynamic Loading
+
+### 5.1 Management of LoRA Adapters
 
 ```yaml
 apiVersion: v1
@@ -1104,34 +1107,34 @@ metadata:
 data:
   adapters.yaml: |
     adapters:
-      # 代码生成LoRA
+      # Code generation LoRA
       code-assistant:
         path: /adapters/code-assistant
         base_model: llama3-70b
         enabled: true
         
-      # 客服对话LoRA
+      # Customer conversation LoRA
       customer-service:
         path: /adapters/customer-service
         base_model: llama3-70b
         enabled: true
         
-      # 医疗问答LoRA
+      # Medical QA LoRA
       medical-qa:
         path: /adapters/medical-qa
         base_model: llama3-70b
         enabled: true
         
-      # 法律咨询LoRA
+      # Legal consultation LoRA
       legal-advisor:
         path: /adapters/legal-advisor
         base_model: llama3-70b
         enabled: true
     
-    # 默认适配器
+    # Default adapter
     default_adapter: null
     
-    # 最大同时加载适配器数
+    # Maximum number of concurrently loaded adapters
     max_loaded_adapters: 8
 ---
 apiVersion: apps/v1
@@ -1184,10 +1187,10 @@ spec:
           claimName: lora-adapters-pvc
 ```
 
-### 5.2 LoRA动态切换API
+### 5.2 Dynamic Switching API for LoRA
 
 ```python
-# lora_manager.py - LoRA适配器管理服务
+# lora_manager.py - LoRA adapter management service
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, List
@@ -1197,7 +1200,7 @@ import asyncio
 app = FastAPI(title="LoRA Adapter Manager")
 
 class LoRARequest(BaseModel):
-    """LoRA请求模型"""
+    """LoRA requests model"""
     model: str = "llama3-70b"
     adapter: Optional[str] = None  # LoRA适配器名称
     messages: List[Dict[str, str]]
@@ -1206,20 +1209,20 @@ class LoRARequest(BaseModel):
     stream: bool = False
 
 class AdapterInfo(BaseModel):
-    """适配器信息"""
+    """Adapter information"""
     name: str
     path: str
     loaded: bool
     requests_count: int
 
-# 适配器统计
+# Adapter statistics
 adapter_stats: Dict[str, int] = {}
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: LoRARequest):
-    """带LoRA适配器的聊天补全"""
+    """Chat completion with LoRA adapters"""
     
-    # 构建vLLM请求
+    # Build vLLM request
     vllm_request = {
         "model": request.model,
         "messages": request.messages,
@@ -1228,12 +1231,12 @@ async def chat_completions(request: LoRARequest):
         "stream": request.stream,
     }
     
-    # 如果指定了适配器,添加到模型名称
+    # If an adapter is specified, add it to the model name
     if request.adapter:
         vllm_request["model"] = f"{request.model}:{request.adapter}"
         adapter_stats[request.adapter] = adapter_stats.get(request.adapter, 0) + 1
     
-    # 转发到vLLM
+    # Forward to vLLM
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "http://vllm-service:8000/v1/chat/completions",
@@ -1251,9 +1254,9 @@ async def chat_completions(request: LoRARequest):
 
 @app.get("/v1/adapters")
 async def list_adapters() -> List[AdapterInfo]:
-    """列出所有可用的LoRA适配器"""
+    """List all available LoRA adapters"""
     
-    # 查询vLLM获取已加载的模型
+    # Query vLLM for models that have been loaded
     async with httpx.AsyncClient() as client:
         response = await client.get(
             "http://vllm-service:8000/v1/models"
@@ -1277,19 +1280,19 @@ async def list_adapters() -> List[AdapterInfo]:
 
 @app.post("/v1/adapters/{adapter_name}/load")
 async def load_adapter(adapter_name: str):
-    """动态加载LoRA适配器"""
-    # 实现动态加载逻辑
+    """Dynamic loading of LoRA adapters"""
+    # Implement dynamic loading logic
     return {"status": "loaded", "adapter": adapter_name}
 
 @app.delete("/v1/adapters/{adapter_name}")
 async def unload_adapter(adapter_name: str):
-    """卸载LoRA适配器"""
-    # 实现动态卸载逻辑
+    """Unloading LoRA adapters"""
+    # Implement dynamic unloading logic
     return {"status": "unloaded", "adapter": adapter_name}
 
 @app.get("/v1/adapters/stats")
 async def adapter_stats_endpoint():
-    """获取适配器使用统计"""
+    """Get adapter usage statistics"""
     return {
         "total_requests": sum(adapter_stats.values()),
         "per_adapter": adapter_stats
@@ -1298,10 +1301,10 @@ async def adapter_stats_endpoint():
 
 ---
 
-<!-- chunk: 六、Speculative Decoding加速 -->
-## 六、Speculative Decoding加速
 
-### 6.1 投机解码架构
+## 6. Speculative Decoding Acceleration
+
+### 6.1 Speculative Decoding Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -1340,7 +1343,7 @@ async def adapter_stats_endpoint():
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 vLLM Speculative Decoding配置
+### 6.2 vLLM Speculative Decoding Configuration
 
 ```yaml
 apiVersion: apps/v1
@@ -1362,17 +1365,17 @@ spec:
       - name: vllm
         image: vllm/vllm-openai:v0.4.2
         args:
-        # 目标模型
+        # Target model
         - --model=/models/llama3-70b
         - --served-model-name=llama3-70b
         
-        # 投机解码配置
+        # Opportunistic decoding configuration
         - --speculative-model=/models/llama3-8b
         - --num-speculative-tokens=5
         - --speculative-draft-tensor-parallel-size=1
         - --use-v2-block-manager
         
-        # 性能配置
+        # Performance configuration
         - --tensor-parallel-size=4
         - --gpu-memory-utilization=0.90
         - --max-model-len=8192
@@ -1392,11 +1395,11 @@ spec:
           claimName: model-storage-pvc
 ```
 
-### 6.3 性能对比基准
+### 6.3 Performance Baseline Comparison
 
-| 配置 | 模型 | 吞吐量 (tok/s) | P50延迟 | P99延迟 | 加速比 |
+| Configuration | Model | Throughput (tok/s) | P50 Delay | P99 Delay | Acceleration Ratio |
 |-----|------|---------------|---------|---------|--------|
-| 标准解码 | Llama3-70B | 45 | 22ms/tok | 35ms/tok | 1.0x |
+| Standard Decoding | Llama3-70B | 45 | 22ms/tok | 35ms/tok | 1.0x |
 | Speculative (k=3) | 70B + 8B | 95 | 11ms/tok | 18ms/tok | 2.1x |
 | Speculative (k=5) | 70B + 8B | 120 | 8ms/tok | 15ms/tok | 2.7x |
 | Speculative (k=7) | 70B + 8B | 135 | 7ms/tok | 14ms/tok | 3.0x |
@@ -1404,39 +1407,39 @@ spec:
 
 ---
 
-<!-- chunk: 七、KV Cache优化 -->
-## 七、KV Cache优化
 
-### 7.1 PagedAttention配置
+## 7. KV Cache Optimization
+
+### 7.1 PagedAttention Configuration
 
 ```python
-# kv_cache_config.py - KV Cache配置
+# kv_cache_config.py - KV Cache configuration
 from dataclasses import dataclass
 from typing import Optional
 
 @dataclass
 class KVCacheConfig:
-    """KV Cache配置参数"""
+    """KV Cache configuration parameters"""
     
-    # Block配置
+    # Block configuration
     block_size: int = 16  # 每个block的token数
     num_gpu_blocks: Optional[int] = None  # GPU blocks数量,自动计算
     num_cpu_blocks: int = 512  # CPU swap blocks数量
     
-    # 内存配置
+    # Memory configuration
     gpu_memory_utilization: float = 0.90  # GPU显存利用率
     swap_space_gb: float = 16  # CPU交换空间 (GB)
     
-    # 缓存策略
+    # Cache strategy
     enable_prefix_caching: bool = True  # 启用前缀缓存
     sliding_window: Optional[int] = None  # 滑动窗口大小
     
-    # 高级配置
+    # Advanced configuration
     cache_dtype: str = "auto"  # 缓存数据类型
     max_num_seqs: int = 256  # 最大并发序列数
     max_num_batched_tokens: int = 32768  # 最大批处理tokens
 
-# vLLM启动参数
+# vLLM startup parameters
 VLLM_KV_CACHE_ARGS = [
     "--block-size=16",
     "--gpu-memory-utilization=0.90",
@@ -1447,7 +1450,7 @@ VLLM_KV_CACHE_ARGS = [
 ]
 ```
 
-### 7.2 Prefix Caching策略
+### 7.2 Prefix Caching Strategy
 
 ```yaml
 apiVersion: v1
@@ -1456,10 +1459,10 @@ metadata:
   name: prefix-cache-config
   namespace: llm-inference
 data:
-  # 系统提示缓存
+  # System prompt cache
   system_prompts.yaml: |
     prompts:
-      # 通用助手
+      # General assistant
       general_assistant:
         hash: "sha256:abc123..."
         text: |
@@ -1467,7 +1470,7 @@ data:
           helpful, and harmless responses to user queries.
         cache_priority: high
         
-      # 代码助手
+      # Code assistant
       code_assistant:
         hash: "sha256:def456..."
         text: |
@@ -1475,7 +1478,7 @@ data:
           and well-documented code. You follow best practices.
         cache_priority: high
         
-      # 客服助手
+      # Customer service assistant
       customer_service:
         hash: "sha256:ghi789..."
         text: |
@@ -1483,14 +1486,14 @@ data:
           You are polite, helpful, and solution-oriented.
         cache_priority: medium
     
-    # 缓存配置
+    # Cache configuration
     cache_config:
       max_cached_prompts: 100
       eviction_policy: lru
       preload_on_startup: true
 ```
 
-### 7.3 KV Cache监控
+### 7.3 KV Cache Monitoring
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1502,53 +1505,53 @@ spec:
   groups:
   - name: kv-cache
     rules:
-    # KV Cache利用率
+    # KV Cache utilization
     - record: vllm:kv_cache_utilization
       expr: |
         vllm_gpu_cache_usage_perc
     
-    # Cache命中率
+    # Cache hit rate
     - record: vllm:prefix_cache_hit_rate
       expr: |
         rate(vllm_prefix_cache_hit_total[5m]) / 
         (rate(vllm_prefix_cache_hit_total[5m]) + rate(vllm_prefix_cache_miss_total[5m]))
     
-    # 告警: KV Cache接近满
+    # Warning: KV Cache nearly full
     - alert: KVCacheHighUtilization
       expr: vllm_gpu_cache_usage_perc > 95
       for: 5m
       labels:
         severity: warning
       annotations:
-        summary: "KV Cache利用率过高"
-        description: "Pod {{ $labels.pod }} KV Cache利用率 {{ $value }}%"
+        summary: "KV Cache utilization is too high"
+        description: "Pod {{ $labels.pod }} KV Cache utilization {{ $value }}%"
     
-    # 告警: 前缀缓存命中率低
+    # Warning: Prefix cache hit rate low
     - alert: LowPrefixCacheHitRate
       expr: vllm:prefix_cache_hit_rate < 0.3
       for: 15m
       labels:
         severity: info
       annotations:
-        summary: "前缀缓存命中率低"
-        description: "命中率 {{ $value | humanizePercentage }}"
+        summary: "Prefix cache hit rate is low"
+        description: "Hit rate {{ $value | humanizePercentage }}"
     
-    # 告警: 频繁Swap
+    # Warning: Frequent Swap
     - alert: FrequentKVCacheSwap
       expr: rate(vllm_cache_swap_out_total[5m]) > 100
       for: 5m
       labels:
         severity: warning
       annotations:
-        summary: "KV Cache频繁交换到CPU"
+        summary: "KV Cache frequently swaps to CPU"
 ```
 
 ---
 
-<!-- chunk: 八、负载均衡与流量管理 -->
-## 八、负载均衡与流量管理
 
-### 8.1 智能路由配置
+## 8. Load Balancing and Traffic Management
+
+### 8.1 Intelligent Routing Configuration
 
 ```yaml
 apiVersion: networking.istio.io/v1beta1
@@ -1562,7 +1565,7 @@ spec:
   gateways:
   - llm-gateway
   http:
-  # 长上下文请求路由到专用实例
+  # Long context requests routed to dedicated instances
   - matchers:
     - - headers=""
     - x-max-tokens=""
@@ -1573,7 +1576,7 @@ spec:
     - port=""
     - number="8000"
     - timeout="600s"
-  # 流式请求启用WebSocket
+  # Enable WebSocket for streaming requests
   - matchers:
     - - headers=""
     - x-stream=""
@@ -1584,7 +1587,7 @@ spec:
     - port=""
     - number="8000"
     - timeout="300s"
-  # 特定模型路由
+  # Specific model routing
   - matchers:
     - - headers=""
     - x-model=""
@@ -1594,7 +1597,7 @@ spec:
     - host="vllm-code-model"
     - port=""
     - number="8000"
-  # 默认路由 - 加权负载均衡
+  # Default route - weighted load balancing
   - route:
     - destination:
         host: vllm-service
@@ -1638,10 +1641,10 @@ spec:
       maxEjectionPercent: 30
 ```
 
-### 8.2 请求优先级队列
+### 8.2 Request Priority Queue
 
 ```python
-# priority_queue.py - 请求优先级队列
+# priority_queue.py - request priority queue
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -1651,7 +1654,7 @@ from datetime import datetime
 from enum import IntEnum
 
 class Priority(IntEnum):
-    """请求优先级"""
+    // request priority
     CRITICAL = 0    # 最高优先级
     HIGH = 1
     NORMAL = 2
@@ -1659,7 +1662,7 @@ class Priority(IntEnum):
     BATCH = 4       # 最低优先级
 
 class InferenceRequest(BaseModel):
-    """推理请求"""
+    // inference request
     request_id: str
     model: str
     messages: List[Dict]
@@ -1669,14 +1672,14 @@ class InferenceRequest(BaseModel):
     created_at: float = None
 
 class PriorityQueue:
-    """优先级请求队列"""
+    // priority request queue
     
     def __init__(self, max_size: int = 1000):
         self.max_size = max_size
         self.queue: List[tuple] = []  # (priority, timestamp, request)
         self.lock = asyncio.Lock()
         
-        # 每个优先级的配额
+        # quota for each priority
         self.quotas = {
             Priority.CRITICAL: 100,
             Priority.HIGH: 200,
@@ -1687,25 +1690,25 @@ class PriorityQueue:
         self.current_counts = {p: 0 for p in Priority}
     
     async def enqueue(self, request: InferenceRequest) -> bool:
-        """入队请求"""
+        // request enqueued
         async with self.lock:
-            # 检查队列是否已满
+            # Check if the queue is full
             if len(self.queue) >= self.max_size:
-                # 尝试淘汰低优先级请求
+                # Try to evict low-priority requests
                 if not await self._evict_lower_priority(request.priority):
                     raise HTTPException(
                         status_code=429,
                         detail="Queue full, please retry later"
                     )
             
-            # 检查优先级配额
+            # Check priority quota
             if self.current_counts[request.priority] >= self.quotas[request.priority]:
                 raise HTTPException(
                     status_code=429,
                     detail=f"Priority {request.priority.name} quota exceeded"
                 )
             
-            # 入队
+            # enqueue
             timestamp = request.created_at or datetime.now().timestamp()
             heapq.heappush(self.queue, (request.priority, timestamp, request))
             self.current_counts[request.priority] += 1
@@ -1713,7 +1716,7 @@ class PriorityQueue:
             return True
     
     async def dequeue(self) -> Optional[InferenceRequest]:
-        """出队请求"""
+        // dequeue request
         async with self.lock:
             if not self.queue:
                 return None
@@ -1724,8 +1727,8 @@ class PriorityQueue:
             return request
     
     async def _evict_lower_priority(self, min_priority: Priority) -> bool:
-        """淘汰低优先级请求"""
-        # 查找并移除最低优先级的请求
+        // evict low-priority requests
+        # Find and remove the request with the lowest priority
         for i in range(len(self.queue) - 1, -1, -1):
             if self.queue[i][0] > min_priority:
                 evicted = self.queue.pop(i)
@@ -1735,14 +1738,14 @@ class PriorityQueue:
         return False
     
     def get_stats(self) -> Dict:
-        """获取队列统计"""
+        // get queue statistics
         return {
             "total_queued": len(self.queue),
             "by_priority": dict(self.current_counts),
             "utilization": len(self.queue) / self.max_size
         }
 
-# 根据用户等级确定优先级
+# Determine priority based on user level
 USER_TIER_PRIORITY = {
     "enterprise": Priority.HIGH,
     "pro": Priority.NORMAL,
@@ -1754,14 +1757,14 @@ queue = PriorityQueue(max_size=1000)
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    """带优先级的聊天补全"""
+    // chat completion with priority
     body = await request.json()
     
-    # 获取用户等级
+    # Get user level
     user_tier = request.headers.get("x-user-tier", "free")
     api_key = request.headers.get("authorization", "")
     
-    # 创建推理请求
+    # Create inference request
     inference_request = InferenceRequest(
         request_id=str(uuid.uuid4()),
         model=body.get("model", "llama3-70b"),
@@ -1772,24 +1775,24 @@ async def chat_completions(request: Request):
         created_at=datetime.now().timestamp()
     )
     
-    # 入队
+    # enqueue
     await queue.enqueue(inference_request)
     
-    # 处理请求...
-    # (实际实现中会异步处理队列)
+    # handle request…
+    # (actual implementation will asynchronously process the queue)
 
 @app.get("/v1/queue/stats")
 async def queue_stats():
-    """获取队列统计"""
+    """Get queue statistics"""
     return queue.get_stats()
 ```
 
 ---
 
-<!-- chunk: 九、监控与可观测性 -->
-## 九、监控与可观测性
 
-### 9.1 完整监控Dashboard
+## 9. Monitoring and Observability
+
+### 9.1 Complete Monitoring Dashboard
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
@@ -1801,25 +1804,25 @@ spec:
   groups:
   - name: llm-inference-slos
     rules:
-    # SLO: 99%请求延迟<5s
+    # SLO: 99% request delay < 5s
     - record: llm:request_latency_p99
       expr: |
         histogram_quantile(0.99, 
           sum(rate(vllm_request_duration_seconds_bucket[5m])) by (le, model)
         )
     
-    # SLO: 吞吐量
+    # SLO: Throughput
     - record: llm:throughput_tokens_per_second
       expr: |
         sum(rate(vllm_generation_tokens_total[5m])) by (model)
     
-    # SLO: 可用性
+    # SLO: Availability
     - record: llm:availability
       expr: |
         sum(rate(vllm_request_success_total[5m])) by (model) /
         sum(rate(vllm_request_total[5m])) by (model)
     
-    # 错误率
+    # Error rate
     - record: llm:error_rate
       expr: |
         sum(rate(vllm_request_error_total[5m])) by (model, error_type) /
@@ -1827,57 +1830,57 @@ spec:
   
   - name: llm-inference-alerts
     rules:
-    # 高延迟告警
+    # High-latency alert
     - alert: LLMHighLatency
       expr: llm:request_latency_p99 > 10
       for: 5m
       labels:
         severity: warning
       annotations:
-        summary: "LLM推理延迟过高"
-        description: "模型 {{ $labels.model }} P99延迟 {{ $value }}秒"
+        summary: "LLM inference latency is too high"
+        description: "Model {{ $labels.model }} P99 latency {{ $value }} seconds"
     
-    # 低吞吐量告警
+    # Low-throughput alert
     - alert: LLMLowThroughput
       expr: llm:throughput_tokens_per_second < 100
       for: 10m
       labels:
         severity: warning
       annotations:
-        summary: "LLM吞吐量下降"
-        description: "模型 {{ $labels.model }} 吞吐量 {{ $value }} tok/s"
+        summary: "LLM throughput drops"
+        description: "Throughput of model {{ $labels.model }} {{ $value }} tokens per second"
     
-    # 高错误率告警
+    # High-error-rate alert
     - alert: LLMHighErrorRate
       expr: llm:error_rate > 0.05
       for: 5m
       labels:
         severity: critical
       annotations:
-        summary: "LLM错误率过高"
-        description: "模型 {{ $labels.model }} 错误率 {{ $value | humanizePercentage }}"
+        summary: "LLM error rate is too high"
+        description: "Error rate of model {{ $labels.model }} {{ $value | humanizePercentage }}"
     
-    # GPU显存不足
+    # GPU memory insufficient
     - alert: LLMGPUMemoryHigh
       expr: DCGM_FI_DEV_MEM_COPY_UTIL > 95
       for: 5m
       labels:
         severity: warning
       annotations:
-        summary: "GPU显存利用率过高"
-        description: "GPU {{ $labels.gpu }} 显存利用率 {{ $value }}%"
+        summary: "GPU memory utilization is too high"
+        description: "Memory utilization of GPU {{ $labels.gpu }} {{ $value }}%"
     
-    # 队列积压
+    # Queue Backlog
     - alert: LLMQueueBacklog
       expr: vllm_num_requests_waiting > 100
       for: 5m
       labels:
         severity: warning
       annotations:
-        summary: "推理请求队列积压"
-        description: "等待队列 {{ $value }} 个请求"
+        summary: "Inference request queue backlog"
+        description: "Queue backlog {{ $value }} requests"
     
-    # Pod不健康
+    # A Pod is not healthy
     - alert: LLMPodUnhealthy
       expr: |
         kube_pod_status_ready{namespace="llm-inference", condition="true"} == 0
@@ -1885,8 +1888,8 @@ spec:
       labels:
         severity: critical
       annotations:
-        summary: "LLM Pod不健康"
-        description: "Pod {{ $labels.pod }} 不可用"
+        summary: "LLM Pod is unhealthy"
+        description: "Pod {{ $labels.pod }} unavailable"
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -1977,7 +1980,7 @@ data:
     }
 ```
 
-### 9.2 请求追踪配置
+### 9.2 Request Tracing Configuration
 
 ```yaml
 apiVersion: v1
@@ -2033,12 +2036,12 @@ data:
 
 ---
 
-<!-- chunk: 十、性能基准与调优 -->
-## 十、性能基准与调优
 
-### 10.1 模型性能基准 (A100 80GB)
+## 10. Performance Benchmarks and Tuning
 
-| 模型 | 配置 | 吞吐量 (tok/s) | P50延迟 | P99延迟 | 显存占用 | 成本/1M tokens |
+### 10.1 Model Performance Baseline (A100 80GB)
+
+| Model | Configuration | Throughput (tok/s) | P50 Latency | P99 Latency | Memory Usage | Cost/1M tokens |
 |-----|------|---------------|---------|---------|----------|---------------|
 | **Llama3-8B** |
 | | FP16, 1×A100 | 2,800 | 8ms | 15ms | 18GB | $0.02 |
@@ -2056,9 +2059,9 @@ data:
 | | FP8, 4×H100 | 180 | 120ms | 230ms | 420GB | $0.35 |
 | | INT4, 2×H100 | 220 | 100ms | 200ms | 220GB | $0.22 |
 
-### 10.2 推理引擎性能对比
+### 10.2 Inference Engine Performance Comparison
 
-| 引擎 | 模型 | Batch Size | 吞吐量 (tok/s) | P99延迟 | 显存效率 |
+| Engine | Model | Batch Size | Throughput (tok/s) | 99th Percentile Latency | Memory Efficiency |
 |-----|------|-----------|---------------|---------|----------|
 | **vLLM** | Llama3-70B-AWQ | 64 | 4,800 | 95ms | 92% |
 | **TGI** | Llama3-70B-AWQ | 64 | 4,200 | 110ms | 88% |
@@ -2066,12 +2069,12 @@ data:
 | **SGLang** | Llama3-70B-AWQ | 64 | 5,200 | 85ms | 93% |
 | **DeepSpeed-MII** | Llama3-70B | 64 | 3,800 | 125ms | 85% |
 
-### 10.3 调优参数指南
+### 10.3 Tuning Parameter Guide
 
 ```yaml
-# 性能调优参数参考
+# Performance Tuning Parameters Reference
 performance_tuning:
-  # 吞吐量优化
+  # Throughput optimization
   high_throughput:
     max_num_seqs: 512
     max_num_batched_tokens: 65536
@@ -2080,7 +2083,7 @@ performance_tuning:
     block_size: 32
     swap_space: 32
     
-  # 延迟优化
+  # Delay optimization
   low_latency:
     max_num_seqs: 64
     max_num_batched_tokens: 8192
@@ -2090,7 +2093,7 @@ performance_tuning:
     use_speculative_decoding: true
     num_speculative_tokens: 5
     
-  # 成本优化
+  # Cost optimization
   cost_optimized:
     quantization: awq
     dtype: float16
@@ -2098,7 +2101,7 @@ performance_tuning:
     gpu_memory_utilization: 0.95
     enable_prefix_caching: true
     
-  # 长上下文优化
+  # Optimize Long Context
   long_context:
     max_model_len: 128000
     max_num_seqs: 32
@@ -2109,67 +2112,67 @@ performance_tuning:
 
 ---
 
-<!-- chunk: 十一、故障排查 -->
-## 十一、故障排查
 
-### 11.1 常见问题诊断
+## 11. Fault Diagnosis
 
-| 问题 | 症状 | 可能原因 | 解决方案 |
+### 11.1 Common Issue Diagnosis
+
+| Problem | Symptoms | Possible Causes | Solutions |
 |-----|------|---------|---------|
-| **OOM错误** | CUDA out of memory | 模型太大/batch太大 | 降低gpu_memory_utilization,减少max_num_seqs |
-| **启动慢** | 模型加载>10分钟 | 网络慢/存储慢 | 使用本地NVMe SSD,预下载模型 |
-| **吞吐量低** | <预期50% | CPU瓶颈/IO瓶颈 | 增加CPU核心,使用更快存储 |
-| **延迟抖动** | P99>>P50 | GC/Swap | 增加swap_space,调整block_size |
-| **请求超时** | 504错误 | 队列积压/资源不足 | 增加副本,调整HPA阈值 |
-| **NCCL错误** | 多GPU通信失败 | 网络配置错误 | 检查NCCL环境变量,IB配置 |
+| **OOM Error** | CUDA out of memory | Model too large/batch too large | Reduce gpu_memory_utilization, decrease max_num_seqs |
+| **Slow to Start** | Model loading >10 minutes | Network slow/Storage slow | Use local NVMe SSD, pre-download model |
+| **Throughput Low** | <Expected 50% | CPU Bottleneck/IO Bottleneck | Increase CPU cores, use faster storage |
+| **Latency Jitter** | P99>P50 | GC/Swap | Increase swap_space, adjust block_size |
+| **Request Timeout** | 504 Error | Queue backlog/resource shortage | Increase replicas, adjust HPA thresholds |
+| **NCCL Error** | Multi-GPU communication failure | Network configuration error | Check NCCL environment variables, IB configuration |
 
-### 11.2 诊断命令
+### 11.2 Diagnostic Commands
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `kubectl exec`：进入容器执行命令，可能改变容器状态
+> ⚠️ **Yellow High Change** — Change cluster resource status, suggest to first run --dry-run or diff to confirm
+> - `kubectl exec`: enter container to execute commands, may change container state
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
+# 🔴 Medium risk: modifies cluster/resource status; confirm target, impact scope, and authorization before proceeding
 #!/bin/bash
-# llm-diagnosis.sh - LLM推理服务诊断脚本
+# llm-diagnosis.sh - LLM inference service diagnostic script
 
-# 1. 检查Pod状态
-echo "=== Pod状态 ==="
+# 1. Check Pod status
+echo "=== Pod status ==="
 kubectl get pods -n llm-inference -o wide
 
-# 2. 检查GPU状态
-echo "=== GPU状态 ==="
+# Check GPU status
+echo "=== GPU status ==="
 kubectl exec -n llm-inference deployment/vllm-llama3-70b -- nvidia-smi
 
-# 3. 检查vLLM健康
-echo "=== vLLM健康检查 ==="
+# Check vLLM health
+echo "=== vLLM health check ==="
 kubectl exec -n llm-inference deployment/vllm-llama3-70b -- \
   curl -s localhost:8000/health | jq .
 
-# 4. 检查队列状态
-echo "=== 队列状态 ==="
+# Check queue status
+echo "=== Queue Status ==="
 kubectl exec -n llm-inference deployment/vllm-llama3-70b -- \
   curl -s localhost:8000/metrics | grep -E "vllm_num_requests"
 
-# 5. 检查KV Cache
-echo "=== KV Cache状态 ==="
+# Check KV Cache
+echo "=== KV Cache Status ==="
 kubectl exec -n llm-inference deployment/vllm-llama3-70b -- \
   curl -s localhost:8000/metrics | grep -E "vllm_.*cache"
 
-# 6. 检查错误日志
-echo "=== 最近错误 ==="
+# Check error logs
+echo "=== Most Recent Error ==="
 kubectl logs -n llm-inference deployment/vllm-llama3-70b --tail=100 | grep -i error
 
-# 7. 检查资源使用
-echo "=== 资源使用 ==="
+# Check resource usage
+echo "=== Resource Usage ==="
 kubectl top pods -n llm-inference
 
-# 8. 检查HPA状态
-echo "=== HPA状态 ==="
+# Check HPA status
+echo "=== HPA Status ==="
 kubectl get hpa -n llm-inference
 
-# 9. 性能测试
-echo "=== 性能测试 ==="
+# Performance test
+echo "=== Performance Test ==="
 curl -X POST http://vllm-service.llm-inference:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -2180,18 +2183,18 @@ curl -X POST http://vllm-service.llm-inference:8000/v1/chat/completions \
 ```
 ---
 
-<!-- chunk: 十二、快速参考 -->
-## 十二、快速参考
 
-### 12.1 vLLM启动参数速查
+## 12. Quick Reference
+
+### 12.1 vLLM Startup Parameters Quick Reference
 
 ```bash
-# 基础启动
+# Base startup
 python -m vllm.entrypoints.openai.api_server \
   --model meta-llama/Meta-Llama-3-70B-Instruct \
   --tensor-parallel-size 4
 
-# 生产配置
+# Production configuration
 python -m vllm.entrypoints.openai.api_server \
   --model /models/llama3-70b-awq \
   --quantization awq \
@@ -2203,7 +2206,7 @@ python -m vllm.entrypoints.openai.api_server \
   --enable-prefix-caching \
   --api-key $API_KEY
 
-# 投机解码
+# Opportunistic decoding
 python -m vllm.entrypoints.openai.api_server \
   --model /models/llama3-70b \
   --speculative-model /models/llama3-8b \
@@ -2218,10 +2221,10 @@ python -m vllm.entrypoints.openai.api_server \
   --lora-modules adapter1=/adapters/adapter1 adapter2=/adapters/adapter2
 ```
 
-### 12.2 API调用示例
+### 12.2 API Call Examples
 
 ```python
-# OpenAI兼容API调用
+# OpenAI compatible API calls
 import openai
 
 client = openai.OpenAI(
@@ -2229,7 +2232,7 @@ client = openai.OpenAI(
     api_key="sk-xxx"
 )
 
-# 同步调用
+# Synchronous call
 response = client.chat.completions.create(
     model="llama3-70b",
     messages=[{"role": "user", "content": "Hello"}],
@@ -2237,7 +2240,7 @@ response = client.chat.completions.create(
     temperature=0.7
 )
 
-# 流式调用
+# Streaming call
 stream = client.chat.completions.create(
     model="llama3-70b",
     messages=[{"role": "user", "content": "Write a story"}],
@@ -2247,7 +2250,7 @@ stream = client.chat.completions.create(
 for chunk in stream:
     print(chunk.choices[0].delta.content, end="")
 
-# 使用LoRA适配器
+# Use LoRA adapter
 response = client.chat.completions.create(
     model="llama3-70b:code-assistant",  # 指定适配器
     messages=[{"role": "user", "content": "Write a Python function"}],
@@ -2255,57 +2258,57 @@ response = client.chat.completions.create(
 )
 ```
 
-### 12.3 性能监控指标
+### 12.3 Performance Monitoring Metrics
 
-| 指标 | Prometheus Query | 健康阈值 |
+| Metric | Prometheus Query | Health Threshold |
 |-----|------------------|----------|
-| 请求延迟P99 | `histogram_quantile(0.99, rate(vllm_request_duration_seconds_bucket[5m]))` | <5s |
-| 吞吐量 | `sum(rate(vllm_generation_tokens_total[5m]))` | >1000 tok/s |
-| 队列深度 | `vllm_num_requests_waiting` | <50 |
-| GPU利用率 | `DCGM_FI_DEV_GPU_UTIL` | 60-90% |
-| KV Cache使用率 | `vllm_gpu_cache_usage_perc` | <95% |
-| 错误率 | `rate(vllm_request_error_total[5m])/rate(vllm_request_total[5m])` | <1% |
+| Request Latency P99 | `histogram_quantile(0.99, rate(vllm_request_duration_seconds_bucket[5m]))` | <5s |
+| Throughput | `sum(rate(vllm_generation_tokens_total[5m]))` | >1000 tok/s |
+| Queue Depth | `vllm_num_requests_waiting` | <50 |
+| GPU Utilization | `DCGM_FI_DEV_GPU_UTIL` | 60-90% |
+| KV Cache Usage Rate | `vllm_gpu_cache_usage_perc` | <95% |
+| Error Rate | `rate(vllm_request_error_total[5m])/rate(vllm_request_total[5m])` | <1% |
 
 ---
 
-<!-- chunk: 十三、最佳实践总结 -->
-## 十三、最佳实践总结
 
-### 生产部署检查清单
+## Thirteen - Best Practices Summary
 
-- [ ] **高可用**: 最少2个副本,跨AZ部署
-- [ ] **资源隔离**: GPU节点专用污点,Pod亲和性
-- [ ] **健康检查**: 配置startup/liveness/readiness探针
-- [ ] **自动扩缩容**: HPA基于GPU利用率和队列深度
-- [ ] **监控告警**: Prometheus指标,Grafana Dashboard
-- [ ] **日志追踪**: 结构化日志,分布式追踪
-- [ ] **安全**: API认证,网络策略,Secret管理
-- [ ] **成本优化**: 量化模型,Spot实例,自动缩容
-- [ ] **灾备**: 模型备份,快速恢复流程
+### Production Deployment Checklist
 
----
-
-**相关文档**: [145-LLM Serving架构](145-llm-serving-architecture.md) | [146-LLM量化技术](146-llm-quantization.md) | [133-GPU调度管理](133-gpu-scheduling-management.md)
-
-**版本**: vLLM 0.4.2+ | TGI 2.0+ | TensorRT-LLM 0.9+ | Kubernetes v1.27+
+- [ ] **High Availability**: At least 2 replicas, cross-AZ deployment
+- [ ] **Resource Isolation**: GPU nodes with node taints, pod affinity
+- [ ] **Health Checks**: Configure startup/liveness/readiness probes
+- [ ] **Auto Scaling**: HPA based on GPU utilization and queue depth
+- [ ] **Monitoring & Alerts**: Prometheus metrics, Grafana Dashboard
+- [ ] **Logging Tracing**: Structured logs, distributed tracing
+- [ ] **Security**: API authentication, network policies, Secret management
+- [ ] **Cost Optimization**: Quantized models, Spot instances, auto-scaling
+- [ ] **Disaster Recovery**: Model backup, recovery process
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+**Related Documentation**: [145-LLM Serving Architecture](145-llm-serving-architecture.md) | [146-LLM Quantization](146-llm-quantization.md) | [133-GPU Scheduling Management](133-gpu-scheduling-management.md)
+
+**Version**: vLLM 0.4.2+ | TGI 2.0+ | TensorRT-LLM 0.9+ | Kubernetes v1.27+
+
+---
+
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed training framework
+- AI data processing Pipeline and feature engineering
+- AI experiment management and MLOps platform
+- AutoML and hyperparameter tuning
+- AI model registry center and version management
 
 ## See Also
 
@@ -2318,7 +2321,7 @@ response = client.chat.completions.create(
 
 - [[deep-dive|#deep-dive Hub]] — tag hub
 
-- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU 基础设施知识图谱索引]]
+- [[domain-19-landscape-references/topic-index/ai-gpu-index.md|AI / GPU Infrastructure Knowledge Graph Index]]
 
 
 <!-- risk-assessed -->

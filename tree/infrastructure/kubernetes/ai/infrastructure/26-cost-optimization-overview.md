@@ -1,6 +1,6 @@
 ---
-title: 26 - AI基础设施成本优化概览
-description: '# 26 - AI基础设施成本优化概览'
+title: 26 - AI Infrastructure Cost Optimization Overview
+description: '# 26 - AI Infrastructure Cost Optimization Overview'
 summary: 'from kubernetes_asyncio import client, config'
 category: ai-infra
 tags:
@@ -20,16 +20,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- MLOps 工程师
+- AI Engineers
+- MLOps Engineers
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- AI基础设施成本优化概览 是什么
-- 如何 AI基础设施成本优化概览
-- Kubernetes 11 ai infra 最佳实践
+- What is AI Infrastructure Cost Optimization Overview
+- How to AI Infrastructure Cost Optimization Overview
+- Kubernetes 11 ai infra best practices
 trigger_keywords:
-- AI基础设施成本优化概览
+- AI Infrastructure Cost Optimization Overview
 - ai
 - infra
 prerequisites:
@@ -52,133 +52,135 @@ authors:
 cross_refs:
 - type: domain
   path: ../domain-02-workloads-applications/
-  label: '相关知识域: domain-02-workloads-applications'
+  label: 'Related Knowledge Domain: domain-02-workloads-applications'
 - type: domain
   path: ../domain-03-networking-traffic/
-  label: '相关知识域: domain-03-networking-traffic'
+  label: 'Related Knowledge Domain: domain-03-networking-traffic'
 - type: cheatsheet
   path: ../domain-17-system-foundation/topic-cheat-sheet/go.md
-  label: '速查卡: go'
+  label: 'Quick Reference Card: go'
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/infrastructure/26-cost-optimization-overview.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Tips**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document can be directly executed. Before executing, please confirm: whether the target cluster and Namespace are correct; whether you have sufficient RBAC permissions; and whether the commands have been validated in a non-production environment. Risk level annotations for commands: 🔴 High Risk (may cause data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information collection with no side effects).
 
 
 
 
-# 26 - AI基础设施成本优化概览
+# 26 - AI Infrastructure Cost Optimization Overview
 
-> **适用版本**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **AI栈版本**: vLLM 0.4+ | **最后更新**: 2026-02 | **质量等级**: 专家级
+> **Applicable Version**: [[Kubernetes|Kubernetes]] v1.25 - v1.32 | **AI Stack Version**: vLLM 0.4+ | **Last Updated**: 2026-02 | **Quality Level**: Expert
 
-<!-- chunk: 一、AI基础设施成本全景分析 -->
-## 一、AI基础设施成本全景分析
 
-### 1.1 成本构成深度剖析
+## 1. Comprehensive Analysis of AI Infrastructure Costs
+
+### 1.1 Cost Composition Deep Analysis
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    AI Infrastructure Cost Breakdown                     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  🧠 GPU计算成本 (50-70%)                                               │
-│  ├─ GPU实例租赁: $2.5-8/小时/A100                                       │
-│  ├─ GPU显存占用: 模型大小直接影响成本                                   │
-│  ├─ GPU空闲损耗: 未充分利用的计算资源                                   │
-│  └─ GPU问题成本: 硬件损坏和维修                                         │
+│  🧠 GPU computing cost (50-70%)                                               │
+│  ├─ GPU instance leasing: $2.5-8/hour/A100                                       │
+│  ├─ GPU memory usage: model size directly impacts cost                                   │
+│  ├─ Idle GPU loss: underutilized computing resources                                   │
+│  └─ GPU issue cost: hardware damage and repair                                         │
 │                                                                         │
-│  💾 存储成本 (15-25%)                                                  │
-│  ├─ 模型存储: 大模型参数文件 (数十GB-TB)                               │
-│  ├─ 数据集存储: 训练数据、缓存数据                                     │
-│  ├─ Checkpoint存储: 训练中间状态保存                                   │
-│  └─ 日志存储: 监控、审计日志                                           │
+│  💾 Storage cost (15-25%)                                                  │
+│  ├─ Model storage: large model parameter files (tens of GB-TB)                               │
+│  ├─ Dataset storage: training data, cache data                                     │
+│  ├─ Checkpoint storage: saved intermediate states of training │
+│  └─ Log storage: monitoring, audit logs                                           │
 │                                                                         │
-│  🌐 网络成本 (5-15%)                                                   │
-│  ├─ 数据传输: 跨区域、跨云传输                                         │
-│  ├─ API调用: 模型服务API请求                                           │
-│  ├─ CDN分发: 模型文件分发                                              │
-│  └─ 带宽峰值: 推理服务高峰期                                           │
+│  🌐 Network cost (5-15%)                                                   │
+│  ├─ Data transfer: cross-region, cross-cloud transfers                                         │
+│  ├─ API calls: requests to model service APIs                                           │
+│  ├─ CDN distribution: distribution of model files │
+│  └─ Peak bandwidth: inference service peak periods                                           │
 │                                                                         │
-│  ⚙️ 运维成本 (10-20%)                                                  │
-│  ├─ 人力成本: AI工程师、运维工程师                                     │
-│  ├─ 工具成本: 监控、分析工具许可                                       │
-│  ├─ 培训成本: 团队技能提升                                             │
-│  └─ 机会成本: 资源分配决策                                             │
+│  ⚙️ Operational cost (10-20%)                                                  │
+│  ├─ Human cost: AI engineers, operations engineers                                     │
+│  ├─ Tool cost: licenses for monitoring, analysis tools │
+│  ├─ Training cost: team skill enhancement │
+│  └─ Opportunity cost: resource allocation decisions                                             │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 AI工作负载成本特征矩阵
+### 1.2 AI Workload Cost Characteristic Matrix
 
-| 工作负载类型 | GPU需求 | 存储需求 | 网络需求 | 成本特点 | 优化重点 |
+| Workload Type | GPU Requirements | Storage Requirements | Network Requirements | Cost Characteristics | Optimization Focus |
 |-------------|---------|---------|---------|---------|---------|
-| **模型训练** | 高(多卡) | 高(数据集) | 中(数据加载) | 时间成本高 | 批处理优化、Spot实例 |
-| **模型推理** | 中(单卡) | 低(模型文件) | 高(API调用) | 实时性要求 | 缓存、批处理、量化 |
-| **数据处理** | 低(CPU) | 极高(原始数据) | 中(ETL) | 存储成本高 | 存储分层、压缩 |
-| **实验管理** | 低 | 中(日志) | 低 | 运维成本高 | 自动化、标准化 |
+| **Model Training** | High (multi-GPU) | High (dataset) | Medium (data loading) | High time cost | Batch processing optimization, Spot instances |
+| **Model Inference** | Medium (single-GPU) | Low (model files) | High (API calls) | Real-time requirements | Caching, batch processing, quantization |
+| **Data Processing** | Low (CPU) | Very high (raw data) | Medium (ETL) | High storage costs | Storage tiering, compression |
+| **Experiment Management** | Low | Medium (logs) | Low | High operational costs | Automation, standardization |
 
-<!-- chunk: 二、企业级成本优化框架 -->
-## 二、企业级成本优化框架
 
-### 2.1 成本优化五维模型
+## 2. Enterprise-Level Cost Optimization Framework
+
+### 2.1 Cost Optimization Five-Dimensional Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    Enterprise Cost Optimization Framework               │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  🎯 战略层 (Strategic)                                                 │
-│  ├─ 成本治理政策制定                                                   │
-│  ├─ 预算分配和审批流程                                                 │
-│  ├─ ROI评估和投资回报分析                                              │
-│  └─ 长期成本规划                                                       │
+│  🎯 Strategic (Strategic)                                                 │
+│  ├─ Cost Governance Policy Development                                                   │
+│  ├─ Budget Allocation and Approval Process                                                 │
+│  ├─ ROI Evaluation and Investment Return Analysis                                              │
+│  └─ Long-term Cost Planning                                                       │
 │                                                                         │
-│  🏗️ 架构层 (Architectural)                                             │
-│  ├─ 资源池化和共享                                                     │
-│  ├─ 混合云和多云策略                                                   │
-│  ├─ 服务化和API化                                                      │
-│  └─ 标准化和模块化                                                     │
+│  🏗️ Architectural (Architectural)                                             │
+│  ├─ Resource Pooling and Sharing                                                     │
+│  ├─ Hybrid Cloud and Multi-cloud Strategies                                                 │
+│  ├─ Serviceization and APIization                                                      │
+│  └─ Standardization and Modularization                                                     │
 │                                                                         │
-│  ⚙️ 运营层 (Operational)                                               │
-│  ├─ 自动化调度和扩缩容                                                 │
-│  ├─ 资源监控和告警                                                     │
-│  ├─ 成本分摊和计量                                                     │
-│  └─ 性能优化和调优                                                     │
+│  ⚙️ Operational (Operational)                                               │
+│  ├─ Automation Scheduling and Scaling                                                 │
+│  ├─ Resource Monitoring and Alerts                                                     │
+│  ├─ Cost Allocation and Metering                                                     │
+│  └─ Performance Optimization and Tuning                                                     │
 │                                                                         │
-│  📊 分析层 (Analytical)                                                │
-│  ├─ 成本数据收集和处理                                                 │
-│  ├─ 成本洞察和可视化                                                   │
-│  ├─ 异常检测和根因分析                                                 │
-│  └─ 预测分析和容量规划                                                 │
+│  📊 Analytical (Analytical)                                                │
+│  ├─ Cost Data Collection and Processing                                                 │
+│  ├─ Cost Insights and Visualization                                                   │
+│  ├─ Anomaly Detection and Root Cause Analysis                                              │
+│  └─ Predictive Analysis and Capacity Planning                                                 │
 │                                                                         │
-│  🛡️ 治理层 (Governance)                                               │
-│  ├─ 成本合规和审计                                                     │
-│  ├─ 策略执行和控制                                                     │
-│  ├─ 风险管理和控制                                                     │
-│  └─ 持续改进和优化                                                     │
+│  🛡️ Governance (Governance)                                               │
+│  ├─ Compliance and Auditing (Cost)                                       │
+│  ├─ Policy Execution and Control (Governance)                             │
+│  ├─ Risk Management and Control (Governance)                             │
+│  └─ Continuous Improvement and Optimization (Governance)                 │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 成本优化技术栈全景图
+### 2.2 Cost Optimization Technology Stack Overview
 
-| 技术领域 | 核心工具 | 主要功能 | 集成方式 | 成本效益 |
+| Technology Domain | Core Tools | Main Functions | Integration Method | Cost-Benefit |
 |---------|---------|---------|---------|---------|
-| **资源调度** | Kubernetes CA/HPA | 自动扩缩容 | 原生集成 | 20-40% |
-| **GPU优化** | vLLM/TGI | 推理优化 | 模型服务 | 30-60% |
-| **成本监控** | Kubecost/OpenCost | 成本分析 | [[Prometheus|Prometheus]] | 可见性 |
-| **存储优化** | JuiceFS/Alluxio | 分布式缓存 | CSI插件 | 20-50% |
-| **网络优化** | [[Cilium|Cilium]]/eBPF | 网络加速 | CNI插件 | 10-30% |
-| **自动化** | [[Argo|Argo]]go Workflows|Argo Workflows]] | 流水线优化 | CRD | 效率提升 |
+| **Resource Scheduling** | Kubernetes CA/HPA | Automatic scaling | Native integration | 20-40% |
+| **GPU Optimization** | vLLM/TGI | Inference optimization | Model serving | 30-60% |
+| **Cost Monitoring** | Kubecost/OpenCost | Cost analysis | [[Prometheus|Prometheus]] | Visibility |
+| **Storage Optimization** | JuiceFS/Alluxio | Distributed caching | CSI plugin | 20-50% |
+| **Network Optimization** | [[Cilium|Cilium]]/eBPF | Network acceleration | CNI plugin | 10-30% |
+| **Automation** | [[Argo|Argo]]go Workflows|Argo Workflows]] | Workflow optimization | CRD | Efficiency improvement |
 
-<!-- chunk: 三、GPU成本深度优化 -->
-## 三、GPU成本深度优化
 
-### 3.1 GPU实例选型策略
+## 3. Deep GPU Cost Optimization
+
+### 3.1 GPU Instance Selection Strategy
 
 ```yaml
-# GPU实例成本对比矩阵
+# GPU Instance Cost Comparison Matrix
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -186,45 +188,45 @@ metadata:
   namespace: cost-optimization
 data:
   instance-comparison.yaml: |
-    # 按性价比排序 (成本/性能比)
+    # Sort by cost/performance ratio (cost/efficiency ratio)
     instances:
       - name: "g5.2xlarge"  # A10G
         hourly_cost: 1.204
         gpu_memory: 24GB
         performance_score: 85  # 相对分数
         cost_performance_ratio: 0.014  # 越低越好
-        use_cases: ["推理服务", "小规模训练"]
+        use_cases: ["reinforcement service", "small-scale training"]
       
       - name: "p4d.24xlarge"  # A100 40GB
         hourly_cost: 32.7726
         gpu_memory: 40GB
         performance_score: 100
         cost_performance_ratio: 0.328
-        use_cases: ["大规模训练", "复杂推理"]
+        use_cases: ["large-scale training", "complex inference"]
       
       - name: "g6.2xlarge"  # L4
         hourly_cost: 0.800
         gpu_memory: 24GB
         performance_score: 70
         cost_performance_ratio: 0.011
-        use_cases: ["成本敏感推理", "开发测试"]
+        use_cases: ["cost-sensitive inference", "development testing"]
       
       - name: "trn1.32xlarge"  # Trainium
         hourly_cost: 6.200
         gpu_memory: 512GB
         performance_score: 120
         cost_performance_ratio: 0.052
-        use_cases: ["超大规模训练", "预训练"]
+        use_cases: ["ultra-large-scale training", "pre-training"]
     
-    # 成本优化建议
+    # Cost Optimization Recommendations
     recommendations:
-      - workload: "LLM推理"
+      - workload: "LLM inference"
         instance: "g5.2xlarge"
         batch_size: 32
         expected_cost: "$0.05/request"
         savings_vs_on_demand: "60% (Spot)"
       
-      - workload: "大规模训练"
+      - workload: "large-scale training"
         instance: "p4d.24xlarge"
         multi_node: true
         spot_ratio: "70%"
@@ -232,7 +234,7 @@ data:
         savings_vs_dedicated: "40%"
 ```
 
-### 3.2 GPU资源利用率优化
+### 3.2 Optimize GPU Utilization
 
 ```python
 # gpu-utilization-optimizer.py
@@ -250,7 +252,7 @@ class GPUResourceOptimizer:
         self.logger = logging.getLogger(__name__)
         
     async def initialize(self):
-        """初始化K8s客户端和Prometheus客户端"""
+        """Initialize K8s client and Prometheus client"""
         await config.load_kube_config()
         self.v1 = client.CoreV1Api()
         self.prom_client = prom.PrometheusConnect(
@@ -259,9 +261,9 @@ class GPUResourceOptimizer:
         )
         
     async def get_gpu_utilization_metrics(self) -> Dict[str, float]:
-        """获取GPU利用率指标"""
+        """Get GPU utilization metrics"""
         try:
-            # 查询GPU利用率
+            # Query GPU utilization
             query = 'avg(nvidia_gpu_utilization) by (instance, gpu)'
             result = self.prom_client.custom_query(query)
             
@@ -278,8 +280,8 @@ class GPUResourceOptimizer:
             return {}
     
     async def optimize_pod_placement(self, namespace: str = "ai-models") -> List[str]:
-        """优化Pod放置策略"""
-        # 获取所有GPU Pod
+        """Optimize pod placement strategy"""
+        # Get all GPU Pods
         pods = await self.v1.list_namespaced_pod(
             namespace=namespace,
             label_selector="nvidia.com/gpu in (1)"
@@ -287,28 +289,28 @@ class GPUResourceOptimizer:
         
         recommendations = []
         for pod in pods.items:
-            # 获取Pod的GPU使用情况
+            # Get GPU usage of Pods
             pod_name = pod.metadata.name
             container_status = pod.status.container_statuses[0] if pod.status.container_statuses else None
             
             if container_status and container_status.state.running:
-                # 分析容器资源使用
+                # Analyze container resource usage
                 requests = container_status.resources.requests or {}
                 limits = container_status.resources.limits or {}
                 
-                # 基于使用模式优化建议
+                # Optimization recommendations based on usage patterns
                 if 'nvidia.com/gpu' in requests:
                     gpu_count = int(requests['nvidia.com/gpu'])
                     if gpu_count > 1:
                         recommendations.append(
-                            f"Pod {pod_name}: 考虑拆分为单GPU Pod以提高资源利用率"
+                            f"Pod {pod_name}: consider splitting into single-GPU Pods to improve resource utilization"
                         )
                     
         return recommendations
     
     async def implement_batching_strategy(self, service_name: str) -> Dict:
-        """实现请求批处理优化"""
-        # 动态调整批处理大小
+        """Implement request batching optimization"""
+        # Dynamically adjust batch size
         current_qps = await self.get_current_qps(service_name)
         
         if current_qps < 10:
@@ -328,7 +330,7 @@ class GPUResourceOptimizer:
         }
     
     async def get_current_qps(self, service_name: str) -> float:
-        """获取服务当前QPS"""
+        """Get current QPS of service"""
         try:
             query = f'sum(rate(http_requests_total{{service="{service_name}"}}[5m]))'
             result = self.prom_client.custom_query(query)
@@ -336,12 +338,12 @@ class GPUResourceOptimizer:
         except Exception:
             return 0.0
 
-# 使用示例
+# Usage Example
 async def main():
     optimizer = GPUResourceOptimizer()
     await optimizer.initialize()
     
-    # 执行优化
+    # Execute optimizations
     gpu_metrics = await optimizer.get_gpu_utilization_metrics()
     placement_recs = await optimizer.optimize_pod_placement()
     batching_config = await optimizer.implement_batching_strategy("llm-inference")
@@ -354,7 +356,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 3.3 GPU成本监控仪表板
+### 3.3 GPU Cost Monitoring Dashboard
 
 ```yaml
 # gpu-cost-dashboard.yaml
@@ -370,7 +372,7 @@ data:
         "title": "AI GPU Cost Optimization Dashboard",
         "panels": [
           {
-            "title": "实时GPU成本分析",
+            "title": "Real-time GPU cost analysis",
             "type": "graph",
             "targets": [
               {
@@ -379,18 +381,18 @@ data:
               },
               {
                 "expr": "sum(node_gpu_utilization) / count(node_gpu_count) * 100",
-                "legendFormat": "平均利用率 %"
+                "legendFormat": "average utilization %"
               }
             ],
-            "description": "显示不同GPU实例的成本和利用率"
+            "description": "display costs and utilization of different GPU instances"
           },
           {
-            "title": "成本节省机会",
+            "title": "Cost-saving opportunities",
             "type": "stat",
             "targets": [
               {
                 "expr": "sum(node_gpu_hourly_cost * (1 - node_gpu_utilization/100))",
-                "legendFormat": "潜在节省 $/小时"
+                "legendFormat": "potential savings $/hour"
               }
             ],
             "thresholds": {
@@ -403,34 +405,34 @@ data:
             }
           },
           {
-            "title": "GPU实例类型成本对比",
+            "title": "Comparison of GPU instance type costs",
             "type": "table",
             "targets": [
               {
                 "expr": "avg by(instance_type) (node_gpu_hourly_cost)",
-                "legendFormat": "每小时成本"
+                "legendFormat": "cost per hour"
               },
               {
                 "expr": "avg by(instance_type) (node_gpu_utilization)",
-                "legendFormat": "平均利用率 %"
+                "legendFormat": "average utilization %"
               },
               {
                 "expr": "avg by(instance_type) (node_gpu_count)",
-                "legendFormat": "实例数量"
+                "legendFormat": "instance count"
               }
             ]
           },
           {
-            "title": "模型服务成本明细",
+            "title": "Model service cost details",
             "type": "graph",
             "targets": [
               {
                 "expr": "sum(increase(model_requests_total[1h])) by (model_name)",
-                "legendFormat": "请求数 {{model_name}}"
+                "legendFormat": "request count {{model_name}}"
               },
               {
                 "expr": "sum(model_request_cost_usd[1h]) by (model_name)",
-                "legendFormat": "成本 $ {{model_name}}"
+                "legendFormat": "cost $ {{model_name}}"
               }
             ]
           }
@@ -439,21 +441,21 @@ data:
     }
 ```
 
-<!-- chunk: 四、智能成本预测与规划 -->
-## 四、智能成本预测与规划
 
-<!-- chunk: 资源右置大小(Right-sizing) -->
-## 资源右置大小(Right-sizing)
+## 4. Intelligent Cost Forecasting and Planning
 
-| 问题 | 检测方法 | 优化建议 | 工具 |
+
+## 446.Right Sizing (Resource Right-sizing)
+
+| Issue | Detection Method | Optimization Suggestions | Tools |
 |-----|---------|---------|------|
-| **过度配置** | 实际使用<50%请求 | 降低requests | VPA/Kubecost |
-| **配置不足** | 频繁OOM/CPU节流 | 增加limits | 监控告警 |
-| **未设限制** | QoS为BestEffort | 设置requests/limits | LimitRange |
-| **闲置资源** | 使用率长期<10% | 缩容或删除 | Kubecost |
+| **Over-provisioning** | Actual usage <50% requests | Reduce requests | VPA/Kubecost |
+| **Insufficient Configuration** | Frequent OOM/CPU throttling | Increase limits | Monitor alerts |
+| **No Limits Set** | QoS set to BestEffort | Set requests/limits | LimitRange |
+| **Idle Resources** | Long-term usage rate <10% | Scale down or delete | Kubecost |
 
 ```yaml
-# VPA推荐配置
+# VPA Recommendation Configuration
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
 metadata:
@@ -471,19 +473,19 @@ spec:
       controlledResources: ["cpu", "memory"]
 ```
 
-<!-- chunk: 节点池优化 -->
-## 节点池优化
 
-| 策略 | 描述 | 节省比例 | 风险 | 适用场景 |
+## 4. Node Pool Optimization
+
+| Strategy | Description | Savings Rate | Risk | Applicable Scenarios |
 |-----|------|---------|------|---------|
-| **Spot/抢占实例** | 使用竞价实例 | 50-90% | 可能被回收 | 无状态/可中断任务 |
-| **预留实例** | 提前购买折扣 | 30-60% | 预付款 | 稳定基线负载 |
-| **节省计划** | 承诺使用量折扣 | 20-50% | 承诺 | 可预测负载 |
-| **混合节点池** | 按需+Spot组合 | 30-50% | 中等 | 生产环境 |
-| **自动扩缩容** | 按需扩缩 | 20-40% | 扩容延迟 | 弹性负载 |
+| **Spot/On-Demand Instances** | Use doughnut biddingInstances | 50-90% | May be terminated | Stateless/Interruptible tasks |
+| **Reserved Instances** | Purchase at a discount | 30-60% | Prepaid | Stable baseline load |
+| **Saving Plans** | Commit to usage for discounts | 20-50% | Commitment | Predictable load |
+| **Hybrid Node Pools** | On-Demand + Spot combination | 30-50% | Moderate | Production environment |
+| **Auto Scaling** | Auto-scale on-demand | 20-40% | Delayed scaling | Elastic load |
 
 ```yaml
-# ACK Spot节点池配置
+# ACK Spot Node Pool Configuration
 apiVersion: v1
 kind: NodePool
 metadata:
@@ -505,30 +507,30 @@ spec:
     effect: NoSchedule
 ```
 
-<!-- chunk: Cluster Autoscaler优化 -->
-## Cluster Autoscaler优化
 
-| 参数 | 优化值 | 效果 |
+## Cluster Autoscaler Optimization
+
+| Parameter | Optimal Value | Effect |
 |-----|-------|------|
-| **scale-down-utilization-threshold** | 0.5 | 利用率<50%触发缩容 |
-| **scale-down-unneeded-time** | 10m | 空闲10分钟后缩容 |
-| **scale-down-delay-after-add** | 10m | 扩容后10分钟内不缩容 |
-| **expander** | least-waste | 选择浪费最少的节点组 |
-| **skip-nodes-with-local-storage** | false | 允许缩容带本地存储节点 |
+| **scale-down-utilization-threshold** | 0.5 | Scale down when utilization < 50% |
+| **scale-down-unneeded-time** | 10m | Scale down after 10 minutes of idle time |
+| **scale-down-delay-after-add** | 10m | Do not scale down for 10 minutes after adding nodes |
+| **expander** | least-waste | Expand to the node group with the least waste |
+| **skip-nodes-with-local-storage** | false | Allow scaling down nodes with local storage |
 
-<!-- chunk: 存储成本优化 -->
-## 存储成本优化
 
-| 策略 | 描述 | 节省比例 | 实现方式 |
+## 5. Storage Cost Optimization
+
+| Strategy | Description | Savings Rate | Implementation Method |
 |-----|------|---------|---------|
-| **存储分层** | 冷热数据分离 | 30-50% | 多StorageClass |
-| **快照生命周期** | 自动删除旧快照 | 20-40% | 快照策略 |
-| **PVC回收** | 清理未使用PVC | 变化 | 定期审计 |
-| **压缩/去重** | 存储优化 | 20-40% | 存储系统配置 |
+| **Storage Tiering** | Separate cold and hot data | 30-50% | Multiple StorageClasses |
+| **Snapshot Lifecycle** | Automatically delete old snapshots | 20-40% | Snapshot policy |
+| **PVC Recycling** | Clean unused PVCs | Change | Regular audits |
+| **Compression/De-duplication** | Storage optimization | 20-40% | Storage system configuration |
 
 ```yaml
-# 存储分层StorageClass
-# 高性能层
+# Storage Tiered StorageClass
+# High Performance Layer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -538,7 +540,7 @@ parameters:
   type: cloud_essd
   performanceLevel: PL2
 ---
-# 标准层
+# Standard layer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -548,7 +550,7 @@ parameters:
   type: cloud_essd
   performanceLevel: PL0
 ---
-# 归档层
+# Archive layer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -558,19 +560,19 @@ parameters:
   type: cloud_efficiency
 ```
 
-<!-- chunk: 网络成本优化 -->
-## 网络成本优化
 
-| 策略 | 描述 | 实现方式 |
+## 5. Network Cost Optimization
+
+| Strategy | Description | Implementation Method |
 |-----|------|---------|
-| **同区部署** | 减少跨AZ流量 | 拓扑约束 |
-| **本地DNS缓存** | 减少DNS查询 | NodeLocal DNSCache |
-| **服务网格优化** | 减少Sidecar开销 | eBPF模式 |
-| **压缩传输** | 减少数据量 | gzip/brotli |
-| **CDN** | 缓存静态内容 | 云CDN |
+| **Zone Placement** | Reduce cross-AZ traffic | Topology constraints |
+| **Node Local DNS Cache** | Reduce DNS queries | NodeLocal DNSCache |
+| **Service Mesh Optimization** | Reduce Sidecar overhead | eBPF mode |
+| **Compression Transmission** | Reduce data size | gzip/brotli |
+| **Content Delivery Network** | Cache static content | Cloud CDN |
 
 ```yaml
-# 同区拓扑约束
+# Topology constraints within the same zone
 apiVersion: apps/v1
 kind: Deployment
 spec:
@@ -585,94 +587,94 @@ spec:
             app: myapp
 ```
 
-<!-- chunk: 成本监控工具 -->
-## 成本监控工具
 
-| 工具 | 功能 | 部署方式 | 成本 |
+## Cost Monitoring Tools
+
+| Tool | Function | Deployment method | Cost |
 |-----|------|---------|------|
-| **Kubecost** | 全面成本分析 | Helm | 开源/商业 |
-| **OpenCost** | CNCF成本监控 | Helm | 开源 |
-| **云厂商成本工具** | 云账单分析 | 原生 | 免费 |
-| **Prometheus+Grafana** | 自定义指标 | Helm | 开源 |
+| **Kubecost** | Comprehensive cost analysis | Helm | Open Source/Business |
+| **OpenCost** | CNCF cost monitoring | Helm | Open Source |
+| **Cloud Vendor Cost Tools** | Cloud billing analysis | Native | Free |
+| **Prometheus+Grafana** | Custom metrics | Helm | Open Source |
 
-> ⚠️ **🟡 中危变更** — 变更集群资源状态，建议先 --dry-run 或 diff 确认
-> - `helm upgrade/install`：部署/升级 release
+> ⚠️ **🟡 Medium Risk Changes** — Change cluster resource state, suggest first using --dry-run or diff to confirm
+> - `helm upgrade/install` : Deploy/upgrade release
 
 ``` bash
-# 🟡 中风险：会修改集群/资源状态，执行前请确认目标、影响范围与授权
-# Kubecost安装
+# 🟡 Medium risk: modifies cluster/resource state, confirm target, impact scope, and authorization before proceeding
+# Kubecost Installation
 helm repo add kubecost https://kubecost.github.io/cost-analyzer/
 helm install kubecost kubecost/cost-analyzer \
   --namespace kubecost \
   --create-namespace \
   --set prometheus.server.persistentVolume.enabled=false
 ```
-<!-- chunk: 成本分配标签 -->
-## 成本分配标签
+
+## Cost Allocation Tags
 
 ```yaml
-# 成本分配标签规范
+# Cost allocation label specification
 metadata:
   labels:
-    # 业务标签
+    # Business label
     app.kubernetes.io/name: myapp
     app.kubernetes.io/component: frontend
-    # 成本标签
+    # Cost label
     cost-center: "engineering"
     team: "platform"
     environment: "production"
     project: "project-a"
 ```
 
-<!-- chunk: 成本优化清单 -->
-## 成本优化清单
 
-| 优化项 | 潜在节省 | 实施难度 | 优先级 |
+## 6. Cost Optimization Checklist
+
+| Improvement | Potential savings | Implementation difficulty | Priority |
 |-------|---------|---------|-------|
-| **启用自动扩缩容** | 20-40% | 低 | P0 |
-| **使用Spot实例** | 50-90% | 中 | P0 |
-| **资源右置大小** | 20-30% | 低 | P0 |
-| **清理闲置资源** | 变化 | 低 | P1 |
-| **存储分层** | 30-50% | 中 | P1 |
-| **预留实例/节省计划** | 30-60% | 低 | P1 |
-| **网络优化** | 10-20% | 中 | P2 |
+| **Enable auto-scaling** | 20-40% | Low | P0 |
+| **Use Spot instances** | 50-90% | Medium | P0 |
+| **Optimize resource allocation** | 20-30% | Low | P0 |
+| **Clean idle resources** | Variable | Low | P1 |
+| **Storage tiering** | 30-50% | Medium | P1 |
+| **Reserved instances/savings plans** | 30-60% | Low | P1 |
+| **Network optimization** | 10-20% | Medium | P2 |
 
-<!-- chunk: ACK成本优化 -->
-## ACK成本优化
 
-| 功能 | 配置方式 | 效果 |
+## ACK Cost Optimization
+
+| Function | Configuration method | Effect |
 |-----|---------|------|
-| **Spot节点池** | 节点池配置 | 计算成本降低 |
-| **弹性伸缩** | ESS集成 | 按需付费 |
-| **预留实例券** | 购买 | 长期折扣 |
-| **节省计划** | 购买 | 承诺折扣 |
-| **资源画像** | ARMS | 推荐配置 |
+| **Spot node pool** | Node pool configuration | Compute cost reduction |
+| **Elastic Scaling** | ESS Integration | On-demand pricing |
+| **Reserved Instance Vouchers** | Purchase | Long-term discount |
+| **Saving Plans** | Purchase | Commitment discount |
+| **Resource Profiling** | ARMS | Recommended configuration |
 
 ---
 
-**成本原则**: 监控先行，右置大小，弹性优先，持续优化
+**Cost Principles**: Monitor first, right-size, prioritize elasticity, and continuously optimize
 
 ---
 
-**表格底部标记**: Kusheet Project, 作者 Allen Galler (allengaller@gmail.com)
+**Table Bottom Markers**: Kusheet Project, Author Allen Galler (allengaller@gmail.com)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->
-## Obsidian 相关文档
+
+## Obsidian Related Documentation
 
 - domain-11-ai-infra MOC
-- [[domain-14-ai-ml-infra/README.md|Domain-11: AI基础设施]]
-- Domain-11 AI 基础设施 — 开源项目索引
-- AI 基础设施架构
-- 132 - AI/ML工作负载运维 (AI/ML Workloads Operations)
-- GPU 调度与管理
-- GPU监控与可观测性
-- 分布式训练框架
-- AI数据处理Pipeline与特征工程
-- AI实验管理与MLOps平台
-- AutoML与超参数调优
-- AI模型注册中心与版本管理
+- [[domain-14-ai-ml-infra/README.md|Domain-11: AI Infrastructure]]
+- Domain-11 AI Infrastructure — Open Source Project Index
+- AI Infrastructure Architecture
+- 132 - AI/ML Workload Operations (AI/ML Workloads Operations)
+- GPU Scheduling and Management
+- GPU Monitoring and Observability
+- Distributed Training Frameworks
+- AI Data Processing Pipelines and Feature Engineering
+- AI Experiment Management and MLOps Platform
+- AutoML and Hyperparameter Tuning
+- AI Model Registry and Version Management
 
 ## See Also
 
