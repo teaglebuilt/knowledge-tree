@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
 """
 translation_scan.py -- scan the knowledge tree for non-English markdown and
-optionally translate it to English via the Anthropic API.
+optionally translate it to English with the self-hosted model on the cluster.
 
 Detection and chunking reuse the collect_knowledge skill scripts (mdlang /
-lang_scan / verify_translation). This is the batch driver that calls Anthropic
+lang_scan / verify_translation). This is the batch driver that calls the model
 and, with --write, overwrites files in place after the verify gate passes.
+
+Inference goes to the `vllm-selfhosted` backend through svc/ai-gateway in the
+`ai` namespace, over its OpenAI-compatible /v1/chat/completions API. There is
+no API key. On the 192.168.2.0/24 VLAN the gateway LoadBalancer answers
+directly; from anywhere else, port-forward it and point AI_GATEWAY_URL there:
+
+  kubectl port-forward -n ai svc/ai-gateway 8080:80
+  AI_GATEWAY_URL=http://127.0.0.1:8080 uv run python scripts/translation_scan.py ...
 
 Usage
 -----
-  # Report only (no API calls)
+  # Report only (no inference)
   uv run python scripts/translation_scan.py tree/
 
   # Translate + overwrite one file
@@ -17,17 +25,18 @@ Usage
 
   # Batch with filters
   uv run python scripts/translation_scan.py tree/ --bucket HEAVY --limit 5 --write
-
-Requires ANTHROPIC_API_KEY when --write is used (export via .envrc / direnv).
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 SKILL_SCRIPTS = (
@@ -53,7 +62,18 @@ from mdlang import (  # noqa: E402
 from mdlang import _LINK_RE  # noqa: E402
 from verify_translation import verify_one  # noqa: E402
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+# Must match --served-model-name on the vllm-selfhosted Deployment.
+DEFAULT_MODEL = "vllm-selfhosted"
+# svc/ai-gateway's LoadBalancer; AI_GATEWAY_URL / --url override it.
+DEFAULT_BASE_URL = "http://192.168.2.201"
+# HTTPRoute prefix that rewrites to the vLLM backend's own root.
+ROUTE_PREFIX = "/vllm"
+# Qwen2.5-3B-Instruct serves 32k; chunks run ~2.5k in / ~2.1k out, so this is
+# ample headroom while staying far from the context limit.
+DEFAULT_MAX_TOKENS = 8192
+# Translation wants the most likely token, not a creative one.
+DEFAULT_TEMPERATURE = 0.0
+DEFAULT_TIMEOUT = 600
 DEFAULT_PATHS = ["tree"]
 # Smaller than mdlang's 400 — large chunks are where list/heading drops appear.
 DEFAULT_TRANSLATE_CHUNK_LINES = 200
@@ -337,30 +357,100 @@ def postprocess_translation(text: str, lang: str, source_path: str) -> str:
     return repair_internal_anchors(text)
 
 
+class GatewayError(RuntimeError):
+    """The ai-gateway or the vLLM backend could not be reached, or refused."""
+
+
+class VllmClient:
+    """Minimal OpenAI-compatible chat client for the self-hosted vLLM backend."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float = DEFAULT_TEMPERATURE,
+        timeout: int = DEFAULT_TIMEOUT,
+    ) -> None:
+        self.base = base_url.rstrip("/")
+        self.model = model
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.timeout = timeout
+
+    @property
+    def endpoint(self) -> str:
+        return f"{self.base}{ROUTE_PREFIX}"
+
+    def _get_json(self, path: str, timeout: int) -> dict:
+        try:
+            with urllib.request.urlopen(f"{self.endpoint}{path}", timeout=timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as exc:
+            raise GatewayError(f"HTTP {exc.code} from {path}: {exc.read().decode()[:400]}") from exc
+        except urllib.error.URLError as exc:
+            raise GatewayError(f"cannot reach {self.endpoint}: {exc.reason}") from exc
+
+    def _post_json(self, path: str, payload: dict) -> dict:
+        req = urllib.request.Request(
+            f"{self.endpoint}{path}",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as exc:
+            raise GatewayError(f"HTTP {exc.code} from {path}: {exc.read().decode()[:400]}") from exc
+        except urllib.error.URLError as exc:
+            raise GatewayError(f"cannot reach {self.endpoint}: {exc.reason}") from exc
+
+    def served_models(self) -> list[str]:
+        body = self._get_json("/v1/models", timeout=20)
+        return [m.get("id", "") for m in body.get("data") or []]
+
+    def complete(self, system: str, user: str) -> str:
+        body = self._post_json(
+            "/v1/chat/completions",
+            {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                "max_tokens": self.max_tokens,
+                "temperature": self.temperature,
+            },
+        )
+        choices = body.get("choices") or []
+        if not choices:
+            raise GatewayError(f"no choices in response: {str(body)[:300]}")
+        choice = choices[0]
+        # A truncated chunk would reassemble into a silently incomplete file.
+        if choice.get("finish_reason") == "length":
+            raise GatewayError(
+                f"output hit max_tokens={self.max_tokens} and was truncated - "
+                f"lower --max-chunk-lines or raise --max-tokens"
+            )
+        return (choice.get("message") or {}).get("content") or ""
+
+
 def extract_chunk_text(text: str, start_line: int, end_line: int) -> str:
     """Slice 1-indexed inclusive line range from text."""
     lines = text.split("\n")
     return "\n".join(lines[start_line - 1 : end_line])
 
 
-def translate_chunk(client, model: str, chunk_text: str, heading: str, index: int, n: int) -> str:
+def translate_chunk(
+    client: VllmClient, chunk_text: str, heading: str, index: int, n: int
+) -> str:
     user = (
         f"Translate chunk {index + 1}/{n}"
         + (f" ({heading})" if heading else "")
         + " to English.\n\n"
         + chunk_text
     )
-    msg = client.messages.create(
-        model=model,
-        max_tokens=16384,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user}],
-    )
-    parts = []
-    for block in msg.content:
-        if getattr(block, "type", None) == "text":
-            parts.append(block.text)
-    out = "".join(parts).strip()
+    out = client.complete(SYSTEM_PROMPT, user).strip()
     if not out:
         raise RuntimeError(f"empty translation for chunk {index}")
     # Drop accidental markdown fences around the whole response.
@@ -374,8 +464,7 @@ def translate_chunk(client, model: str, chunk_text: str, heading: str, index: in
 
 
 def translate_file(
-    client,
-    model: str,
+    client: VllmClient,
     text: str,
     config: dict,
     lang: str,
@@ -392,9 +481,7 @@ def translate_file(
             f"({c.end_line - c.start_line + 1})  {c.heading}",
             flush=True,
         )
-        pieces.append(
-            translate_chunk(client, model, piece, c.heading, c.index, len(chunks))
-        )
+        pieces.append(translate_chunk(client, piece, c.heading, c.index, len(chunks)))
     assembled = "\n".join(pieces)
     if not assembled.endswith("\n") and text.endswith("\n"):
         assembled += "\n"
@@ -438,22 +525,32 @@ def verify_text(original_text: str, translated_text: str, config: dict, suffix: 
             trans_tmp.unlink(missing_ok=True)
 
 
-def require_api_key() -> str:
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not key:
+def preflight(client: VllmClient) -> None:
+    """Fail the batch up front rather than once per file."""
+    try:
+        models = client.served_models()
+    except GatewayError as exc:
         print(
-            "error: ANTHROPIC_API_KEY not set\n"
-            "  export it (e.g. direnv allow after adding to .envrc)",
+            f"error: {exc}\n"
+            f"  on the 192.168.2.0/24 VLAN the gateway answers at {DEFAULT_BASE_URL}\n"
+            f"  elsewhere: kubectl port-forward -n ai svc/ai-gateway 8080:80\n"
+            f"             then AI_GATEWAY_URL=http://127.0.0.1:8080",
             file=sys.stderr,
         )
         sys.exit(2)
-    return key
+    if client.model not in models:
+        print(
+            f"error: {client.model!r} is not served at {client.endpoint}\n"
+            f"  available: {', '.join(m for m in models if m) or '(none)'}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="translation_scan.py",
-        description="Scan tree for non-English markdown; translate via Anthropic with --write.",
+        description="Scan tree for non-English markdown; translate on the cluster with --write.",
     )
     ap.add_argument(
         "paths",
@@ -464,7 +561,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--write",
         action="store_true",
-        help="translate with Anthropic and overwrite in place after verify passes",
+        help="translate on the cluster and overwrite in place after verify passes",
     )
     ap.add_argument(
         "--include-books",
@@ -477,7 +574,30 @@ def main(argv: list[str] | None = None) -> int:
         help="only process files in this density bucket",
     )
     ap.add_argument("--limit", type=int, help="max files to translate (with --write)")
-    ap.add_argument("--model", default=DEFAULT_MODEL, help=f"Anthropic model (default {DEFAULT_MODEL})")
+    ap.add_argument(
+        "--model",
+        default=os.environ.get("AI_MODEL", DEFAULT_MODEL),
+        help=f"served model name (default {DEFAULT_MODEL})",
+    )
+    ap.add_argument(
+        "--url",
+        default=os.environ.get("AI_GATEWAY_URL", DEFAULT_BASE_URL),
+        help=f"ai-gateway base URL, without {ROUTE_PREFIX} (default {DEFAULT_BASE_URL})",
+    )
+    ap.add_argument(
+        "--max-tokens",
+        type=int,
+        default=DEFAULT_MAX_TOKENS,
+        help=f"completion cap per chunk (default {DEFAULT_MAX_TOKENS})",
+    )
+    ap.add_argument(
+        "--temperature", type=float, default=DEFAULT_TEMPERATURE,
+        help=f"sampling temperature (default {DEFAULT_TEMPERATURE})",
+    )
+    ap.add_argument(
+        "--timeout", type=int, default=DEFAULT_TIMEOUT,
+        help=f"per-chunk request timeout in seconds (default {DEFAULT_TIMEOUT})",
+    )
     ap.add_argument(
         "--max-chunk-lines",
         type=int,
@@ -545,17 +665,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     sys.stdout.flush()
-    require_api_key()
-    try:
-        import anthropic
-    except ImportError:
-        print(
-            "error: anthropic package missing — run: uv add anthropic && uv sync",
-            file=sys.stderr,
-        )
-        return 2
+    client = VllmClient(
+        base_url=args.url,
+        model=args.model,
+        max_tokens=args.max_tokens,
+        temperature=args.temperature,
+        timeout=args.timeout,
+    )
+    preflight(client)
 
-    client = anthropic.Anthropic()
     targets = dirty
     if args.limit is not None:
         targets = dirty[: args.limit]
@@ -566,15 +684,13 @@ def main(argv: list[str] | None = None) -> int:
         path = Path(r["path"])
         lang = language_label(r["dominant_script"])
         rel = str(path)
-        print(f"\ntranslating {path} ({r['bucket']}, {lang}) with {args.model}")
+        print(f"\ntranslating {path} ({r['bucket']}, {lang}) with {args.model} at {client.endpoint}")
         try:
             # Normalize first so <!-- chunk: -->## Heading lines count as
             # headings in both the source outline and the translation.
             original_text = normalize_source(read_text(path))
             file_config = dict(config)
-            new_text = translate_file(
-                client, args.model, original_text, file_config, lang, rel
-            )
+            new_text = translate_file(client, original_text, file_config, lang, rel)
             result = verify_text(original_text, new_text, file_config, path.suffix or ".md")
             # One retry with smaller chunks when structure drifts.
             if not result.passed and _is_structure_mismatch(result):
@@ -584,9 +700,7 @@ def main(argv: list[str] | None = None) -> int:
                     flush=True,
                 )
                 file_config["max_chunk_lines"] = retry_lines
-                new_text = translate_file(
-                    client, args.model, original_text, file_config, lang, rel
-                )
+                new_text = translate_file(client, original_text, file_config, lang, rel)
                 result = verify_text(
                     original_text, new_text, file_config, path.suffix or ".md"
                 )
