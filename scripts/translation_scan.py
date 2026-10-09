@@ -314,12 +314,13 @@ def ensure_provenance(text: str, lang: str, source_path: str) -> str:
 
 def _section_number(text: str) -> str | None:
     """Extract a normalized section number (Arabic digits) from label/heading/slug."""
-    s = text.strip()
+    s = text.strip().lstrip("#").strip()
     m = _SECTION_NUM_RE.match(s)
     if not m:
-        # Slugs like "6-最佳实践" or "三内容生产"
+        # Slugs like "6-最佳实践", "三内容生产", or glued TOC targets "一整体架构全景".
         m = re.match(
-            r"^(?:(\d+)|([IVX]{1,5})|([一二三四五六七八九十]{1,3}))(?:-|$)",
+            r"^(?:(\d+)|([IVX]{1,5})|([一二三四五六七八九十]{1,3}))"
+            r"(?:-|$|[、．.\s]|[^\dIVX一二三四五六七八九十\-])",
             s,
             re.IGNORECASE,
         )
@@ -352,10 +353,16 @@ def _heading_slugs(text: str) -> tuple[list[str], set[str], dict[str, str]]:
         slug = base if n == 0 else f"{base}-{n}"
         ordered.append(slug)
         stripped = htext.strip()
-        # Major sections: "1. Title" / "1 Title" — not "1.1 Title".
-        major = re.match(r"^(\d+)\.\s+\S", stripped) or re.match(r"^(\d+)\s+[A-Za-z\u4e00-\u9fff]", stripped)
+        # Major sections: "1. Title" / "1 Title" / "一、标题" — not "1.1 Title".
+        major = (
+            re.match(r"^(\d+)\.\s+\S", stripped)
+            or re.match(r"^(\d+)\s+[A-Za-z\u4e00-\u9fff]", stripped)
+            or re.match(r"^([一二三四五六七八九十]{1,3})[、．.]\s*\S", stripped)
+        )
         if major:
-            by_number.setdefault(major.group(1).lstrip("0") or "0", slug)
+            raw = major.group(1)
+            key = _CN_NUM.get(raw, raw.lstrip("0") or "0")
+            by_number.setdefault(key, slug)
             continue
         num = _section_number(stripped)
         if num:
@@ -697,13 +704,16 @@ def _scaffold(line: str) -> tuple[tuple, str]:
     if m:
         heading = len(m.group(1))
         rest = rest[m.end() :]
-    bullet = bool(re.match(r"[-*+]\s+", rest))
-    ordered = bool(re.match(r"\d+[.)]\s+", rest))
-    if bullet or ordered:
-        rest = re.sub(r"^(?:[-*+]|\d+[.)])\s+", "", rest)
-    checkbox = bool(re.match(r"\[[ xX]\]", rest))
-    if checkbox:
-        rest = rest[3:].lstrip()
+    # Headings like `## 4. Foo` are section titles, not ordered-list items.
+    bullet = ordered = checkbox = False
+    if heading == 0:
+        bullet = bool(re.match(r"[-*+]\s+", rest))
+        ordered = bool(re.match(r"\d+[.)]\s+", rest))
+        if bullet or ordered:
+            rest = re.sub(r"^(?:[-*+]|\d+[.)])\s+", "", rest)
+        checkbox = bool(re.match(r"\[[ xX]\]", rest))
+        if checkbox:
+            rest = rest[3:].lstrip()
     # Cell count matters only for table rows; a stray pipe in prose does not.
     pipes = rest.count("|") if rest.startswith("|") else 0
     return (quote, heading, bullet, ordered, checkbox, pipes), rest

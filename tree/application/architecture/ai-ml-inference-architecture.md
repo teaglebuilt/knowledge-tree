@@ -1,4 +1,5 @@
----title: AI/ML Inference Service Kubernetes Production Architecture Design (domain-20-application-patterns)
+---
+title: AI/ML Inference Service Kubernetes Production Architecture Design (domain-20-application-patterns)
 description: 'AI/ML Inference Service Kubernetes Production Architecture Design'
 summary: 'AI/ML Inference Service Kubernetes Production Architecture Design'
 category: general
@@ -44,51 +45,6 @@ authors:
 - name: Dillan Teagle
   role: contributor
 source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/ai-ml-inference-architecture.md
----
-
-> **Production Environment Security Notice**
->
-> This document contains directly executable operation and maintenance commands. Before execution, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked: Red (high risk - may cause data loss or service interruption), Yellow (medium risk - modifies cluster state but usually reversible), Green (low risk/read-only - information collection with no side effects).
-
-title: AI/ML Inference Service [[Kubernetes|Kubernetes]] Production Architecture Design
-description: '# AI/ML Inference Service Kubernetes Production Architecture Design'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- scheduler
-- [[Prometheus|prometheus]]
-- [[Harbor|harbor]]
-- job
-- gateway
-- operator
-- gpu
-last_updated: 2026-05
-difficulty: advanced
-reading_level: advanced
-audience:
-- Architects
-- SRE
-- Technical decision makers
-estimated_read_time: 5min
-intent_queries:
-- What is AI/ML inference service Kubernetes production architecture design
-- How to design AI/ML inference service Kubernetes production architecture
-trigger_keywords:
-- AI
-- ML
-- Inference service
-- Kubernetes
-- Production architecture design
-- application
-- architecture
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # AI/ML Inference Service Kubernetes Production Architecture Design

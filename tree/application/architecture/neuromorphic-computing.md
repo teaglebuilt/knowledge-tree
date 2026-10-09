@@ -107,39 +107,39 @@ The internal states of SNN (membrane potential, firing rate, synaptic weights) a
 
 ```mermaid
 graph TB
-    subgraph 算法研发层
-        A1[SNN 建模工具]
-        A2[脉冲编码器]
-        A3[学习算法库]
-        A4[网络架构搜索]
+    subgraph AlgorithmDevelopmentLayer
+        A1[SNN Modeling Tool]
+        A2[Pulse Encoder]
+        A3[Learning Algorithm Library]
+        A4[Network Architecture Search]
     end
 
-    subgraph 仿真训练层
-        S1[GPU 仿真器]
-        S2[性能评估器]
-        S3[能耗分析器]
-        S4[精度分析器]
+    subgraph SimulationTrainingLayer
+        S1[GPU Simulator]
+        S2[Performance Evaluator]
+        S3[Energy Consumption Analyzer]
+        S4[Accuracy Analyzer]
     end
 
-    subgraph 硬件适配层
-        H1[芯片编译器]
-        H2[FPGA 映射]
-        H3[传感器接口]
-        H4[部署工具链]
+    subgraph GatewayAdaptationLayer
+        H1[Chip Compiler]
+        H2[FPGA Mapping]
+        H3[Sensor Interface]
+        H4[Deployment Toolchain]
     end
 
-    subgraph 应用场景层
-        APP1[边缘感知]
-        APP2[机器人控制]
-        APP3[智能传感]
-        APP4[脑机接口]
+    subgraph ApplicationsScenarioLayer
+        APP1[Edge Sensing]
+        APP2[Robot Control]
+        APP3[Intelligent Sensing]
+        APP4[Brain-Computer Interface]
     end
 
-    subgraph 数据管理层
-        D1[数据集管理]
-        D2[模型注册中心]
-        D3[实验追踪]
-        D4[结果可视化]
+    subgraph DataManagementLayer
+        D1[Data Set Management]
+        D2[Model Registry Center]
+        D3[Experiment Tracking]
+        D4[Result Visualization]
     end
 
     A1 & A2 & A3 & A4 --> S1 & S2 & S3 & S4
@@ -152,39 +152,39 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A[ANN 模型训练] --> B[权重归一化]
-    B --> C[阈值标定]
-    C --> D[SNN 转换]
-    D --> E[仿真验证]
-    E --> F{精度达标?}
-    F -->|是| G[硬件编译]
-    F -->|否| H[超参调优]
+    A[ANN ModelTraining --> BWeightNormalization
+    B --> CThresholdCalibration
+    C --> D[SNN Conversion]
+    D --> ESimulationValidation
+    E --> Node10
+    F -->Is G[Hardware Compilation]
+    F -->No H[Hyperparameter Tuning]
     H --> B
-    G --> I[芯片部署]
+    G --> IChipDeployment
 ```
 
 ## 3.3 Edge Inference Deployment Architecture
 
 ```mermaid
 graph TB
-    subgraph 云端训练
-        C1[数据集]
-        C2[SNN 训练]
-        C3[模型优化]
-        C4[模型打包]
+    subgraph CloudTraining
+        C1[Dataset]
+        C2[SNN Training]
+        C3[Model Optimization]
+        C4[Model Packaging]
     end
 
-    subgraph 边缘部署
-        E1[模型加载]
-        E2[神经形态芯片]
-        E3[传感器输入]
-        E4[推理输出]
+    subgraph EdgeDeployment
+        E1[Model Loading]
+        E2[Neuro-Emulative Chip]
+        E3[Sensor Input]
+        E4[Inference Output]
     end
 
-    subgraph 反馈闭环
-        F1[性能监测]
-        F2[数据回传]
-        F3[增量训练]
+    subgraph FeedbackLoop
+        F1[Performance Monitoring]
+        F2[Data Backhaul]
+        F3[Incremental Training]
     end
 
     C1 --> C2 --> C3 --> C4

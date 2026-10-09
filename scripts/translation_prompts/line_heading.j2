@@ -2,10 +2,14 @@
 {% block extra_rules %}
 - Keep the exact heading level (`#` through `######`) and spacing after the hashes.
 - Translate the heading text only; do not add or remove heading markers.
+- Leading Chinese section markers become Arabic numbers: `一、` → `1.`, `二、` → `2.`,
+  `十、` → `10.` (keep a number so TOC anchors can resolve).
 {% endblock %}
 {% block examples %}
   in   12\t## 6. 最佳实践
   out  12\t## 6. Best Practices
+  in   8\t## 一、整体架构全景
+  out  8\t## 1. Overall Architecture Overview
   in   3\t# 微服务治理与 Service Mesh
   out  3\t# Microservice Governance and Service Mesh
 {% endblock %}

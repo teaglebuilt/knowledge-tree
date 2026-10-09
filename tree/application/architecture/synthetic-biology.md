@@ -121,39 +121,39 @@ Genome assembly/annotation/comparative analysis pipelines. Covering processing w
 
 ```mermaid
 graph TB
-    subgraph 设计层["设计层 (Design)"]
-        D1[基因线路设计 CAD]
-        D2[蛋白质设计 AlphaFold]
-        D3[代谢网络模拟 GSMM]
-        D4[实验方案设计 DOE]
+    subgraph DesignLayer["DesignLayer (Design)"]
+        D1[Gene Circuit Design CAD]
+        D2[Protein Design AlphaFold]
+        D3[Metabolic Network Simulation GSMM]
+        D4[Experimental Design DOE]
     end
 
-    subgraph 计算层["计算层 (Compute)"]
-        C1[AlphaFold 结构预测]
-        C2[分子动力学 MD 模拟]
-        C3[基因组分析 BWA/GATK]
-        C4[ML 优化引擎]
+    subgraph ComputeLayer["ComputeLayer (Compute)"]
+        C1[AlphaFold Structure Prediction]
+        C2[Molecular Dynamics MD Simulation]
+        C3[Genome Analysis BWA/GATK]
+        C4[Machine Learning Optimization Engine]
     end
 
-    subgraph 实验层["实验层 (Build & Test)"]
-        E1[自动化液体处理]
-        E2[高通量筛选 HTP]
-        E3[NGS 测序验证]
-        E4[质谱分析 LC-MS]
+    subgraph ExperimentLayer["ExperimentLayer (Build & Test)"]
+        E1[Automation Liquid Handling]
+        E2[High-Throughput Screening HTP]
+        E3[Nano-Scale Sequencing Validation]
+        E4[Mass Spectrometry Analysis LC-MS]
     end
 
-    subgraph 数据层["数据层 (Data)"]
-        DATA1[序列数据库 GenBank/SBOL]
-        DATA2[实验数据 LIMS]
-        DATA3[生物元件库 Registry]
-        DATA4[知识图谱 KG]
+    subgraph DataLayer["DataLayer (Data)"]
+        DATA1[Sequence Database GenBank/SBOL]
+        DATA2[Experimental Data LIMS]
+        DATA3[Biological Component Library Registry]
+        DATA4[Knowledge Graph KG]
     end
 
-    subgraph 学习层["学习层 (Learn)"]
-        L1[数据分析 Jupyter]
-        L2[模型训练 PAI]
-        L3[可视化 DataV]
-        L4[报告生成]
+    subgraph LearningLayer["LearningLayer (Learn)"]
+        L1[Data Analysis Jupyter]
+        L2[Model Training PAI]
+        L3[Visualization DataV]
+        L4[Report Generation]
     end
 
     D1 & D2 & D3 & D4 --> C1 & C2 & C3 & C4
@@ -167,9 +167,9 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A[Design<br/>基因/蛋白质设计] --> B[Build<br/>DNA合成/基因编辑]
-    B --> C[Test<br/>高通量筛选验证]
-    C --> D[Learn<br/>数据分析与建模]
+    DesignDesignRnaProteinDesign --> BsynthesizeEmergeGeneElectronEditingBuildDnaSynthesisElectronEditing
+    B --> HighThroughputScreeningVerificationTestHighThroughputScreeningVerification
+    C --> DataAnalysisAndModelingLearnDataAnalysisAndModeling
     D --> A
 ```
 
@@ -177,12 +177,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A[原始测序数据<br/>FASTQ] --> B[质量控制<br/>FastQC/Trimmomatic]
-    B --> C[基因组组装<br/>SPAdes/Flye]
-    C --> D[基因预测<br/>Prodigal/Augustus]
-    D --> E[功能注释<br/>BLAST/InterProScan]
-    E --> F[代谢网络重建<br/>ModelSEED/CarveMe]
-    F --> G[模型验证与优化<br/>COBRApy]
+    DOriginalSequencingDataNtSFASTQ --> QualityControlDedicatedFastqcTrimmomatic
+    B --> Node12
+    C --> GenePredictionDProdigalAugustus
+    D --> FunctionAnnotationBLASTInterproscan
+    E --> FMetabolicNetworkReconstructionModelseedCarveme
+    F --> ModelValidationAndOptimizationCobrapy
 ```
 
 ---
@@ -411,28 +411,28 @@ spec:
 
 ```mermaid
 flowchart TB
-    subgraph 原始数据["原始数据层 (ODS)"]
-        SEQ[测序原始数据 FASTQ]
-        EXP[实验原始数据 CSV/JSON]
-        IMG[影像数据 TIFF/DICOM]
-        DEV[设备传感器数据]
+    subgraph OfOriginalData["OfOriginalData Layer (ODS)"]
+        SEQ[SequencingOfOriginalData FASTQ]
+        EXP[ExperimentalOfOriginalData CSV/JSON]
+        IMG[ImagingData TIFF/DICOM]
+        DEV[DeviceSensorData]
     end
 
-    subgraph 处理数据["处理数据层 (DWD)"]
-        ANNO[基因组注释 GFF]
-        STRUCT[蛋白质结构 PDB]
-        META[代谢网络 SBML]
-        PHENO[表型数据]
+    subgraph ProcessData["ProcessData Layer (DWD)"]
+        ANNO[GenomeAnnotation GFF]
+        STRUCT[ProteinStructure PDB]
+        META[MetabolicNetwork SBML]
+        PHENO[PhenotypeData]
     end
 
-    subgraph 应用数据["应用数据层 (ADS)"]
-        ELEMENT[生物元件库 SBOL]
-        STRAIN[菌株库]
-        PATHWAY[通路数据库]
-        REPORT[分析报告]
+    subgraph OfAppliedData["OfAppliedData Layer (ADS)"]
+        ELEMENT[BioComponentLibrary SBOL]
+        STRAIN[BacterialStrainLibrary]
+        PATHWAY[PathwayDatabase]
+        REPORT[AnalysisReport]
     end
 
-    原始数据 --> 处理数据 --> 应用数据
+    OfOriginalData --> ProcessData --> OfAppliedData
 ```
 
 ## 6.2 Data Storage Strategy

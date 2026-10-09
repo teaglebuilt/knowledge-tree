@@ -1,7 +1,7 @@
 ---
-title: 微服务治理与 Service Mesh Kubernetes 生产架构设计
-description: 'title: 微服务治理与Service Mesh架构设计'
-summary: 'title: 微服务治理与Service Mesh架构设计'
+title: Microservices Governance and Service Mesh Architecture Design
+description: 'title: Microservices Governance and Service Mesh Architecture Design'
+summary: 'title: Microservices Governance and Service Mesh Architecture Design'
 category: general
 tags:
 - architecture
@@ -20,18 +20,18 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 微服务治理与 Service Mesh Kubernetes 生产架构设计 是什么
-- 如何 微服务治理与 Service Mesh Kubernetes 生产架构设计
-- Kubernetes 20 application patterns 最佳实践
+- What is Microservices Governance and Service Mesh Architecture Design
+- How to do Microservices Governance and Service Mesh Architecture Design
+- Kubernetes 20 application patterns Best Practices
 trigger_keywords:
-- 微服务治理与
+- Production architecture design
 - Service
 - Mesh
 - Kubernetes
-- 生产架构设计
+- Microservices governance
 - application
 - patterns
 prerequisites:
@@ -51,15 +51,15 @@ original_language: Chinese
 source_path: tree/application/architecture/microservice-governance-architecture.md
 ---
 
-> **生产环境安全提示**
+> **Production Environment Security Reminders**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> Commands included in this document are executable directly. Please confirm before execution: that the target cluster and Namespace are correct; that you have sufficient RBAC permissions; and that the commands have been validated in a non-production environment. Risk levels for commands: 🔴 High Risk (may result in data loss or service disruption), 🟡 Medium Risk (will modify cluster state but usually rollbackable), 🟢 Low Risk/Read-Only (information gathering with no side effects).
 
 
 
 
-title: 微服务治理与Service Mesh架构设计
-description: '# 微服务治理与 [[Service|Service]]Service Mesh）|Service Mesh]] [[Kubernetes|Kubernetes]] 生产架构设计'
+title: Microservice Governance and Service Mesh Architecture Design
+description: '# Microservice Governance and [[Service|Service]]Mesh)[Service Mesh]] [[Kubernetes|Kubernetes]] Production Architecture Design'
 category: application-architecture
 tags:
 - k8s
@@ -76,23 +76,23 @@ last_updated: '2026-05-18'
 difficulty: expert
 reading_level: expert
 audience:
-- 微服务架构师
-- 云原生工程师
-- DevOps工程师
-- 阿里云解决方案架构师
+- Microservices Architect
+- Cloud Native Engineer
+- DevOps Engineer
+- Alibaba Cloud Solution Architect
 estimated_read_time: 5min
 intent_queries:
-- Service Mesh服务网格架构设计
-- Istio阿里云ASM部署配置
-- 全链路灰度发布方案
-- 微服务熔断限流Sentinel
-- 零信任安全架构mTLS
+- Service Mesh Service Mesh Architecture Design
+- Istio Alibaba Cloud ASM Deployment Configuration
+- Full-Link Rollout Solution
+- Circuit Breaker Throttling Sentinel for Microservices
+- Zero Trust Security Architecture mTLS
 trigger_keywords:
 - Service Mesh
 - Istio
 - ASM
-- 微服务治理
-- 全链路灰度
+- Microservice Governance
+- Full-Link Rollout
 - Sentinel
 - MSE
 - Nacos
@@ -116,62 +116,62 @@ k8s_versions:
 - '1.32'
 ---
 
-# 微服务治理与 Service Mesh Kubernetes 生产架构设计
+# Microservice Governance and Service Mesh Production Architecture Design
 
-> **适用场景**: 企业微服务转型 / 服务网格治理 / 全链路灰度 / 多活架构 / 零信任网络  
-> **云厂商**: 阿里云 ACK + ASM (阿里云服务网格) + MSE (微服务引擎) 产品体系  
-> **适用版本**: Kubernetes v1.29 - v1.33  
-> **最后更新**: 2026-04-24  
-> **目标读者**: 微服务架构师、云原生工程师、阿里云解决方案架构师
-
----
-
-## 📋 目录
-
-- [一、整体架构全景](#一整体架构全景)
-- [二、服务网格 (Service Mesh) 架构](#二服务网格-service-mesh-架构)
-- [三、全链路灰度发布架构](#三全链路灰度发布架构)
-- [四、流量治理与熔断降级架构](#四流量治理与熔断降级架构)
-- [五、零信任安全架构](#五零信任安全架构)
-- [六、多活架构与容灾](#六多活架构与容灾)
-- [七、服务注册发现与配置中心](#七服务注册发现与配置中心)
-- [八、ACK + ASM 阿里云部署架构](#八ack-asm-阿里云部署架构)
+> **Applicable Scenarios**: Enterprise microservice transformation / Service Mesh governance / Full-Link rollout / Multi-active architecture / Zero-trust network
+> **Cloud Providers**: Alibaba Cloud ACK + ASM (Alibaba Cloud Service Mesh) + MSE (Microservice Engine) product suite
+> **Applicable Versions**: Kubernetes v1.29 - v1.33
+> **Last Updated**: 2026-04-24
+> **Target Readers**: Microservices Architect, Cloud Native Engineer, Alibaba Cloud Solution Architect
 
 ---
 
-## 一、整体架构全景
+## 📋 Table of Contents
+
+- [One, Overall Architecture Panorama](#1-overall-architecture-overview)
+- [Two, Service Mesh Architecture](#2-service-mesh-architecture)
+- [Three, Full-Link Gradual Release Architecture](#3-full-link-rollout-architecture)
+- [Four, Traffic Governance and Circuit Breaker Degradation Architecture](#4-traffic-governance-and-circuit-breaker-degradation-architecture)
+- [Six, Zero Trust Security Architecture](#6-multi-active-architecture-and-disaster-recovery)
+- [Seven, Multi-active Architecture and Disaster Recovery](#7-service-registration-discovery-and-configuration-center)
+- [Eight, ACK + ASM Alibaba Cloud Deployment Architecture](#8-ack-asm-alibaba-cloud-deployment-architecture)
+- [Eight ACK ASM Alibaba Cloud Deployment Architecture](#8-ack-asm-alibaba-cloud-deployment-architecture)
+
+---
+
+## 1. Overall Architecture Overview
 
 ```mermaid
 flowchart TB
-    subgraph Clients["客户端"]
+    subgraph Clients["Clients"]
         WEB_APP["Web App"]
         MOBILE_APP["Mobile App"]
-        OPEN_API["Open API<br/>第三方接入"]
+        OPEN_API["Open API<br>Third Party Access"]
     end
 
-    subgraph IngressLayer["入口层"]
-        MSE_GATEWAY["MSE 云原生网关<br">Ingress/认证/限流"]
+    subgraph IngressLayer["Ingress Layer"]
+        MSE_GATEWAY["MSE Cloud Native Gateway<br>Ingress/AUTH/Rate Limiting"]
         ASM_INGRESS["ASM Ingress Gateway<br">Istio Gateway"]
     end
 
-    subgraph Mesh["服务网格 (ASM)"]
-        ENVOY_PROXY["Envoy Sidecar<br">流量代理"]
-        PILOT["Istiod<br">控制面"]
-        CILIUM_MESH["Cilium Mesh<br">eBPF 数据面"]
+    subgraph Mesh["Service Mesh (ASM)"]
+        ENVOY_PROXY["Envoy Sidecar<br>Flow Proxy"]
+        PILOT["Istiod<br>Control Plane"]
+        CILIUM_MESH["Cilium Mesh<br>Ebpf Data Plane"]
     end
 
-    subgraph Services["微服务"]
-        SVC_A["订单服务<br/>v1.0 / v1.1"]
-        SVC_B["支付服务<br">v2.0"]
-        SVC_C["库存服务<br">v1.5"]
-        SVC_D["用户服务<br">v3.0"]
+    subgraph Services["Microservices"]
+        SVC_A["Order Service<br>v1.0 / v1.1"]
+        SVC_B["Payment Service<br">v2.0"]
+        SVC_C["Inventory Service<br">v1.5"]
+        SVC_D["User Service<br">v3.0"]
     end
 
-    subgraph Governance["治理中心"]
-        NACOS["Nacos<br">注册/配置"]
-        SENTINEL["Sentinel<br">熔断/限流"]
-        SEATA["Seata<br">分布式事务"]
-        SKYWALKING["SkyWalking<br">链路追踪"]
+    subgraph Governance["Governance Center"]
+        NACOS["Nacos<br>Registry/Configuration"]
+        SENTINEL["Sentinel<br>Breaker/Rate Limiting"]
+        SEATA["Seata<br>Distributed Transaction"]
+        SKYWALKING["SkyWalking<br>Trace Link"]
     end
 
     Clients --> IngressLayer --> Mesh --> Services
@@ -183,42 +183,42 @@ flowchart TB
     style Services fill:#e8f5e9
 ```
 
-## 阿里云产品映射
+## 10. Alibaba Cloud Product Mapping
 
-| 架构层 | 阿里云方案 | 开源替代 |
+| Architecture Layer | Alibaba Cloud Solution | Open Source Alternatives |
 |:---|:---|:---|
-| 服务网格 | **ASM (阿里云服务网格)** | Istio / Cilium |
-| API 网关 | **MSE 云原生网关** / **云原生 API 网关** | Nginx / Kong |
-| 注册配置 | **MSE Nacos** | Nacos / Consul |
-| 限流熔断 | **MSE Sentinel** | Sentinel / Hystrix |
-| 分布式事务 | **MSE Seata** | Seata |
-| 链路追踪 | **ARMS** + **SkyWalking** | Jaeger / Zipkin |
-| 灰度发布 | **MSE 全链路灰度** | Flagger / Argo Rollouts |
+| Service Mesh | **ASM (Alibaba Cloud Service Mesh)** | Istio / Cilium |
+| API Gateway | **MSE Cloud Native Gateway** / **Cloud Native API Gateway** | Nginx / Kong |
+| Registration Configuration | **MSE Nacos** | Nacos / Consul |
+| Rate Limiting Circuit Breaker | **MSE Sentinel** | Sentinel / Hystrix |
+| Distributed Transactions | **MSE Seata** | Seata |
+| Trace Link | **ARMS** + **SkyWalking** | Jaeger / Zipkin |
+| Gradual Release | **MSE Full-Link Gradual Release** | Flagger / Argo Rollouts |
 
 ---
 
-## 二、服务网格 (Service Mesh) 架构
+## 2. Service Mesh Architecture
 
 ## Sidecar vs Ambient vs eBPF
 
 ```mermaid
 flowchart TB
-    subgraph Sidecar["Sidecar 模式 (Istio/ASM)"]
+    subgraph Sidecar["Sidecar Mode (Istio/ASM)"]
         APP1["App Container"]
-        PROXY1["Envoy Sidecar<br">注入"]
+        PROXY1["Envoy Sidecar<br>Injection"]
         APP1 <-->|localhost| PROXY1
     end
 
-    subgraph Ambient["Ambient 模式 (Istio v1.18+)"]
+    subgraph Ambient["Ambient Mode (Istio v1.18+)"]
         APP2["App Container"]
-        ZTUNNEL["ztunnel<br">节点级 L4"]
-        WAYPOINT["Waypoint Proxy<br">按需 L7"]
+        ZTUNNEL["ztunnel<br">Node-level L4"]
+        WAYPOINT["Waypoint Proxy<br">On-demand L7"]
         APP2 --> ZTUNNEL --> WAYPOINT
     end
 
-    subgraph EBPF["eBPF 模式 (Cilium)"]
+    subgraph EBPF["eBPF Mode (Cilium)"]
         APP3["App Container"]
-        CILIUM_EBPF["Cilium eBPF<br">内核级"]
+        CILIUM_EBPF["Cilium eBPF<br">Kernel-level"]
         APP3 --> CILIUM_EBPF
     end
 
@@ -227,7 +227,7 @@ flowchart TB
     style EBPF fill:#c8e6c9
 ```
 
-## ASM 流量管理配置
+## ASM Traffic Management Configuration
 
 ```yaml
 apiVersion: networking.istio.io/v1beta1
@@ -310,27 +310,27 @@ spec:
 
 ---
 
-## 三、全链路灰度发布架构
+## 3. Full-Link Rollout Architecture
 
 ```mermaid
 flowchart TB
-    subgraph TrafficEntry["流量入口"]
-        GW["MSE 网关"]
-        TAG["标签染色<br">Header/Cookie"]
+    subgraph TrafficEntry["Traffic Entry"]
+        GW["MSE Gateway"]
+        TAG["Tag Coloring<br">Header/Cookie]
     end
 
-    subgraph GrayChain["灰度链路"]
-        SVC1["订单服务 v2<br">灰度实例"]
-        SVC2["支付服务 v2<br">灰度实例"]
-        SVC3["库存服务 v1<br">稳定版本"]
-        SVC4["用户服务 v2<br">灰度实例"]
+    subgraph GrayChain["Gray Chain"]
+        SVC1["Order Service v2<br">Gray Instance"]
+        SVC2["Payment Service v2<br">Gray Instance"]
+        SVC3["Inventory Service v1<br">Stable Version"]
+        SVC4["User Service v2<br">Gray Instance]
     end
 
-    subgraph StableChain["稳定链路"]
-        SVC1_S["订单服务 v1<br">稳定实例"]
-        SVC2_S["支付服务 v1<br">稳定实例"]
-        SVC3_S["库存服务 v1<br">稳定实例"]
-        SVC4_S["用户服务 v1<br">稳定实例"]
+    subgraph StableChain["Stable Chain"]
+        SVC1_S["Order Service v1<br">Stable Instance"]
+        SVC2_S["Payment Service v1<br">Stable Instance]
+        SVC3_S["Inventory Service v1<br">Stable Instance]
+        SVC4_S["User Service v1<br">Stable Instance]
     end
 
     TrafficEntry -->|x-gray=true| GrayChain
@@ -342,22 +342,22 @@ flowchart TB
 
 ---
 
-## 四、流量治理与熔断降级架构
+## 4. Traffic Governance and Circuit Breaker Degradation Architecture
 
 ```mermaid
 flowchart TB
-    subgraph SentinelRules["Sentinel 规则"]
-        FLOW["流控规则<br">QPS/并发"]
-        DEGRADE["降级规则<br">RT/异常比例"]
-        SYSTEM["系统保护<br">CPU/负载"]
-        AUTHORITY["授权规则<br">黑名单/白名单"]
+    subgraph SentinelRules["Sentinel Rules"]
+        FLOW["Flow Control Rules<br">QPS/Concurrency]
+        DEGRADE["Degradation Rules<br">RT/Abnormal Ratio"]
+        SYSTEM["System Protection<br">CPU/Load"]
+        AUTHORITY["Authorization Rules<br>Blacklist/Whitelist"]
     end
 
-    subgraph Scenarios["典型场景"]
-        SPIKE["秒杀峰值<br">限流排队"]
-        SLOW["慢调用隔离<br">自动降级"]
-        HOT_SPOT["热点参数<br">商品/IP 限流"]
-        ISOLATION["隔离舱<br">舱壁模式"]
+    subgraph Scenarios["Scenarios"]
+        SPIKE["Spike Peak<br">Rate Limiting Queueing"]
+        SLOW["Slow Call Isolation<br">Automatic Degradation"]
+        HOT_SPOT["Hot Parameters\nProduct/IP Rate Limiting"]
+        ISOLATION["Isolation chamber<BR>Cabin Wall Mode"]
     end
 
     SentinelRules --> Scenarios
@@ -366,7 +366,7 @@ flowchart TB
     style Scenarios fill:#e8f5e9
 ```
 
-## Sentinel 规则配置
+## Sentinel Rule Configuration
 
 ```yaml
 apiVersion: v1
@@ -433,25 +433,25 @@ spec:
 
 ---
 
-## 五、零信任安全架构
+## 5. Zero Trust Security Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Identity["身份层"]
-        MTLS["mTLS<br">服务间认证"]
-        JWT_AUTH["JWT 令牌<br">用户身份"]
-        SPIFFE["SPIFFE/SPIRE<br">工作负载身份"]
+    subgraph Identity["Identity Layer"]
+        MTLS["mTLS<br>Service-to-Service Authentication"]
+        JWT_AUTH["JWT Token <br>User Identity"]
+        SPIFFE["SPIFFE/SPIRE\ Workload Identity"]
     end
 
-    subgraph Policy["策略层"]
-        AUTHZ["L4 授权<br">IP/端口"]
-        AUTHZ_L7["L7 授权<br">Path/Method"]
-        RABC_MESH["RBAC<br">命名空间/服务"]
+    subgraph Policy["Policy Layer"]
+        AUTHZ["L4 Authorization<br>IP/Port"]
+        AUTHZ_L7["L7 Authorization<br>Path/Method"]
+        RABC_MESH["RBAC<br>Namespace/Service"]
     end
 
-    subgraph Encryption["加密层"]
-        TLS["TLS 1.3<br">传输加密"]
-        CERT_MGMT["证书管理<br">自动轮换"]
+    subgraph Encryption["Encryption"]
+        TLS["TLS 1.3"]
+        CERT_MGMT["Certificate Management"]
     end
 
     Identity --> Policy --> Encryption
@@ -463,29 +463,29 @@ flowchart TB
 
 ---
 
-## 六、多活架构与容灾
+## 6. Multi-active Architecture and Disaster Recovery
 
 ```mermaid
 flowchart TB
-    subgraph ZoneA["单元 A (杭州)"]
-        APP_A["应用集群"]
-        DB_A["PolarDB 主库"]
-        CACHE_A["Redis 主"]
+    subgraph ZoneA["Zone A (Hangzhou)"]
+        APP_A["Application Cluster"]
+        DB_A["PolarDB Primary"]
+        CACHE_A["Redis Primary"]
     end
 
-    subgraph ZoneB["单元 B (上海)"]
-        APP_B["应用集群"]
-        DB_B["PolarDB 从库"]
-        CACHE_B["Redis 从"]
+    subgraph ZoneB["Zone B (Shanghai)"]
+        APP_B["Application Cluster"]
+        DB_B["PolarDB Replica"]
+        CACHE_B["Redis Replica"]
     end
 
-    subgraph GlobalService["全局服务"]
-        ROUTER["单元化路由<br">用户 ID 分片"]
-        SEQ["全局序列<br">发号器"]
-        CONFIG_GLOBAL["全局配置"]
+    subgraph GlobalService["Global Service"]
+        ROUTER["Unitized Routing<br">User ID Sharding"]
+        SEQ["Global Sequence<br">Sequencer"]
+        CONFIG_GLOBAL["Global Configuration"]
     end
 
-    ZoneA <-->|数据同步| ZoneB
+    ZoneA <-->DataSynchronization ZoneB
     GlobalService --> ZoneA & ZoneB
 
     style ZoneA fill:#e3f2fd
@@ -495,26 +495,26 @@ flowchart TB
 
 ---
 
-## 七、服务注册发现与配置中心
+## 7. Service Registration Discovery and Configuration Center
 
 ```mermaid
 flowchart TB
-    subgraph NacosCluster["Nacos 集群"]
+    subgraph NacosCluster["Nacos Cluster"]
         N1["Nacos-1<br">Leader"]
         N2["Nacos-2<br">Follower"]
         N3["Nacos-3<br">Follower"]
     end
 
-    subgraph Registry["注册中心"]
-        SERVICE_REG["服务注册<br">健康检查"]
-        DISCOVERY["服务发现<br">订阅推送"]
-        HEARTBEAT["心跳续约<br">5s 间隔"]
+    subgraph Registry["Registry"]
+        SERVICE_REG["Service Registration<br">Health Check"]
+        DISCOVERY["Service Discovery<br">Subscription Push"]
+        HEARTBEAT["Heartbeat Renewal<br">5s Interval"]
     end
 
-    subgraph Config["配置中心"]
-        CONFIG_PUSH["配置推送<br">实时生效"]
-        CONFIG_HISTORY["历史版本<br">回滚"]
-        CONFIG_GRAY["灰度发布<br">维度推送"]
+    subgraph Config["Config Center"]
+        CONFIG_PUSH["Config Push<br">Real-time Effectiveness"]
+        CONFIG_HISTORY["Historical Versions<br">Rollback"]
+        CONFIG_GRAY["Gray Release<br">Dimensional Push"]
     end
 
     NacosCluster --> Registry & Config
@@ -524,7 +524,7 @@ flowchart TB
     style Config fill:#e8f5e9
 ```
 
-## Nacos K8s 部署
+## Nacos K8s Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -617,40 +617,40 @@ spec:
 
 ---
 
-## 八、ACK + ASM 阿里云部署架构
+## 8. ACK + ASM Alibaba Cloud Deployment Architecture
 
-## ASM 多集群网格
+## ASM Multicluster Mesh
 
 ```mermaid
 flowchart TB
-    subgraph ASMControl["ASM 控制面 (托管)"]
-        ISTIOD["Istiod<br">配置分发"]
-        PILOT_ASM["Pilot<br">服务发现"]
-        CERT_MGMT_ASM["证书管理<br">Citadel"]
+    subgraph ASMControl["ASM Control Plane (Managed)"]
+        ISTIOD["Istiod<br>Configuration Distribution"]
+        PILOT_ASM["Pilot\ Service Discovery"]
+        CERT_MGMT_ASM["certificate management<br">Citadel"]
     end
 
-    subgraph ClusterHZ["ACK 杭州集群"]
+    subgraph ClusterHZ["ACK Hangzhou Cluster"]
         INGRESS_HZ["Ingress Gateway"]
-        SVC_HZ["业务服务"]
+        SVC_HZ["Service Business"]
         ENVOY_HZ["Envoy Sidecar"]
     end
 
-    subgraph ClusterSH["ACK 上海集群"]
+    subgraph ClusterSH["ACK Shanghai Cluster"]
         INGRESS_SH["Ingress Gateway"]
-        SVC_SH["业务服务"]
+        SVC_SH["Service"]
         ENVOY_SH["Envoy Sidecar"]
     end
 
     ASMControl --> ClusterHZ
     ASMControl --> ClusterSH
-    ClusterHZ <-->|服务互通| ClusterSH
+    ClusterHZ <-->ServiceInterconnectivity ClusterSH
 
     style ASMControl fill:#e3f2fd
     style ClusterHZ fill:#c8e6c9
     style ClusterSH fill:#fff8e1
 ```
 
-## ASM 统一流量管理
+## ASM Unified Traffic Management
 
 ```yaml
 apiVersion: networking.istio.io/v1beta1
@@ -695,30 +695,30 @@ spec:
 
 ---
 
-## 参考链接
+## References
 
-- [阿里云 ASM 服务网格](https://www.aliyun.com/product/servicemesh)
-- [阿里云 MSE 微服务引擎](https://www.aliyun.com/product/aliware/mse)
-- [Istio 文档](https://istio.io/latest/docs/)
-- [Sentinel 文档](https://sentinelguard.io/)
-- [Nacos 文档](https://nacos.io/)
+- [Alibaba Cloud ASM Service Mesh](https://www.aliyun.com/product/servicemesh)
+- [Alibaba Cloud MSE Microservices Engine](https://www.aliyun.com/product/aliware/mse)
+- [Istio Documentation](https://istio.io/latest/docs/)
+- [Sentinel Documentation](https://sentinelguard.io/)
+- [Nacos Documentation](https://nacos.io/)
 
 ---
 
-## Obsidian 相关文档
+## Obsidian Related Documentation
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|Financial Technology FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Game Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 

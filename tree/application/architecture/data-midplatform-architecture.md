@@ -1,4 +1,5 @@
----title: Data Midplatform Kubernetes Production Architecture Design
+---
+title: Data Midplatform Kubernetes Production Architecture Design
 description: 'title: Data Midplatform Architecture Design'
 summary: 'title: Data Midplatform Architecture Design'
 category: general
@@ -42,75 +43,9 @@ authors:
 - name: Dillan Teagle
   role: contributor
 source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/data-midplatform-architecture.md
-original_language: Chinese
----
-
-> **Production Environment Security Notice**
->
-> This document contains operations and maintenance commands that can be executed directly. Before execution, please ensure: the current target cluster and Namespace are correct; you have sufficient RBAC permissions; the commands have been verified in a non-production environment. Command risk levels: 🔴 High risk (may cause data loss or service interruption), 🟡 Medium risk (modifies cluster state but usually reversible), 🟢 Low risk/Read-only (information collection with no side effects).
-
-title: Data Midplatform Architecture Design
-description: '# Data Midplatform [[Kubernetes|Kubernetes]] Production Architecture Design'
-category: application-architecture
-tags:
-- k8s
-- architecture
-- industry
-- scheduler
-- redis
-- mysql
-- kafka
-- job
-- gateway
-- rbac
-last_updated: 2026-05-18
-difficulty: advanced
-reading_level: advanced
-audience:
-- Data architects
-- Data platform leaders
-- Big data engineers
-estimated_read_time: 5min
-intent_queries:
-- Enterprise data midplatform lake-warehouse integrated architecture
-- Flink real-time stream computing Kubernetes
-- Data governance metadata lineage quality
-- Data API data service gateway
-- Alibaba Cloud DataWorks data governance
-trigger_keywords:
-- Data midplatform
-- Lake-warehouse integration
-- Flink real-time computing
-- Data governance
-- Metadata management
-- Data lineage
-- Data quality
-- ODS-DWD-DWS-ADS
-- Data API
-- Data service
-related_domains:
-- domain-03-networking-traffic
-- domain-10-troubleshooting-diagnostics
-related_topics:
-- topic-data-midplatform-architecture
-- topic-bigdata-architecture
-k8s_versions:
-- '1.28'
-- '1.29'
-- '1.30'
-- '1.31'
-- '1.32'
 ---
 
 # Data Midplatform Kubernetes Production Architecture Design
-
-> **Applicable Scenarios**: Enterprise Data Midplatform / Data Lake / Real-Time Data Warehouse / Data Asset Platform / Data Governance / BI Analytics
-> **Cloud Provider**: Alibaba Cloud ACK + Big Data Product Suite
-> **Applicable Version**: Kubernetes v1.29 - v1.33
-> **Last Updated**: 2026-04-24
-> **Target Readers**: Data Architects, Data Platform Leaders, Alibaba Cloud Solution Architects
-
----
 
 ## Table of Contents
 
