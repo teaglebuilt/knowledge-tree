@@ -1,6 +1,10 @@
----title: 柔性制造架构设计 — 阿里云视角
-description: 'title: 柔性制造架构设计'
-summary: 'title: 柔性制造架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/flexible-manufacturing.md
+---
+---title: Flexible Manufacturing Architecture Design — Alibaba Cloud Perspective
+description: 'title: Flexible Manufacturing Architecture Design'
+summary: 'title: Flexible Manufacturing Architecture Design'
 category: general
 tags:
 - architecture
@@ -17,15 +21,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 25min
 intent_queries:
-- 柔性制造架构设计 — 阿里云视角 是什么
-- 如何 柔性制造架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Flexible Manufacturing Architecture Design — Alibaba Cloud Perspective
+- How to implement Flexible Manufacturing Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 柔性制造架构设计
-- 阿里云视角
+- Flexible Manufacturing Architecture Design
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -38,15 +42,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operational commands. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are labeled as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
 
 
 
 
-title: 柔性制造架构设计
-description: '# 柔性制造架构设计 — 阿里云视角'
+title: Flexible Manufacturing Architecture Design
+description: '# Flexible Manufacturing Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -62,27 +66,27 @@ last_updated: 2026-05-18
 difficulty: advanced
 reading_level: advanced
 audience:
-- 制造架构师
-- 工业互联网工程师
-- 智能制造负责人
+- Manufacturing Architects
+- Industrial Internet Engineers
+- Smart Manufacturing Leaders
 estimated_read_time: 5min
 intent_queries:
-- 柔性制造 [[Kubernetes|Kubernetes]] C2M定制
-- 智能排产 APS Kubernetes 部署
-- 数字主线 Digital Thread 工厂
-- AI质检 工业视觉 Kubernetes
-- 柔性制造 MES WMS 集成
+- Flexible Manufacturing [[Kubernetes|Kubernetes]] C2M Customization
+- Intelligent Scheduling APS Kubernetes Deployment
+- Digital Thread Factory
+- AI Quality Inspection Industrial Vision Kubernetes
+- Flexible Manufacturing MES WMS Integration
 trigger_keywords:
-- 柔性制造
-- 大规模定制
-- 数字主线
+- Flexible Manufacturing
+- Mass Customization
+- Digital Thread
 - C2M
-- 智能排产
+- Intelligent Scheduling
 - APS
-- 工业互联网
-- AI质检
+- Industrial Internet
+- AI Quality Inspection
 - MES
-- 阿里云
+- Alibaba Cloud
 related_domains:
 - domain-01-cluster-fundamentals
 - domain-11-ai-infra
@@ -100,123 +104,122 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
+# Flexible Manufacturing Architecture Design — Alibaba Cloud Perspective
 
-# 柔性制造架构设计 — 阿里云视角
-
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#柔性制造` `#大规模定制` `#数字主线` `#C2M` `#阿里云`
-
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solution Architects | **Tags**: `#FlexibleManufacturing` `#MassCustomization` `#DigitalThread` `#C2M` `#AlibabaCloud`
 
 ---
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+## Table of Contents
 
-柔性制造（Flexible Manufacturing）是指生产系统能够快速适应产品品种和批量变化，实现大规模个性化定制的能力。在消费需求日益个性化、产品生命周期不断缩短的趋势下，传统的大批量单一品种生产模式已经难以满足市场需求。柔性制造通过模块化产线、智能排产、数字主线（Digital Thread）等技术，在保持大规模生产效率的同时实现个性化定制。
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architecture-patterns)
+4. [Implementation Examples](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-Patterns](#7-anti-patterns)
+8. [Reference Resources](#8-reference-resources)
 
-柔性制造的核心矛盾是"多样性"与"效率"的平衡：产品品种越多，产线切换越频繁，生产效率越低。解决这一矛盾的关键是信息技术——通过智能排产算法优化订单聚合和产线调度，通过数字主线实现产品全生命周期追溯，通过 AI 质检保证定制化产品的质量一致性，通过供应链协同实现按需生产。
+---
 
-从云原生架构角度看，柔性制造平台是一个典型的工业互联网场景，具有以下特点：高并发（数万订单同时处理）、实时性（产线控制 ms 级响应）、数据密集（每件产品的全生命周期数据）、多系统集成（ERP/MES/PLM/WMS/SCM）。
+## 1. Overview
 
-## 1.1 行业背景
+Flexible Manufacturing refers to the ability of a production system to rapidly adapt to changes in product variety and batch size, enabling mass personalized customization. As consumer demand becomes increasingly individualized and product life cycles continue to shorten, the traditional high-volume single-variety production model can no longer satisfy market demands. Flexible Manufacturing achieves personalized customization while maintaining large-scale production efficiency through modular production lines, intelligent scheduling, and Digital Thread technologies.
 
-| 挑战 | 说明 | 架构影响 |
+The core tension in Flexible Manufacturing is balancing "variety" against "efficiency": the more product variants there are, the more frequently production lines must switch over, and the lower the production efficiency becomes. The key to resolving this tension lies in information technology — intelligent scheduling algorithms optimize order aggregation and production line dispatching, the Digital Thread enables full lifecycle traceability of every product, AI-powered quality inspection ensures quality consistency for customized products, and supply chain collaboration enables make-to-order production.
+
+From a cloud-native architecture perspective, a Flexible Manufacturing platform is a typical Industrial Internet scenario with the following characteristics: high concurrency (tens of thousands of orders processed simultaneously), real-time responsiveness (millisecond-level response for production line control), data intensity (full lifecycle data for every product), and multi-system integration (ERP/MES/PLM/WMS/SCM).
+
+## 1.1 Industry Background
+
+| Challenge | Description | Architectural Impact |
 |:---|:---|:---|
-| 多品种小批量 | 订单碎片化，SKU 数万级 | 智能排产 + 订单聚合 |
-| 快速换型 | 产线切换 < 30min | 模块化设计 + 快速换模 |
-| 质量追溯 | 每件产品全生命周期追溯 | 数字主线 + 区块链 |
-| 供应链协同 | 按需采购/生产 | 数据共享 + 供应链平台 |
-| 客户参与 | C2M 个性化定制 | 3D 配置器 + 设计工具 |
+| High-mix, low-volume production | Fragmented orders, tens of thousands of SKUs | Intelligent scheduling + order aggregation |
+| Rapid changeover | Production line switchover < 30 min | Modular design + quick die change |
+| Quality traceability | Full lifecycle traceability for every product | Digital Thread + blockchain |
+| Supply chain collaboration | On-demand procurement/production | Data sharing + supply chain platform |
+| Customer engagement | C2M personalized customization | 3D configurator + design tools |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **C2M 定制**: 消费者通过 3D 配置器定制产品，工厂按单生产
-- **智能排产**: 订单智能聚合、产能优化、多目标排产
-- **产线重构**: 模块化产线快速重组，适应新产品需求
-- **数字主线**: 产品从设计到报废的全生命周期数据追溯
-- **AI 质检**: 定制化产品的 AI 视觉检测和质量控制
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 订单驱动原则
-
-柔性制造以订单为驱动，一切围绕订单展开。订单从客户下单到生产交付的全过程需要可视化、可追踪、可优化。系统设计需要建立以订单为核心的数据模型，将客户需求、产品设计、工艺参数、生产计划、质量数据、物流信息关联到统一订单视图。
-
-## 2.2 模块化原则
-
-柔性制造系统本身也需要是柔性的。系统架构采用模块化设计：产线模块化（标准化的加工单元可以自由组合）、软件模块化（微服务架构，按需组合）、数据模块化（标准数据接口，系统间松耦合）。模块化使得系统能够像搭积木一样快速适应新的生产需求。
-
-## 2.3 数据贯穿原则
-
-数字主线（Digital Thread）是柔性制造的灵魂。从客户需求到产品设计到工艺规划到生产执行到质量检测到物流交付，数据需要贯穿整个价值链。每个环节产生的数据自动传递到下游环节，形成完整的数据链。这不仅实现了追溯，还为持续优化提供了数据基础。
-
-## 2.4 自适应优化原则
-
-柔性制造系统需要具备自适应优化能力：根据历史订单数据预测未来需求趋势；根据设备状态动态调整排产计划；根据质量数据自动优化工艺参数；根据供应链状态调整采购策略。AI/ML 技术是实现自适应优化的核心手段。
+- **C2M Customization**: Consumers customize products via a 3D configurator; factory produces to order
+- **Intelligent Scheduling**: Smart order aggregation, capacity optimization, multi-objective scheduling
+- **Production Line Reconfiguration**: Modular production lines rapidly reorganized to accommodate new product requirements
+- **Digital Thread**: Full lifecycle data traceability from design to end-of-life
+- **AI Quality Inspection**: AI vision-based inspection and quality control for customized products
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 柔性制造平台全景架构
+## 2.1 Order-Driven Principle
+
+Flexible Manufacturing is order-driven, with everything revolving around orders. The entire process from customer order placement to production and delivery must be visualizable, trackable, and optimizable. System design must establish an order-centric data model that links customer requirements, product design, process parameters, production plans, quality data, and logistics information into a unified order view.
+
+## 2.2 Modularity Principle
+
+The Flexible Manufacturing system itself must also be flexible. The system architecture adopts a modular design: modular production lines (standardized processing units that can be freely combined), modular software (microservices architecture, composable on demand), and modular data (standard data interfaces, loosely coupled between systems). Modularity allows the system to rapidly adapt to new production requirements, much like assembling building blocks.
+
+## 2.3 Data Continuity Principle
+
+The Digital Thread is the soul of Flexible Manufacturing. Data must flow continuously throughout the entire value chain — from customer requirements, to product design, to process planning, to production execution, to quality inspection, to logistics and delivery. Data generated at each stage is automatically passed to downstream stages, forming a complete data chain. This not only enables traceability but also provides the data foundation for continuous optimization.
+
+## 2.4 Adaptive Optimization Principle
+
+Flexible Manufacturing systems must possess adaptive optimization capabilities: predicting future demand trends based on historical order data; dynamically adjusting scheduling plans based on equipment status; automatically optimizing process parameters based on quality data; and adjusting procurement strategies based on supply chain status. AI/ML technology is the core means of achieving adaptive optimization.
+
+---
+
+## 3. Architecture Patterns
+
+## 3.1 Flexible Manufacturing Platform Panoramic Architecture
 
 ```mermaid
 graph TB
-    subgraph 消费者端
-        C1[3D 产品配置器]
-        C2[订单追踪]
-        C3[售后服务]
+    subgraph Consumer Side
+        C1[3D Product Configurator]
+        C2[Order Tracking]
+        C3[After-Sales Service]
     end
 
-    subgraph 订单中台
-        O1[订单中心]
-        O2[定价引擎]
-        O3[可行性检查]
-        O4[订单路由]
+    subgraph Order Middle Platform
+        O1[Order Center]
+        O2[Pricing Engine]
+        O3[Feasibility Check]
+        O4[Order Routing]
     end
 
-    subgraph 制造中台
-        M1[智能排产 APS]
-        M2[工艺管理 CAPP]
-        M3[制造执行 MES]
-        M4[质量管理 QMS]
-        M5[物料管理 WMS]
+    subgraph Manufacturing Middle Platform
+        M1[Intelligent Scheduling APS]
+        M2[Process Management CAPP]
+        M3[Manufacturing Execution MES]
+        M4[Quality Management QMS]
+        M5[Material Management WMS]
     end
 
-    subgraph 工厂层
-        F1[模块化产线]
-        F2[AGV/AMR 物流]
-        F3[柔性工装]
-        F4[AI 视觉质检]
-        F5[设备监控]
+    subgraph Factory Layer
+        F1[Modular Production Lines]
+        F2[AGV/AMR Logistics]
+        F3[Flexible Tooling]
+        F4[AI Vision Quality Inspection]
+        F5[Equipment Monitoring]
     end
 
-    subgraph 数字主线层
-        D1[产品配置数据]
-        D2[工艺知识库]
-        D3[生产过程数据]
-        D4[质量数据]
-        D5[供应链数据]
+    subgraph Digital Thread Layer
+        D1[Product Configuration Data]
+        D2[Process Knowledge Base]
+        D3[Production Process Data]
+        D4[Quality Data]
+        D5[Supply Chain Data]
     end
 
-    subgraph AI 平台
-        A1[排产优化]
-        A2[质量预测]
-        A3[设备预测维护]
-        A4[需求预测]
+    subgraph AI Platform
+        A1[Scheduling Optimization]
+        A2[Quality Prediction]
+        A3[Equipment Predictive Maintenance]
+        A4[Demand Forecasting]
     end
 
     C1 & C2 & C3 --> O1 & O2 & O3 & O4
@@ -226,48 +229,47 @@ graph TB
     D1 & D2 & D3 & D4 & D5 --> A1 & A2 & A3 & A4
     A1 & A2 & A3 & A4 --> M1 & M3 & M4
 ```
-
-## 3.2 C2M 定制流程架构
+## 3.2 C2M Customization Process Architecture
 
 ```mermaid
 flowchart LR
-    A[客户配置] --> B[3D 预览]
-    B --> C[价格计算]
-    C --> D[下单支付]
-    D --> E[可行性检查]
-    E --> F[BOM 展开]
-    F --> G[工艺生成]
-    G --> H[排产]
-    H --> I[柔性生产]
-    I --> J[AI 质检]
-    J --> K[包装发货]
-    K --> L[客户签收]
+    A[Customer Configuration] --> B[3D Preview]
+    B --> C[Price Calculation]
+    C --> D[Order & Payment]
+    D --> E[Feasibility Check]
+    E --> F[BOM Explosion]
+    F --> G[Process Generation]
+    G --> H[Production Scheduling]
+    H --> I[Flexible Manufacturing]
+    I --> J[AI Quality Inspection]
+    J --> K[Packaging & Shipping]
+    K --> L[Customer Sign-off]
 ```
 
-## 3.3 智能排产算法架构
+## 3.3 Intelligent Scheduling Algorithm Architecture
 
 ```mermaid
 graph TB
-    subgraph 输入
-        I1[订单池]
-        I2[产能模型]
-        I3[物料状态]
-        I4[设备状态]
-        I5[交期约束]
+    subgraph Input
+        I1[Order Pool]
+        I2[Capacity Model]
+        I3[Material Status]
+        I4[Equipment Status]
+        I5[Delivery Constraints]
     end
 
-    subgraph 排产引擎
-        E1[订单聚合]
-        E2[多目标优化]
-        E3[约束求解]
-        E4[甘特图生成]
+    subgraph Scheduling Engine
+        E1[Order Aggregation]
+        E2[Multi-objective Optimization]
+        E3[Constraint Solving]
+        E4[Gantt Chart Generation]
     end
 
-    subgraph 输出
-        O1[生产计划]
-        O2[物料需求]
-        O3[换型计划]
-        O4[交期预估]
+    subgraph Output
+        O1[Production Plan]
+        O2[Material Requirements]
+        O3[Changeover Plan]
+        O4[Delivery Estimation]
     end
 
     I1 & I2 & I3 & I4 & I5 --> E1
@@ -277,9 +279,9 @@ graph TB
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 智能排产引擎
+## 4.1 Intelligent Scheduling Engine
 
 ```python
 from dataclasses import dataclass
@@ -320,9 +322,11 @@ class FlexibleScheduler:
 
     def schedule(self, orders: List[Order],
                   start_time: datetime) -> List[ScheduledTask]:
+        # Sort orders by priority (descending) and due date
         sorted_orders = sorted(orders,
                                key=lambda o: (-o.priority, o.due_date))
 
+        # Group similar orders together
         grouped = self._group_similar_orders(sorted_orders)
 
         schedule = []
@@ -331,6 +335,7 @@ class FlexibleScheduler:
 
         for batch in grouped:
             product_type = batch[0].product_type
+            # Find the best work center for this batch
             best_wc = self._find_best_wc(product_type, wc_available,
                                           batch, start_time)
             if best_wc is None:
@@ -339,6 +344,7 @@ class FlexibleScheduler:
             wc = self.work_centers[best_wc]
             total_qty = sum(o.quantity for o in batch)
 
+            # Calculate setup time based on previous product type
             prev_type = self._get_previous_product(best_wc, schedule)
             setup_time = 0
             if prev_type and prev_type != product_type:
@@ -358,6 +364,7 @@ class FlexibleScheduler:
                     quantity=order.quantity,
                     start_time=task_start,
                     end_time=task_end,
+                    # Only the first order in the batch incurs setup time
                     setup_time_min=setup_time if order == batch[0] else 0,
                 ))
 
@@ -366,6 +373,7 @@ class FlexibleScheduler:
         return schedule
 
     def _group_similar_orders(self, orders: List[Order]) -> List[List[Order]]:
+        # Group orders by product type
         groups: Dict[str, List[Order]] = {}
         for order in orders:
             key = order.product_type
@@ -382,6 +390,7 @@ class FlexibleScheduler:
         best_time = None
 
         for wc_id, wc in self.work_centers.items():
+            # Skip work centers that don't support this product type
             if product_type not in wc.capabilities:
                 continue
 
@@ -389,6 +398,7 @@ class FlexibleScheduler:
             total_qty = sum(o.quantity for o in batch)
             prod_min = (total_qty / wc.capacity_per_hour) * 60
 
+            # Select the work center with the earliest available time
             if best_time is None or earliest < best_time:
                 best_time = earliest
                 best_wc = wc_id
@@ -397,13 +407,13 @@ class FlexibleScheduler:
 
     def _get_previous_product(self, wc_id: str,
                                schedule: List[ScheduledTask]) -> Optional[str]:
+        # Get the product type of the last scheduled task on this work center
         wc_tasks = [t for t in schedule if t.wc_id == wc_id]
         if wc_tasks:
             return wc_tasks[-1].product_type
         return None
 ```
-
-## 4.2 产品配置器
+## 4.2 Product Configurator
 
 ```go
 package configurator
@@ -512,8 +522,7 @@ func (pc *ProductConfig) validateConstraints(selections map[string]string) []str
     return errors
 }
 ```
-
-## 4.3 数字主线数据管理
+## 4.3 Digital Thread Data Management
 
 ```python
 from datetime import datetime
@@ -587,9 +596,9 @@ class DigitalThread:
 
 ---
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
+## 5. Deployment on Kubernetes
 
-## 5.1 智能排产引擎
+## 5.1 Intelligent Scheduling Engine
 
 ```yaml
 apiVersion: apps/v1
@@ -635,8 +644,7 @@ spec:
               port: 8080
             periodSeconds: 5
 ```
-
-## 5.2 AI 质检服务
+## 5.2 AI Quality Inspection Service
 
 ```yaml
 apiVersion: apps/v1
@@ -680,7 +688,7 @@ spec:
               cpu: "8000m"
 ```
 
-## 5.3 MES 边缘网关
+## 5.3 MES Edge Gateway
 
 ```yaml
 apiVersion: apps/v1
@@ -723,118 +731,117 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-## 6.1 排产优化
+## 6.1 Production Scheduling Optimization
 
-- **订单聚合**: 将相似产品自动聚合到同一批次生产，减少换型次数
-- **多目标优化**: 综合考虑交期、产能利用率、换型时间、物料库存等多个目标
-- **滚动排产**: 每小时重新计算排产计划，适应订单变化和设备问题
-- **What-if 分析**: 支持模拟不同排产方案的效果，辅助决策
+- **Order Aggregation**: Automatically aggregate similar products into the same production batch to reduce changeover frequency
+- **Multi-objective Optimization**: Comprehensively consider multiple objectives such as delivery deadlines, capacity utilization, changeover time, and material inventory
+- **Rolling Scheduling**: Recalculate the production schedule every hour to adapt to order changes and equipment issues
+- **What-if Analysis**: Support simulation of different scheduling scenarios to assist decision-making
 
-## 6.2 质量控制
+## 6.2 Quality Control
 
-- **首件检验**: 每次换型后的第一件产品进行全尺寸检验
-- **SPC 统计过程控制**: 对关键工序进行实时统计监控，及时发现过程异常
-- **AI 视觉检测**: 使用深度学习模型进行外观缺陷检测，替代人工目检
-- **质量闭环**: 质量数据反馈到工艺参数，自动调整减少缺陷
+- **First Article Inspection**: Perform full-dimensional inspection on the first part produced after each changeover
+- **SPC Statistical Process Control**: Perform real-time statistical monitoring of key processes to detect process anomalies promptly
+- **AI Visual Inspection**: Use deep learning models for appearance defect detection, replacing manual visual inspection
+- **Quality Closed-loop**: Quality data is fed back to process parameters, automatically adjusted to reduce defects
+## 6.3 Digital Thread Implementation
 
-## 6.3 数字主线实施
-
-- **一物一码**: 每件产品分配唯一序列号（二维码/RFID），贯穿全生命周期
-- **事件驱动**: 生产线每个工位自动上报事件（加工完成、质检结果、包装完成）
-- **数据关联**: 将客户配置、BOM、工艺参数、质检数据关联到统一产品视图
-- **实时可视化**: 客户可通过 APP 实时查看订单生产进度
-
----
-
-<!-- chunk: 7. 反模式 -->## 7. 反模式
-
-## 7.1 单一固定产线
-
-设计不可变更的固定产线，只能生产一种或几种产品。
-
-**解决方案**: 采用模块化产线设计，加工单元标准化、可移动、可重组。通过快速换模（SMED）技术将换型时间压缩到 30 分钟以内。
-
-## 7.2 手工排产
-
-依赖人工经验和 Excel 进行排产，面对数万级 SKU 和复杂约束无法有效优化。
-
-**解决方案**: 部署智能排产系统（APS），使用约束满足和优化算法自动生成最优排产方案。系统支持滚动排产，实时响应变化。
-
-## 7.3 质量事后检验
-
-产品生产完成后才进行质量检验，发现问题时已浪费大量材料和工时。
-
-**解决方案**: 实施在线质量监控（In-line QC），在每个关键工序后进行即时检测。使用 AI 视觉系统进行 100% 全检，替代抽样检验。
-
-## 7.4 信息孤岛
-
-ERP、MES、PLM、WMS 等系统各自独立，数据不互通。
-
-**解决方案**: 建立统一的数字主线平台，通过标准 API 打通各系统数据。使用事件驱动架构实现系统间的实时数据同步。
-
-## 7.5 忽视换型成本
-
-排产时只考虑产能和交期，忽视换型时间和成本。
-
-**解决方案**: 排产算法中显式建模换型时间和成本。相似产品自动聚合到同一批次，减少换型次数。使用约束编程（CP）求解换型优化问题。
+- **One product, one code**: Each product is assigned a unique serial number (QR code/RFID) that follows it throughout its entire lifecycle
+- **Event-driven**: Every workstation on the production line automatically reports events (processing complete, QC result, packaging complete)
+- **Data association**: Customer configuration, BOM, process parameters, and QC data are linked to a unified product view
+- **Real-time visualization**: Customers can view order production progress in real time via a mobile app
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 7. Anti-Patterns
 
-## 8.1 阿里云组件映射
+## 7.1 Single Fixed Production Line
 
-| 功能域 | **阿里云云原生方案** |
+Designing an immutable fixed production line capable of producing only one or a few products.
+
+**Solution**: Adopt a modular production line design with standardized, movable, and reconfigurable processing units. Use Single Minute Exchange of Die (SMED) techniques to compress changeover time to under 30 minutes.
+
+## 7.2 Manual Scheduling
+
+Relying on human experience and Excel for scheduling, which cannot effectively optimize across tens of thousands of SKUs and complex constraints.
+
+**Solution**: Deploy an intelligent Advanced Planning and Scheduling (APS) system that uses constraint satisfaction and optimization algorithms to automatically generate optimal scheduling plans. The system supports rolling scheduling and responds to changes in real time.
+
+## 7.3 Post-Production Quality Inspection
+
+Quality inspection is only performed after products are fully manufactured, meaning defects are discovered only after large amounts of materials and labor have already been wasted.
+
+**Solution**: Implement in-line quality control (In-line QC) with immediate inspection after every critical process step. Use AI vision systems for 100% full inspection, replacing sampling-based inspection.
+
+## 7.4 Information Silos
+
+Systems such as ERP, MES, PLM, and WMS operate independently with no data interoperability.
+
+**Solution**: Establish a unified digital thread platform that connects data across all systems via standard APIs. Use an event-driven architecture to achieve real-time data synchronization between systems.
+
+## 7.5 Ignoring Changeover Costs
+
+Scheduling only considers capacity and delivery deadlines while ignoring changeover time and cost.
+
+**Solution**: Explicitly model changeover time and cost in the scheduling algorithm. Similar products are automatically grouped into the same batch to reduce the number of changeovers. Use Constraint Programming (CP) to solve changeover optimization problems.
+
+---
+
+## 8. Reference Resources
+
+## 8.1 Alibaba Cloud Component Mapping
+
+| Functional Domain | **Alibaba Cloud Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Pro + ACK Edge** |
-| AI 平台 | **PAI + 视觉智能** |
-| 数据库 | **PolarDB + Lindorm** |
-| IoT 平台 | **阿里云 IoT** |
-| 消息队列 | **RocketMQ** |
-| 可观测性 | **ARMS + SLS** |
-| 工作流 | **Argo Workflows** |
+| Container Platform | **ACK Pro + ACK Edge** |
+| AI Platform | **PAI + Vision Intelligence** |
+| Database | **PolarDB + Lindorm** |
+| IoT Platform | **Alibaba Cloud IoT** |
+| Message Queue | **RocketMQ** |
+| Observability | **ARMS + SLS** |
+| Workflow | **Argo Workflows** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] 产线换型时间 < 30min 达标验证
-- [ ] 排产算法优化效果（产能利用率 > 85%）
-- [ ] 定制产品质量一致性验证
-- [ ] 供应链数据协同接口测试
-- [ ] 工艺知识安全隔离机制
-- [ ] 数字主线端到端追溯测试
-- [ ] AI 质检模型准确率 > 99%
-- [ ] 系统高可用性 99.9% 验证
+- [ ] Production line changeover time < 30 min compliance verification
+- [ ] Scheduling algorithm optimization effectiveness (capacity utilization > 85%)
+- [ ] Quality consistency verification for customized products
+- [ ] Supply chain data collaboration interface testing
+- [ ] Process knowledge security isolation mechanism
+- [ ] End-to-end digital thread traceability testing
+- [ ] AI quality inspection model accuracy > 99%
+- [ ] System high availability 99.9% verification
 
-## 8.3 外部参考
+## 8.3 External References
 
-- ISA-95 — 企业与控制系统集成标准
-- IEC 62264 — 制造执行系统标准
-- ISO 22400 — 制造运营管理 KPI 标准
-- OPC UA — 工业互联通信协议
-- SMED（Single Minute Exchange of Die）— 快速换模方法
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- ISA-95 — Enterprise-Control System Integration Standard
+- IEC 62264 — Manufacturing Execution Systems Standard
+- ISO 22400 — Manufacturing Operations Management KPI Standard
+- OPC UA — Industrial Interoperability Communication Protocol
+- SMED (Single Minute Exchange of Die) — Rapid Changeover Methodology
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solutions Architect Team | **License**: MIT
+
+---
+
+## Obsidian Related Documents
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-Commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 
@@ -842,10 +849,6 @@ ERP、MES、PLM、WMS 等系统各自独立，数据不互通。
 - 86-solid-state-battery
 - 88-nanomaterials
 - 89-crispr-gene-editing
-
 ## Related
 
 - topic-application-architecture MOC — Cross-reference
-
-
-<!-- risk-assessed -->

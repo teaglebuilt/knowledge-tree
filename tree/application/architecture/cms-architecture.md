@@ -1,6 +1,10 @@
----title: 内容管理系统 (CMS) Kubernetes 生产架构设计
-description: 'title: 内容管理系统 CMS 架构设计'
-summary: 'title: 内容管理系统 CMS 架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/cms-architecture.md
+---
+---title: Content Management System (CMS) Kubernetes Production Architecture Design
+description: 'title: Content Management System CMS Architecture Design'
+summary: 'title: Content Management System CMS Architecture Design'
 category: general
 tags:
 - architecture
@@ -19,17 +23,17 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 内容管理系统 (CMS) Kubernetes 生产架构设计 是什么
-- 如何 内容管理系统 (CMS) Kubernetes 生产架构设计
-- Kubernetes 20 application patterns 最佳实践
+- What is Content Management System (CMS) Kubernetes Production Architecture Design
+- How to Content Management System (CMS) Kubernetes Production Architecture Design
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 内容管理系统
+- Content Management System
 - CMS
 - Kubernetes
-- 生产架构设计
+- Production Architecture Design
 - application
 - patterns
 prerequisites:
@@ -42,15 +46,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (modifies cluster state, but is generally reversible), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 内容管理系统 CMS 架构设计
-description: '# 内容管理系统 (CMS) [[Kubernetes|Kubernetes]] 生产架构设计'
+title: Content Management System CMS Architecture Design
+description: '# Content Management System (CMS) [[Kubernetes|Kubernetes]] Production Architecture Design'
 category: application-architecture
 tags:
 - k8s
@@ -67,27 +71,27 @@ last_updated: 2026-05-18
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- CMS架构师
-- 全栈工程师
-- 内容运营专家
+- CMS Architects
+- Full-Stack Engineers
+- Content Operations Specialists
 estimated_read_time: 5min
 intent_queries:
-- Headless CMS Kubernetes 部署架构
-- 内容协同编辑 OT 算法
-- 多语言多站点管理
-- 静态站点生成 SSG ISR
-- 阿里云 OSS CDN 内容分发
+- Headless CMS Kubernetes deployment architecture
+- Collaborative content editing OT algorithm
+- Multi-language multi-site management
+- Static site generation SSG ISR
+- Alibaba Cloud OSS CDN content delivery
 trigger_keywords:
-- CMS内容管理
+- CMS Content Management
 - Headless CMS
-- 协同编辑
-- 多语言
-- 多站点
-- SSG静态生成
-- ISR增量再生成
+- Collaborative Editing
+- Multi-language
+- Multi-site
+- SSG Static Generation
+- ISR Incremental Static Regeneration
 - GraphQL
-- 内容工作流
-- 审批发布
+- Content Workflow
+- Approval Publishing
 related_domains:
 - domain-03-networking-traffic
 - domain-10-troubleshooting-diagnostics
@@ -101,67 +105,66 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
+# Content Management System (CMS) Kubernetes Production Architecture Design
 
-# 内容管理系统 (CMS) Kubernetes 生产架构设计
-
-> **适用场景**: 企业官网 / 新闻门户 / 知识库 / 文档中心 / 营销落地页 / 多站点管理  
-> **适用版本**: Kubernetes v1.29 - v1.33  
-> **最后更新**: 2026-04-24  
-> **目标读者**: CMS 架构师、全栈工程师、内容运营
-
----
-
-<!-- chunk: 📋 目录 -->## 📋 目录
-
-- [一、整体架构全景](#一整体架构全景)
-- [二、Headless CMS 架构](#二headless-cms-架构)
-- [三、内容生产与编辑架构](#三内容生产与编辑架构)
-- [四、内容分发与渲染架构](#四内容分发与渲染架构)
-- [五、多站点与多语言架构](#五多站点与多语言架构)
-- [六、工作流与审批架构](#六工作流与审批架构)
-- [七、搜索与推荐架构](#七搜索与推荐架构)
-- [八、K8s 部署架构](#八k8s-部署架构)
+> **Applicable Scenarios**: Enterprise websites / News portals / Knowledge bases / Documentation centers / Marketing landing pages / Multi-site management
+> **Applicable Versions**: Kubernetes v1.29 - v1.33
+> **Last Updated**: 2026-04-24
+> **Target Audience**: CMS Architects, Full-stack Engineers, Content Operations
 
 ---
 
-<!-- chunk: 一、整体架构全景 -->## 一、整体架构全景
+## 📋 Table of Contents
+
+- [I. Overall Architecture Overview](#i-overall-architecture-overview)
+- [II. Headless CMS Architecture](#ii-headless-cms-architecture)
+- [III. Content Production and Editing Architecture](#iii-content-production-and-editing-architecture)
+- [IV. Content Distribution and Rendering Architecture](#iv-content-delivery-and-rendering-architecture)
+- [V. Multi-site and Multi-language Architecture](#5-multi-site-and-multi-language-architecture)
+- [VI. Workflow and Approval Architecture](#vi-workflow-and-approval-architecture)
+- [VII. Search and Recommendation Architecture](#vii-search-and-recommendation-architecture)
+- [VIII. K8s Deployment Architecture](#viii-k8s-deployment-architecture)
+
+---
+
+## I. Overall Architecture Overview
 
 ```mermaid
 flowchart TB
-    subgraph Editors["内容生产者"]
-        AUTHOR["内容作者"]
-        EDITOR["编辑"]
-        REVIEWER["审核员"]
-        ADMIN["系统管理员"]
+    subgraph Editors["Content Producers"]
+        AUTHOR["Content Author"]
+        EDITOR["Editor"]
+        REVIEWER["Reviewer"]
+        ADMIN["System Administrator"]
     end
 
-    subgraph CMSPlatform["CMS 平台"]
-        EDITOR_UI["富文本编辑器<br/>Notion-like / Block"]
-        MEDIA["媒体库<br/>图片/视频/文件"]
-        TAXONOMY["分类标签体系<br/>栏目/专题/标签"]
-        WORKFLOW["工作流引擎<br/>审批/发布"]
-        VERSION["版本控制<br/>历史/回滚"]
+    subgraph CMSPlatform["CMS Platform"]
+        EDITOR_UI["Rich Text Editor<br/>Notion-like / Block"]
+        MEDIA["Media Library<br/>Images / Videos / Files"]
+        TAXONOMY["Taxonomy System<br/>Columns / Topics / Tags"]
+        WORKFLOW["Workflow Engine<br/>Approval / Publishing"]
+        VERSION["Version Control<br/>History / Rollback"]
     end
 
-    subgraph API["API 层"]
+    subgraph API["API Layer"]
         REST["REST API<br/>CRUD"]
-        GRAPHQL["GraphQL<br/>灵活查询"]
-        WEBHOOK["Webhook<br/>事件推送"]
+        GRAPHQL["GraphQL<br/>Flexible Queries"]
+        WEBHOOK["Webhook<br/>Event Push"]
     end
 
-    subgraph Consumers["内容消费者"]
-        WEB["Web 站点<br/>SSR / SSG"]
-        MOBILE["移动 App"]
-        MINI["小程序"]
-        IOT["IoT 屏幕"]
+    subgraph Consumers["Content Consumers"]
+        WEB["Web Site<br/>SSR / SSG"]
+        MOBILE["Mobile App"]
+        MINI["Mini Program"]
+        IOT["IoT Display"]
     end
 
-    subgraph Infra["基础设施"]
-        DB["PostgreSQL<br/>结构化内容"]
-        MONGO["MongoDB<br/>非结构化内容"]
-        ES["Elasticsearch<br/>全文搜索"]
-        REDIS["Redis<br/>缓存/会话"]
-        CDN["CDN<br/>静态资源"]
+    subgraph Infra["Infrastructure"]
+        DB["PostgreSQL<br/>Structured Content"]
+        MONGO["MongoDB<br/>Unstructured Content"]
+        ES["Elasticsearch<br/>Full-text Search"]
+        REDIS["Redis<br/>Cache / Session"]
+        CDN["CDN<br/>Static Assets"]
     end
 
     Editors --> CMSPlatform --> API --> Consumers
@@ -175,93 +178,92 @@ flowchart TB
 
 ---
 
-<!-- chunk: 二、Headless CMS 架构 -->## 二、Headless CMS 架构
+## II. Headless CMS Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Backend["CMS 后端 (Headless)"]
-        ADMIN_API["Admin API<br/>内容管理"]
-        CONTENT_API["Content API<br/>内容消费"]
-        ASSET_API["Asset API<br/>媒体资源"]
-        WEBHOOK_API["Webhook API<br/>事件通知"]
+    subgraph Backend["CMS Backend (Headless)"]
+        ADMIN_API["Admin API<br/>Content Management"]
+        CONTENT_API["Content API<br/>Content Consumption"]
+        ASSET_API["Asset API<br/>Media Assets"]
+        WEBHOOK_API["Webhook API<br/>Event Notification"]
     end
 
-    subgraph ContentModel["内容模型层"]
-        SCHEMA["Schema 定义<br/>内容类型"]
-        FIELD["字段系统<br/>文本/富文本/媒体/关系"]
-        VALIDATE["验证规则<br/>必填/格式/唯一"]
-        LOCALIZE["本地化<br/>i18n"]
+    subgraph ContentModel["Content Model Layer"]
+        SCHEMA["Schema Definition<br/>Content Types"]
+        FIELD["Field System<br/>Text / Rich Text / Media / Relations"]
+        VALIDATE["Validation Rules<br/>Required / Format / Unique"]
+        LOCALIZE["Localization<br/>i18n"]
     end
 
-    subgraph Frontend["前端层 (Decoupled)"]
+    subgraph Frontend["Frontend Layer (Decoupled)"]
         REACT["React / Next.js<br/>SSG / SSR"]
         VUE["Vue / Nuxt.js<br/>SSG / SSR"]
-        STATIC["静态站点<br/>Hugo / Gatsby"]
-        NATIVE["原生 App<br/>iOS / Android"]
+        STATIC["Static Site<br/>Hugo / Gatsby"]
+        NATIVE["Native App<br/>iOS / Android"]
     end
 
     ADMIN_API --> ContentModel --> CONTENT_API
     CONTENT_API -->|JSON| REACT & VUE & STATIC & NATIVE
     ASSET_API -->|CDN URL| Frontend
-    WEBHOOK_API -->|事件| Frontend
+    WEBHOOK_API -->|Events| Frontend
 
     style Backend fill:#e3f2fd
     style ContentModel fill:#fff8e1
     style Frontend fill:#e8f5e9
 ```
-
-## Headless CMS 数据流
+## Headless CMS Data Flow
 
 ```mermaid
 sequenceDiagram
-    participant Editor as 内容编辑
-    participant CMS as CMS 后端
-    participant DB as 数据库
+    participant Editor as Content Editor
+    participant CMS as CMS Backend
+    participant DB as Database
     participant CDN as CDN / Edge
-    participant Site as 前端站点
-    participant User as 终端用户
+    participant Site as Frontend Site
+    participant User as End User
 
-    Editor->>CMS: 创建/编辑内容
-    CMS->>DB: 保存内容 + 元数据
-    DB-->>CMS: 确认保存
-    CMS->>CMS: 触发 Webhook
-    CMS->>CDN: 清除缓存 (Purge)
+    Editor->>CMS: Create/edit content
+    CMS->>DB: Save content + metadata
+    DB-->>CMS: Confirm save
+    CMS->>CMS: Trigger Webhook
+    CMS->>CDN: Purge cache
 
-    Site->>CMS: GraphQL 查询内容
-    CMS->>DB: 读取内容
-    DB-->>CMS: 返回数据
-    CMS-->>Site: JSON 响应
-    Site->>Site: SSG 构建页面
+    Site->>CMS: GraphQL query for content
+    CMS->>DB: Read content
+    DB-->>CMS: Return data
+    CMS-->>Site: JSON response
+    Site->>Site: SSG build page
 
-    User->>CDN: 请求页面
-    CDN-->>User: 缓存内容
+    User->>CDN: Request page
+    CDN-->>User: Cached content
 ```
 
 ---
 
-<!-- chunk: 三、内容生产与编辑架构 -->## 三、内容生产与编辑架构
+## III. Content Production and Editing Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Editor["编辑器核心"]
-        BLOCK["Block 编辑器<br/>段落/标题/列表/代码"]
-        RICH["富文本编辑器<br/>ProseMirror / Slate"]
-        MD["Markdown 编辑器<br/>实时预览"]
-        COLLAB["协同编辑<br/>OT / CRDT"]
+    subgraph Editor["Editor Core"]
+        BLOCK["Block Editor<br/>Paragraph/Heading/List/Code"]
+        RICH["Rich Text Editor<br/>ProseMirror / Slate"]
+        MD["Markdown Editor<br/>Live Preview"]
+        COLLAB["Collaborative Editing<br/>OT / CRDT"]
     end
 
-    subgraph Media["媒体管理"]
-        UPLOAD["批量上传<br/>拖拽/粘贴"]
-        PROCESS["智能处理<br/>压缩/裁剪/转码"]
-        ORG["智能组织<br/>标签/搜索/文件夹"]
-        CDN_PUSH["CDN 分发<br/>全球加速"]
+    subgraph Media["Media Management"]
+        UPLOAD["Bulk Upload<br/>Drag & Drop / Paste"]
+        PROCESS["Smart Processing<br/>Compression/Cropping/Transcoding"]
+        ORG["Smart Organization<br/>Tags/Search/Folders"]
+        CDN_PUSH["CDN Distribution<br/>Global Acceleration"]
     end
 
-    subgraph AI["AI 辅助"]
-        GEN["内容生成<br/>标题/摘要/正文"]
-        SEO["SEO 优化<br/>关键词/描述"]
-        TRANS["智能翻译<br/>多语言"]
-        CHECK["内容审查<br/>敏感词/合规"]
+    subgraph AI["AI Assistance"]
+        GEN["Content Generation<br/>Title/Summary/Body"]
+        SEO["SEO Optimization<br/>Keywords/Description"]
+        TRANS["Smart Translation<br/>Multilingual"]
+        CHECK["Content Review<br/>Sensitive Words/Compliance"]
     end
 
     Editor --> COLLAB --> Media --> AI
@@ -271,23 +273,23 @@ flowchart TB
     style AI fill:#e8f5e9
 ```
 
-## 协同编辑 OT 算法
+## Collaborative Editing OT Algorithm
 
 ```mermaid
 flowchart LR
-    subgraph ClientA["编辑者 A"]
-        A_DOC["文档状态 A"]
-        A_OP["操作: insert('X', pos=3)"]
+    subgraph ClientA["Editor A"]
+        A_DOC["Document State A"]
+        A_OP["Operation: insert('X', pos=3)"]
     end
 
-    subgraph Server["协同服务器"]
-        SERVER_DOC["权威文档状态"]
-        TRANSFORM["OT Transform<br/>操作转换"]
+    subgraph Server["Collaboration Server"]
+        SERVER_DOC["Authoritative Document State"]
+        TRANSFORM["OT Transform<br/>Operation Transformation"]
     end
 
-    subgraph ClientB["编辑者 B"]
-        B_DOC["文档状态 B"]
-        B_OP["操作: delete(pos=2, len=1)"]
+    subgraph ClientB["Editor B"]
+        B_DOC["Document State B"]
+        B_OP["Operation: delete(pos=2, len=1)"]
     end
 
     A_DOC --> A_OP --> SERVER_DOC
@@ -299,28 +301,28 @@ flowchart LR
 
 ---
 
-<!-- chunk: 四、内容分发与渲染架构 -->## 四、内容分发与渲染架构
+## IV. Content Delivery and Rendering Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Build["构建层"]
-        SSG["静态站点生成<br/>SSG"]
-        SSR["服务端渲染<br/>SSR"]
-        ISR["增量静态再生成<br/>ISR"]
-        EDGE["边缘渲染<br/>Edge Side Rendering"]
+    subgraph Build["Build Layer"]
+        SSG["Static Site Generation<br/>SSG"]
+        SSR["Server-Side Rendering<br/>SSR"]
+        ISR["Incremental Static Regeneration<br/>ISR"]
+        EDGE["Edge Rendering<br/>Edge Side Rendering"]
     end
 
-    subgraph Cache["缓存层"]
-        CDN_CACHE["CDN 缓存<br/>TTL"]
-        EDGE_CACHE["Edge Cache<br/>KV 存储"]
+    subgraph Cache["Cache Layer"]
+        CDN_CACHE["CDN Cache<br/>TTL"]
+        EDGE_CACHE["Edge Cache<br/>KV Store"]
         STALE["Stale-While-Revalidate"]
     end
 
-    subgraph Delivery["分发层"]
+    subgraph Delivery["Delivery Layer"]
         HTTP2["HTTP/2 + Push"]
         QUIC["HTTP/3 QUIC"]
-        BROTLI["Brotli 压缩"]
-        IMG_OPT["图片优化<br/>WebP / AVIF"]
+        BROTLI["Brotli Compression"]
+        IMG_OPT["Image Optimization<br/>WebP / AVIF"]
     end
 
     SSG --> CDN_CACHE --> HTTP2 --> QUIC
@@ -332,8 +334,7 @@ flowchart TB
     style Cache fill:#fff8e1
     style Delivery fill:#e8f5e9
 ```
-
-## Next.js SSG/ISR K8s 部署
+## Next.js SSG/ISR K8s Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -403,34 +404,34 @@ spec:
 
 ---
 
-<!-- chunk: 五、多站点与多语言架构 -->## 五、多站点与多语言架构
+## 5. Multi-Site and Multi-Language Architecture
 
 ```mermaid
 flowchart TB
-    subgraph MultiSite["多站点管理"]
-        subgraph SiteA["站点 A<br/>企业官网"]
-            A_THEME["主题: corporate"]
-            A_LANG["语言: zh/en"]
-            A_CONTENT["内容池 A"]
+    subgraph MultiSite["Multi-Site Management"]
+        subgraph SiteA["Site A<br/>Corporate Website"]
+            A_THEME["Theme: corporate"]
+            A_LANG["Languages: zh/en"]
+            A_CONTENT["Content Pool A"]
         end
 
-        subgraph SiteB["站点 B<br/>博客"]
-            B_THEME["主题: blog"]
-            B_LANG["语言: zh/en/jp"]
-            B_CONTENT["内容池 B"]
+        subgraph SiteB["Site B<br/>Blog"]
+            B_THEME["Theme: blog"]
+            B_LANG["Languages: zh/en/jp"]
+            B_CONTENT["Content Pool B"]
         end
 
-        subgraph SiteC["站点 C<br/>帮助中心"]
-            C_THEME["主题: docs"]
-            C_LANG["语言: zh/en/es"]
-            C_CONTENT["内容池 C"]
+        subgraph SiteC["Site C<br/>Help Center"]
+            C_THEME["Theme: docs"]
+            C_LANG["Languages: zh/en/es"]
+            C_CONTENT["Content Pool C"]
         end
     end
 
-    subgraph Shared["共享资源"]
-        ASSET["媒体库<br/>图片/视频"]
-        TEMPLATE["模板库<br/>组件/布局"]
-        USER["用户体系<br/>SSO"]
+    subgraph Shared["Shared Resources"]
+        ASSET["Media Library<br/>Images/Videos"]
+        TEMPLATE["Template Library<br/>Components/Layouts"]
+        USER["User System<br/>SSO"]
     end
 
     SiteA & SiteB & SiteC --> Shared
@@ -438,11 +439,10 @@ flowchart TB
     style MultiSite fill:#e3f2fd
     style Shared fill:#e8f5e9
 ```
-
-## 多语言内容模型
+## Multilingual Content Model
 
 ```yaml
-# Strapi / Contentful 风格的多语言内容模型
+# Strapi / Contentful style multilingual content model
 apiVersion: cms.example.com/v1
 kind: ContentType
 metadata:
@@ -452,12 +452,12 @@ spec:
     - name: title
       type: string
       required: true
-      localized: true  # 多语言字段
+      localized: true  # multilingual field
 
     - name: slug
       type: uid
       required: true
-      localized: false  # 非多语言
+      localized: false  # non-multilingual
 
     - name: content
       type: richtext
@@ -485,42 +485,42 @@ spec:
 
 ---
 
-<!-- chunk: 六、工作流与审批架构 -->## 六、工作流与审批架构
+## VI. Workflow and Approval Architecture
 
 ```mermaid
 flowchart TB
-    subgraph WorkflowEngine["工作流引擎"]
-        DEFINE["流程定义<br/>BPMN / JSON"]
-        STATE["状态机<br/>草稿/审核/发布/下线"]
-        RULE["规则引擎<br/>条件分支"]
-        NOTIFY["通知中心<br/>邮件/钉钉/企微"]
+    subgraph WorkflowEngine["Workflow Engine"]
+        DEFINE["Process Definition<br/>BPMN / JSON"]
+        STATE["State Machine<br/>Draft/Review/Publish/Unpublish"]
+        RULE["Rules Engine<br/>Conditional Branching"]
+        NOTIFY["Notification Center<br/>Email / DingTalk / WeCom"]
     end
 
-    subgraph States["内容状态"]
-        DRAFT["草稿"]
-        REVIEW["审核中"]
-        APPROVED["已批准"]
-        PUBLISHED["已发布"]
-        SCHEDULED["定时发布"]
-        ARCHIVED["已归档"]
+    subgraph States["Content States"]
+        DRAFT["Draft"]
+        REVIEW["Under Review"]
+        APPROVED["Approved"]
+        PUBLISHED["Published"]
+        SCHEDULED["Scheduled"]
+        ARCHIVED["Archived"]
     end
 
-    DRAFT -->|提交审核| REVIEW
-    REVIEW -->|通过| APPROVED
-    REVIEW -->|驳回| DRAFT
-    APPROVED -->|立即发布| PUBLISHED
-    APPROVED -->|定时发布| SCHEDULED
-    SCHEDULED -->|时间到| PUBLISHED
-    PUBLISHED -->|更新| DRAFT
-    PUBLISHED -->|下线| ARCHIVED
-    ARCHIVED -->|恢复| PUBLISHED
+    DRAFT -->|Submit for Review| REVIEW
+    REVIEW -->|Pass| APPROVED
+    REVIEW -->|Reject| DRAFT
+    APPROVED -->|Publish Immediately| PUBLISHED
+    APPROVED -->|Schedule Publish| SCHEDULED
+    SCHEDULED -->|Time Reached| PUBLISHED
+    PUBLISHED -->|Update| DRAFT
+    PUBLISHED -->|Unpublish| ARCHIVED
+    ARCHIVED -->|Restore| PUBLISHED
 
     style DRAFT fill:#e3f2fd
     style PUBLISHED fill:#c8e6c9
     style ARCHIVED fill:#ffebee
 ```
 
-## K8s CronJob 定时发布
+## K8s CronJob Scheduled Publishing
 
 ```yaml
 apiVersion: batch/v1
@@ -529,7 +529,7 @@ metadata:
   name: cms-scheduled-publish
   namespace: cms
 spec:
-  schedule: "*/5 * * * *"  # 每 5 分钟检查一次
+  schedule: "*/5 * * * *"  # check every 5 minutes
   jobTemplate:
     spec:
       template:
@@ -549,7 +549,7 @@ spec:
                     ${CMS_API_URL}/v1/tasks/publish-scheduled
           restartPolicy: OnFailure
 ---
-# 工作流审批服务
+# Workflow approval service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -581,30 +581,29 @@ spec:
 ```
 
 ---
-
-<!-- chunk: 七、搜索与推荐架构 -->## 七、搜索与推荐架构
+## VII. Search and Recommendation Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Search["搜索系统"]
-        QUERY["查询解析<br/>分词/纠错/联想"]
-        INDEX["索引服务<br/>实时/全量"]
-        RANKING["排序引擎<br/>相关性/热度/个性化"]
-        FACET["聚合筛选<br/>分类/标签/时间"]
+    subgraph Search["Search System"]
+        QUERY["Query Parsing<br/>Tokenization / Spell Correction / Suggestions"]
+        INDEX["Index Service<br/>Real-time / Full"]
+        RANKING["Ranking Engine<br/>Relevance / Popularity / Personalization"]
+        FACET["Aggregation & Filtering<br/>Category / Tag / Time"]
     end
 
-    subgraph Recommend["推荐系统"]
-        RECALL["召回层<br/>协同/内容/热门"]
-        RANK["排序层<br/>LR / GBDT / DNN"]
-        FILTER["过滤层<br/>去重/已读/敏感"]
-        REASON["推荐理由<br/>标签/解释"]
+    subgraph Recommend["Recommendation System"]
+        RECALL["Recall Layer<br/>Collaborative / Content / Trending"]
+        RANK["Ranking Layer<br/>LR / GBDT / DNN"]
+        FILTER["Filtering Layer<br/>Deduplication / Read / Sensitive"]
+        REASON["Recommendation Rationale<br/>Tags / Explanation"]
     end
 
-    subgraph DataPipeline["数据流水线"]
-        CLICK["点击流"]
-        IMPRESSION["曝光流"]
-        CONVERT["转化流"]
-        FEATURE["特征工程<br/>实时/离线"]
+    subgraph DataPipeline["Data Pipeline"]
+        CLICK["Click Stream"]
+        IMPRESSION["Impression Stream"]
+        CONVERT["Conversion Stream"]
+        FEATURE["Feature Engineering<br/>Real-time / Offline"]
     end
 
     DataPipeline --> FEATURE --> Search & Recommend
@@ -618,26 +617,26 @@ flowchart TB
 
 ---
 
-<!-- chunk: 八、K8s 部署架构 -->## 八、K8s 部署架构
+## VIII. K8s Deployment Architecture
 
-## Namespace 组织
+## Namespace Organization
 
 ```mermaid
 flowchart TB
-    subgraph Infra["基础设施"]
+    subgraph Infra["Infrastructure"]
         NS_DB["cms-database"]
         NS_CACHE["cms-cache"]
         NS_MQ["cms-messaging"]
     end
 
-    subgraph Platform["平台服务"]
+    subgraph Platform["Platform Services"]
         NS_API["cms-api"]
         NS_ADMIN["cms-admin"]
         NS_WORKFLOW["cms-workflow"]
         NS_SEARCH["cms-search"]
     end
 
-    subgraph Frontend["前端层"]
+    subgraph Frontend["Frontend Layer"]
         NS_WEB["cms-web"]
         NS_ASSET["cms-assets"]
         NS_CDN["cms-cdn-sync"]
@@ -655,7 +654,7 @@ flowchart TB
     style Frontend fill:#e8f5e9
 ```
 
-## 高可用架构
+## High Availability Architecture
 
 ```yaml
 apiVersion: apps/v1
@@ -745,29 +744,28 @@ spec:
 ```
 
 ---
+## Reference Links
 
-<!-- chunk: 参考链接 -->## 参考链接
-
-- [Strapi 架构文档](https://docs.strapi.io/dev-docs/deployment)
-- [Contentful 架构](https://www.contentful.com/developers/docs/)
-- [Next.js ISR 文档](https://nextjs.org/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
+- [Strapi Architecture Documentation](https://docs.strapi.io/dev-docs/deployment)
+- [Contentful Architecture](https://www.contentful.com/developers/docs/)
+- [Next.js ISR Documentation](https://nextjs.org/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian Related Documents
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/11-smart-retail-architecture.md|智慧零售与新零售Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/11-smart-retail-architecture.md|Smart Retail and New Retail Kubernetes Production Architecture Design]]
 
 ## See Also
 
@@ -775,6 +773,3 @@ spec:
 - 02-mini-program-architecture
 - 04-im-rtc-architecture
 - 05-online-education-architecture
-
-
-<!-- risk-assessed -->

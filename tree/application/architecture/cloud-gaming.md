@@ -1,6 +1,10 @@
----title: 云游戏架构设计 — 阿里云视角
-description: 'title: 云游戏架构设计'
-summary: 'title: 云游戏架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/cloud-gaming.md
+---
+---title: Cloud Gaming Architecture Design — Alibaba Cloud Perspective
+description: 'title: Cloud Gaming Architecture Design'
+summary: 'title: Cloud Gaming Architecture Design'
 category: general
 tags:
 - architecture
@@ -19,15 +23,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 云游戏架构设计 — 阿里云视角 是什么
-- 如何 云游戏架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Cloud Gaming Architecture Design — Alibaba Cloud Perspective
+- How to Cloud Gaming Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 云游戏架构设计
-- 阿里云视角
+- Cloud Gaming Architecture Design
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -43,15 +47,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains operational commands that can be executed directly. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have verified in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (modifies cluster state, but generally reversible), 🟢 Low Risk/Read-Only (information gathering, no side effects).
 
 
 
 
-title: 云游戏架构设计
-description: '# 云游戏架构设计 — 阿里云视角'
+title: Cloud Gaming Architecture Design
+description: '# Cloud Gaming Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -68,24 +72,24 @@ last_updated: 2026-05-18
 difficulty: advanced
 reading_level: advanced
 audience:
-- 游戏架构师
-- 云游戏技术负责人
-- GPU计算工程师
+- Game Architects
+- Cloud Gaming Technical Leads
+- GPU Computing Engineers
 estimated_read_time: 5min
 intent_queries:
-- 云游戏 [[Kubernetes|Kubernetes]] GPU渲染集群
-- WebRTC云游戏 低延迟串流 K8s
-- NVIDIA MIG GPU虚拟化 云游戏
-- 游戏存档同步 OSS 加密 K8s
-- 云游戏边缘节点 ENS 部署
+- Cloud gaming [[Kubernetes|Kubernetes]] GPU rendering cluster
+- WebRTC cloud gaming low-latency streaming K8s
+- NVIDIA MIG GPU virtualization cloud gaming
+- Game save sync OSS encryption K8s
+- Cloud gaming edge node ENS deployment
 trigger_keywords:
-- 云游戏
-- 串流
+- Cloud gaming
+- Streaming
 - GPU
 - WebRTC
 - NVIDIA MIG
-- 云渲染
-- 阿里云
+- Cloud rendering
+- Alibaba Cloud
 - ACK
 - ENS
 - DRM
@@ -104,123 +108,122 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
+# Cloud Gaming Architecture Design — Alibaba Cloud Perspective
 
-# 云游戏架构设计 — 阿里云视角
-
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#云游戏` `#串流` `#GPU` `#阿里云`
-
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [行业概述](#1-行业概述)
-2. [业务场景](#2-业务场景)
-3. [架构设计](#3-架构设计)
-4. [核心技术栈](#4-核心技术栈)
-5. [K8s 部署方案](#5-k8s-部署方案)
-6. [数据架构](#6-数据架构)
-7. [AI/ML 组件](#7-aiml-组件)
-8. [安全合规](#8-安全合规)
-9. [最佳实践](#9-最佳实践)
-10. [反模式](#10-反模式)
-11. [参考资源](#11-参考资源)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solutions Architect | **Tags**: `#CloudGaming` `#Streaming` `#GPU` `#AlibabaCloud`
 
 ---
 
-<!-- chunk: 1. 行业概述 -->## 1. 行业概述
+## Table of Contents
 
-## 1.1 行业背景
+1. [Industry Overview](#1-industry-overview)
+2. [Business Scenarios](#2-business-scenarios)
+3. [Architecture Design](#3-architecture-design)
+4. [Core Technology Stack](#4-core-technology-stack)
+5. [K8s Deployment Plan](#5-k8s-deployment-solution)
+6. [Data Architecture](#6-data-architecture)
+7. [AI/ML Components](#7-aiml-components)
+8. [Security & Compliance](#8-security-and-compliance)
+9. [Best Practices](#9-best-practices)
+10. [Anti-Patterns](#10-anti-patterns)
+11. [Reference Resources](#11-reference-resources)
 
-云游戏（Cloud Gaming）将游戏的渲染和计算过程从终端设备转移到云端服务器，玩家通过视频串流技术远程操控游戏。这一模式打破了终端硬件性能的限制，使得手机、平板、智能电视等轻量级设备也能运行 3A 级大作。全球云游戏市场规模在 2025 年已超过 60 亿美元，微软 xCloud、NVIDIA GeForce Now、Sony PlayStation Now 等平台已积累了数千万活跃用户。
+---
 
-中国云游戏市场呈现出独特的特征：移动端为主（占比 > 70%）、社交属性强（弹幕/观战/联机）、内容版权严格。腾讯 START 云游戏、网易云游戏、咪咕快游等平台正在快速扩张。5G 网络的普及为云游戏提供了低延迟、高带宽的传输基础，而 GPU 虚拟化技术（vGPU、MIG）的成熟使得单台服务器的并发路数持续提升。
+## 1. Industry Overview
 
-## 1.2 行业挑战
+## 1.1 Industry Background
 
-| 挑战 | 说明 | 架构影响 |
+Cloud Gaming shifts the rendering and computation of games from end-user devices to cloud servers, allowing players to control games remotely via video streaming technology. This model breaks the hardware performance constraints of terminal devices, enabling lightweight devices such as smartphones, tablets, and smart TVs to run AAA-tier titles. The global cloud gaming market exceeded $6 billion in 2025, with platforms such as Microsoft xCloud, NVIDIA GeForce Now, and Sony PlayStation Now accumulating tens of millions of active users.
+
+The Chinese cloud gaming market exhibits unique characteristics: mobile-first (accounting for > 70%), strong social features (bullet comments/spectating/co-op), and strict content copyright enforcement. Platforms such as Tencent START Cloud Gaming, NetEase Cloud Gaming, and Migu Quick Play are expanding rapidly. The proliferation of 5G networks provides low-latency, high-bandwidth transmission infrastructure for cloud gaming, while the maturation of GPU virtualization technologies (vGPU, MIG) continues to increase the number of concurrent sessions per server.
+
+## 1.2 Industry Challenges
+
+| Challenge | Description | Architectural Impact |
 |:---|:---|:---|
-| 低延迟串流 | 端到端延迟 < 50ms 才可玩 | 边缘节点就近接入 + 网络优化 |
-| GPU 成本高 | 每路游戏需要一个 GPU 实例 | GPU 共享（MIG）+ 分时复用 |
-| 编码带宽 | 1080p60 需要 15-20Mbps 带宽 | 动态码率 ABR + H.265/AV1 压缩 |
-| 游戏兼容性 | 数千款游戏适配不同系统环境 | 容器化/VM 化游戏运行环境 |
-| 存档同步 | 跨设备无缝续玩需求 | 云存档服务 + 状态同步 |
-| 高并发闪入 | 新游戏上线瞬时涌入大量玩家 | 预热 + 弹性伸缩 + 排队系统 |
-| 版权保护 | 游戏内容防盗版防录屏 | DRM + 水印 + 安全执行环境 |
-| 反作弊 | 云端渲染需防外挂 | 服务端渲染天然优势 + 行为检测 |
+| Low-latency streaming | End-to-end latency < 50ms required for playability | Edge node proximity access + network optimization |
+| High GPU cost | Each game session requires a dedicated GPU instance | GPU sharing (MIG) + time-division multiplexing |
+| Encoding bandwidth | 1080p60 requires 15–20 Mbps bandwidth | Dynamic bitrate ABR + H.265/AV1 compression |
+| Game compatibility | Thousands of games adapted to different system environments | Containerized/VM-based game runtime environments |
+| Save-file synchronization | Seamless cross-device resume requirement | Cloud save service + state synchronization |
+| High concurrent spike | Massive player influx when new games launch | Warm-up + elastic scaling + queuing system |
+| Copyright protection | Anti-piracy and anti-screen-recording for game content | DRM + watermarking + secure execution environment |
+| Anti-cheat | Server-side rendering must prevent cheating | Inherent server-side rendering advantage + behavior detection |
 
-## 1.3 市场格局
+## 1.3 Market Landscape
 
-全球云游戏市场由科技巨头主导：微软凭借 Xbox 生态和 Azure 云基础设施布局 xCloud；NVIDIA 以 GeForce Now 面向硬核玩家；Google Stadia 虽已关闭但留下了技术遗产。中国市场上，腾讯 START、网易云游戏依托自有游戏内容生态，咪咕快游依托运营商网络优势，各平台在内容、技术、渠道上展开差异化竞争。
-
----
-
-<!-- chunk: 2. 业务场景 -->## 2. 业务场景
-
-## 2.1 游戏串流
-
-云端渲染 + 视频推流是云游戏的核心技术。游戏在云端 GPU 服务器上运行，渲染画面经过硬件编码器（NVENC）压缩为 H.264/H.265/AV1 视频流，通过 WebRTC/RTSP 协议传输到玩家终端。玩家的输入指令（手柄/键鼠/触屏）通过可靠传输通道回传到云端，游戏进程处理后更新画面。端到端延迟由采集→编码→传输→解码→显示五个环节组成。
-
-## 2.2 游戏商店与分发
-
-游戏版本管理和分发平台。核心功能包括：游戏库管理（元数据/截图/视频/评分）、版本管理（多版本并存/灰度更新）、资源预加载（游戏资产预分发到边缘节点）、数字版权管理（DRM 许可证分发）、游戏推荐（基于玩家画像的个性化推荐）。游戏资产（贴图/模型/音频）可达数十 GB，需要高效的 CDN 分发和边缘缓存策略。
-
-## 2.3 社交互动
-
-语音/文字/观战是云游戏的社交增强功能。场景包括：实时语音聊天（游戏内 VoIP）、弹幕互动（观众发弹幕与主播互动）、观战模式（观看好友游戏画面，延迟 < 3 秒）、联机匹配（跨平台多人匹配）。社交功能需要独立的信令服务器和媒体中继服务。
-
-## 2.4 存档云同步
-
-跨平台无缝续玩需要云存档服务。核心挑战：不同平台（PC/手机/主机）的游戏存档格式可能不同，需要标准化存档格式或平台适配层；存档同步需要保证一致性，避免冲突覆盖；存档数据涉及玩家隐私，需要加密存储。
-
-## 2.5 多输入设备适配
-
-手柄/键鼠/触屏的统一输入映射。不同输入设备的操作精度和方式差异大（手柄摇杆 vs 鼠标指针），需要智能映射算法。移动端触屏虚拟按键的布局和灵敏度需要可配置。
+The global cloud gaming market is dominated by tech giants: Microsoft leverages the Xbox ecosystem and Azure cloud infrastructure for xCloud; NVIDIA targets hardcore gamers with GeForce Now; Google Stadia, though shut down, left behind a technical legacy. In the Chinese market, Tencent START and NetEase Cloud Gaming rely on their proprietary game content ecosystems, while Migu Quick Play leverages carrier network advantages. Each platform differentiates itself through content, technology, and distribution channels.
 
 ---
 
-<!-- chunk: 3. 架构设计 -->## 3. 架构设计
+## 2. Business Scenarios
 
-## 3.1 云游戏全景架构
+## 2.1 Game Streaming
+
+Cloud-side rendering + video push streaming is the core technology of cloud gaming. Games run on cloud GPU servers; rendered frames are compressed into H.264/H.265/AV1 video streams via hardware encoders (NVENC) and transmitted to player terminals via WebRTC/RTSP protocols. Player input commands (gamepad/keyboard-mouse/touchscreen) are sent back to the cloud over a reliable transport channel, where the game process handles them and updates the frame. End-to-end latency consists of five stages: capture → encode → transmit → decode → display.
+
+## 2.2 Game Store & Distribution
+
+A game version management and distribution platform. Core features include: game library management (metadata/screenshots/videos/ratings), version management (multiple concurrent versions/gray-scale updates), asset pre-loading (pre-distributing game assets to edge nodes), digital rights management (DRM license distribution), and game recommendations (personalized recommendations based on player profiles). Game assets (textures/models/audio) can reach tens of gigabytes, requiring efficient CDN distribution and edge caching strategies.
+
+## 2.3 Social Interaction
+
+Voice/text/spectating are social enhancement features of cloud gaming. Scenarios include: real-time voice chat (in-game VoIP), bullet comment interaction (viewers sending bullet comments to interact with streamers), spectator mode (watching a friend's gameplay, latency < 3 seconds), and online matchmaking (cross-platform multiplayer matching). Social features require dedicated signaling servers and media relay services.
+
+## 2.4 Cloud Save Synchronization
+
+Seamless cross-platform resume requires a cloud save service. Core challenges: game save formats may differ across platforms (PC/mobile/console), requiring a standardized save format or a platform adaptation layer; save synchronization must ensure consistency to avoid conflict overwriting; save data involves player privacy and must be stored encrypted.
+
+## 2.5 Multi-Input Device Adaptation
+
+A unified input mapping layer for gamepads/keyboard-mouse/touchscreens. Different input devices vary greatly in precision and interaction style (gamepad analog stick vs. mouse pointer), requiring intelligent mapping algorithms. The layout and sensitivity of virtual on-screen buttons for mobile touchscreens must be configurable.
+
+---
+
+## 3. Architecture Design
+
+## 3.1 Cloud Gaming Panoramic Architecture
 
 ```mermaid
 graph TB
-    subgraph 用户端["用户端"]
-        D1[手机 iOS/Android]
-        D2[平板 iPad/Android]
-        D3[PC 浏览器 Chrome/Edge]
-        D4[TV/盒子 智能电视]
-        D5[手柄 蓝牙/USB]
+    subgraph ClientSide["Client Side"]
+        D1[Mobile iOS/Android]
+        D2[Tablet iPad/Android]
+        D3[PC Browser Chrome/Edge]
+        D4[TV/Set-Top Box Smart TV]
+        D5[Gamepad Bluetooth/USB]
     end
 
-    subgraph 接入层["接入与调度"]
-        G1[全球调度网关 就近接入]
-        G2[边缘节点 ENS]
-        G3[负载均衡 GSLB]
-        G4[排队系统 峰值缓冲]
+    subgraph AccessLayer["Access & Scheduling"]
+        G1[Global Scheduling Gateway Proximity Access]
+        G2[Edge Node ENS]
+        G3[Load Balancer GSLB]
+        G4[Queuing System Peak Buffering]
     end
 
-    subgraph 渲染层["GPU 渲染集群"]
-        R1[GPU 渲染实例 A10/A100]
-        R2[游戏容器/VM 运行环境]
-        R3[硬件编码 NVENC/VA-API]
-        R4[串流服务 WebRTC/SRT]
+    subgraph RenderLayer["GPU Rendering Cluster"]
+        R1[GPU Rendering Instance A10/A100]
+        R2[Game Container/VM Runtime Environment]
+        R3[Hardware Encoding NVENC/VA-API]
+        R4[Streaming Service WebRTC/SRT]
     end
 
-    subgraph 平台层["业务服务 ACK"]
-        P1[游戏商店与分发]
-        P2[用户中心与认证]
-        P3[存档云同步服务]
-        P4[社交互动服务]
-        P5[计费与会员系统]
-        P6[运营分析平台]
+    subgraph PlatformLayer["Business Services ACK"]
+        P1[Game Store & Distribution]
+        P2[User Center & Authentication]
+        P3[Cloud Save Sync Service]
+        P4[Social Interaction Service]
+        P5[Billing & Membership System]
+        P6[Operations Analytics Platform]
     end
 
-    subgraph 数据层["数据层"]
-        DL1[游戏资产存储 OSS+CDN]
-        DL2[用户数据 PolarDB]
-        DL3[存档数据 OSS 加密]
-        DL4[分析数据 MaxCompute]
+    subgraph DataLayer["Data Layer"]
+        DL1[Game Asset Storage OSS+CDN]
+        DL2[User Data PolarDB]
+        DL3[Save Data OSS Encrypted]
+        DL4[Analytics Data MaxCompute]
     end
 
     D1 & D2 & D3 & D4 & D5 --> G1 & G2 & G3
@@ -228,62 +231,61 @@ graph TB
     R1 & R2 & R3 & R4 --> P1 & P2 & P3 & P4 & P5
     P1 & P2 & P3 & P4 & P5 --> DL1 & DL2 & DL3 & DL4
 ```
-
-## 3.2 游戏串流时序
+## 3.2 Game Streaming Sequence
 
 ```mermaid
 sequenceDiagram
-    participant USER as 玩家
-    participant CLIENT as 客户端
-    participant GATE as 调度网关
-    participant EDGE as 边缘节点
-    participant GPU as GPU 渲染实例
-    participant GAME as 游戏进程
-    participant SAVE as 存档服务
+    participant USER as Player
+    participant CLIENT as Client
+    participant GATE as Scheduling Gateway
+    participant EDGE as Edge Node
+    participant GPU as GPU Rendering Instance
+    participant GAME as Game Process
+    participant SAVE as Save Service
 
-    USER->>CLIENT: 打开游戏
-    CLIENT->>GATE: 请求游戏会话 (game_id, quality)
-    GATE->>GATE: 选择最优边缘节点 (延迟/负载)
-    GATE-->>CLIENT: 返回边缘地址 + 会话 Token
-    CLIENT->>EDGE: 建立 WebRTC 连接
-    EDGE->>GPU: 分配 GPU 实例 (MIG 切片)
-    GPU->>GAME: 启动游戏容器 (加载资产)
-    GAME->>SAVE: 加载云存档
-    SAVE-->>GAME: 返回存档数据
-    GAME->>GPU: 渲染画面
-    GPU->>GPU: H.265/AV1 硬件编码
-    GPU->>EDGE: 视频流传输
-    EDGE->>CLIENT: 低延迟传输 (< 20ms)
-    CLIENT->>USER: 显示画面
-    USER->>CLIENT: 输入操作 (手柄/触屏)
-    CLIENT->>EDGE: 输入指令 (可靠通道)
-    EDGE->>GAME: 转发操作
-    GAME->>GPU: 更新渲染画面
-    GAME->>SAVE: 自动保存存档
+    USER->>CLIENT: Open game
+    CLIENT->>GATE: Request game session (game_id, quality)
+    GATE->>GATE: Select optimal edge node (latency/load)
+    GATE-->>CLIENT: Return edge address + session Token
+    CLIENT->>EDGE: Establish WebRTC connection
+    EDGE->>GPU: Allocate GPU instance (MIG slice)
+    GPU->>GAME: Start game container (load assets)
+    GAME->>SAVE: Load cloud save
+    SAVE-->>GAME: Return save data
+    GAME->>GPU: Render frame
+    GPU->>GPU: H.265/AV1 hardware encoding
+    GPU->>EDGE: Video stream transmission
+    EDGE->>CLIENT: Low-latency delivery (< 20ms)
+    CLIENT->>USER: Display frame
+    USER->>CLIENT: Input action (gamepad/touchscreen)
+    CLIENT->>EDGE: Input command (reliable channel)
+    EDGE->>GAME: Forward action
+    GAME->>GPU: Update rendered frame
+    GAME->>SAVE: Auto-save progress
 ```
 
 ---
 
-<!-- chunk: 4. 核心技术栈 -->## 4. 核心技术栈
+## 4. Core Technology Stack
 
-| 类别 | 开源工具/技术 | 阿里云方案 | 说明 |
+| Category | Open-Source Tools/Technologies | Alibaba Cloud Solution | Description |
 |:---|:---|:---|:---|
-| 串流协议 | WebRTC, SRT, WHIP/WHEP | 阿里云 RTC | 低延迟音视频传输 |
-| 视频编码 | H.264, H.265, AV1 | GPU 硬件编码 | NVENC/VA-API 硬件加速 |
-| GPU 虚拟化 | NVIDIA MIG, vGPU, GPUoF | GN7/GN10 GPU 实例 | GPU 资源切分与共享 |
-| 容器运行时 | Docker, containerd, Kata | ACK Pro 容器平台 | 游戏环境隔离 |
-| 游戏环境 | Wine, Proton, Android Emu | 自研游戏适配层 | 跨平台游戏运行 |
-| 边缘计算 | KubeEdge, OpenYurt | ENS 边缘节点服务 | 就近渲染部署 |
-| CDN 分发 | Nginx, Varnish | 阿里云 CDN + DCDN | 游戏资产加速 |
-| 实时通信 | Janus, Mediasoup | 阿里云 RTC | SFU/MCU 媒体路由 |
-| 数据库 | MySQL, Redis | PolarDB + Redis 企业版 | 用户/会话数据 |
-| 消息队列 | Kafka, Pulsar | RocketMQ | 异步事件处理 |
+| Streaming Protocol | WebRTC, SRT, WHIP/WHEP | Alibaba Cloud RTC | Low-latency audio/video transmission |
+| Video Encoding | H.264, H.265, AV1 | GPU hardware encoding | NVENC/VA-API hardware acceleration |
+| GPU Virtualization | NVIDIA MIG, vGPU, GPUoF | GN7/GN10 GPU instances | GPU resource partitioning and sharing |
+| Container Runtime | Docker, containerd, Kata | ACK Pro container platform | Game environment isolation |
+| Game Environment | Wine, Proton, Android Emu | Proprietary game compatibility layer | Cross-platform game execution |
+| Edge Computing | KubeEdge, OpenYurt | ENS Edge Node Service | Proximity rendering deployment |
+| CDN Distribution | Nginx, Varnish | Alibaba Cloud CDN + DCDN | Game asset acceleration |
+| Real-Time Communication | Janus, Mediasoup | Alibaba Cloud RTC | SFU/MCU media routing |
+| Database | MySQL, Redis | PolarDB + Redis Enterprise Edition | User/session data |
+| Message Queue | Kafka, Pulsar | RocketMQ | Asynchronous event processing |
 
 ---
 
-<!-- chunk: 5. K8s 部署方案 -->## 5. K8s 部署方案
+## 5. K8s Deployment Solution
 
-## 5.1 游戏渲染 Pod
+## 5.1 Game Rendering Pod
 
 ```yaml
 apiVersion: v1
@@ -357,8 +359,7 @@ spec:
         medium: Memory
         sizeLimit: 2Gi
 ```
-
-## 5.2 自动伸缩
+## 5.2 Auto Scaling
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -402,7 +403,7 @@ spec:
           periodSeconds: 120
 ```
 
-## 5.3 存档同步服务
+## 5.3 Save Sync Service
 
 ```yaml
 apiVersion: apps/v1
@@ -457,127 +458,125 @@ spec:
 
 ---
 
-<!-- chunk: 6. 数据架构 -->## 6. 数据架构
+## 6. Data Architecture
+## 6.1 Data Tiering
 
-## 6.1 数据分层
-
-| 数据类型 | 存储方案 | 访问模式 | 数据量级 |
+| Data Type | Storage Solution | Access Pattern | Data Volume |
 |:---|:---|:---|:---|
-| 游戏资产 | OSS + CDN | 读密集，预加载 | TB-PB 级 |
-| 用户账号 | PolarDB MySQL | 读写均衡 | GB 级 |
-| 游戏存档 | OSS 加密 | 写密集，低频读 | TB 级 |
-| 会话状态 | Redis | 超高频读写 | 内存级 |
-| 运营日志 | SLS | 写密集，批量读 | TB/天 |
-| 分析数据 | MaxCompute | 批量读写 | PB 级 |
-| 计费数据 | PolarDB MySQL | 事务性强一致 | GB 级 |
+| Game Assets | OSS + CDN | Read-intensive, preloading | TB–PB scale |
+| User Accounts | PolarDB MySQL | Balanced read/write | GB scale |
+| Game Save Files | OSS Encrypted | Write-intensive, infrequent reads | TB scale |
+| Session State | Redis | Ultra-high-frequency read/write | Memory scale |
+| Operational Logs | SLS | Write-intensive, batch reads | TB/day |
+| Analytics Data | MaxCompute | Batch read/write | PB scale |
+| Billing Data | PolarDB MySQL | Transactional strong consistency | GB scale |
 
 ---
 
-<!-- chunk: 7. AI/ML 组件 -->## 7. AI/ML 组件
+## 7. AI/ML Components
 
-| AI 场景 | 模型/算法 | 输入 | 输出 | 用途 |
+| AI Scenario | Model/Algorithm | Input | Output | Purpose |
 |:---|:---|:---|:---|:---|
-| 码率自适应 | 强化学习 ABR | 网络状态/带宽 | 最优码率 | 保证画质同时降低延迟 |
-| 画质增强 | 超分辨率 ESRGAN | 低分辨率帧 | 高分辨率帧 | 降低传输带宽 |
-| 输入预测 | LSTM/Transformer | 操作序列 | 预测下一输入 | 补偿网络延迟 |
-| 异常检测 | Autoencoder | 游戏进程指标 | 异常告警 | 游戏崩溃预警 |
-| 游戏推荐 | 深度推荐模型 | 用户行为 | 推荐列表 | 提升游戏发现率 |
-| 反作弊 | 行为分析模型 | 操作日志 | 作弊概率 | 检测异常操作模式 |
+| Adaptive Bitrate | Reinforcement Learning ABR | Network state/bandwidth | Optimal bitrate | Ensure quality while reducing latency |
+| Image Enhancement | Super-resolution ESRGAN | Low-resolution frames | High-resolution frames | Reduce transmission bandwidth |
+| Input Prediction | LSTM/Transformer | Operation sequence | Predicted next input | Compensate for network latency |
+| Anomaly Detection | Autoencoder | Game process metrics | Anomaly alerts | Game crash early warning |
+| Game Recommendation | Deep Recommendation Model | User behavior | Recommendation list | Improve game discoverability |
+| Anti-Cheat | Behavior Analysis Model | Operation logs | Cheat probability | Detect abnormal operation patterns |
 
 ---
 
-<!-- chunk: 8. 安全合规 -->## 8. 安全合规
+## 8. Security and Compliance
 
-| 安全层级 | 措施 | 技术实现 |
+| Security Level | Measures | Technical Implementation |
 |:---|:---|:---|
-| 游戏版权 | DRM 保护，防止录屏 | Widevine/FairPlay + 水印 |
-| 外挂防护 | 服务端渲染天然防作弊 | 无客户端代码泄露 |
-| 未成年人 | 实名认证 + 防沉迷 | 接入公安部实名认证 |
-| 数据隐私 | 用户数据加密存储 | KMS + 字段级加密 |
-| 通信安全 | 串流加密传输 | DTLS/SRTP |
-| 运营合规 | 游戏版号/内容审查 | 合规审查工作流 |
+| Game Copyright | DRM protection, screen recording prevention | Widevine/FairPlay + Watermarking |
+| Cheat Protection | Server-side rendering inherently prevents cheating | No client-side code exposure |
+| Minors | Real-name authentication + anti-addiction | Integration with Ministry of Public Security real-name system |
+| Data Privacy | Encrypted user data storage | KMS + field-level encryption |
+| Communication Security | Encrypted stream transmission | DTLS/SRTP |
+| Operational Compliance | Game license/content review | Compliance review workflow |
 
 ---
 
-<!-- chunk: 9. 最佳实践 -->## 9. 最佳实践
+## 9. Best Practices
 
-- **GPU 资源优化**: 使用 NVIDIA MIG 将 A100 切分为多个实例，单卡支持 2-4 路游戏并发
-- **边缘就近接入**: 部署 ENS 边缘节点到全国主要城市，将网络延迟控制在 20ms 以内
-- **游戏容器预热**: 热门游戏预启动容器实例，玩家进入时秒级分配，冷启动使用排队系统
-- **动态码率 ABR**: 根据网络带宽实时调整视频码率和分辨率，保证流畅度优先
-- **存档自动保存**: 每 30 秒自动保存游戏进度到 OSS，避免断线丢失进度
-- **负载预测**: 根据历史数据和游戏上线计划预测 GPU 需求，提前预热资源
-
----
-
-<!-- chunk: 10. 反模式 -->## 10. 反模式
-
-## 10.1 所有游戏同一规格
-
-所有游戏都分配完整的 GPU 实例，休闲游戏浪费 GPU 资源。
-
-**解决方案**: 根据游戏的 GPU 需求分级（重度/中度/轻度），重度游戏分配完整 GPU，中度游戏使用 MIG 切分，轻度游戏使用 CPU 渲染。
-
-## 10.2 忽视冷启动延迟
-
-玩家点击游戏后需要等待数分钟加载，体验极差。
-
-**解决方案**: 热门游戏预启动容器池（warm pool），新游戏使用快照技术加速启动，启动期间展示加载动画和游戏介绍。
-
-## 10.3 单一数据中心部署
-
-所有 GPU 渲染集中在单一区域，远离玩家的用户延迟过高。
-
-**解决方案**: 使用 ENS 边缘节点服务在全国多城市部署渲染节点，GSLB 调度就近接入，端到端延迟控制在 50ms 以内。
+- **GPU Resource Optimization**: Use NVIDIA MIG to partition A100 into multiple instances, with a single card supporting 2–4 concurrent game sessions
+- **Edge Proximity Access**: Deploy ENS edge nodes to major cities nationwide, keeping network latency within 20ms
+- **Game Container Warm-up**: Pre-start container instances for popular games, enabling second-level allocation when players enter; use a queuing system for cold starts
+- **Dynamic Bitrate ABR**: Dynamically adjust video bitrate and resolution based on network bandwidth in real time, prioritizing smoothness
+- **Auto Save**: Automatically save game progress to OSS every 30 seconds to prevent progress loss on disconnection
+- **Load Prediction**: Predict GPU demand based on historical data and game launch plans, warming up resources in advance
 
 ---
 
-<!-- chunk: 11. 参考资源 -->## 11. 参考资源
+## 10. Anti-Patterns
 
-## 11.1 阿里云组件映射
+## 10.1 Same Spec for All Games
 
-| 功能域 | 阿里云云原生方案 | 说明 |
+All games are allocated full GPU instances, wasting GPU resources for casual games.
+
+**Solution**: Tier GPU allocation based on each game's GPU requirements (heavy/medium/light). Allocate full GPUs for heavy games, use MIG partitioning for medium games, and use CPU rendering for light games.
+
+## 10.2 Ignoring Cold Start Latency
+
+Players have to wait several minutes after clicking a game before it loads, resulting in a very poor experience.
+
+**Solution**: Maintain pre-started container warm pools for popular games, use snapshot technology to accelerate startup for new games, and display loading animations and game introductions during startup.
+
+## 10.3 Single Data Center Deployment
+
+All GPU rendering is concentrated in a single region, causing excessive latency for users far from that region.
+
+**Solution**: Use ENS edge node services to deploy rendering nodes across multiple cities nationwide. Use GSLB scheduling for proximity-based access, keeping end-to-end latency within 50ms.
+
+---
+
+## 11. Reference Resources
+
+## 11.1 Alibaba Cloud Component Mapping
+
+| Functional Domain | Alibaba Cloud Native Solution | Description |
 |:---|:---|:---|
-| 容器平台 | **ACK Pro + GPU 节点池** | GPU 任务调度与管理 |
-| GPU 计算 | **GN7/GN10 实例** | A10/A100 GPU 渲染 |
-| 边缘节点 | **ENS 边缘节点服务** | 全国就近渲染部署 |
-| 实时传输 | **阿里云 RTC** | WebRTC 低延迟串流 |
-| 对象存储 | **OSS + CDN** | 游戏资产存储与分发 |
-| 关系数据库 | **PolarDB MySQL** | 用户/计费/运营数据 |
-| 缓存 | **Redis 企业版** | 会话状态/排行榜 |
-| 可观测性 | **ARMS + SLS** | 全链路监控 |
+| Container Platform | **ACK Pro + GPU Node Pool** | GPU task scheduling and management |
+| GPU Compute | **GN7/GN10 Instances** | A10/A100 GPU rendering |
+| Edge Nodes | **ENS Edge Node Service** | Nationwide proximity rendering deployment |
+| Real-time Transport | **Alibaba Cloud RTC** | WebRTC low-latency streaming |
+| Object Storage | **OSS + CDN** | Game asset storage and distribution |
+| Relational Database | **PolarDB MySQL** | User/billing/operational data |
+| Cache | **Redis Enterprise Edition** | Session state/leaderboards |
+| Observability | **ARMS + SLS** | Full-chain monitoring |
 
-## 11.2 生产检查清单
+## 11.2 Production Checklist
 
-- [ ] GPU 实例负载均衡验证
-- [ ] 边缘节点网络延迟 < 20ms 端到端测试
-- [ ] 游戏容器启动时间 < 10s（预热池）
-- [ ] 云存档同步完整性校验
-- [ ] 防沉迷系统合规验证（未成年人限制）
-- [ ] 游戏版权 DRM 保护测试
-- [ ] 峰值弹性伸缩能力验证（10x 流量）
-- [ ] 网络异常自动降级策略测试
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] GPU instance load balancing verification
+- [ ] Edge node network latency < 20ms end-to-end testing
+- [ ] Game container startup time < 10s (warm pool)
+- [ ] Cloud save sync integrity verification
+- [ ] Anti-addiction system compliance verification (minor restrictions)
+- [ ] Game copyright DRM protection testing
+- [ ] Peak elastic scaling capability verification (10x traffic)
+- [ ] Network anomaly automatic fallback strategy testing
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solution Architect Team | **License**: MIT
+
+---
+## Obsidian Related Documents
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 
@@ -585,6 +584,3 @@ spec:
 - 39-smart-campus
 - 41-beauty-ecommerce
 - 42-secondhand-circular
-
-
-<!-- risk-assessed -->

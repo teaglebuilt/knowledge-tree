@@ -1,6 +1,10 @@
----title: Agent 作为技术赋能新方式：设计思路与落地路径 (domain-14-ai-ml-infra)
-description: 'title: Agent 作为技术赋能新方式：设计思路与落地路径'
-summary: 'title: Agent 作为技术赋能新方式：设计思路与落地路径'
+---
+original_language: Chinese
+source_path: tree/infrastructure/kubernetes/ai/ai-agents/14-agent-kudig-design-strategy.md
+---
+---title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths (domain-14-ai-ml-infra)
+description: 'title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
+summary: 'title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
 category: general
 tags:
 - ai
@@ -19,15 +23,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- Agent 作为技术赋能新方式：设计思路与落地路径 是什么
-- 如何 Agent 作为技术赋能新方式：设计思路与落地路径
-- Kubernetes 14 ai ml infra 最佳实践
+- What is Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
+- How to Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
+- Kubernetes 14 ai ml infra best practices
 trigger_keywords:
 - Agent
-- 作为技术赋能新方式：设计思路与落地路径
+- As a New Way of Technical Enablement: Design Thinking and Implementation Paths
 - ai
 - ml
 - infra
@@ -44,15 +48,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operational commands. Before executing, confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether you have validated in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
 
 
 
 
-title: Agent 作为技术赋能新方式：设计思路与落地路径
-description: '# Agent 作为技术赋能新方式：设计思路与落地路径'
+title: Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
+description: '# Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths'
 category: ai-agent
 tags:
 - ai
@@ -69,16 +73,16 @@ last_updated: 2026-05
 difficulty: advanced
 reading_level: advanced
 audience:
-- AI 工程师
-- 架构师
+- AI Engineers
+- Architects
 - SRE
 estimated_read_time: 5min
 intent_queries:
-- Agent 作为技术赋能新方式：设计思路与落地路径 是什么
-- 如何 Agent 作为技术赋能新方式：设计思路与落地路径
+- What is Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
+- How to Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
 trigger_keywords:
 - Agent
-- 作为技术赋能新方式：设计思路与落地路径
+- As a New Way of Technical Enablement: Design Thinking and Implementation Paths
 - ai
 - agent
 authors:
@@ -91,241 +95,243 @@ k8s_versions:
 - '1.31'
 - '1.32'
 ---
-# Agent 作为技术赋能新方式：设计思路与落地路径
+# Agent as a New Way of Technical Enablement: Design Thinking and Implementation Paths
 
-> **文档类型**: 战略设计专题 | **最后更新**: 2026-03 | **关键词**: Agent, 技术赋能, RAG, K8s 运维, 知识驱动, 自动化, 平台工程
-
----
-
-## 概述
-
-本文探讨 **Agent 作为技术赋能新范式**的设计思路，结合 kudig-database 这一覆盖 39+ 知识域、1400+ 文件、4300 万字的 [[Kubernetes|Kubernetes]] 生产运维全域知识库，分析如何从传统的"文档→人工阅读→手动执行"链路，转变为"知识→自主推理→自动行动"的赋能闭环。
+> **Document Type**: Strategic Design Special Topic | **Last Updated**: 2026-03 | **Keywords**: Agent, Technical Enablement, RAG, K8s Operations, Knowledge-Driven, Automation, Platform Engineering
 
 ---
 
-## 核心命题
+## Overview
 
-传统技术赋能依赖 **文档 → 人工阅读 → 手动执行** 的链路。Agent 将这一模式转变为 **知识 → 自主推理 → 自动行动**，从根本上改变了赋能闭环。
+This article explores the design thinking behind **Agent as a new paradigm for technical enablement**, combined with kudig-database — a [[Kubernetes|Kubernetes]] production operations full-domain knowledge base covering 39+ knowledge domains, 1400+ files, and 43 million characters — analyzing how to shift from the traditional "documentation → manual reading → manual execution" pipeline to a "knowledge → autonomous reasoning → automated action" enablement loop.
+
+---
+
+## Core Proposition
+
+Traditional technical enablement relies on the **Documentation → Manual Reading → Manual Execution** pipeline. Agent transforms this model into **Knowledge → Autonomous Reasoning → Automated Action**, fundamentally changing the enablement loop.
 
 ```
-传统模式:
-  文档编写 → 人工检索 → 阅读理解 → 手动执行 → 人工验证
-  (时间长、易出错、难以标准化、经验依赖强)
+Traditional Model:
+  Documentation writing → Manual retrieval → Reading comprehension → Manual execution → Manual verification
+  (Long cycle, error-prone, difficult to standardize, heavily dependent on experience)
 
-Agent 模式:
-  结构化知识 → Agent 自主检索 → 推理决策 → 自动执行 → 自动验证
-  (即时响应、标准化、可追溯、持续进化)
+Agent Model:
+  Structured knowledge → Agent autonomous retrieval → Reasoning and decision-making → Automated execution → Automated verification
+  (Instant response, standardized, traceable, continuously evolving)
 ```
 
 ---
 
-## 关键方向
+## Key Directions
 
-### 1. 知识驱动型 Agent
+### 1. Knowledge-Driven Agent
 
-kudig-database 已覆盖 39+ 知识域（架构、网络、存储、故障排查、AI 基础设施等）——这是 Agent 的完美**知识底座**：
+kudig-database already covers 39+ knowledge domains (architecture, networking, storage, troubleshooting, AI infrastructure, etc.) — this is the perfect **knowledge foundation** for an Agent:
 
-**核心能力**：
+**Core Capabilities**:
 
-- **基于 RAG 的 K8s 运维 Agent**：将所有领域文档索引至向量库，使 Agent 能基于上下文给出精准回答
-- **结构化故障排查 Agent**：`domain-10-troubleshooting-diagnostics/`（42 个文件）和 `domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/` 提供了决策树——Agent 可以交互式地引导排查
-- **FTA 故障树驱动 Agent**：`domain-10-troubleshooting-diagnostics/topic-fta/` 包含完整的故障树分析方法论和 37 个组件级故障树，天然适合 Agent 按树结构逐步推理
+- **RAG-based K8s Operations Agent**: Index all domain documents into a vector store, enabling the Agent to provide precise answers based on context
+- **Structured Troubleshooting Agent**: `domain-10-troubleshooting-diagnostics/` (42 files) and `domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/` provide decision trees — the Agent can interactively guide diagnostics
+- **FTA Fault Tree-Driven Agent**: `domain-10-troubleshooting-diagnostics/topic-fta/` contains a complete fault tree analysis methodology and 37 component-level fault trees, naturally suited for the Agent to reason step by step along the tree structure
 
-**典型场景**：
-
-```
-# 🟢 低风险：只读/信息收集，通常无副作用
-工程师: "Pod 一直 Pending，怎么办？"
-
-Agent 工作流:
-  1. 检索 domain-10-troubleshooting-diagnostics/05-pod-pending-diagnosis.md
-  2. 检索 domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/05-workloads/ 相关决策树
-  3. 向工程师追问关键信息（集群版本、节点资源、事件日志）
-  4. 逐步推理检查清单
-  5. 给出精确的 kubectl 诊断命令和修复建议
-```
-### 2. 运维自动化 Agent
-
-从"告诉我怎么做"进化到"帮我做"：
-
-**核心能力**：
-
-- **诊断→执行闭环**：Agent 读取集群状态（`kubectl get events`、`describe pod`），交叉参照知识库，执行修复步骤
-- **升级规划 Agent**：利用 `07-upgrade-paths-strategy.md` + `18-upgrade-migration-strategy.md` 生成集群专属升级方案
-- **多集群 Agent**：基于 `domain-12-cloud-providers/` 知识，协调跨集群操作
-- **灾备演练 Agent**：基于 `domain-09-reliability-engineering/` 自动编排灾备演练
-
-**执行模式**：
+**Typical Scenario**:
 
 ```
-Agent 执行层级:
-  Level 1 - 建议模式: 只输出诊断结果和建议命令，人工确认后执行
-  Level 2 - 半自动模式: 自动执行只读操作，写操作需人工审批
-  Level 3 - 全自动模式: 在预定义安全边界内自动执行全部操作
+# 🟢 Low Risk: Read-only / information gathering, generally no side effects
+Engineer: "The Pod keeps Pending, what should I do?"
+
+Agent Workflow:
+  1. Retrieve domain-10-troubleshooting-diagnostics/05-pod-pending-diagnosis.md
+  2. Retrieve relevant decision trees from domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/05-workloads/
+  3. Ask the engineer for key information (cluster version, node resources, event logs)
+  4. Reason through the checklist step by step
+  5. Provide precise kubectl diagnostic commands and remediation suggestions
 ```
+### 2. Operations Automation Agent
 
-### 3. 学习赋能型 Agent
+Evolving from "tell me how to do it" to "do it for me":
 
-**核心能力**：
+**Core Capabilities**:
 
-- **自适应学习路径**：根据工程师技能水平，从知识库内容中生成个性化学习路径
-- **交互式考核 Agent**：将知识点（已有知识点分布分析 xlsx）转化为交互式评估
-- **演示文稿生成器**：`domain-11-production-operations/topic-presentations/`（12 个文件）+ 知识库内容，动态组装培训演讲材料
-- **Runbook 生成 Agent**：基于 `domain-17-system-foundation/topic-dictionary/12-incident-management-runbooks.md` 自动生成标准操作手册
+- **Diagnosis → Execution Loop**: Agent reads cluster state (`kubectl get events`, `describe pod`), cross-references the knowledge base, and executes remediation steps
+- **Upgrade Planning Agent**: Leverages `07-upgrade-paths-strategy.md` + `18-upgrade-migration-strategy.md` to generate cluster-specific upgrade plans
+- **Multi-Cluster Agent**: Coordinates cross-cluster operations based on `domain-12-cloud-providers/` knowledge
+- **Disaster Recovery Drill Agent**: Automatically orchestrates disaster recovery drills based on `domain-09-reliability-engineering/`
 
-**个性化路径示例**：
-
-```
-新入职 K8s 运维工程师 → Agent 评估后推荐:
-  Week 1: domain-01-cluster-fundamentals 架构基础 + domain-17-system-foundation Linux 基础 + topic-cheat-sheet
-  Week 2: domain-02-workloads-applications 工作负载 + domain-03-networking-traffic 网络 + domain-18-manifests-patterns YAML 手册
-  Week 3: domain-10-troubleshooting-diagnostics 故障排查 + topic-fta 故障树分析
-  Week 4: domain-06-observability 可观测性 + domain-11-production-operations 生产运维实践
-
-资深 SRE → Agent 评估后推荐:
-  Week 1: topic-fta 故障树方法论 + topic-febm 取证循证
-  Week 2: domain-14-ai-ml-infra AI 基础设施 + domain-03-networking-traffic eBPF
-  Week 3: domain-07-platform-engineering 平台工程 + domain-05-security-compliance 供应链安全
-```
-
-### 4. 平台工程 Agent
-
-对齐 `domain-07-platform-engineering/`：
-
-**核心能力**：
-
-- **自助服务 Agent**：开发者用自然语言描述需求 → Agent 转译为 YAML 清单（借助 `domain-18-manifests-patterns/`——36 个模板）
-- **策略执行 Agent**：基于 `domain-05-security-compliance/` 和 `domain-05-security-compliance/`，自动审查并建议安全改进
-- **成本优化 Agent**：利用 `26-cost-optimization-overview.md` 和 `27-cost-management-kubecost.md` 主动建议节省方案
-- **合规审计 Agent**：基于 `domain-05-security-compliance/` 自动检查供应链安全合规
-
-**交互示例**：
+**Execution Modes**:
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
-开发者: "我需要部署一个 3 副本的 Node.js 服务，需要 Redis 缓存，
-        对外暴露 HTTPS，限制 CPU 500m / 内存 512Mi"
+Agent Execution Levels:
+  Level 1 - Advisory Mode: Only outputs diagnostic results and suggested commands; human confirms before execution
+  Level 2 - Semi-Automatic Mode: Automatically executes read-only operations; write operations require human approval
+  Level 3 - Fully Automatic Mode: Automatically executes all operations within predefined safety boundaries
+```
+
+### 3. Learning Enablement Agent
+
+**Core Capabilities**:
+
+- **Adaptive Learning Paths**: Generates personalized learning paths from knowledge base content based on an engineer's skill level
+- **Interactive Assessment Agent**: Converts knowledge points (existing knowledge point distribution analysis xlsx) into interactive assessments
+- **Presentation Generator**: `domain-11-production-operations/topic-presentations/` (12 files) + knowledge base content, dynamically assembles training presentation materials
+- **Runbook Generation Agent**: Automatically generates standard operating procedures based on `domain-17-system-foundation/topic-dictionary/12-incident-management-runbooks.md`
+
+**Personalized Path Example**:
+
+```
+Newly onboarded K8s operations engineer → Agent recommends after assessment:
+  Week 1: domain-01-cluster-fundamentals architecture basics + domain-17-system-foundation Linux fundamentals + topic-cheat-sheet
+  Week 2: domain-02-workloads-applications workloads + domain-03-networking-traffic networking + domain-18-manifests-patterns YAML handbook
+  Week 3: domain-10-troubleshooting-diagnostics troubleshooting + topic-fta fault tree analysis
+  Week 4: domain-06-observability observability + domain-11-production-operations production operations practices
+
+Senior SRE → Agent recommends after assessment:
+  Week 1: topic-fta fault tree methodology + topic-febm forensic evidence-based methodology
+  Week 2: domain-14-ai-ml-infra AI infrastructure + domain-03-networking-traffic eBPF
+  Week 3: domain-07-platform-engineering platform engineering + domain-05-security-compliance supply chain security
+```
+
+### 4. Platform Engineering Agent
+
+Aligned with `domain-07-platform-engineering/`:
+
+**Core Capabilities**:
+
+- **Self-Service Agent**: Developers describe requirements in natural language → Agent translates to YAML manifests (leveraging `domain-18-manifests-patterns/` — 36 templates)
+- **Policy Enforcement Agent**: Based on `domain-05-security-compliance/` and `domain-05-security-compliance/`, automatically reviews and suggests security improvements
+- **Cost Optimization Agent**: Leverages `26-cost-optimization-overview.md` and `27-cost-management-kubecost.md` to proactively suggest savings opportunities
+- **Compliance Audit Agent**: Automatically checks supply chain security compliance based on `domain-05-security-compliance/`
+
+**Interaction Example**:
+
+```
+# 🟢 Low Risk: Read-only / information gathering, generally no side effects
+Developer: "I need to deploy a Node.js service with 3 replicas, requiring a Redis cache,
+           exposed externally via HTTPS, with CPU limit 500m / memory limit 512Mi"
 
 Agent:
-  1. 从 domain-18-manifests-patterns 检索 Deployment、Service、Ingress、HPA 模板
-  2. 从 domain-05-security-compliance 检索 Pod Security Standards
-  3. 生成完整 YAML 清单（Deployment + Service + Ingress + HPA + NetworkPolicy）
-  4. 附加安全最佳实践（readOnlyRootFilesystem、runAsNonRoot 等）
-  5. 输出 Helm Chart 或 Kustomize overlay 供选择
+  1. Retrieve Deployment, Service, Ingress, HPA templates from domain-18-manifests-patterns
+  2. Retrieve Pod Security Standards from domain-05-security-compliance
+  3. Generate complete YAML manifests (Deployment + Service + Ingress + HPA + NetworkPolicy)
+  4. Attach security best practices (readOnlyRootFilesystem, runAsNonRoot, etc.)
+  5. Output Helm Chart or Kustomize overlay for selection
 ```
 ---
-
-## 架构蓝图
+## Architecture Blueprint
 
 ```
-# 🟢 低风险：只读/信息收集，通常无副作用
+# 🟢 Low Risk: Read-only / information gathering, generally no side effects
 ┌───────────────────────────────────────────────┐
-│               用户交互层                        │
-│    (Chat / CLI / IDE / Slack / 终端)           │
+│             User Interaction Layer             │
+│    (Chat / CLI / IDE / Slack / Terminal)       │
 ├───────────────────────────────────────────────┤
-│             Agent 编排层                        │
+│             Agent Orchestration Layer          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │ 规划 Agent│  │ 推理 Agent│  │ 工具 Agent│    │
+│  │ Planning │  │Reasoning │  │  Tool    │    │
+│  │  Agent   │  │  Agent   │  │  Agent   │    │
 │  └──────────┘  └──────────┘  └──────────┘    │
 ├───────────────────────────────────────────────┤
-│            知识与记忆层                         │
+│           Knowledge & Memory Layer             │
 │  ┌────────────────┐   ┌──────────────────┐    │
-│  │  kudig-database │   │    集群实时状态    │    │
-│  │  (39+ 知识域)   │   │  (Live Context)  │    │
+│  │  kudig-database │   │  Cluster Live    │    │
+│  │  (39+ domains) │   │  State (Live     │    │
+│  │                │   │  Context)        │    │
 │  └────────────────┘   └──────────────────┘    │
 ├───────────────────────────────────────────────┤
-│               执行层                            │
+│                 Execution Layer                │
 │   kubectl / Helm / ArgoCD / Terraform / API   │
 └───────────────────────────────────────────────┘
 ```
-### 分层详解
 
-**用户交互层**：
-- 支持多渠道接入：命令行 CLI、IDE 插件、Slack/飞书 Bot、Web UI
-- 支持自然语言和结构化指令混合输入
-- 提供上下文感知的自动补全和建议
+### Layer-by-Layer Breakdown
 
-**Agent 编排层**：
-- **规划 Agent**：接收用户意图，分解为可执行的子任务序列
-- **推理 Agent**：基于知识库内容进行多步推理，生成决策方案
-- **工具 Agent**：调用 kubectl、Helm、Terraform 等工具执行具体操作
+**User Interaction Layer**:
+- Supports multi-channel access: command-line CLI, IDE plugins, Slack/Feishu Bot, Web UI
+- Supports mixed input of natural language and structured commands
+- Provides context-aware auto-completion and suggestions
 
-**知识与记忆层**：
-- **静态知识**：kudig-database 全量文档，经向量化索引后支持语义检索
-- **动态上下文**：集群实时状态（Pods、Events、Metrics）、历史操作记录
-- **会话记忆**：保持多轮对话上下文，支持长链路任务追踪
+**Agent Orchestration Layer**:
+- **Planning Agent**: Receives user intent and decomposes it into a sequence of executable subtasks
+- **Reasoning Agent**: Performs multi-step reasoning based on knowledge base content to generate decision plans
+- **Tool Agent**: Invokes tools such as kubectl, Helm, and Terraform to execute specific operations
 
-**执行层**：
-- 封装 K8s API、云厂商 API、CI/CD 工具链
-- 所有操作可审计、可回滚
-- 支持 Dry-run 预检和沙箱模式
+**Knowledge & Memory Layer**:
+- **Static Knowledge**: Full document set from kudig-database, vectorized and indexed for semantic retrieval
+- **Dynamic Context**: Real-time cluster state (Pods, Events, Metrics), historical operation records
+- **Session Memory**: Maintains multi-turn conversation context, supports long-chain task tracking
+
+**Execution Layer**:
+- Encapsulates K8s API, cloud provider APIs, and CI/CD toolchains
+- All operations are auditable and rollback-capable
+- Supports Dry-run pre-checks and sandbox mode
 
 ---
 
-## 基于 kudig-database 的落地路径
+## Implementation Roadmap Based on kudig-database
 
-| 阶段 | 行动 | 可复用资产 | 预估周期 |
+| Phase | Action | Reusable Assets | Estimated Timeline |
 |------|------|-----------|---------|
-| **第一阶段** | 为知识文档添加结构化元数据/标签，适配 Agent 检索 | 现有 1400+ 篇 Markdown 文件 | 2-3 周 |
-| **第二阶段** | 构建故障排查决策树 Agent（MVP） | `domain-12` + `topic-structural-trouble-shooting` + `topic-fta` | 3-4 周 |
-| **第三阶段** | 构建 YAML 清单生成 Agent | `domain-32-yaml-manifests`（36 个模板） | 2-3 周 |
-| **第四阶段** | 构建迁移规划 Agent | `topic-migration`（10 个文件） | 2-3 周 |
-| **第五阶段** | 开发学习/考核 Agent | `assets/知识点分布分析.xlsx` + 全域知识 | 3-4 周 |
-| **第六阶段** | 构建运维自动化 Agent（连接真实集群） | 全部知识 + kubectl/Helm 工具链 | 4-6 周 |
+| **Phase 1** | Add structured metadata/tags to knowledge documents to adapt for Agent retrieval | Existing 1400+ Markdown files | 2–3 weeks |
+| **Phase 2** | Build a troubleshooting decision-tree Agent (MVP) | `domain-12` + `topic-structural-trouble-shooting` + `topic-fta` | 3–4 weeks |
+| **Phase 3** | Build a YAML manifest generation Agent | `domain-32-yaml-manifests` (36 templates) | 2–3 weeks |
+| **Phase 4** | Build a migration planning Agent | `topic-migration` (10 files) | 2–3 weeks |
+| **Phase 5** | Develop a learning/assessment Agent | `assets/知识点分布分析.xlsx` + full-domain knowledge | 3–4 weeks |
+| **Phase 6** | Build an operations automation Agent (connected to real clusters) | All knowledge + kubectl/Helm toolchain | 4–6 weeks |
 
 ---
 
-## 核心洞察
+## Core Insights
 
-**kudig-database 就是护城河。** 大多数团队做 Agent 质量不行，根本原因是缺乏结构化的领域知识。kudig-database 已经拥有：
+**kudig-database is the moat.** The root cause of poor Agent quality in most teams is the lack of structured domain knowledge. kudig-database already possesses:
 
-- **广度**：39 个知识域，全面覆盖 K8s 生态
-- **深度**：故障排查指南包含 42 个详细场景，FTA 故障树覆盖 37 个组件
-- **结构**：专题化组织（FTA 故障树、FEBM 取证循证、速查表、演示文稿、迁移指南）
-- **可操作性**：所有文档附带完整命令、YAML 示例和验证方法
+- **Breadth**: 39 knowledge domains with comprehensive coverage of the K8s ecosystem
+- **Depth**: Troubleshooting guides covering 42 detailed scenarios; FTA fault trees covering 37 components
+- **Structure**: Topically organized (FTA fault trees, FEBM forensic evidence-based methodology, cheat sheets, presentations, migration guides)
+- **Actionability**: All documents include complete commands, YAML examples, and verification methods
 
-从 **知识库 → Agent 驱动平台** 的转型本质上是：
+The transformation from **knowledge base → Agent-driven platform** is essentially:
 
-> **静态知识 × Agent 推理能力 × 工具集成 = 指数级赋能效果**
+> **Static Knowledge × Agent Reasoning Capability × Tool Integration = Exponential Empowerment Effect**
 
 ---
 
-## 关联文档索引
+## Related Document Index
 
-| 类别 | 文档路径 | 与 Agent 的关系 |
+| Category | Document Path | Relationship to Agent |
 |------|---------|---------------|
-| FTA 故障树分析 | `domain-10-troubleshooting-diagnostics/topic-fta/` | Agent 推理的知识骨架 |
-| FEBM 取证循证 | `domain-10-troubleshooting-diagnostics/topic-febm/` | Agent 诊断的方法论基础 |
-| 结构化故障排查 | `domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/` | Agent 决策树的直接输入 |
-| YAML 清单手册 | `domain-18-manifests-patterns/` | YAML 生成 Agent 的模板库 |
-| 故障排查大全 | `domain-10-troubleshooting-diagnostics/` | 排障 Agent 的核心语料 |
-| 运维词典 | `domain-17-system-foundation/topic-dictionary/` | Agent 的专业术语和最佳实践 |
-| 速查卡 | `domain-17-system-foundation/topic-cheat-sheet/` | Agent 快速回答的参考 |
-| 培训演示 | `domain-11-production-operations/topic-presentations/` | 学习 Agent 的内容来源 |
-| 迁移指南 | `domain-08-release-change-management/topic-migration/` | 迁移 Agent 的执行蓝本 |
-| K8s Events 大全 | `domain-17-system-foundation/` | Agent 事件解读的知识来源 |
-| 知识点分布分析 | `assets/kudig-database-知识点分布分析.xlsx` | 考核 Agent 的题库依据 |
+| FTA Fault Tree Analysis | `domain-10-troubleshooting-diagnostics/topic-fta/` | Knowledge skeleton for Agent reasoning |
+| FEBM Forensic Evidence-Based Methodology | `domain-10-troubleshooting-diagnostics/topic-febm/` | Methodological foundation for Agent diagnostics |
+| Structured Troubleshooting | `domain-10-troubleshooting-diagnostics/topic-structural-trouble-shooting/` | Direct input for Agent decision trees |
+| YAML Manifest Handbook | `domain-18-manifests-patterns/` | Template library for the YAML generation Agent |
+| Comprehensive Troubleshooting Guide | `domain-10-troubleshooting-diagnostics/` | Core corpus for the troubleshooting Agent |
+| Operations Dictionary | `domain-17-system-foundation/topic-dictionary/` | Agent's professional terminology and best practices |
+| Cheat Sheets | `domain-17-system-foundation/topic-cheat-sheet/` | Reference for quick Agent responses |
+| Training Presentations | `domain-11-production-operations/topic-presentations/` | Content source for the learning Agent |
+| Migration Guides | `domain-08-release-change-management/topic-migration/` | Execution blueprint for the migration Agent |
+| Comprehensive K8s Events Guide | `domain-17-system-foundation/` | Knowledge source for Agent event interpretation |
+| Knowledge Distribution Analysis | `assets/kudig-database-知识点分布分析.xlsx` | Question bank basis for the assessment Agent |
 
 ---
 
-*本文档为 kudig-database 项目 02-ai-agents 专题的设计总纲，原 topic-agent 专题已整合至此。*
+*This document is the master design overview for the 02-ai-agents topic of the kudig-database project; the original topic-agent topic has been consolidated here.*
 
 ---
 
-## Obsidian 相关文档
+## Obsidian Related Documents
 
 - 02-ai-agents MOC
-- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent 工程专题]]
-- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent 基础与核心架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM 基座模型选型与评估]]
-- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|主流 Agent 框架深度对比]]
-- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG 检索增强生成深度指南]]
-- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling 设计规范]]
-- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|多 Agent 编排与协作架构]]
-- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|记忆管理与上下文窗口工程]]
-- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent 评测体系与可观测性]]
-- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|生产部署指南：K8s 上运行 Agent 服务]]
-- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|安全护栏、提示注入防护与合规]]
+- [[domain-14-ai-ml-infra/02-ai-agents/README.md|AI Agent Engineering Topic]]
+- [[domain-14-ai-ml-infra/02-ai-agents/01-ai-agent-fundamentals.md|AI Agent Fundamentals and Core Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/02-llm-foundation-models.md|LLM Foundation Model Selection and Evaluation]]
+- [[domain-14-ai-ml-infra/02-ai-agents/03-agent-frameworks-comparison.md|In-Depth Comparison of Mainstream Agent Frameworks]]
+- [[domain-14-ai-ml-infra/02-ai-agents/04-rag-knowledge-retrieval.md|RAG Retrieval-Augmented Generation In-Depth Guide]]
+- [[domain-14-ai-ml-infra/02-ai-agents/05-tool-use-function-calling.md|Tool Use & Function Calling Design Specification]]
+- [[domain-14-ai-ml-infra/02-ai-agents/06-multi-agent-orchestration.md|Multi-Agent Orchestration and Collaboration Architecture]]
+- [[domain-14-ai-ml-infra/02-ai-agents/07-memory-context-management.md|Memory Management and Context Window Engineering]]
+- [[domain-14-ai-ml-infra/02-ai-agents/08-agent-evaluation-observability.md|Agent Evaluation Framework and Observability]]
+- [[domain-14-ai-ml-infra/02-ai-agents/09-production-deployment-guide.md|Production Deployment Guide: Running Agent Services on K8s]]
+- [[domain-14-ai-ml-infra/02-ai-agents/10-security-guardrails.md|Security Guardrails, Prompt Injection Protection, and Compliance]]
 
 ## See Also
 

@@ -1,6 +1,10 @@
----title: 可控核聚变监控架构设计 — 阿里云视角
-description: 'title: 可控核聚变监控架构设计'
-summary: 'title: 可控核聚变监控架构设计'
+---
+original_language: Chinese
+source_path: tree/application/architecture/fusion-energy-monitoring.md
+---
+---title: Controlled Nuclear Fusion Monitoring Architecture Design — Alibaba Cloud Perspective
+description: 'title: Controlled Nuclear Fusion Monitoring Architecture Design'
+summary: 'title: Controlled Nuclear Fusion Monitoring Architecture Design'
 category: general
 tags:
 - architecture
@@ -13,15 +17,15 @@ last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
 audience:
-- 所有工程师
+- All Engineers
 estimated_read_time: 15min
 intent_queries:
-- 可控核聚变监控架构设计 — 阿里云视角 是什么
-- 如何 可控核聚变监控架构设计 — 阿里云视角
-- Kubernetes 20 application patterns 最佳实践
+- What is Controlled Nuclear Fusion Monitoring Architecture Design — Alibaba Cloud Perspective
+- How to Controlled Nuclear Fusion Monitoring Architecture Design — Alibaba Cloud Perspective
+- Kubernetes 20 application patterns best practices
 trigger_keywords:
-- 可控核聚变监控架构设计
-- 阿里云视角
+- Controlled Nuclear Fusion Monitoring Architecture Design
+- Alibaba Cloud Perspective
 - application
 - patterns
 prerequisites:
@@ -33,15 +37,15 @@ authors:
 
 ---
 
-> **生产环境安全提示**
+> **Production Environment Safety Notice**
 >
-> 本文档包含可直接执行的运维命令。执行前请确认：当前目标集群与 Namespace 是否正确；是否具备足够的 RBAC 权限；是否已在非生产环境验证。命令风险等级标注：🔴 高风险（可能造成数据丢失或服务中断）、🟡 中风险（会修改集群状态，但通常可回滚）、🟢 低风险/只读（信息收集，无副作用）。
+> This document contains directly executable operations commands. Before executing, please confirm: whether the current target cluster and Namespace are correct; whether you have sufficient RBAC permissions; whether validation has been performed in a non-production environment. Command risk levels are marked as: 🔴 High Risk (may cause data loss or service interruption), 🟡 Medium Risk (will modify cluster state, but is generally reversible), 🟢 Low Risk / Read-Only (information gathering, no side effects).
 
 
 
 
-title: 可控核聚变监控架构设计
-description: '# 可控核聚变监控架构设计 — 阿里云视角'
+title: Controlled Nuclear Fusion Monitoring Architecture Design
+description: '# Controlled Nuclear Fusion Monitoring Architecture Design — Alibaba Cloud Perspective'
 category: application-architecture
 tags:
 - k8s
@@ -52,26 +56,26 @@ last_updated: 2026-05-18
 difficulty: expert
 reading_level: expert
 audience:
-- 核聚变工程师
-- HPC架构师
-- 实时系统专家
+- Fusion Engineers
+- HPC Architects
+- Real-Time Systems Experts
 estimated_read_time: 5min
 intent_queries:
-- 可控核聚变 [[Kubernetes|Kubernetes]] 实时控制
-- 托卡马克 等离子体控制 K8s
-- 核聚变数据采集 时序数据库
-- 核聚变监控 高性能计算 K8s
-- 核聚变 AI 破裂预测 Kubernetes
+- Controlled nuclear fusion [[Kubernetes|Kubernetes]] real-time control
+- Tokamak plasma control K8s
+- Nuclear fusion data acquisition time-series database
+- Nuclear fusion monitoring high-performance computing K8s
+- Nuclear fusion AI disruption prediction Kubernetes
 trigger_keywords:
-- 可控核聚变
-- 托卡马克
-- 等离子体
-- 核聚变
-- 监控
-- 实时控制
+- Controlled nuclear fusion
+- Tokamak
+- Plasma
+- Nuclear fusion
+- Monitoring
+- Real-time control
 - FPGA
 - E-HPC
-- 阿里云
+- Alibaba Cloud
 related_domains:
 - domain-01-cluster-fundamentals
 - domain-11-ai-infra
@@ -88,117 +92,116 @@ k8s_versions:
 - '1.32'
 ---
 
-# 可控核聚变监控架构设计 — 阿里云视角
+# Controlled Nuclear Fusion Monitoring Architecture Design — Alibaba Cloud Perspective
 
-> **适用版本**: Kubernetes v1.29 - v1.33 | **最后更新**: 2026-04-24
-> **作者**: 阿里云解决方案架构师 | **标签**: `#可控核聚变` `#托卡马克` `#等离子体` `#阿里云`
-
----
-
-<!-- chunk: 目录 -->## 目录
-
-1. [概述](#1-概述)
-2. [设计原则](#2-设计原则)
-3. [架构模式](#3-架构模式)
-4. [实现示例](#4-实现示例)
-5. [在 Kubernetes 上的部署](#5-在-kubernetes-上的部署)
-6. [最佳实践](#6-最佳实践)
-7. [反模式](#7-反模式)
-8. [参考资源](#8-参考资源)
+> **Applicable Versions**: Kubernetes v1.29 - v1.33 | **Last Updated**: 2026-04-24
+> **Author**: Alibaba Cloud Solutions Architect | **Tags**: `#ControlledNuclearFusion` `#Tokamak` `#Plasma` `#AlibabaCloud`
 
 ---
 
-<!-- chunk: 1. 概述 -->## 1. 概述
+## Table of Contents
 
-可控核聚变被誉为人类终极能源，其燃料（氘、氚）几乎取之不尽，反应过程不产生温室气体和长寿命放射性废料。托卡马克装置是目前最主流的核聚变实验装置，通过强磁场将上亿度的等离子体约束在环形容器中，实现聚变反应。国际热核聚变实验堆（ITER）、中国东方超环（EAST）、紧凑型聚变能装置（CFERC）等项目正在推动核聚变从科学实验走向工程应用。
+1. [Overview](#1-overview)
+2. [Design Principles](#2-design-principles)
+3. [Architecture Patterns](#3-architectural-patterns)
+4. [Implementation Examples](#4-implementation-examples)
+5. [Deployment on Kubernetes](#5-deployment-on-kubernetes)
+6. [Best Practices](#6-best-practices)
+7. [Anti-Patterns](#7-anti-patterns)
+8. [Reference Resources](#8-reference-resources)
 
-核聚变监控系统的核心挑战在于极端物理环境下的精确控制：等离子体温度超过 1 亿度（太阳核心温度的 6 倍），需要在毫秒级时间尺度上进行反馈控制；诊断系统需要测量数十个物理参数（电子温度、离子温度、电子密度、磁场分布、中子通量等），采样率从 kHz 到 MHz 不等；控制算法需要综合考虑电磁、流体、热传导等多物理场耦合效应。
+---
+## 1. Overview
 
-从信息系统角度看，核聚变监控是一个典型的高性能实时控制 + 大数据分析场景。放电控制需要微秒级实时响应，必须使用边缘计算（FPGA/实时 Linux）；实验数据管理和物理分析需要云计算平台；AI 技术正在应用于等离子体控制、异常检测、实验优化等方向。
+Controlled nuclear fusion is hailed as humanity's ultimate energy source: its fuel (deuterium and tritium) is virtually inexhaustible, and the reaction process produces neither greenhouse gases nor long-lived radioactive waste. The tokamak is currently the most mainstream nuclear fusion experimental device, confining plasma at temperatures exceeding 100 million degrees in a toroidal vessel using powerful magnetic fields to sustain fusion reactions. Projects such as the International Thermonuclear Experimental Reactor (ITER), China's Experimental Advanced Superconducting Tokamak (EAST), and the Compact Fusion Energy Research Center (CFERC) are driving nuclear fusion from scientific experimentation toward engineering application.
 
-## 1.1 行业背景
+The core challenge of fusion monitoring systems lies in precise control under extreme physical conditions: plasma temperatures exceed 100 million degrees (six times the temperature of the solar core), requiring feedback control on millisecond timescales; diagnostic systems must measure dozens of physical parameters (electron temperature, ion temperature, electron density, magnetic field distribution, neutron flux, etc.) with sampling rates ranging from kHz to MHz; and control algorithms must account for coupled multi-physics effects spanning electromagnetics, fluid dynamics, and heat conduction.
 
-| 挑战 | 说明 | 架构影响 |
+From an information systems perspective, fusion monitoring is a classic high-performance real-time control + big data analytics scenario. Discharge control demands microsecond-level real-time response, necessitating edge computing (FPGA/real-time Linux); experimental data management and physics analysis require a cloud computing platform; and AI technology is increasingly being applied to plasma control, anomaly detection, and experimental optimization.
+
+## 1.1 Industry Background
+
+| Challenge | Description | Architectural Impact |
 |:---|:---|:---|
-| 极端环境 | 上亿度等离子体 | 耐辐射传感器 + 远程诊断 |
-| 实时控制 | 毫秒级反馈控制周期 | FPGA + 实时操作系统 |
-| 多物理场 | 电磁/流体/热耦合 | 高性能模拟 E-HPC |
-| 安全第一 | 中子辐射 + 活化材料 | 多重冗余 + 安全联锁 |
-| 长脉冲运行 | 持续放电数百秒到小时 | 高可用系统 + 数据流 |
+| Extreme Environment | Plasma at 100+ million degrees | Radiation-hardened sensors + remote diagnostics |
+| Real-Time Control | Millisecond-level feedback control cycle | FPGA + real-time operating system |
+| Multi-Physics | Electromagnetic/fluid/thermal coupling | High-performance simulation E-HPC |
+| Safety First | Neutron radiation + activated materials | Multiple redundancy + safety interlocks |
+| Long-Pulse Operation | Sustained discharge from hundreds of seconds to hours | High-availability system + data streaming |
 
-## 1.2 核心场景
+## 1.2 Core Scenarios
 
-- **等离子体控制**: 等离子体电流/位置/形状实时反馈控制
-- **加热系统管理**: 中性束注入（NBI）/射频加热（ICRF/ECRH）控制
-- **偏滤器监测**: 热负荷/粒子流实时监测
-- **诊断数据采集**: 数十种诊断系统同步采集与存储
-- **实验管理**: 实验计划/数据管理/物理分析平台
-
----
-
-<!-- chunk: 2. 设计原则 -->## 2. 设计原则
-
-## 2.1 实时性优先原则
-
-等离子体控制是核聚变装置最核心的控制回路，控制周期通常为 0.1-1ms。这一实时性要求远超常规工业控制系统。架构设计需要将实时控制功能部署在专用硬件上（FPGA/实时 DSP），与监控系统物理隔离。控制指令通过硬接线或专用光纤传递，不经过通用网络。
-
-## 2.2 安全联锁独立原则
-
-核聚变装置的安全联锁系统（SIS）必须独立于基本控制系统（BCS）。安全联锁通过硬接线实现紧急停机——当检测到超导磁体失超、等离子体破裂、冷却异常等危险工况时，直接切断加热功率并触发保护动作，不依赖软件判断。
-
-## 2.3 数据完整性原则
-
-核聚变实验每次放电的成本极高（数十万到数百万美元），实验数据是不可复现的珍贵资产。数据采集系统需要保证：所有通道同步采集（时间精度 < 1μs）、数据无损存储（零丢失）、长期可追溯（原始数据永久保存）。
-
-## 2.4 可扩展原则
-
-核聚变装置的物理实验需求不断演进，诊断系统和控制算法需要持续迭代。架构设计需要支持：新诊断系统的快速接入、控制算法的在线更新、计算资源的弹性扩展、与外部研究机构的协作共享。
+- **Plasma Control**: Real-time feedback control of plasma current/position/shape
+- **Heating System Management**: Neutral beam injection (NBI) / radio-frequency heating (ICRF/ECRH) control
+- **Divertor Monitoring**: Real-time monitoring of heat load and particle flux
+- **Diagnostic Data Acquisition**: Synchronized acquisition and storage from dozens of diagnostic systems
+- **Experiment Management**: Experimental planning / data management / physics analysis platform
 
 ---
 
-<!-- chunk: 3. 架构模式 -->## 3. 架构模式
+## 2. Design Principles
 
-## 3.1 核聚变监控系统全景架构
+## 2.1 Real-Time Priority Principle
+
+Plasma control is the most critical control loop in a fusion device, with control cycles typically in the range of 0.1–1 ms. This real-time requirement far exceeds that of conventional industrial control systems. The architectural design must deploy real-time control functions on dedicated hardware (FPGA/real-time DSP), physically isolated from the monitoring system. Control commands are transmitted via hardwiring or dedicated fiber optics, bypassing general-purpose networks.
+
+## 2.2 Safety Interlock Independence Principle
+
+The safety interlock system (SIS) of a fusion device must be independent of the basic control system (BCS). Safety interlocks implement emergency shutdown via hardwiring — when hazardous conditions such as superconducting magnet quench, plasma disruption, or cooling anomalies are detected, heating power is cut directly and protective actions are triggered without relying on software-based decision-making.
+
+## 2.3 Data Integrity Principle
+
+Each discharge of a fusion device is extremely costly (hundreds of thousands to millions of dollars), and the experimental data represents an irreproducible and invaluable asset. The data acquisition system must guarantee: synchronous acquisition across all channels (time accuracy < 1 μs), lossless data storage (zero loss), and long-term traceability (permanent retention of raw data).
+
+## 2.4 Scalability Principle
+
+The physics experimental requirements of fusion devices continuously evolve, and diagnostic systems and control algorithms require ongoing iteration. The architectural design must support: rapid integration of new diagnostic systems, online updates to control algorithms, elastic expansion of computing resources, and collaborative sharing with external research institutions.
+
+---
+
+## 3. Architectural Patterns
+
+## 3.1 Fusion Monitoring System Panoramic Architecture
 
 ```mermaid
 graph TB
-    subgraph 装置层
-        T1[托卡马克装置]
-        T2[等离子体]
-        T3[超导磁体系统]
-        T4[加热系统 NBI/ICRF]
-        T5[偏滤器/第一壁]
+    subgraph Device Layer
+        T1[Tokamak Device]
+        T2[Plasma]
+        T3[Superconducting Magnet System]
+        T4[Heating System NBI/ICRF]
+        T5[Divertor/First Wall]
     end
 
-    subgraph 诊断层
-        D1[磁探针阵列]
-        D2[汤姆逊散射]
-        D3[电荷交换光谱]
-        D4[中子探测器]
-        D5[红外热像仪]
-        D6[EOV 可视化]
+    subgraph Diagnostics Layer
+        D1[Magnetic Probe Array]
+        D2[Thomson Scattering]
+        D3[Charge Exchange Spectroscopy]
+        D4[Neutron Detector]
+        D5[Infrared Thermal Camera]
+        D6[EOV Visualization]
     end
 
-    subgraph 实时控制层
-        C1[等离子体控制 PCS]
-        C2[加热控制]
-        C3[磁体电源控制]
-        C4[安全联锁 SIS]
+    subgraph Real-Time Control Layer
+        C1[Plasma Control System PCS]
+        C2[Heating Control]
+        C3[Magnet Power Supply Control]
+        C4[Safety Interlock SIS]
     end
 
-    subgraph 数据采集层
-        DA1[高速采集 kHz-MHz]
-        DA2[时间同步 PTP]
-        DA3[数据流处理]
-        DA4[原始数据存储]
+    subgraph Data Acquisition Layer
+        DA1[High-Speed Acquisition kHz-MHz]
+        DA2[Time Synchronization PTP]
+        DA3[Data Stream Processing]
+        DA4[Raw Data Storage]
     end
 
-    subgraph 分析平台层
-        P1[物理分析工具]
-        P2[数值模拟 E-HPC]
-        P3[实验管理]
-        P4[远程监控]
-        P5[数据共享]
+    subgraph Analysis Platform Layer
+        P1[Physics Analysis Tools]
+        P2[Numerical Simulation E-HPC]
+        P3[Experiment Management]
+        P4[Remote Monitoring]
+        P5[Data Sharing]
     end
 
     T1 & T2 & T3 & T4 & T5 --> D1 & D2 & D3 & D4 & D5 & D6
@@ -209,39 +212,38 @@ graph TB
     C4 --> T1
     DA4 --> P1 & P2 & P3 & P4 & P5
 ```
-
-## 3.2 等离子体控制闭环
+## 3.2 Plasma Control Closed Loop
 
 ```mermaid
 flowchart LR
-    A[诊断信号采集] --> B[实时处理 FPGA]
-    B --> C[状态估计]
-    C --> D[控制算法]
-    D --> E[执行器指令]
-    E --> F[磁体/加热响应]
-    F --> G[等离子体状态变化]
+    A[Diagnostic Signal Acquisition] --> B[Real-time Processing FPGA]
+    B --> C[State Estimation]
+    C --> D[Control Algorithm]
+    D --> E[Actuator Commands]
+    E --> F[Magnet/Heating Response]
+    F --> G[Plasma State Change]
     G --> A
 ```
 
-## 3.3 实验数据管理架构
+## 3.3 Experimental Data Management Architecture
 
 ```mermaid
 flowchart LR
-    A[诊断系统] --> B[高速 ADC 采集]
-    B --> C[时间戳标注 PTP]
-    C --> D[数据缓冲]
-    D --> E[本地存储 SSD]
-    E --> F[上传归档 OSS]
-    F --> G[元数据索引]
-    G --> H[物理分析平台]
-    H --> I[实验报告]
+    A[Diagnostic System] --> B[High-speed ADC Acquisition]
+    B --> C[Timestamp Labeling PTP]
+    C --> D[Data Buffer]
+    D --> E[Local Storage SSD]
+    E --> F[Upload Archive OSS]
+    F --> G[Metadata Index]
+    G --> H[Physics Analysis Platform]
+    H --> I[Experimental Report]
 ```
 
 ---
 
-<!-- chunk: 4. 实现示例 -->## 4. 实现示例
+## 4. Implementation Examples
 
-## 4.1 等离子体控制参数估计
+## 4.1 Plasma Control Parameter Estimation
 
 ```python
 import numpy as np
@@ -303,7 +305,7 @@ class PlasmaStateEstimator:
         }
 ```
 
-## 4.2 放电实验数据管理
+## 4.2 Discharge Experiment Data Management
 
 ```go
 package fusion
@@ -396,10 +398,9 @@ func (em *ExperimentManager) GetShot(shotNumber int) (*ShotData, error) {
 ```
 
 ---
+## 5. Deployment on Kubernetes
 
-<!-- chunk: 5. 在 Kubernetes 上的部署 -->## 5. 在 Kubernetes 上的部署
-
-## 5.1 实验数据管理服务
+## 5.1 Experiment Data Management Service
 
 ```yaml
 apiVersion: apps/v1
@@ -439,7 +440,7 @@ spec:
               cpu: "4000m"
 ```
 
-## 5.2 物理分析平台
+## 5.2 Physics Analysis Platform
 
 ```yaml
 apiVersion: apps/v1
@@ -478,78 +479,77 @@ spec:
 
 ---
 
-<!-- chunk: 6. 最佳实践 -->## 6. 最佳实践
+## 6. Best Practices
 
-- **时间同步**: 所有诊断系统使用 PTP（精确时间协议）同步，精度 < 1μs
-- **数据冗余**: 关键诊断数据实时写入本地 SSD 和远程存储
-- **安全联锁独立**: 紧急停机系统通过硬接线独立于软件系统
-- **放电自动调度**: 根据装置状态和实验计划自动安排放电序列
-- **AI 破裂预测**: 训练机器学习模型预测等离子体破裂，提前触发保护动作
+- **Time Synchronization**: All diagnostic systems use PTP (Precision Time Protocol) for synchronization, with accuracy < 1μs
+- **Data Redundancy**: Critical diagnostic data is written in real time to both local SSDs and remote storage
+- **Independent Safety Interlocks**: Emergency shutdown systems are hardwired and independent from software systems
+- **Automated Shot Scheduling**: Shot sequences are automatically scheduled based on device status and experimental plans
+- **AI Disruption Prediction**: Machine learning models are trained to predict plasma disruptions and trigger protective actions in advance
 
-<!-- chunk: 7. 反模式 -->## 7. 反模式
+## 7. Anti-Patterns
 
-## 7.1 软件安全联锁
+## 7.1 Software-Only Safety Interlocks
 
-将安全联锁完全依赖软件实现，软件问题可能导致安全功能失效。
+Relying entirely on software for safety interlock implementation, where software issues may cause safety functions to fail.
 
-**解决方案**: 关键安全联锁（超导失超保护、真空泄漏保护）采用硬接线实现，响应时间 < 10ms。
+**Solution**: Critical safety interlocks (superconducting quench protection, vacuum leak protection) are implemented in hardwired form, with response time < 10ms.
 
-## 7.2 忽视辐射环境
+## 7.2 Ignoring the Radiation Environment
 
-将标准服务器直接部署在聚变装置附近，忽视中子辐射对电子设备的影响。
+Deploying standard servers directly near fusion devices while ignoring the effects of neutron radiation on electronic equipment.
 
-**解决方案**: 电子设备远离装置放置，使用光纤连接。必须靠近部署的设备采用辐射容忍设计。
+**Solution**: Electronic equipment is placed away from the device, connected via fiber optics. Equipment that must be deployed in close proximity uses radiation-tolerant designs.
+## 7.3 Single-Point Data Acquisition
 
-## 7.3 单点数据采集
+All diagnostic data passes through a single acquisition system, and a failure in that system results in the loss of data for an entire discharge.
 
-所有诊断数据通过单一采集系统，该系统问题导致整次放电数据丢失。
-
-**解决方案**: 关键诊断系统独立采集通道冗余部署，数据同时写入本地和远程存储。
+**Solution**: Deploy redundant independent acquisition channels for critical diagnostic systems, with data written simultaneously to both local and remote storage.
 
 ---
 
-<!-- chunk: 8. 参考资源 -->## 8. 参考资源
+## 8. Reference Resources
 
-## 8.1 阿里云组件映射
+## 8.1 Alibaba Cloud Component Mapping
 
-| 功能域 | **阿里云云原生方案** |
+| Functional Domain | **Alibaba Cloud Native Solution** |
 |:---|:---|
-| 容器平台 | **ACK Pro** |
-| 高性能计算 | **E-HPC** |
-| 时序数据库 | **Lindorm** |
-| 对象存储 | **OSS** |
-| AI 平台 | **PAI** |
-| 可观测性 | **ARMS + SLS** |
+| Container Platform | **ACK Pro** |
+| High-Performance Computing | **E-HPC** |
+| Time-Series Database | **Lindorm** |
+| Object Storage | **OSS** |
+| AI Platform | **PAI** |
+| Observability | **ARMS + SLS** |
 
-## 8.2 生产检查清单
+## 8.2 Production Checklist
 
-- [ ] 等离子体控制实时性 < 1ms
-- [ ] 安全联锁系统响应 < 10ms
-- [ ] 诊断数据时间同步 < 1μs
-- [ ] 放电数据完整性 100%
-- [ ] 核安全合规审计通过
-- [ ] 辐射监测系统校准
-
----
-
-**维护者**: 阿里云解决方案架构师团队 | **许可证**: MIT
+- [ ] Plasma control real-time latency < 1ms
+- [ ] Safety interlock system response < 10ms
+- [ ] Diagnostic data time synchronization < 1μs
+- [ ] Discharge data integrity 100%
+- [ ] Nuclear safety compliance audit passed
+- [ ] Radiation monitoring system calibrated
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+**Maintainer**: Alibaba Cloud Solutions Architecture Team | **License**: MIT
+
+---
+
+## Obsidian Related Documents
 
 - topic-application-architecture MOC
-- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]
-- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|电商系统 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|小程序平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|内容管理系统 CMS 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|实时通信 IM/RTC 架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|在线教育平台 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|金融科技FinTech Kubernetes生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|物联网 IoT 平台架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML 推理服务 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|游戏后端 Kubernetes 生产架构设计]]
-- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|社交媒体平台Kubernetes生产架构设计]]
+- [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]
+- [[domain-20-application-patterns/topic-application-architecture/01-ecommerce-architecture.md|E-Commerce System Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/02-mini-program-architecture.md|Mini Program Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/03-cms-architecture.md|Content Management System CMS Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/04-im-rtc-architecture.md|Real-Time Communication IM/RTC Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/05-online-education-architecture.md|Online Education Platform Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/06-fintech-architecture.md|FinTech Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/07-iot-platform-architecture.md|IoT Platform Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/08-ai-ml-inference-architecture.md|AI/ML Inference Service Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/09-gaming-backend-architecture.md|Gaming Backend Kubernetes Production Architecture Design]]
+- [[domain-20-application-patterns/topic-application-architecture/10-social-media-architecture.md|Social Media Platform Kubernetes Production Architecture Design]]
 
 ## See Also
 
@@ -561,6 +561,3 @@ spec:
 ## Related
 
 - topic-application-architecture MOC — Cross-reference
-
-
-<!-- risk-assessed -->
