@@ -1,0 +1,60 @@
+# Corpus-specific overrides for translation_scan.py.
+# Merged on top of mdlang DEFAULT_CONFIG when present.
+
+# Extra fence info strings treated as diagrams (empty string is already included).
+diagram_fence_infos:
+  - ""
+  - text
+  - ascii
+  - plaintext
+  - txt
+  - tree
+  - diagram
+
+# Languages where quoted CJK is treated as user-facing code_string.
+string_fence_langs:
+  - yaml
+  - yml
+  - json
+  - jsonc
+  - python
+  - py
+  - toml
+  - javascript
+  - js
+  - typescript
+  - ts
+  - tsx
+  - go
+  - rust
+  - java
+  - ruby
+  - bash
+  - sh
+  - shell
+  - zsh
+  - graphql
+  - sql
+
+# Role -> Jinja template basename (under scripts/translation_prompts/).
+role_templates:
+  prose: line_prose.j2
+  heading: line_heading.j2
+  frontmatter: line_frontmatter.j2
+  fence_diagram: line_fence_diagram.j2
+  mermaid_label: line_mermaid_label.j2
+  code_comment: line_code_comment.j2
+  code_string: line_code_string.j2
+  anchor: line_anchor.j2
+
+phrase_template: phrase_repair.j2
+
+# Ordered postprocess steps applied after splicing translations.
+postprocess_steps:
+  - strip_chunk_comments
+  - ensure_provenance
+  - repair_internal_anchors
+  - fold_english_fullwidth
+
+# Path globs that force fence infos to diagram (optional extras).
+# path_diagram_globs: []

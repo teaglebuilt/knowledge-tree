@@ -1,0 +1,12 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- This line is a code comment. Keep the comment marker (`#`, `//`, `--`, `*`, etc.).
+- Translate the comment prose. Leave any code snippets inside the comment as-is
+  when they are identifiers or commands.
+{% endblock %}
+{% block examples %}
+  in   8\t# 全链路灰度：透传灰度标签
+  out  8\t# Full-link canary: propagate canary labels
+  in   9\t// 传统方式：长期 Token 存储在 Secret 中
+  out  9\t// Traditional approach: long-lived Token stored in a Secret
+{% endblock %}

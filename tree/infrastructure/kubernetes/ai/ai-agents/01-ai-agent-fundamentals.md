@@ -18,8 +18,6 @@ created: '2026-05-23'
 last_updated: 2026-05
 difficulty: intermediate
 reading_level: intermediate
-audience:
-- 所有工程师
 estimated_read_time: 25min
 intent_queries:
 - AI Agent 基础与核心架构 是什么

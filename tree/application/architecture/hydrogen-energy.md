@@ -114,39 +114,39 @@ The hydrogen energy supply chain involves multiple roles including equipment man
 
 ```mermaid
 graph TB
-    subgraph 制氢
-        G1[碱性电解槽 AEL]
-        G2[PEM 电解槽]
-        G3[SOEC 固体氧化物]
-        G4[光伏/风电直供]
+    subgraph hydrogen production
+        G1[Alkaline Electrolyzer AEL]
+        G2[PEM Electrolyzer]
+        G3[SOEC Solid Oxide]
+        G4[Solar/Wind Direct Supply]
     end
 
-    subgraph 储运
-        S1[高压气态储氢 35/70MPa]
-        S2[低温液态储氢 -253°C]
-        S3[有机液态储氢 LOHC]
-        S4[氢气管网/长管拖车]
+    subgraph Storage Transport
+        S1[H2 at High Pressure 35/70MPa]
+        S2[Liquid H2 at Low Temperature -253°C]
+        S3[LOHC Liquid Organic Hydrogen Carrier]
+        S4[H2 Pipeline/Long Tube Trailer]
     end
 
-    subgraph 加注
-        F1[固定加氢站]
-        F2[移动加氢车]
-        F3[站内制氢一体化]
+    subgraph Collection Layer
+        F1[Fixed Hydrogen Station]
+        F2[Moving Hydrogen Truck]
+        F3[Integrated Production at Refueling Station]
     end
 
-    subgraph 应用
-        A1[燃料电池车 FCEV]
-        A2[氢能重卡/公交]
-        A3[氢能船舶/无人机]
-        A4[氢储能电站]
-        A5[工业原料替代]
+    subgraph application
+        A1[Fuel Cell Vehicle FCEV]
+        A2[Heavy Duty/Hybrid Bus]
+        A3[H2 Ship/Autonomous Drone]
+        A4[H2 Energy Storage Plant]
+        A5[Industrial Raw Material Replacement]
     end
 
-    subgraph 数字平台
-        P1[边缘控制层]
-        P2[数据中台]
-        P3[AI 优化引擎]
-        P4[运营管理]
+    subgraph digital_platform
+        P1["Edge Control Layer"]
+        P2["Data Central"]
+        P3["AI Optimization Engine"]
+        P4["Operational Management"]
     end
 
     G1 & G2 & G3 & G4 --> S1 & S2 & S3 & S4
@@ -162,27 +162,27 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph 加氢站边缘
-        E1[PLC/安全控制器]
-        E2[氢气泄漏传感器]
-        E3[压力/温度变送器]
-        E4[边缘网关]
-        E5[视频监控]
+    subgraph hydrogen station edge
+        E1["PLC/Safety Controller"]
+        E2["Hydrogen Leak Sensor"]
+        E3["Pressure/Temperature Transmitter"]
+        E4["Edge Gateway"]
+        E5["Video Surveillance"]
     end
 
-    subgraph 边缘计算节点
-        N1[实时数据采集]
-        N2[安全联锁逻辑]
-        N3[本地报警]
-        N4[数据缓存]
+    subgraph edge computing node
+        N1["Real-time Data Collection"]
+        N2["Local Lockout Logic"]
+        N3["Local Alarm"]
+        N4["Data Cache"]
     end
 
-    subgraph 云端平台
-        C1[设备管理]
-        C2[远程监控]
-        C3[告警中心]
-        C4[运营分析]
-        C5[预测维护]
+    subgraph cloud platform
+        C1["Device Management"]
+        C2["Remote Monitoring"]
+        C3["Alert Center"]
+        C4[Operational Analysis]
+        C5[Predictive Maintenance]
     end
 
     E1 & E2 & E3 & E5 --> E4
@@ -197,14 +197,14 @@ graph TB
 
 ```mermaid
 flowchart LR
-    A[可再生能源功率预测] --> B[电解槽功率分配]
-    C[电价/氢价信号] --> B
-    D[储氢状态] --> B
-    B --> E[电流密度调节]
-    E --> F[温度控制]
-    E --> G[压力控制]
-    F & G --> H[产氢量优化]
-    H --> I[效率监测]
+    A[Renewable Energy Power Forecast] --> B[Electrolyzer Power Allocation]
+    C[Price/Energy Signal] --> B
+    D[Hydrogen Storage Status] --> B
+    B --> E[Current Density Regulation]
+    E --> F[Temperature Control]
+    E --> G[Pressure Control]
+    F & G --> H[Hydrogen Production Optimization]
+    H --> I[Efficiency Monitoring]
     I --> B
 ```
 

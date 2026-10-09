@@ -58,25 +58,25 @@ LLM selection is the primary decision in building an Agent system, directly dete
 ## 1.1 Mainstream Model Classification
 
 ```
-LLM 生态全景
+LLM Ecosystem Overview
 │
-├── 闭源商业模型（API 调用）
-│   ├── OpenAI 系列: GPT-4o, GPT-4o-mini, o1, o3-mini
-│   ├── Anthropic 系列: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus
-│   ├── Google 系列: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini Ultra
-│   └── 国内: 通义千问、文心一言、智谱 GLM-4、Moonshot Kimi
+├── Closed-source commercial model (API calls)
+│   ├── OpenAI series: GPT-4o, GPT-4o-mini, o1, o3-mini
+│   ├── Anthropic series: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus
+│   ├── Google series: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini Ultra
+│   └── Domestic: Tongyi Qianwen, Wencheng Yanzhi, Zhipu GLM-4, Moonshot Kimi
 │
-├── 开源/半开源模型（自部署）
+├── Open-source/semi-open models (self-deployment)
 │   ├── Meta: Llama 3.1 (8B/70B/405B), Llama 3.3 70B
-│   ├── 阿里: Qwen2.5 (7B/14B/32B/72B), Qwen2.5-Coder
+│   ├── Alibaba: Qwen2.5 (7B/14B/32B/72B), Qwen2.5-Coder
 │   ├── DeepSeek: DeepSeek-V3, DeepSeek-R1, DeepSeek-R1-Distill
 │   ├── Mistral: Mistral Large, Mixtral 8x22B, Mistral Nemo
 │   └── Google: Gemma 2 (9B/27B)
 │
-└── 专用模型
-    ├── 代码: DeepSeek-Coder-V2, Qwen2.5-Coder-32B, CodeLlama
-    ├── 嵌入: text-embedding-3-large, BGE-M3, Jina v3
-    └── 多模态: GPT-4V, Claude 3.5 (视觉), Gemini 1.5 Pro
+└── Dedicated models
+    ├── Code: DeepSeek-Coder-V2, Qwen2.5-Coder-32B, CodeLlama
+    ├── Embedding: text-embedding-3-large, BGE-M3, Jina v3
+    └── Multimodal: GPT-4V, Claude 3.5 (Visual), Gemini 1.5 Pro
 ```
 
 ---
@@ -121,26 +121,26 @@ LLM 生态全景
 ## 3.1 Main Decision Framework
 
 ```
-选型决策起点
+Selection Decision Starting Point
 │
-├── 数据是否可以发送到外部 API?
-│   ├── 否（合规/安全要求内部部署）
-│   │   └── → 开源模型自部署（Llama/Qwen/DeepSeek）
+├── Can data be sent to an external API?
+│   ├── No (compliance/security requires internal deployment)
+│   │   └── → Self-deployment of open-source models (Llama/Qwen/DeepSeek)
 │   │
-│   └── 是
-│       ├── 预算是否充裕（>$50/月）?
-│       │   ├── 是
-│       │   │   ├── 需要最强推理能力? → GPT-4o 或 Claude 3.5 Sonnet
-│       │   │   ├── 需要超长上下文(>200K)? → Gemini 1.5 Pro (2M)
-│       │   │   └── 主要处理中文? → DeepSeek-V3 或 通义千问-Max
+│   └── Yes
+│       ├── Is budget sufficient (> $50/month)?
+│       │   ├── Yes
+│       │   │   ├── Need strongest inference capability? → GPT-4o or Claude 3.5 Sonnet
+│       │   │   ├── Need very long context (>200K)? → Gemini 1.5 Pro (2M)
+│       │   │   └── Mainly handle Chinese? → DeepSeek-V3 or Qwen-Max
 │       │   │
-│       │   └── 否（成本敏感）
-│       │       ├── 简单任务/高频调用 → GPT-4o-mini 或 Gemini Flash
-│       │       └── 中文场景成本敏感 → DeepSeek-V3 (极低价格)
+│       │   └── No (cost-sensitive)
+│       │       ├── Simple tasks/frequent calls → GPT-4o-mini or Gemini Flash
+│       │       └── Cost-sensitive Chinese scenarios → DeepSeek-V3 (very low price)
 │       │
-│       └── 是否有严格的工具调用要求?
-│           ├── 是 → GPT-4o 或 Claude 3.5 Sonnet（工具调用最可靠）
-│           └── 否 → 根据成本/性能比选择
+│       └── Are there strict tool invocation requirements?
+│           ├── Yes → GPT-4o or Claude 3.5 Sonnet (most reliable tool invocation)
+│           └── No → Choose based on cost/performance ratio
 ```
 
 ## 3.2 Kubernetes Operations Agent Special Selection Recommendations
@@ -213,11 +213,11 @@ class AgentBenchmark:
 K8S_AGENT_TEST_CASES = [
     {
         "id": "pod-pending-001",
-        "category": "故障诊断",
+        "category": "fault diagnosis",
         "difficulty": "medium",
-        "input": "Pod nginx-xxx 一直处于 Pending 状态，已经 10 分钟了",
+        "input": "Pod nginx-xxx is is has\been head\way Pending state for 10 minutes",
         "required_tools": ["kubectl_describe", "kubectl_get_nodes"],
-        "expected_root_causes": ["资源不足", "节点亲和性", "PVC 未绑定", "Taint 不匹配"],
+        "expected_root_causes": ["Insufficient resources", "Node affinity", "PVC not bound", "Taint mismatch"],
         "evaluation_rubric": {
             "tool_sequence_correct": 0.3,  # 30% 分权重
             "root_cause_identified": 0.4,
@@ -226,11 +226,11 @@ K8S_AGENT_TEST_CASES = [
     },
     {
         "id": "service-unreachable-001",
-        "category": "网络诊断",
+        "category": "network diagnosis",
         "difficulty": "hard",
-        "input": "frontend Pod 无法访问 backend Service，但 Service 存在",
+        "input": "frontend Pod cannot access backend Service, but Service exists",
         "required_tools": ["kubectl_get_endpoints", "kubectl_exec_curl", "kubectl_get_networkpolicy"],
-        "expected_root_causes": ["Endpoints 为空", "NetworkPolicy 阻断", "kube-proxy 问题"],
+        "expected_root_causes": ["Endpoints are empty", "NetworkPolicy blocks", "kube-proxy issues"],
     }
 ]
 ```
@@ -255,40 +255,40 @@ K8S_AGENT_TEST_CASES = [
 ## 5.2 Decision Judgment Tree
 
 ```
-选择微调 还是 RAG?
+Choose fine-tuning or RAG?
 │
-├── 知识更新频率 > 每月一次?
-│   └── 是 → 优先 RAG（微调太慢）
+├── Knowledge update frequency > Once a month?
+│   └── Yes → Prioritize RAG (fine-tuning too slow)
 │
-├── 需要引用具体来源/文档?
-│   └── 是 → 必须 RAG
+├── Need specific source/documentation references?
+│   └── Yes → Must use RAG
 │
-├── 目标是改变输出格式/风格（如固定 JSON 结构）?
-│   └── 是 → 考虑微调（或 Prompt Engineering 先试）
+├── Target is to change output format/style (e.g., fixed JSON structure)?
+│   └── Yes → Consider fine-tuning (or try Prompt Engineering first)
 │
-├── 专业术语/缩略语大量出现，基座模型不理解?
-│   └── 是 → 微调（词汇层面的问题 RAG 难以解决）
+├── Professional terms/synonyms appear frequently, base model doesn't understand?
+│   └── Yes → Fine-tuning (RAG difficult for vocabulary issues)
 │
-├── 知识库超过 100 万 tokens?
-│   └── 是 → 必须 RAG（塞不进上下文）
+├── Knowledge base exceeds 100 million tokens?
+│   └── Yes → Must use RAG (too much context)
 │
-└── 两者都需要? → RAG + Fine-tuning 组合
-    示例: 微调模型学习输出格式 + RAG 提供最新知识
+└── Both are needed? → RAG + Fine-tuning combination
+    Example: fine-tuned model learns output format + RAG provides latest knowledge
 ```
 
 ## 5.3 Practical Recommendations
 
 ```
-尝试顺序（成本从低到高）:
-  1. 先尝试 Prompt Engineering（系统提示 + Few-shot 示例）
-  2. 效果不佳 → 尝试 RAG
-  3. RAG 后仍有格式/风格问题 → 考虑少量 Fine-tuning
-  4. 以上都不够 → 组合策略（RAG + Fine-tuning）
+Try order (cost from low to high):
+  1. Try Prompt Engineering (system prompt + few-shot example)
+  2. Poor results → Try RAG
+  3. RAG Afterward Still Has Formatting/Coding Style Issues → Consider a Small Fine-tuning
+  4. None of the above → Hybrid Strategy (RAG + Fine-tuning)
 
-常见误区:
-  × 直接跳到微调，忽略 Prompt Engineering 的潜力
-  × 以为微调了就不需要 RAG（知识更新仍然需要）
-  × 只用 RAG 不做质量评估，导致检索质量差影响生成
+Common misconceptions:
+  × Jump directly to fine-tuning without considering the potential of Prompt Engineering
+  × to believe fine-tuned means no need for RAG (knowledge updates still required)
+  × Use RAG without quality assessment leads to poor retrieval quality affecting generation
 ```
 
 ---
@@ -357,9 +357,9 @@ class ModelRouter:
         description = task.get("description", "")
         tool_count = len(task.get("available_tools", []))
         
-        if tool_count > 10 or "分析" in description or "规划" in description:
+        if tool_count > 10 or "analysis" in description or "planning" in description:
             return TaskComplexity.COMPLEX
-        elif tool_count > 3 or "诊断" in description:
+        elif tool_count > 3 or "diagnosis" in description:
             return TaskComplexity.MEDIUM
         return TaskComplexity.SIMPLE
 ```
@@ -460,38 +460,38 @@ spec:
 ## 8.1 Data Classification and Model Selection
 
 ```
-数据密级 → 模型选择规则:
+Data classification → Model selection rules:
 
-  公开数据 / 脱敏数据
-  └── 可使用任何 API 模型（GPT-4o、Claude、Gemini）
+  Public data / Sensitive data
+  └── Any API model can be used (GPT-4o, Claude, Gemini)
 
-  内部数据（业务数据、代码）
-  ├── 签署 DPA（数据处理协议）后可用 API 模型
-  └── 敏感时优先考虑私有化部署
+  Internal data (business data, code)
+  ├── Signed DPA (Data Processing Agreement) allows available API models
+  └── Consider private deployment prioritizing sensitivity
 
-  敏感/机密数据（客户 PII、财务数据、密钥）
-  ├── 强烈建议私有化部署开源模型
-  ├── 如用 API，必须开启数据不训练选项 + 签署保密协议
-  └── 参考: 10-security-guardrails.md 中的 PII 处理规范
+  sensitive/confidential data (customer PII, financial data, key)
+  ├── Strongly recommended private deployment of open-source models
+  ├── If using an API, must enable the data not trained option + sign a confidentiality agreement
+  └── Reference: PII handling specifications in 10-security-guardrails.md
 
-  监管数据（医疗/金融/政府）
-  └── 通常要求完全本地化部署，不允许数据出境
+  Regulatory data (medical/financial/government)
+  └── Typically requires complete localization deployment, prohibiting data out-bound
 ```
 
 ## 8.2 Domestic compliance requirements
 
 ```
-中国大陆合规要点:
-  1. 《生成式人工智能服务管理暂行办法》
-     - 向中国用户提供服务的 AIGC 产品需向国家互联网信息办公室备案
+Compliance highlights in Mainland China:
+  1. The Interim Regulations on the Management of Generative Artificial Intelligence Services
+     - AIGC products providing services to Chinese users must register with the National Internet Information Office
   
-  2. 数据本地化要求
-     - 重要数据和个人信息原则上在境内存储
-     - 推荐使用国内 API（阿里云百炼、字节豆包、智谱 AI）或自部署
+  2. Data localization requirements
+     - Important data and personal information are generally stored within the country
+     - Recommended: Use domestic APIs (Ali Cloud Bailei, Byte Bean, Zhipu AI) or self-deploy
   
-  3. 内容安全要求
-     - 需部署内容安全过滤层
-     - 推荐: 阿里云内容安全 SDK 或百度文字审核
+  3. Content safety requirements
+     - Content safety filtering layer needs to be deployed
+     - Recommended: Ali Cloud Content Safety SDK or Baidu Text Review
 ```
 
 ---

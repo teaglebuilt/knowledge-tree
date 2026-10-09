@@ -196,44 +196,44 @@ Supports digital management of safety tests including puncture, compression, ove
 
 ```mermaid
 graph TB
-    subgraph DataLayer["数据层 Data Layer"]
-        D1[(材料基因组数据库)]
-        D2[(工艺参数时序库)]
-        D3[(测试结果数据库)]
-        D4[(BMS 运行数据库)]
-        D5[(文献知识图谱)]
+    subgraph DataLayer["Data Layer"]
+        D1[(Material Genomic Database)]
+        D2[(Process Parameter Time Series Database)]
+        D3[(Test Result Database)]
+        D4[(BMS Operational Database)]
+        D5[(Literature Knowledge Graph)]
     end
 
-    subgraph AppLayer["应用层 Application Layer"]
-        A1[材料设计平台]
-        A2[分子模拟平台]
-        A3[中试产线 MES]
-        A4[BMS 管理平台]
-        A5[安全测试平台]
-        A6[项目管理平台]
+    subgraph AppLayer["Application Layer"]
+        A1[Material Design Platform]
+        A2[Molecular Simulation Platform]
+        A3[Prototype Line MES]
+        A4[BMS Management Platform]
+        A5[Safety Testing Platform]
+        A6[Project Management Platform]
     end
 
-    subgraph AILayer["AI/ML 层 AI Layer"]
-        AI1[材料属性预测模型]
-        AI2[工艺参数优化模型]
-        AI3[电池寿命预测模型]
-        AI4[安全风险评估模型]
-        AI5[异常检测模型]
+    subgraph AILayer["AI/ML Layer"]
+        AI1[Material Property Prediction Model]
+        AI2[Process Parameter Optimization Model]
+        AI3[Battery Life Prediction Model]
+        AI4[Safety Risk Assessment Model]
+        AI5[Anomaly Detection Model]
     end
 
-    subgraph InfraLayer["基础设施层 Infrastructure Layer"]
-        I1[GPU HPC 集群]
+    subgraph InfraLayer["Infrastructure Layer"]
+        I1[GPU HPC Cluster]
         I2[ACK Pro K8s]
-        I3[对象存储 OSS]
-        I4[消息队列 RocketMQ]
-        I5[VPN 专线]
+        I3[Object Storage OSS]
+        I4[Message Queue RocketMQ]
+        I5[VPN Dedicated Line]
     end
 
-    subgraph EdgeLayer["边缘层 Edge Layer"]
-        E1[中试产线网关]
-        E2[BMS 数据采集]
-        E3[测试设备接入]
-        E4[安全摄像头]
+    subgraph EdgeLayer["Edge Layer"]
+        E1[Prototype Line Gateway]
+        E2["BMS Data Collection"]
+        E3[Device Access Testing]
+        E4["Secure Camera"]
     end
 
     E1 & E2 & E3 & E4 --> I2
@@ -247,23 +247,23 @@ graph TB
 
 ```mermaid
 flowchart LR
-    subgraph 研发阶段
-        R1[材料设计] --> R2[分子模拟]
-        R2 --> R3[实验合成]
-        R3 --> R4[性能表征]
+    subgraph Development Stage 
+        R1[Material Design]  --> R2[Molecular Simulation] 
+        R2 --> R3[Experimental Synthesis] 
+        R3 --> R4[Performance Characterization] 
     end
-    subgraph 中试阶段
-        R4 --> P1[工艺开发]
-        P1 --> P2[产线调试]
-        P2 --> P3[小批量试产]
+    subgraph Pilot Production Stage 
+        R4 --> P1[Process Development] 
+        P1 --> P2[Line Debugging] 
+        P2 --> P3[Limited Batch Production] 
     end
-    subgraph 量产阶段
-        P3 --> Q1[量产爬坡]
-        Q1 --> Q2[质量控制]
-        Q2 --> Q3[BMS 集成]
-        Q3 --> Q4[整车验证]
+    subgraph Mass Production Stage 
+        P3 --> Q1[Mass Production Ramp-Up] 
+        Q1 --> Q2[Quality Control] 
+        Q2 --> Q3[BMS integration]
+        Q3 --> Q4[Vehicle validation]
     end
-    Q4 -->|数据反馈| R1
+    Q4 -->|data feedback| R1
 ```
 
 ---
@@ -520,32 +520,32 @@ stringData:
 
 ```mermaid
 flowchart TB
-    subgraph Sources["数据源"]
-        S1[DFT/MD 计算结果]
-        S2[实验表征数据 XRD/SEM/EIS]
-        S3[产线 IoT 传感器]
-        S4[BMS 实时数据]
-        S5[安全测试数据]
+    subgraph Sources["Data sources"]
+        S1[DFT/MD calculation results]
+        S2[laboratory characterization data XRD/SEM/EIS]
+        S3[line IoT sensors]
+        S4[BMS real-time data]
+        S5[safety test data]
     end
 
-    subgraph Ingestion["数据接入层"]
-        I1[计算结果上传 API]
-        I2[实验设备集成]
-        I3[MQTT/OPC-UA 网关]
-        I4[CAN 总线解析器]
+    subgraph Ingestion["Data ingestion layer"]
+        I1[calculation results upload API]
+        I2[laboratory equipment integration]
+        I3[MQTT/OPC-UA gateway]
+        I4[CAN bus parser]
     end
 
-    subgraph Storage["存储层"]
-        ST1[(OSS 模拟原始数据)]
-        ST2[(Lindorm 时序数据)]
-        ST3[(PolarDB 业务数据)]
-        ST4[(GraphDB 知识图谱)]
+    subgraph Storage["Storage layer"]
+        ST1[(OSS simulate original data)]
+        ST2[(Lindorm time series data)]
+        ST3[(PolarDB business data)]
+        ST4["GraphDB Knowledge Graph"]
     end
 
-    subgraph Analytics["分析层"]
-        A1[Flink 实时计算]
-        A2[MaxCompute 离线分析]
-        A3[PAI 模型训练]
+    subgraph Analytics["Analysis layer"]
+        A1[Flink Real-time Computing]
+        A2[MaxCompute Offline Analysis]
+        A3[PAI Model Training]
     end
 
     S1 --> I1 --> ST1
@@ -571,16 +571,16 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A[训练数据集] --> B[数据预处理]
-    B --> C[特征工程]
-    C --> D[模型训练]
-    D --> E[模型评估]
-    E --> F{指标达标?}
-    F -->|是| G[模型注册]
-    F -->|否| H[超参调优]
+    A[Training Dataset] --> B[Data Preprocessing]
+    B --> C[Feature Engineering]
+    C --> D[Model Training]
+    D --> E[Model Evaluation]
+    E --> F{Are Metrics Met?}
+    F -->|Yes| G[Model Registration]
+    F -->|No| H[Tuning Hyperparameters]
     H --> D
-    G --> I[模型部署]
-    I --> J[在线推理]
+    G --> I[Model Deployment]
+    I --> J[Online Inference]
 ```
 
 ## 7.2 Core Models

@@ -1,0 +1,10 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- Translate link display text only. Leave `#anchor` targets unchanged (a
+  post-processor regenerates them from English headings).
+- Keep list markers and numbering.
+{% endblock %}
+{% block examples %}
+  in   40\t6. [最佳实践](#6-zui-jia-shi-jian)
+  out  40\t6. [Best Practices](#6-zui-jia-shi-jian)
+{% endblock %}

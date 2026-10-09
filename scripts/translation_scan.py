@@ -37,7 +37,12 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 from pathlib import Path
+
+import yaml
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 SKILL_SCRIPTS = (
     Path(__file__).resolve().parent.parent
@@ -52,6 +57,7 @@ from lang_scan import analyse  # noqa: E402
 from mdlang import (  # noqa: E402
     SCRIPT_TO_LANGUAGE_HINT,
     discover,
+    line_roles,
     load_config,
     paint,
     read_text,
@@ -66,7 +72,7 @@ from verify_translation import verify_one  # noqa: E402
 # Must match --served-model-name on the vllm-selfhosted Deployment.
 DEFAULT_MODEL = "vllm-selfhosted"
 # svc/ai-gateway's LoadBalancer; AI_GATEWAY_URL / --url override it.
-DEFAULT_BASE_URL = "http://192.168.2.201"
+DEFAULT_BASE_URL = os.environ["AI_GATEWAY_URL"]
 # HTTPRoute prefix that rewrites to the vLLM backend's own root.
 ROUTE_PREFIX = "/vllm"
 # Qwen2.5-3B-Instruct serves 32k; chunks run ~2.5k in / ~2.1k out, so this is
@@ -82,48 +88,99 @@ DEFAULT_BATCH_LINES = 20
 # Attempts per line: once inside its batch, then alone.
 DEFAULT_LINE_RETRIES = 2
 
-LINE_SYSTEM_PROMPT = """\
-You translate individual lines of markdown documentation into English.
+SCRIPTS_DIR = Path(__file__).resolve().parent
+PROMPTS_DIR = SCRIPTS_DIR / "translation_prompts"
+PROFILES_PATH = SCRIPTS_DIR / "translation_profiles.yaml"
 
-The user sends numbered lines, one per line, as `<number><TAB><text>`.
+DEFAULT_ROLE_TEMPLATES = {
+    "prose": "line_prose.j2",
+    "heading": "line_heading.j2",
+    "frontmatter": "line_frontmatter.j2",
+    "fence_diagram": "line_fence_diagram.j2",
+    "mermaid_label": "line_mermaid_label.j2",
+    "code_comment": "line_code_comment.j2",
+    "code_string": "line_code_string.j2",
+    "anchor": "line_anchor.j2",
+}
+DEFAULT_PHRASE_TEMPLATE = "phrase_repair.j2"
+DEFAULT_POSTPROCESS_STEPS = [
+    "strip_chunk_comments",
+    "ensure_provenance",
+    "repair_internal_anchors",
+    "fold_english_fullwidth",
+]
 
-Rules (must follow):
-- Reply with the SAME line numbers, in order, as `<number><TAB><translated text>`.
-- Output nothing else: no preamble, no commentary, no code fences, no blank lines.
-- Translate every non-English word. Never leave source-language characters behind.
-- Reproduce markdown scaffolding exactly: heading hashes, list markers, checkboxes,
-  blockquote markers, table pipes and cell count, bold/italic markers.
-- Leave untouched: URLs, file paths, wikilink targets, anchor targets after `#`,
-  code identifiers, YAML/JSON keys, command names. Link display text is translated.
-- For frontmatter lines like `title: ...`, translate the value and keep the key.
-- One input line produces exactly one output line. Never merge, split, or omit.
 
-Worked examples (TAB shown as \t):
-  in   12\t## 6. 最佳实践
-  out  12\t## 6. Best Practices
-  in   40\t6. [最佳实践](#6-zui-jia-shi-jian)
-  out  40\t6. [Best Practices](#6-zui-jia-shi-jian)
-  in   7\t| **等保2.0** | 全量日志 | 6 个月 |
-  out  7\t| **MLPS 2.0** | Full logging | 6 months |
-  in   3\tdescription: '氢能源架构设计'
-  out  3\tdescription: 'Hydrogen Energy Architecture Design'
-"""
+@dataclass(frozen=True)
+class LineJob:
+    """One 1-indexed line queued for translation, with its mdlang role."""
 
-PHRASE_SYSTEM_PROMPT = """\
-You translate short phrases into English.
+    n: int
+    role: str
 
-The user sends numbered phrases, one per line, as `<number><TAB><phrase>`.
 
-Rules (must follow):
-- Reply with the SAME numbers, in order, as `<number><TAB><English phrase>`.
-- The separator after the number MUST be a tab (or spaces). Never glue the number
-  to the phrase (bad: `3专线_access`; good: `3\\tdedicated line`).
-- Output nothing else: no preamble, no commentary, no quotes, no code fences.
-- Translate every non-English word, including short fragments next to Latin
-  acronyms (e.g. `专线` -> `dedicated line`). Never leave source-language characters.
-- These are fragments pulled out of technical documentation. Keep product names,
-  versions, and identifiers as they are, and add no punctuation that was not there.
-"""
+def load_profile(path: Path | None = None) -> dict:
+    """Load optional YAML profile overrides (prompts, fence infos, postprocess)."""
+    p = path or PROFILES_PATH
+    if not p.is_file():
+        return {}
+    data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        raise ValueError(f"profile must be a mapping: {p}")
+    return data
+
+
+def merge_config(base: dict, profile: dict) -> dict:
+    """Overlay profile keys onto mdlang config (shallow + known nested maps)."""
+    cfg = dict(base)
+    for key in (
+        "diagram_fence_infos",
+        "string_fence_langs",
+        "comment_prefixes",
+        "blocking_categories",
+        "warn_categories",
+        "translatable_frontmatter",
+        "preserve_frontmatter",
+    ):
+        if key in profile:
+            cfg[key] = profile[key]
+    cfg["role_templates"] = {
+        **DEFAULT_ROLE_TEMPLATES,
+        **(profile.get("role_templates") or {}),
+    }
+    cfg["phrase_template"] = profile.get("phrase_template", DEFAULT_PHRASE_TEMPLATE)
+    cfg["postprocess_steps"] = list(
+        profile.get("postprocess_steps") or DEFAULT_POSTPROCESS_STEPS
+    )
+    return cfg
+
+
+class PromptBank:
+    """Jinja-rendered system prompts keyed by line role."""
+
+    def __init__(self, prompts_dir: Path, role_templates: dict[str, str], phrase_template: str) -> None:
+        self.env = Environment(
+            loader=FileSystemLoader(str(prompts_dir)),
+            autoescape=select_autoescape(enabled_extensions=()),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        self.role_templates = role_templates
+        self.phrase_template = phrase_template
+        self._cache: dict[str, str] = {}
+
+    def for_role(self, role: str) -> str:
+        if role not in self._cache:
+            name = self.role_templates.get(role) or self.role_templates.get("prose")
+            if not name:
+                raise KeyError(f"no prompt template for role {role!r}")
+            self._cache[role] = self.env.get_template(name).render()
+        return self._cache[role]
+
+    def phrase(self) -> str:
+        if "_phrase" not in self._cache:
+            self._cache["_phrase"] = self.env.get_template(self.phrase_template).render()
+        return self._cache["_phrase"]
 
 _NUM_HEADING_RE = re.compile(r"^\s*(\d+)([.\s]|$)")
 _CHUNK_COMMENT_RE = re.compile(r"<!--\s*chunk:\s*.*?-->", re.IGNORECASE | re.DOTALL)
@@ -435,13 +492,8 @@ def fold_fullwidth_punctuation(text: str) -> str:
     return "".join(chars).translate(_CJK_PUNCT_TO_ASCII)
 
 
-def postprocess_translation(text: str, lang: str, source_path: str) -> str:
-    """Strip markers, repair TOC anchors, stamp provenance, fold leftover FW punct."""
-    text = strip_chunk_comments(text)
-    text = ensure_provenance(text, lang, source_path)
-    text = repair_internal_anchors(text)
-    # Sweep English lines only — Chinese leftovers (code comments, etc.) keep
-    # their native punctuation.
+def fold_english_fullwidth(text: str, **_kwargs: object) -> str:
+    """Fold fullwidth punct on English-only lines (CJK ideograph lines kept)."""
     out: list[str] = []
     for line in text.split("\n"):
         if _CJK_IDEOGRAPH_RE.search(line):
@@ -449,6 +501,58 @@ def postprocess_translation(text: str, lang: str, source_path: str) -> str:
         else:
             out.append(fold_fullwidth_punctuation(line))
     return "\n".join(out)
+
+
+def _step_strip_chunk_comments(text: str, **_kwargs: object) -> str:
+    return strip_chunk_comments(text)
+
+
+def _step_ensure_provenance(text: str, *, lang: str, source_path: str, **_kwargs: object) -> str:
+    return ensure_provenance(text, lang, source_path)
+
+
+def _step_repair_internal_anchors(text: str, **_kwargs: object) -> str:
+    return repair_internal_anchors(text)
+
+
+POSTPROCESS_REGISTRY = {
+    "strip_chunk_comments": _step_strip_chunk_comments,
+    "ensure_provenance": _step_ensure_provenance,
+    "repair_internal_anchors": _step_repair_internal_anchors,
+    "fold_english_fullwidth": fold_english_fullwidth,
+}
+
+
+def run_postprocess(
+    text: str,
+    steps: list[str],
+    *,
+    lang: str,
+    source_path: str,
+) -> str:
+    """Apply named postprocess steps in order (config/profile driven)."""
+    ctx = {"lang": lang, "source_path": source_path}
+    for name in steps:
+        fn = POSTPROCESS_REGISTRY.get(name)
+        if fn is None:
+            raise KeyError(f"unknown postprocess step: {name!r}")
+        text = fn(text, **ctx)
+    return text
+
+
+def postprocess_translation(
+    text: str,
+    lang: str,
+    source_path: str,
+    steps: list[str] | None = None,
+) -> str:
+    """Strip markers, repair TOC anchors, stamp provenance, fold leftover FW punct."""
+    return run_postprocess(
+        text,
+        steps or DEFAULT_POSTPROCESS_STEPS,
+        lang=lang,
+        source_path=source_path,
+    )
 
 
 class GatewayError(RuntimeError):
@@ -542,10 +646,39 @@ _REPLY_LINE_RE = re.compile(
 _MD_LINK_LOOSE_RE = re.compile(r"(!?)\[([^\]]*)\]\(([^)]+)\)")
 
 
+def plan_lines(
+    text: str,
+    config: dict,
+    roles_filter: set[str] | None = None,
+) -> list[LineJob]:
+    """
+    Build translation jobs from mdlang roles.
+
+    Only BLOCK-severity categories are queued. Optional `roles_filter` keeps
+    only those roles (for debugging a single fence type).
+    """
+    roles = line_roles(text, config)
+    jobs: list[LineJob] = []
+    for n in sorted(roles):
+        role = roles[n]
+        if severity(role, config) != "BLOCK":
+            continue
+        if roles_filter is not None and role not in roles_filter:
+            continue
+        jobs.append(LineJob(n, role))
+    return jobs
+
+
 def blocking_lines(text: str, config: dict) -> list[int]:
     """1-indexed line numbers the scanner flags as must-translate."""
-    findings, _ = scan_text(text, config)
-    return sorted({f.line for f in findings if severity(f.category, config) == "BLOCK"})
+    return [j.n for j in plan_lines(text, config)]
+
+
+_BOX_STRUCT_RE = re.compile(r"[\u2500-\u257F│├└─┌┐┘┤┬┴┼┃┏┓┗┛━]")
+_TREE_PREFIX_RE = re.compile(
+    r"^(\s*(?:(?:[│|]\s*)?(?:├──|└──|├─|└─|\|--|`──|\+--)\s*)?)"
+)
+_MERMAID_NODE_RE = re.compile(r"\b([A-Za-z_][\w]*)\s*[\[\(\{]")
 
 
 def _scaffold(line: str) -> tuple[tuple, str]:
@@ -570,6 +703,29 @@ def _scaffold(line: str) -> tuple[tuple, str]:
     # Cell count matters only for table rows; a stray pipe in prose does not.
     pipes = rest.count("|") if rest.startswith("|") else 0
     return (quote, heading, bullet, ordered, checkbox, pipes), rest
+
+
+def _diagram_sig(line: str) -> tuple:
+    """Structural signature for ASCII/decision-tree diagram lines."""
+    indent = len(line) - len(line.lstrip(" "))
+    prefix = _TREE_PREFIX_RE.match(line)
+    pref = prefix.group(1) if prefix else line[:indent]
+    boxes = len(_BOX_STRUCT_RE.findall(line))
+    return (indent, pref.replace(" ", "·"), boxes)
+
+
+def _mermaid_sig(line: str) -> tuple:
+    """Node IDs + keyword skeleton for a Mermaid line."""
+    ids = tuple(_MERMAID_NODE_RE.findall(line))
+    keywords = tuple(
+        m.group(0)
+        for m in re.finditer(
+            r"\b(?:flowchart|graph|subgraph|end|classDef|click|style|TB|LR|BT|RL)\b",
+            line,
+        )
+    )
+    edges = len(re.findall(r"-->|---|\-\.->|==>", line))
+    return (ids, keywords, edges)
 
 
 def _clean_translated(text: str) -> str:
@@ -603,20 +759,35 @@ def _clean_translated(text: str) -> str:
     return _MD_LINK_LOOSE_RE.sub(_fix_dest, text)
 
 
-def _line_problem(original: str, translated: str | None) -> str | None:
+def _line_problem(
+    original: str,
+    translated: str | None,
+    role: str = "prose",
+) -> str | None:
     """Why this translated line is unusable, or None when it is fine."""
     if translated is None:
         return "missing from reply"
     if _BLOCK_SCRIPT_RE.search(translated):
         return "still contains source-language text"
-    o_sig, o_rest = _scaffold(original)
-    t_sig, t_rest = _scaffold(translated)
-    if o_sig != t_sig:
-        return f"markdown scaffolding changed {o_sig} -> {t_sig}"
-    if _HAS_TEXT_RE.search(o_rest) and not _HAS_TEXT_RE.search(t_rest):
-        return "content dropped"
-    if len(_LINK_RE.findall(original)) != len(_LINK_RE.findall(translated)):
-        return "link count changed"
+    if role == "fence_diagram":
+        if _diagram_sig(original) != _diagram_sig(translated):
+            return "diagram scaffolding changed"
+        if _SEGMENT_SCRIPT_RE.search(original) and not re.search(r"[A-Za-z]", translated):
+            return "content dropped"
+    elif role == "mermaid_label":
+        if _mermaid_sig(original) != _mermaid_sig(translated):
+            return "mermaid node/edge skeleton changed"
+        if _SEGMENT_SCRIPT_RE.search(original) and not re.search(r"[A-Za-z]", translated):
+            return "content dropped"
+    else:
+        o_sig, o_rest = _scaffold(original)
+        t_sig, t_rest = _scaffold(translated)
+        if o_sig != t_sig:
+            return f"markdown scaffolding changed {o_sig} -> {t_sig}"
+        if _HAS_TEXT_RE.search(o_rest) and not _HAS_TEXT_RE.search(t_rest):
+            return "content dropped"
+        if len(_LINK_RE.findall(original)) != len(_LINK_RE.findall(translated)):
+            return "link count changed"
     return None
 
 
@@ -670,19 +841,24 @@ def _non_latin_count(text: str) -> int:
     return len(_BLOCK_SCRIPT_RE.findall(text))
 
 
-def _translate_phrases(client: VllmClient, phrases: list[str]) -> dict[int, str]:
+def _translate_phrases(
+    client: VllmClient,
+    phrases: list[str],
+    prompts: PromptBank,
+) -> dict[int, str]:
     """Translate phrases; drop dirty replies and retry misses one at a time."""
     if not phrases:
         return {}
     wanted = list(range(1, len(phrases) + 1))
     got: dict[int, str] = {}
+    system = prompts.phrase()
 
     def ask(indices: list[int]) -> None:
         if not indices:
             return
         payload = "\n".join(f"{i}\t{phrases[i - 1]}" for i in indices)
         try:
-            reply = client.complete(PHRASE_SYSTEM_PROMPT, payload)
+            reply = client.complete(system, payload)
         except GatewayError:
             return
         for i, text in _parse_reply(reply, set(indices)).items():
@@ -699,7 +875,11 @@ def _translate_phrases(client: VllmClient, phrases: list[str]) -> dict[int, str]
     return got
 
 
-def _repair_by_segment(client: VllmClient, line: str) -> str | None:
+def _repair_by_segment(
+    client: VllmClient,
+    line: str,
+    prompts: PromptBank,
+) -> str | None:
     """
     Translate only the source-language runs inside `line` and substitute them back.
 
@@ -711,7 +891,7 @@ def _repair_by_segment(client: VllmClient, line: str) -> str | None:
     if not spans:
         return None
     phrases = [line[a:b] for a, b in spans]
-    got = _translate_phrases(client, phrases)
+    got = _translate_phrases(client, phrases, prompts)
     if len(got) != len(phrases):
         return None
     out: list[str] = []
@@ -736,14 +916,23 @@ def _remember_partial(
     n: int,
     original: str,
     candidate: str | None,
+    role: str,
 ) -> None:
     """Keep the cleanest scaffold-faithful partial for later segment repair."""
     if candidate is None:
         return
-    o_sig, _ = _scaffold(original)
-    t_sig, _ = _scaffold(candidate)
-    if o_sig != t_sig:
-        return
+    # Role-specific skeleton must hold; otherwise the partial is unusable.
+    if role == "fence_diagram":
+        if _diagram_sig(original) != _diagram_sig(candidate):
+            return
+    elif role == "mermaid_label":
+        if _mermaid_sig(original) != _mermaid_sig(candidate):
+            return
+    else:
+        o_sig, _ = _scaffold(original)
+        t_sig, _ = _scaffold(candidate)
+        if o_sig != t_sig:
+            return
     cand_n = _non_latin_count(candidate)
     if cand_n == 0 or cand_n >= _non_latin_count(original):
         return
@@ -755,21 +944,25 @@ def _remember_partial(
 def translate_lines(
     client: VllmClient,
     lines: list[str],
-    numbers: list[int],
+    jobs: list[LineJob],
+    prompts: PromptBank,
     batch_size: int = DEFAULT_BATCH_LINES,
     retries: int = DEFAULT_LINE_RETRIES,
-) -> tuple[dict[int, str], dict[int, str]]:
+) -> tuple[dict[int, str], dict[int, str], Counter]:
     """
-    Translate only `numbers` (1-indexed) out of `lines`.
+    Translate planned `jobs` (1-indexed line + role).
 
-    Returns (clean_by_line, unresolved_by_line_with_reason). A line that never
-    comes back clean is simply absent, so the caller keeps the original and the
-    verify gate refuses the file rather than writing a half-translated one.
+    Batches are grouped by role so each request uses the matching Jinja system
+    prompt. Wire format stays `<number>\\t<text>`.
+
+    Returns (clean_by_line, unresolved_with_reason, role_ok_counts).
     """
     done: dict[int, str] = {}
     problems: dict[int, str] = {}
     best: dict[int, str] = {}
-    pending = list(numbers)
+    role_of = {j.n: j.role for j in jobs}
+    pending = [j.n for j in jobs]
+    role_ok: Counter = Counter()
 
     for attempt in range(1, retries + 1):
         if not pending:
@@ -777,28 +970,36 @@ def translate_lines(
         # First pass batches for throughput; later passes go one line at a
         # time, which is where the model is most reliable.
         size = batch_size if attempt == 1 else 1
-        groups = [pending[i : i + size] for i in range(0, len(pending), size)]
+        # Group by role so one system prompt applies to the whole batch.
+        by_role: dict[str, list[int]] = defaultdict(list)
+        for n in pending:
+            by_role[role_of[n]].append(n)
         retry_queue: list[int] = []
-        for group in groups:
-            payload = "\n".join(f"{n}\t{lines[n - 1]}" for n in group)
-            try:
-                reply = client.complete(LINE_SYSTEM_PROMPT, payload)
-            except GatewayError as exc:
+        for role, nums in by_role.items():
+            groups = [nums[i : i + size] for i in range(0, len(nums), size)]
+            system = prompts.for_role(role)
+            for group in groups:
+                payload = "\n".join(f"{n}\t{lines[n - 1]}" for n in group)
+                try:
+                    reply = client.complete(system, payload)
+                except GatewayError as exc:
+                    for n in group:
+                        problems[n] = str(exc)
+                        retry_queue.append(n)
+                    continue
+                got = _parse_reply(reply, set(group))
                 for n in group:
-                    problems[n] = str(exc)
-                    retry_queue.append(n)
-                continue
-            got = _parse_reply(reply, set(group))
-            for n in group:
-                cand = got.get(n)
-                _remember_partial(best, n, lines[n - 1], cand)
-                why = _line_problem(lines[n - 1], cand)
-                if why is None and cand is not None:
-                    done[n] = cand
-                    problems.pop(n, None)
-                else:
-                    problems[n] = why or "missing from reply"
-                    retry_queue.append(n)
+                    cand = got.get(n)
+                    r = role_of[n]
+                    _remember_partial(best, n, lines[n - 1], cand, r)
+                    why = _line_problem(lines[n - 1], cand, r)
+                    if why is None and cand is not None:
+                        done[n] = cand
+                        problems.pop(n, None)
+                        role_ok[r] += 1
+                    else:
+                        problems[n] = why or "missing from reply"
+                        retry_queue.append(n)
         pending = [n for n in retry_queue if n not in done]
         if pending and attempt < retries:
             print(f"    retrying {len(pending)} line(s) individually", flush=True)
@@ -808,20 +1009,22 @@ def translate_lines(
         for n in pending:
             # Prefer a near-miss English line (e.g. only `专线` left) over the
             # full Chinese original — fewer, shorter phrases for the model.
+            r = role_of[n]
             base = best.get(n, lines[n - 1])
-            fixed = _repair_by_segment(client, base)
+            fixed = _repair_by_segment(client, base, prompts)
             if fixed is not None and _BLOCK_SCRIPT_RE.search(fixed):
-                again = _repair_by_segment(client, fixed)
+                again = _repair_by_segment(client, fixed, prompts)
                 if again is not None:
                     fixed = again
-            why = _line_problem(lines[n - 1], fixed)
+            why = _line_problem(lines[n - 1], fixed, r)
             if why is None and fixed is not None:
                 done[n] = fixed
                 problems.pop(n, None)
+                role_ok[r] += 1
             else:
                 problems[n] = f"segment repair failed: {why or 'missing from reply'}"
 
-    return done, {n: why for n, why in problems.items() if n not in done}
+    return done, {n: why for n, why in problems.items() if n not in done}, role_ok
 
 
 def translate_file(
@@ -830,7 +1033,9 @@ def translate_file(
     config: dict,
     lang: str,
     source_path: str,
-) -> tuple[str, dict[int, str]]:
+    prompts: PromptBank | None = None,
+    roles_filter: set[str] | None = None,
+) -> tuple[str, dict[int, str], Counter]:
     """
     Translate the flagged lines and splice them back in place.
 
@@ -839,28 +1044,41 @@ def translate_file(
     gate are satisfied by construction rather than by the model's goodwill.
     """
     lines = text.split("\n")
-    numbers = blocking_lines(text, config)
-    if not numbers:
-        return postprocess_translation(text, lang, source_path), {}
+    jobs = plan_lines(text, config, roles_filter=roles_filter)
+    bank = prompts or PromptBank(
+        PROMPTS_DIR,
+        config.get("role_templates", DEFAULT_ROLE_TEMPLATES),
+        config.get("phrase_template", DEFAULT_PHRASE_TEMPLATE),
+    )
+    steps = config.get("postprocess_steps", DEFAULT_POSTPROCESS_STEPS)
+    if not jobs:
+        return postprocess_translation(text, lang, source_path, steps), {}, Counter()
 
+    by_role = Counter(j.role for j in jobs)
+    role_bits = ", ".join(f"{r}={c}" for r, c in sorted(by_role.items()))
     print(
-        f"    {len(numbers)} of {len(lines)} line(s) need translation "
-        f"({len(numbers) / len(lines):.0%})",
+        f"    {len(jobs)} of {len(lines)} line(s) need translation "
+        f"({len(jobs) / len(lines):.0%}) [{role_bits}]",
         flush=True,
     )
-    done, problems = translate_lines(
+    done, problems, role_ok = translate_lines(
         client,
         lines,
-        numbers,
+        jobs,
+        bank,
         config.get("batch_lines", DEFAULT_BATCH_LINES),
         config.get("line_retries", DEFAULT_LINE_RETRIES),
     )
     for n, translated in done.items():
         original = lines[n - 1]
-        # Indentation carries list nesting; take it from the source, not the model.
-        indent = original[: len(original) - len(original.lstrip())]
-        lines[n - 1] = indent + translated.lstrip()
-    return postprocess_translation("\n".join(lines), lang, source_path), problems
+        # Leading spaces carry list/diagram nesting; take from source, not model.
+        pad = len(original) - len(original.lstrip(" "))
+        lines[n - 1] = original[:pad] + translated.lstrip(" ")
+    return (
+        postprocess_translation("\n".join(lines), lang, source_path, steps),
+        problems,
+        role_ok,
+    )
 
 
 def atomic_write(path: Path, content: str) -> None:
@@ -913,6 +1131,14 @@ def preflight(client: VllmClient) -> None:
         sys.exit(2)
 
 
+def _has_provenance(text: str) -> bool:
+    fm, _, _ = split_frontmatter(text)
+    if fm is None:
+        return False
+    keys = {ln.split(":", 1)[0].strip() for ln in fm.split("\n") if ":" in ln}
+    return "original_language" in keys
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="translation_scan.py",
@@ -940,6 +1166,21 @@ def main(argv: list[str] | None = None) -> int:
         help="only process files in this density bucket",
     )
     ap.add_argument("--limit", type=int, help="max files to translate (with --write)")
+    ap.add_argument(
+        "--roles",
+        help="comma-separated roles to translate (e.g. fence_diagram,mermaid_label)",
+    )
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="skip files that already have original_language and no blocking findings",
+    )
+    ap.add_argument(
+        "--profile",
+        type=Path,
+        default=PROFILES_PATH,
+        help=f"YAML profile path (default {PROFILES_PATH})",
+    )
     ap.add_argument(
         "--model",
         default=os.environ.get("AI_MODEL", DEFAULT_MODEL),
@@ -979,9 +1220,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--show", type=int, default=5, help="sample blocking lines in report")
     args = ap.parse_args(argv)
 
-    config = load_config()
+    profile = load_profile(args.profile)
+    config = merge_config(load_config(), profile)
     config["batch_lines"] = args.batch_lines
     config["line_retries"] = args.line_retries
+    roles_filter = (
+        {r.strip() for r in args.roles.split(",") if r.strip()} if args.roles else None
+    )
 
     files: list[Path] = []
     for raw in args.paths:
@@ -996,11 +1241,16 @@ def main(argv: list[str] | None = None) -> int:
 
     reports = []
     skipped_books = 0
+    skipped_resume = 0
     for f in files:
         if not args.include_books and is_book_path(f):
             skipped_books += 1
             continue
-        reports.append(analyse(f, config))
+        rep = analyse(f, config)
+        if args.resume and rep["blocking_chars"] == 0 and _has_provenance(read_text(f)):
+            skipped_resume += 1
+            continue
+        reports.append(rep)
 
     if args.bucket:
         reports = [r for r in reports if r["bucket"] == args.bucket]
@@ -1008,7 +1258,15 @@ def main(argv: list[str] | None = None) -> int:
     dirty = [r for r in reports if r["bucket"] != "CLEAN" and r["blocking_chars"] > 0]
     clean_n = sum(1 for r in reports if r["bucket"] == "CLEAN" or r["blocking_chars"] == 0)
 
-    print(f"scanned {len(reports)} file(s)" + (f" (skipped {skipped_books} books)" if skipped_books else ""))
+    skip_bits = []
+    if skipped_books:
+        skip_bits.append(f"skipped {skipped_books} books")
+    if skipped_resume:
+        skip_bits.append(f"resume-skipped {skipped_resume}")
+    print(
+        f"scanned {len(reports)} file(s)"
+        + (f" ({', '.join(skip_bits)})" if skip_bits else "")
+    )
     buckets: dict[str, int] = {}
     for r in reports:
         buckets[r["bucket"]] = buckets.get(r["bucket"], 0) + 1
@@ -1017,6 +1275,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {b:<8} {buckets[b]}")
     print(f"  {len(dirty)} file(s) need translation; {clean_n} clean")
 
+    role_totals: Counter = Counter()
     for r in dirty:
         print(f"\n{r['path']}")
         print(
@@ -1024,10 +1283,19 @@ def main(argv: list[str] | None = None) -> int:
             f"({r['language_hint'] or '-'})"
         )
         blocking = [f for f in r["findings"] if f["severity"] == "BLOCK"]
+        if roles_filter:
+            blocking = [f for f in blocking if f["category"] in roles_filter]
+        for f in blocking:
+            role_totals[f["category"]] += 1
         for f in blocking[: args.show]:
             print(f"    L{f['line']:<5} {f['category']:<14} {f['text']}")
         if len(blocking) > args.show:
             print(f"    ... {len(blocking) - args.show} more")
+
+    if role_totals:
+        print("\nblocking lines by role:")
+        for role, n in sorted(role_totals.items(), key=lambda kv: (-kv[1], kv[0])):
+            print(f"  {role:<16} {n}")
 
     if not args.write:
         print("\n(dry-run — pass --write to translate and overwrite)")
@@ -1046,6 +1314,11 @@ def main(argv: list[str] | None = None) -> int:
         timeout=args.timeout,
     )
     preflight(client)
+    prompts = PromptBank(
+        PROMPTS_DIR,
+        config.get("role_templates", DEFAULT_ROLE_TEMPLATES),
+        config.get("phrase_template", DEFAULT_PHRASE_TEMPLATE),
+    )
 
     targets = dirty
     if args.limit is not None:
@@ -1053,6 +1326,8 @@ def main(argv: list[str] | None = None) -> int:
 
     translated_ok = 0
     failed = 0
+    role_translated: Counter = Counter()
+    role_failed_lines: Counter = Counter()
     for r in targets:
         path = Path(r["path"])
         lang = language_label(r["dominant_script"])
@@ -1063,13 +1338,28 @@ def main(argv: list[str] | None = None) -> int:
             # headings in both the source outline and the translation.
             original_text = normalize_source(read_text(path))
             file_config = dict(config)
-            new_text, problems = translate_file(
-                client, original_text, file_config, lang, rel
+            # --roles is a scoped pass: only gate residual findings in those roles
+            # so unrelated Chinese does not block writing the lines we just fixed.
+            if roles_filter is not None:
+                file_config["blocking_categories"] = sorted(roles_filter)
+            new_text, problems, role_ok = translate_file(
+                client,
+                original_text,
+                file_config,
+                lang,
+                rel,
+                prompts=prompts,
+                roles_filter=roles_filter,
             )
+            role_translated.update(role_ok)
             if problems:
                 print(f"  {len(problems)} line(s) never came back clean:")
                 for n, why in sorted(problems.items())[:5]:
                     print(f"    L{n}: {why}")
+                # Attribute failures by planned role when possible.
+                planned = {j.n: j.role for j in plan_lines(original_text, file_config, roles_filter)}
+                for n in problems:
+                    role_failed_lines[planned.get(n, "?")] += 1
             result = verify_text(original_text, new_text, file_config, path.suffix or ".md")
             for w in result.warnings:
                 print(f"  ! {w}")
@@ -1087,6 +1377,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  ERROR {path}: {exc}", file=sys.stderr)
 
     print(f"\ndone: {translated_ok} written, {failed} failed, {len(targets)} attempted")
+    if role_translated or role_failed_lines:
+        print("lines by role:")
+        all_roles = sorted(set(role_translated) | set(role_failed_lines))
+        for role in all_roles:
+            print(
+                f"  {role:<16} ok={role_translated.get(role, 0)}  "
+                f"failed={role_failed_lines.get(role, 0)}"
+            )
     return 0 if failed == 0 else 1
 
 

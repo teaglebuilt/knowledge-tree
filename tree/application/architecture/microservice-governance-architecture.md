@@ -1,4 +1,5 @@
----title: 微服务治理与 Service Mesh Kubernetes 生产架构设计
+---
+title: 微服务治理与 Service Mesh Kubernetes 生产架构设计
 description: 'title: 微服务治理与Service Mesh架构设计'
 summary: 'title: 微服务治理与Service Mesh架构设计'
 category: general
@@ -46,6 +47,8 @@ authors:
 - name: Dillan Teagle
   role: contributor
 
+original_language: Chinese
+source_path: tree/application/architecture/microservice-governance-architecture.md
 ---
 
 > **生产环境安全提示**
@@ -123,7 +126,7 @@ k8s_versions:
 
 ---
 
-<!-- chunk: 📋 目录 -->## 📋 目录
+## 📋 目录
 
 - [一、整体架构全景](#一整体架构全景)
 - [二、服务网格 (Service Mesh) 架构](#二服务网格-service-mesh-架构)
@@ -132,11 +135,11 @@ k8s_versions:
 - [五、零信任安全架构](#五零信任安全架构)
 - [六、多活架构与容灾](#六多活架构与容灾)
 - [七、服务注册发现与配置中心](#七服务注册发现与配置中心)
-- [八、ACK + ASM 阿里云部署架构](#八ack--asm-阿里云部署架构)
+- [八、ACK + ASM 阿里云部署架构](#八ack-asm-阿里云部署架构)
 
 ---
 
-<!-- chunk: 一、整体架构全景 -->## 一、整体架构全景
+## 一、整体架构全景
 
 ```mermaid
 flowchart TB
@@ -194,7 +197,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 二、服务网格 (Service Mesh) 架构 -->## 二、服务网格 (Service Mesh) 架构
+## 二、服务网格 (Service Mesh) 架构
 
 ## Sidecar vs Ambient vs eBPF
 
@@ -284,7 +287,7 @@ spec:
       labels:
         version: v2.0
 ---
-# 全链路灰度：透传灰度标签
+# Full-link canary: propagate canary labels
 apiVersion: networking.istio.io/v1beta1
 kind: EnvoyFilter
 metadata:
@@ -307,7 +310,7 @@ spec:
 
 ---
 
-<!-- chunk: 三、全链路灰度发布架构 -->## 三、全链路灰度发布架构
+## 三、全链路灰度发布架构
 
 ```mermaid
 flowchart TB
@@ -339,7 +342,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 四、流量治理与熔断降级架构 -->## 四、流量治理与熔断降级架构
+## 四、流量治理与熔断降级架构
 
 ```mermaid
 flowchart TB
@@ -404,7 +407,7 @@ data:
       }
     ]
 ---
-# Sentinel Sidecar 注入
+# Sentinel Sidecar injection
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -430,7 +433,7 @@ spec:
 
 ---
 
-<!-- chunk: 五、零信任安全架构 -->## 五、零信任安全架构
+## 五、零信任安全架构
 
 ```mermaid
 flowchart TB
@@ -460,7 +463,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 六、多活架构与容灾 -->## 六、多活架构与容灾
+## 六、多活架构与容灾
 
 ```mermaid
 flowchart TB
@@ -492,7 +495,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 七、服务注册发现与配置中心 -->## 七、服务注册发现与配置中心
+## 七、服务注册发现与配置中心
 
 ```mermaid
 flowchart TB
@@ -614,7 +617,7 @@ spec:
 
 ---
 
-<!-- chunk: 八、ACK + ASM 阿里云部署架构 -->## 八、ACK + ASM 阿里云部署架构
+## 八、ACK + ASM 阿里云部署架构
 
 ## ASM 多集群网格
 
@@ -669,7 +672,7 @@ spec:
       hosts:
         - "*.example.com"
 ---
-# MSE 全链路灰度规则
+# MSE full-link canary rules
 apiVersion: mse.alibabacloud.com/v1alpha1
 kind: TrafficLane
 metadata:
@@ -692,7 +695,7 @@ spec:
 
 ---
 
-<!-- chunk: 参考链接 -->## 参考链接
+## 参考链接
 
 - [阿里云 ASM 服务网格](https://www.aliyun.com/product/servicemesh)
 - [阿里云 MSE 微服务引擎](https://www.aliyun.com/product/aliware/mse)
@@ -702,7 +705,7 @@ spec:
 
 ---
 
-<!-- chunk: Obsidian 相关文档 -->## Obsidian 相关文档
+## Obsidian 相关文档
 
 - topic-application-architecture MOC
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Topic 应用层架构设计最佳实践]]

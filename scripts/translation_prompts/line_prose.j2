@@ -1,0 +1,14 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- Reproduce markdown scaffolding exactly: heading hashes, list markers, checkboxes,
+  blockquote markers, table pipes and cell count, bold/italic markers.
+- Link display text is translated; destinations stay unchanged.
+{% endblock %}
+{% block examples %}
+  in   12\t## 6. 最佳实践
+  out  12\t## 6. Best Practices
+  in   40\t6. [最佳实践](#6-zui-jia-shi-jian)
+  out  40\t6. [Best Practices](#6-zui-jia-shi-jian)
+  in   7\t| **等保2.0** | 全量日志 | 6 个月 |
+  out  7\t| **MLPS 2.0** | Full logging | 6 months |
+{% endblock %}

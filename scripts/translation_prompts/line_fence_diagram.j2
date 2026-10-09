@@ -1,0 +1,17 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- This line is inside an ASCII / decision-tree diagram fence.
+- Preserve EVERY structural character exactly: box-drawing (`│├└─┌┐┘┤┬┴┼`),
+  ASCII tree markers (`|--`, `+--`), arrows (`→`, `->`), pipes, and spaces.
+- Preserve indentation (leading spaces) exactly — nesting is meaning.
+- Translate only the human-readable words/labels. Do not reflow into a paragraph.
+- Do not add or remove tree branches.
+{% endblock %}
+{% block examples %}
+  in   10\t├── 数据是否可以发送到外部 API?
+  out  10\t├── Can data be sent to an external API?
+  in   11\t│   ├── 否（合规/安全要求内部部署）
+  out  11\t│   ├── No (compliance/security requires internal deployment)
+  in   12\t选型决策起点
+  out  12\tSelection decision starting point
+{% endblock %}

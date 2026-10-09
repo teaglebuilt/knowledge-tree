@@ -1,4 +1,5 @@
----title: Energy and Power Kubernetes Production Architecture Design (domain-20-application-patterns)
+---
+title: Energy and Power Kubernetes Production Architecture Design (domain-20-application-patterns)
 description: 'title: Energy and Power Kubernetes Production Architecture Design'
 summary: 'title: Energy and Power Kubernetes Production Architecture Design'
 category: general
@@ -41,7 +42,7 @@ prerequisites:
 authors:
 - name: Dillan Teagle
   role: contributor
-source_path: /Users/teaglebuilt/github/teaglebuilt/knowledge/tree/application/architecture/energy-power-architecture.md
+source_path: tree/application/architecture/energy-power-architecture.md
 original_language: Chinese
 ---
 
@@ -120,7 +121,7 @@ k8s_versions:
 
 ---
 
-<!-- chunk: Table of Contents -->## Table of Contents
+## Table of Contents
 
 1. [Industry Overview](#1-industry-overview)
 2. [Business Scenarios](#2-business-scenarios)
@@ -136,7 +137,7 @@ k8s_versions:
 
 ---
 
-<!-- chunk: 1. Industry Overview -->## 1. Industry Overview
+## 1. Industry Overview
 
 ## 1.1 Industry Background
 
@@ -163,7 +164,7 @@ The Chinese energy and power industry is dominated by two central enterprises: S
 
 ---
 
-<!-- chunk: 2. Business Scenarios -->## 2. Business Scenarios
+## 2. Business Scenarios
 
 ## 2.1 Smart Grid Dispatch
 
@@ -187,7 +188,7 @@ Enterprise carbon emission accounting, carbon quota management, and carbon tradi
 
 ---
 
-<!-- chunk: 3. Architecture Design -->## 3. Architecture Design
+## 3. Architecture Design
 
 ## 3.1 Energy and Power Comprehensive Architecture
 
@@ -292,7 +293,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 4. Core Technology Stack -->## 4. Core Technology Stack
+## 4. Core Technology Stack
 
 | Category | Open Source | Alibaba Cloud Solution | Description |
 |:---|:---|:---|:---|
@@ -310,7 +311,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 5. K8s Deployment Solution -->## 5. K8s Deployment Solution
+## 5. K8s Deployment Solution
 
 ## 5.1 SCADA Data Collector
 
@@ -477,34 +478,34 @@ spec:
 
 ---
 
-<!-- chunk: 6. Data Architecture -->## 6. Data Architecture
+## 6. Data Architecture
 
 ## 6.1 Data Layering
 
 ```mermaid
 flowchart TB
-    subgraph 采集层["Data Collection"]
+    subgraph CollectingLayer["Data Collection"]
         M1["Smart Meters 15min/Billion-Scale"]
         M2["PMU Synchrophasors μs-Level"]
         M3["Meteorological Data NWP 1h"]
         M4["Charging Pile Data Real-Time"]
     end
 
-    subgraph 存储层["Data Storage"]
+    subgraph StorageLayer["Data Storage"]
         S1["Lindorm Time-Series Measurement Data"]
         S2["PolarDB Business Transactions/Assets"]
         S3["OSS Archive Historical Data"]
         S4["Redis Real-Time Status Cache"]
     end
 
-    subgraph 分析层["Data Analysis"]
+    subgraph AnalysisLayer["Data Analysis"]
         A1["Flink Real-Time Power/Load"]
         A2["MaxCompute Offline Historical Analysis"]
         A3["PAI AI Prediction Training"]
         A4["Hologres OLAP Ad-hoc Query"]
     end
 
-    采集层 --> 存储层 --> 分析层
+    CollectingLayer --> StorageLayer --> AnalysisLayer
 ```
 
 ## 6.2 Storage Strategy
@@ -520,7 +521,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 7. AI/ML Components -->## 7. AI/ML Components
+## 7. AI/ML Components
 
 ## 7.1 AI Application Matrix
 
@@ -536,7 +537,7 @@ flowchart TB
 
 ---
 
-<!-- chunk: 8. Security and Compliance -->## 8. Security and Compliance
+## 8. Security and Compliance
 
 ## 8.1 Security Segmentation Architecture
 
@@ -559,7 +560,7 @@ Power monitoring systems are divided into four security zones according to the p
 
 ---
 
-<!-- chunk: 9. Best Practices -->## 9. Best Practices
+## 9. Best Practices
 
 - **Prediction Accuracy Assurance**: Wind forecast accuracy > 85%, solar > 90%, improve accuracy through multi-model ensemble learning
 - **Dispatch Real-Time Performance**: VPP dispatch command end-to-end latency < 100ms, use Redis cache for real-time resource state
@@ -570,7 +571,7 @@ Power monitoring systems are divided into four security zones according to the p
 
 ---
 
-<!-- chunk: 10. Anti-Patterns -->## 10. Anti-Patterns
+## 10. Anti-Patterns
 
 ## 10.1 Security Zone Violation
 
@@ -592,7 +593,7 @@ Only support MQTT protocol for device access, ignoring widely-used IEC 61850/IEC
 
 ---
 
-<!-- chunk: 11. Reference Resources -->## 11. Reference Resources
+## 11. Reference Resources
 
 ## 11.1 Alibaba Cloud Component Mapping
 
@@ -630,7 +631,7 @@ Only support MQTT protocol for device access, ignoring widely-used IEC 61850/IEC
 
 ---
 
-<!-- chunk: Obsidian Related Documents -->## Obsidian Related Documents
+## Obsidian Related Documents
 
 - topic-application-architecture MOC
 - [[domain-20-application-patterns/topic-application-architecture/README.md|Topic Application Layer Architecture Design Best Practices]]

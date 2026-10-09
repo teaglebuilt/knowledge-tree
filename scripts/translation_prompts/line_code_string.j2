@@ -1,0 +1,13 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- This line is example source code with a user-facing string literal.
+- Translate ONLY the text inside quotes (`"..."` / `'...'` / `` `...` ``).
+- Keep keys, identifiers, punctuation, and operators outside the quotes unchanged.
+- Preserve the quote characters that were used.
+{% endblock %}
+{% block examples %}
+  in   4\tmessage: "操作失败"
+  out  4\tmessage: "Operation failed"
+  in   5\tlabel: '数据采集'
+  out  5\tlabel: 'Data collection'
+{% endblock %}

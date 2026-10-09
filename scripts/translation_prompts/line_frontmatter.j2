@@ -1,0 +1,12 @@
+{% extends "_base_line.j2" %}
+{% block extra_rules %}
+- For YAML frontmatter lines like `title: ...`, translate the value and keep the key.
+- Preserve quoting style (single quotes, double quotes, or bare) around the value.
+- List items under keys like `audience:` / `intent_queries:` keep their `- ` marker.
+{% endblock %}
+{% block examples %}
+  in   3\tdescription: '氢能源架构设计'
+  out  3\tdescription: 'Hydrogen Energy Architecture Design'
+  in   22\t- 所有工程师
+  out  22\t- All Engineers
+{% endblock %}
