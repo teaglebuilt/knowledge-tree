@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/name: {{ .Values.mcpServer.name }}
-    app.kubernetes.io/part-of: knowledge
+    app.kubernetes.io/part-of: knowledge-tree
     app.kubernetes.io/component: mcp-retrieval
 spec:
   transportType: {{ .Values.mcpServer.transportType }}
