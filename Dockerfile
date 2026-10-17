@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       "fastembed>=0.4" \
       "onnxruntime<1.24" \
       "pyyaml>=6.0" \
+      "starlette>=0.37" \
       "uvicorn>=0.30"
 
 COPY kb/__init__.py kb/config.py kb/embed.py kb/chunk.py /build/kb/

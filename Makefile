@@ -2,7 +2,7 @@ PY := uv run python
 
 # kb-retrieval MCP image (must match chart/values.yaml image.* unless overridden)
 IMAGE_REPO ?= ghcr.io/teaglebuilt/kb-retrieval
-IMAGE_TAG  ?= 0.1.0
+IMAGE_TAG  ?= 0.2.0
 IMAGE      ?= $(IMAGE_REPO):$(IMAGE_TAG)
 GHCR_HOST  ?= ghcr.io
 GHCR_SCOPES ?= write:packages,read:packages
@@ -65,23 +65,21 @@ docker-push: docker-build docker-login ## Push kb-retrieval image to IMAGE_REPO
 	docker push $(IMAGE)
 
 helm-deploy: ## Install/upgrade chart; key comes from the qdrant-apikey Secret in ai
-	@kubectl -n ai get secret qdrant-apikey >/dev/null 2>&1 || { \
-		echo "Secret ai/qdrant-apikey missing — apply platform/ai/kubernetes/mcp first"; \
-		exit 1; \
-	}
 	helm upgrade --install knowledge-tree chart -n ai
 
 helm-deploy-ingest: ## Install/upgrade the write plane (kb-ingest) on the cluster holding Qdrant
-	@kubectl --context $(INGEST_CONTEXT) -n ai get secret $(INGEST_SECRET) >/dev/null 2>&1 || { \
-		echo "Secret ai/$(INGEST_SECRET) missing in $(INGEST_CONTEXT) — it must carry QDRANT_API_KEY"; \
+	@set -a; . ./.envrc; set +a; \
+	if [ -z "$$QDRANT_API_KEY" ]; then \
+		echo "QDRANT_API_KEY is empty — export it in .envrc"; \
 		exit 1; \
-	}
+	fi; \
 	helm upgrade --install knowledge-ingest chart -n ai \
 		--kube-context $(INGEST_CONTEXT) \
 		--set ingest.enabled=true \
 		--set mcpServer.enabled=false \
 		--set agent.enabled=false \
-		--set qdrant.existingSecret=$(INGEST_SECRET)
+		--set qdrant.existingSecretEnabled=false \
+		--set-string qdrant.apikey="$$QDRANT_API_KEY"
 
 translate-scan: ## Scan tree for non-English; dry-run (add WRITE=1 to overwrite)
 	$(PY) scripts/translation_scan.py tree/ $(if $(WRITE),--write,)

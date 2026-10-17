@@ -1,9 +1,3 @@
-"""Write plane: markdown document -> chunk -> embed -> Qdrant.
-
-Reuses kb.chunk and kb.embed unchanged so documents pushed over HTTP land in
-the same vector space, with the same chunk ids, as `kb ingest` + `kb sync`.
-Touches Qdrant only — callers have no filesystem, LanceDB or DuckDB.
-"""
 from __future__ import annotations
 
 import os
@@ -65,8 +59,6 @@ def frontmatter(raw: str) -> dict:
 
 
 class KnowledgeIngest:
-    """Single-writer ingest into the Qdrant knowledge collection."""
-
     def __init__(self, client=None) -> None:
         self._client = client or qd.client()
         self._prepared = False
