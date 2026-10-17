@@ -74,7 +74,7 @@ def _first_heading(body: str) -> str | None:
 def _sections(body: str) -> list[tuple[str, str]]:
     """Split body into (heading_trail, section_text), tracking heading hierarchy."""
     sections: list[tuple[str, str]] = []
-    trail: list[str] = []
+    trail: list[tuple[int, str]] = []
     cur_lines: list[str] = []
     cur_trail = ""
 
@@ -90,9 +90,11 @@ def _sections(body: str) -> list[tuple[str, str]]:
             cur_lines.clear()
             level = len(m.group(1))
             title = m.group(2).strip()
-            trail = trail[: level - 1]
-            trail.append(title)
-            cur_trail = " > ".join(trail)
+            # Keep ancestors by their actual level: a doc that starts at `##`
+            # (timestamp-headed transcripts do) must not nest siblings.
+            trail = [entry for entry in trail if entry[0] < level]
+            trail.append((level, title))
+            cur_trail = " > ".join(t for _, t in trail)
             cur_lines.append(line)
         else:
             cur_lines.append(line)

@@ -3,16 +3,12 @@ from __future__ import annotations
 import json
 
 from . import config, store
-from .adapters.qdrant import client as _client
-
-
-def _point_id(chunk_id: str) -> str:
-    import hashlib
-    import uuid
-
-    # Deterministic UUID from the stable chunk_id so re-syncs upsert, not dupe.
-    h = hashlib.sha256(chunk_id.encode()).hexdigest()
-    return str(uuid.UUID(h[:32]))
+from .adapters.qdrant import (
+    client as _client,
+    ensure_collection,
+    ensure_payload_indexes,
+    point_id as _point_id,
+)
 
 
 def push(batch: int = 256) -> dict:
@@ -21,14 +17,8 @@ def push(batch: int = 256) -> dict:
     client = _client()
     tbl = store.lance_table()
 
-    existing = {c.name for c in client.get_collections().collections}
-    if config.QDRANT_COLLECTION not in existing:
-        client.create_collection(
-            collection_name=config.QDRANT_COLLECTION,
-            vectors_config=models.VectorParams(
-                size=config.EMBED_DIM, distance=models.Distance.COSINE
-            ),
-        )
+    ensure_collection(client, config.QDRANT_COLLECTION, config.EMBED_DIM)
+    ensure_payload_indexes(client, config.QDRANT_COLLECTION)
 
     # Arrow → list of dicts (avoid pandas; not a project dependency).
     rows = tbl.to_arrow().to_pylist()
@@ -44,6 +34,7 @@ def push(batch: int = 256) -> dict:
                     "heading": r["heading"],
                     "text": r["text"],
                     "tags": json.loads(r["tags"] or "[]"),
+                    "source_type": "tree",
                 },
             )
         )

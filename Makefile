@@ -6,12 +6,17 @@ IMAGE_TAG  ?= 0.1.0
 IMAGE      ?= $(IMAGE_REPO):$(IMAGE_TAG)
 GHCR_HOST  ?= ghcr.io
 GHCR_SCOPES ?= write:packages,read:packages
+
+# Write plane lands in the cluster that hosts Qdrant and its callers.
+INGEST_CONTEXT ?= admin@application
+INGEST_SECRET  ?= qdrant-apikey
 DOCKER_BUILDKIT ?= 1
 BUILDKIT_PROGRESS ?= plain
 
 .DEFAULT_GOAL := help
 .PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
         docker-build docker-login docker-push helm-deploy mcp-image translate-scan \
+        ingest-api helm-deploy-ingest \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -41,6 +46,9 @@ sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
 	$(PY) -m kb.mcp_retrieval --transport stdio
 
+ingest-api: ## Run the HTTP write plane (POST /ingest -> Qdrant) on :3000
+	$(PY) -m kb.ingest_api
+
 docker-build: ## Build kb-retrieval MCP image (bakes bge-small FastEmbed weights)
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) \
 		docker build -t $(IMAGE) -f Dockerfile .
@@ -62,6 +70,18 @@ helm-deploy: ## Install/upgrade chart; key comes from the qdrant-apikey Secret i
 		exit 1; \
 	}
 	helm upgrade --install knowledge-tree chart -n ai
+
+helm-deploy-ingest: ## Install/upgrade the write plane (kb-ingest) on the cluster holding Qdrant
+	@kubectl --context $(INGEST_CONTEXT) -n ai get secret $(INGEST_SECRET) >/dev/null 2>&1 || { \
+		echo "Secret ai/$(INGEST_SECRET) missing in $(INGEST_CONTEXT) — it must carry QDRANT_API_KEY"; \
+		exit 1; \
+	}
+	helm upgrade --install knowledge-ingest chart -n ai \
+		--kube-context $(INGEST_CONTEXT) \
+		--set ingest.enabled=true \
+		--set mcpServer.enabled=false \
+		--set agent.enabled=false \
+		--set qdrant.existingSecret=$(INGEST_SECRET)
 
 translate-scan: ## Scan tree for non-English; dry-run (add WRITE=1 to overwrite)
 	$(PY) scripts/translation_scan.py tree/ $(if $(WRITE),--write,)

@@ -16,11 +16,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       "mcp[cli]>=1.6" \
       "qdrant-client>=1.12" \
       "fastembed>=0.4" \
-      "onnxruntime<1.24"
+      "onnxruntime<1.24" \
+      "pyyaml>=6.0" \
+      "uvicorn>=0.30"
 
-COPY kb/__init__.py kb/config.py kb/embed.py /build/kb/
+COPY kb/__init__.py kb/config.py kb/embed.py kb/chunk.py /build/kb/
 COPY kb/adapters/ /build/kb/adapters/
 COPY kb/mcp_retrieval/ /build/kb/mcp_retrieval/
+COPY kb/ingest_api/ /build/kb/ingest_api/
 
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed \
     HOME=/tmp \
@@ -54,6 +57,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
 WORKDIR /app
 USER 1000:1000
 
-# stdio by default, override with --transport streamable-http for HTTP.
-ENTRYPOINT ["python", "-m", "kb.mcp_retrieval"]
-CMD []
+# Read plane by default. The write plane is the same image with a different
+# module: command ["python","-m","kb.ingest_api"].
+ENTRYPOINT ["python"]
+CMD ["-m", "kb.mcp_retrieval"]
