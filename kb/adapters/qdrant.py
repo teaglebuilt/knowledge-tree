@@ -7,8 +7,7 @@ from .. import config
 
 
 def client():
-    """Build a QdrantClient using URL port/scheme defaults correctly.
-
+    """
     qdrant-client defaults port=6333 even for https://host with no port,
     which breaks ingress on 443. Prefer the URL's port, else scheme default.
     """
@@ -55,7 +54,6 @@ def assert_collection_compatible(qdrant, collection: str, expected_dim: int) -> 
 
 def point_id(chunk_id: str) -> str:
     """Deterministic UUID from a stable chunk_id so re-writes upsert, not dupe.
-
     Shared by every writer (local `kb sync`, the HTTP ingest plane) so the same
     chunk always lands on the same Qdrant point.
     """
