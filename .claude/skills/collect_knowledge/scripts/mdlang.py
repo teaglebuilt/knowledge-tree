@@ -127,12 +127,19 @@ CAT_INLINE_CODE = "inline_code"
 CAT_ANCHOR = "anchor"
 CAT_LINK_TARGET = "link_target"
 CAT_WIKILINK_TARGET = "wikilink_target"
+# Reader-facing content inside fences (decision trees, mermaid labels, quoted UI copy).
+CAT_FENCE_DIAGRAM = "fence_diagram"
+CAT_MERMAID_LABEL = "mermaid_label"
+CAT_CODE_STRING = "code_string"
 
 ALL_CATEGORIES = [
     CAT_PROSE,
     CAT_FRONTMATTER,
     CAT_HEADING,
     CAT_CODE_COMMENT,
+    CAT_FENCE_DIAGRAM,
+    CAT_MERMAID_LABEL,
+    CAT_CODE_STRING,
     CAT_ANCHOR,
     CAT_INLINE_CODE,
     CAT_CODE,
@@ -146,10 +153,28 @@ ALL_CATEGORIES = [
 #               index. Never merge a file with these.
 #   warn     -- probably should be translated, but a literal identifier or a
 #               deliberate quotation is plausible. Surface, do not block.
-#   info     -- expected to stay in the source language (paths, URLs).
-DEFAULT_BLOCKING = [CAT_PROSE, CAT_FRONTMATTER, CAT_HEADING, CAT_CODE_COMMENT, CAT_ANCHOR]
-DEFAULT_WARN = [CAT_INLINE_CODE, CAT_CODE]
-DEFAULT_INFO = [CAT_LINK_TARGET, CAT_WIKILINK_TARGET]
+#   info     -- expected to stay in the source language (paths, URLs, identifiers).
+DEFAULT_BLOCKING = [
+    CAT_PROSE,
+    CAT_FRONTMATTER,
+    CAT_HEADING,
+    CAT_CODE_COMMENT,
+    CAT_FENCE_DIAGRAM,
+    CAT_MERMAID_LABEL,
+    CAT_CODE_STRING,
+    CAT_ANCHOR,
+]
+DEFAULT_WARN = [CAT_INLINE_CODE]
+DEFAULT_INFO = [CAT_CODE, CAT_LINK_TARGET, CAT_WIKILINK_TARGET]
+
+# Fence info strings treated as prose/diagram blocks (not executable code).
+DEFAULT_DIAGRAM_FENCE_INFOS = ["", "text", "ascii", "plaintext", "txt", "tree", "diagram"]
+# Languages where CJK inside quotes is user-facing example copy.
+DEFAULT_STRING_FENCE_LANGS = [
+    "yaml", "yml", "json", "jsonc", "python", "py", "toml",
+    "javascript", "js", "typescript", "ts", "tsx", "go", "rust",
+    "java", "ruby", "bash", "sh", "shell", "zsh", "graphql", "sql",
+]
 
 
 DEFAULT_CONFIG = {
@@ -176,6 +201,8 @@ DEFAULT_CONFIG = {
     # carry explanation and should be translated; surrounding code should not.
     # Override for corpora dominated by a language this list misses.
     "comment_prefixes": ["#", "//", "--", "/*", "*", ";", "%", "<!--", "'''", '"""'],
+    "diagram_fence_infos": DEFAULT_DIAGRAM_FENCE_INFOS,
+    "string_fence_langs": DEFAULT_STRING_FENCE_LANGS,
 }
 
 
@@ -255,6 +282,82 @@ _BARE_URL_RE = re.compile(r"(?<![\(<\"])\b(?:https?://|www\.)[^\s\)\]<>\"]+")
 _ATX_HEADING_RE = re.compile(r"^(\s{0,3})(#{1,6})\s+(.*?)\s*#*\s*$")
 
 _COMMENT_PREFIXES = ("#", "//", "--", "/*", "*", ";", "%", "<!--", "'''", '"""')
+# Box-drawing / tree glyphs common in ASCII decision trees and topology diagrams.
+_BOX_DRAWING_RE = re.compile(
+    r"[\u2500-\u257F\u25B2-\u25BC\u2190-\u2193\u21D0-\u21D3]"
+)
+_ASCII_TREE_RE = re.compile(r"(?:\|--|└--|├--|└─|├─|\|--|\+--)")
+# CJK inside quotes — user-facing string literals in example configs/code.
+_QUOTED_NON_LATIN_RE = re.compile(
+    r'(?:"[^"\n]*"|\'[^\'\n]*\'|`[^`\n]*`)'
+)
+
+
+def _fence_lang(info: str) -> str:
+    parts = (info or "").split()
+    return parts[0].lower() if parts else ""
+
+
+def _line_has_non_latin(text: str) -> bool:
+    return any(script_of(ch) for ch in text)
+
+
+def _has_quoted_non_latin(text: str) -> bool:
+    for m in _QUOTED_NON_LATIN_RE.finditer(text):
+        if _line_has_non_latin(m.group(0)):
+            return True
+    return False
+
+
+def _fence_is_diagram(fr: "FenceRegion", lines: list[str], diagram_infos: set[str]) -> bool:
+    """True when the fence is a prose/ASCII diagram rather than executable code."""
+    lang = _fence_lang(fr.info)
+    if lang in diagram_infos:
+        return True
+    if lang == "mermaid":
+        return False
+    body = [
+        lines[i]
+        for i in range(fr.start_line + 1, fr.end_line)
+        if i < len(lines) and lines[i].strip()
+    ]
+    if not body:
+        return False
+    boxish = sum(
+        1 for line in body if _BOX_DRAWING_RE.search(line) or _ASCII_TREE_RE.search(line)
+    )
+    return boxish >= max(1, len(body) // 3)
+
+
+def classify_fence_line(
+    fr: "FenceRegion",
+    line: str,
+    *,
+    is_delim: bool,
+    comment_prefixes: tuple[str, ...],
+    fence_is_diagram: bool,
+    string_langs: set[str],
+) -> str:
+    """
+    Category for one line inside a fenced region.
+
+    Reader-facing fence content (diagrams, mermaid labels, quoted strings,
+    comments) gets its own category so the translation gate can require it.
+    Residual identifier CJK stays plain `code` (INFO).
+    """
+    if is_delim:
+        return CAT_CODE
+    stripped = line.strip()
+    if stripped.startswith(comment_prefixes):
+        return CAT_CODE_COMMENT
+    lang = _fence_lang(fr.info)
+    if lang == "mermaid":
+        return CAT_MERMAID_LABEL
+    if fence_is_diagram:
+        return CAT_FENCE_DIAGRAM
+    if lang in string_langs and _has_quoted_non_latin(line):
+        return CAT_CODE_STRING
+    return CAT_CODE
 
 
 @dataclass
@@ -323,6 +426,8 @@ def paint(text: str, config: dict | None = None) -> PaintedDoc:
     """
     cfg = config or DEFAULT_CONFIG
     comment_prefixes = tuple(cfg.get("comment_prefixes", _COMMENT_PREFIXES))
+    diagram_infos = {str(x).lower() for x in cfg.get("diagram_fence_infos", DEFAULT_DIAGRAM_FENCE_INFOS)}
+    string_langs = {str(x).lower() for x in cfg.get("string_fence_langs", DEFAULT_STRING_FENCE_LANGS)}
     fm, body, body_start_line = split_frontmatter(text)
     cats = [CAT_PROSE] * len(body)
     offsets = _line_offsets(body)
@@ -336,18 +441,21 @@ def paint(text: str, config: dict | None = None) -> PaintedDoc:
     # --- pass 1: fenced code -------------------------------------------------
     fences = find_fences(body)
     for fr in fences:
+        fence_is_diagram = _fence_is_diagram(fr, lines, diagram_infos)
         for ln in range(fr.start_line, min(fr.end_line + 1, len(lines))):
             start = offsets[ln]
             end = start + len(lines[ln])
-            stripped = lines[ln].strip()
-            # The fence delimiter lines themselves are structure, not content.
-            is_delim = ln in (fr.start_line, fr.end_line) and _FENCE_RE.match(lines[ln])
-            if is_delim:
-                cat = CAT_CODE
-            elif stripped.startswith(comment_prefixes):
-                cat = CAT_CODE_COMMENT
-            else:
-                cat = CAT_CODE
+            is_delim = ln in (fr.start_line, fr.end_line) and bool(
+                _FENCE_RE.match(lines[ln])
+            )
+            cat = classify_fence_line(
+                fr,
+                lines[ln],
+                is_delim=is_delim,
+                comment_prefixes=comment_prefixes,
+                fence_is_diagram=fence_is_diagram,
+                string_langs=string_langs,
+            )
             paint_span(start, end, cat)
 
     fence_lines = set()
@@ -508,6 +616,25 @@ def severity(category: str, config: dict | None = None) -> str:
     if category in cfg["warn_categories"]:
         return "WARN"
     return "INFO"
+
+
+def line_roles(text: str, config: dict | None = None) -> dict[int, str]:
+    """
+    Map 1-indexed file lines that contain non-Latin text to their paint category.
+
+    When a line somehow aggregates multiple categories, prefer a blocking one so
+    the translation planner queues reader-facing content.
+    """
+    cfg = config or DEFAULT_CONFIG
+    findings, _ = scan_text(text, cfg)
+    out: dict[int, str] = {}
+    for f in findings:
+        prev = out.get(f.line)
+        if prev is None or (
+            severity(f.category, cfg) == "BLOCK" and severity(prev, cfg) != "BLOCK"
+        ):
+            out[f.line] = f.category
+    return out
 
 
 def density_bucket(non_latin_lines: int, total_lines: int) -> str:

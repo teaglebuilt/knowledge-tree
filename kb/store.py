@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 
-import duckdb
 import lancedb
 import pyarrow as pa
 
@@ -11,7 +10,10 @@ from . import config
 from .chunk import Chunk
 
 
-def duck() -> duckdb.DuckDBPyConnection:
+def duck():
+    # Lazy: `kb sync` (and the sync Job image) only needs the LanceDB half.
+    import duckdb
+
     con = duckdb.connect(str(config.DUCKDB_PATH))
     con.execute(
         """
@@ -83,7 +85,9 @@ def _schema() -> pa.Schema:
 
 
 def lance():
-    return lancedb.connect(str(config.LANCEDB_PATH))
+    return lancedb.connect(
+        config.LANCEDB_URI, storage_options=config.LANCEDB_STORAGE_OPTIONS or None
+    )
 
 
 def lance_table(db=None):
@@ -116,9 +120,10 @@ def upsert_chunks(tbl, chunks: list[Chunk], vectors: list[list[float]]):
 
 
 def ensure_fts(tbl):
-    """(Re)build the BM25 full-text index over chunk text for hybrid search."""
-    try:
-        tbl.create_fts_index("text", replace=True)
-    except Exception:
-        # tantivy missing or already current; hybrid falls back to vector-only.
-        pass
+    """(Re)build the BM25 full-text index over chunk text for hybrid search.
+
+    Native Lance FTS, not tantivy: tantivy only writes to a local filesystem,
+    so it fails once the table lives on S3. Errors propagate — a missing index
+    silently degrades `kb query` to vector-only.
+    """
+    tbl.create_fts_index("text", replace=True, use_tantivy=False)

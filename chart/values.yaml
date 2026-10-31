@@ -7,12 +7,13 @@ namespace: ai
 # Placeholder registry path — replace if your org uses a different GHCR/name.
 image:
   repository: ghcr.io/teaglebuilt/kb-retrieval
-  tag: "0.1.0"
+  tag: "0.3.0"
   pullPolicy: IfNotPresent
   pullSecrets:
     - name: ghcr-secret
 
 mcpServer:
+  enabled: true
   name: kb-retrieval
   # kagent MCPServer CR apiVersion (stdio stdioTransport).
   apiVersion: kagent.dev/v1alpha1
@@ -28,11 +29,60 @@ mcpServer:
 
 # Qdrant connection. When url is empty, QDRANT_NETWORK selects internal vs external.
 # Prefer network=internal for in-cluster DNS (pod near Qdrant on application/data).
+# Write plane (POST /ingest -> chunk -> embed -> Qdrant). Install this in the
+# cluster that hosts Qdrant and the callers; see chart/README for the split.
+ingest:
+  enabled: false
+  name: kb-ingest
+  replicas: 1
+  port: 3000
+  # Comma-separated path prefixes the write plane is allowed to own.
+  pathPrefixes: "tree/"
+  # NAME of a Secret (in the chart namespace) holding the bearer token under
+  # tokenSecretKey. Not the token itself. Leave empty for in-cluster-only access.
+  # Create: kubectl -n ai create secret generic kb-ingest-token \
+  #           --from-literal=KB_INGEST_TOKEN=<random>
+  tokenSecret: "kb-ingest-token"
+  tokenSecretKey: KB_INGEST_TOKEN
+  # Global so the mlops front door (homelab apps/kb-ingest/mesh) routes here.
+  serviceAnnotations:
+    service.cilium.io/global: "true"
+    service.cilium.io/shared: "true"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+
+# `kb sync` as a Helm post-install/upgrade Job: LanceDB on S3 -> Qdrant.
+# Publish the index first from the laptop: KB_LANCEDB=s3://... make ingest reindex
+sync:
+  enabled: false
+  name: kb-sync
+  backoffLimit: 2
+  lancedbUri: s3://knowledge/lancedb
+  s3:
+    endpoint: http://seaweedfs-s3.storage.svc:8333
+    region: us-east-1
+    allowHttp: "true"
+    # Secret in the chart namespace holding the bucket credentials.
+    existingSecret: kb-s3
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
 qdrant:
   network: internal
   internalUrl: http://qdrant.data.svc.cluster.local:6333
   externalUrl: https://qdrant.homelab.internal
-  # Dev fallback only; ignored when existingSecretEnabled.
   apikey: ""
   # Optional hard override (wins over network mode when set).
   url: ""

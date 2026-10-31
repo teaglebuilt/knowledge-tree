@@ -1,0 +1,101 @@
+{{- if .Values.sync.enabled }}
+{{- $name := .Values.sync.name }}
+# Pulls LanceDB (written by `make ingest` on the laptop) from S3 and upserts it
+# into Qdrant, pruning tree points LanceDB no longer has. No embedding here.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: knowledge-tree
+    app.kubernetes.io/component: sync
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.sync.backoffLimit }}
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $name }}
+        app.kubernetes.io/part-of: knowledge-tree
+        app.kubernetes.io/component: sync
+    spec:
+      restartPolicy: Never
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: sync
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "kb", "sync"]
+          env:
+            - name: KB_LANCEDB
+              value: {{ .Values.sync.lancedbUri | quote }}
+            - name: KB_S3_ENDPOINT
+              value: {{ .Values.sync.s3.endpoint | quote }}
+            - name: KB_S3_REGION
+              value: {{ .Values.sync.s3.region | quote }}
+            - name: KB_S3_ALLOW_HTTP
+              value: {{ .Values.sync.s3.allowHttp | quote }}
+            - name: KB_S3_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sync.s3.existingSecret | quote }}
+                  key: {{ .Values.sync.s3.accessKeyIdKey | quote }}
+            - name: KB_S3_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sync.s3.existingSecret | quote }}
+                  key: {{ .Values.sync.s3.secretAccessKeyKey | quote }}
+            - name: QDRANT_NETWORK
+              value: {{ .Values.qdrant.network | quote }}
+            - name: QDRANT_INTERNAL_URL
+              value: {{ .Values.qdrant.internalUrl | quote }}
+            - name: QDRANT_EXTERNAL_URL
+              value: {{ .Values.qdrant.externalUrl | quote }}
+            {{- if .Values.qdrant.url }}
+            - name: QDRANT_URL
+              value: {{ .Values.qdrant.url | quote }}
+            {{- end }}
+            {{- if .Values.qdrant.verify }}
+            - name: QDRANT_VERIFY
+              value: {{ .Values.qdrant.verify | quote }}
+            {{- end }}
+            {{- if and (not .Values.qdrant.existingSecretEnabled) .Values.qdrant.apikey }}
+            - name: QDRANT_API_KEY
+              value: {{ .Values.qdrant.apikey | quote }}
+            {{- end }}
+            - name: COLLECTION_NAME
+              value: {{ .Values.qdrant.collection | quote }}
+            - name: HOME
+              value: /home/mcp
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          {{- if and .Values.qdrant.existingSecretEnabled .Values.qdrant.existingSecret }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.qdrant.existingSecret | quote }}
+          {{- end }}
+          volumeMounts:
+            - name: home
+              mountPath: /home/mcp
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.sync.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+{{- end }}

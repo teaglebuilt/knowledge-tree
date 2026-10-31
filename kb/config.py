@@ -19,7 +19,31 @@ TREE_DIR = os.environ.get("KB_TREE_DIR", "tree")
 BRANCHES_PATH = Path(os.environ.get("KB_BRANCHES", ROOT / TREE_DIR / "branches.yaml"))
 SOPS_CONFIG_PATH = Path(os.environ.get("KB_SOPS_CONFIG", ROOT / ".sops.yaml"))
 
-LANCEDB_PATH = Path(os.environ.get("KB_LANCEDB", ROOT / ".lancedb"))
+# Local dir or object-store URI (s3://bucket/prefix). Kept as a string: Path()
+# would collapse "s3://" to "s3:/".
+_lancedb = os.environ.get("KB_LANCEDB", "").strip()
+if not _lancedb:
+    LANCEDB_URI = str(ROOT / ".lancedb")
+elif "://" in _lancedb:
+    LANCEDB_URI = _lancedb
+else:
+    LANCEDB_URI = str(Path(_lancedb).expanduser())
+
+# Passed straight to lancedb.connect(storage_options=...) for s3:// URIs.
+# SeaweedFS/MinIO need endpoint + allow_http; keys fall back to the AWS_* env.
+_s3_opts = {
+    "endpoint": os.environ.get("KB_S3_ENDPOINT") or os.environ.get("AWS_ENDPOINT_URL"),
+    "region": os.environ.get("KB_S3_REGION") or os.environ.get("AWS_REGION") or "us-east-1",
+    "access_key_id": os.environ.get("KB_S3_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID"),
+    "secret_access_key": (
+        os.environ.get("KB_S3_SECRET_ACCESS_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY")
+    ),
+    "allow_http": os.environ.get("KB_S3_ALLOW_HTTP", "false").strip().lower(),
+}
+LANCEDB_STORAGE_OPTIONS = (
+    {k: v for k, v in _s3_opts.items() if v} if LANCEDB_URI.startswith("s3://") else {}
+)
+
 DUCKDB_PATH = Path(os.environ.get("KB_DUCKDB", ROOT / "kb.duckdb"))
 
 LANCE_TABLE = os.environ.get("KB_LANCE_TABLE", "chunks")
@@ -83,3 +107,7 @@ else:
 
 KB_SEARCH_DEFAULT_K = int(os.environ.get("KB_SEARCH_DEFAULT_K", "8"))
 KB_SEARCH_MAX_K = int(os.environ.get("KB_SEARCH_MAX_K", "20"))
+
+# kb_get_document paging, in chunks (~CHILD_TOKENS each) per call.
+KB_DOCUMENT_PAGE_CHUNKS = int(os.environ.get("KB_DOCUMENT_PAGE_CHUNKS", "24"))
+KB_DOCUMENT_MAX_PAGE_CHUNKS = int(os.environ.get("KB_DOCUMENT_MAX_PAGE_CHUNKS", "60"))

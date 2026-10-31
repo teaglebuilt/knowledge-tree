@@ -28,3 +28,9 @@ Knowledge as an obsidian vault stored as markdown in git and ingested and indexe
 
 Source code used for knowledge management. Commands to interact with the knowledge bank exist in makefile.
 Run `make help` to see the available commands.
+
+## Write plane
+
+Automated sources (n8n YouTube ingestion) POST markdown to the `kb-ingest`
+HTTP service instead of running the local pipeline. See
+[docs/write-plane.md](docs/write-plane.md).
