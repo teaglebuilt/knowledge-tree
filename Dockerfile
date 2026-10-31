@@ -19,9 +19,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
       "onnxruntime<1.24" \
       "pyyaml>=6.0" \
       "starlette>=0.37" \
-      "uvicorn>=0.30"
+      "uvicorn>=0.30" \
+      "lancedb>=0.25.3"
 
-COPY kb/__init__.py kb/config.py kb/embed.py kb/chunk.py /build/kb/
+COPY kb/__init__.py kb/__main__.py kb/config.py kb/embed.py kb/chunk.py \
+     kb/store.py kb/sync.py /build/kb/
 COPY kb/adapters/ /build/kb/adapters/
 COPY kb/mcp_retrieval/ /build/kb/mcp_retrieval/
 COPY kb/ingest_api/ /build/kb/ingest_api/

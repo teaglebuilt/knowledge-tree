@@ -2,13 +2,13 @@ PY := uv run python
 
 # kb-retrieval MCP image (must match chart/values.yaml image.* unless overridden)
 IMAGE_REPO ?= ghcr.io/teaglebuilt/kb-retrieval
-IMAGE_TAG  ?= 0.2.0
+IMAGE_TAG  ?= 0.3.0
 IMAGE      ?= $(IMAGE_REPO):$(IMAGE_TAG)
 GHCR_HOST  ?= ghcr.io
 GHCR_SCOPES ?= write:packages,read:packages
 
 # Write plane lands in the cluster that hosts Qdrant and its callers.
-INGEST_CONTEXT ?= admin@application
+INGEST_CONTEXT ?= application
 INGEST_SECRET  ?= qdrant-apikey
 DOCKER_BUILDKIT ?= 1
 BUILDKIT_PROGRESS ?= plain

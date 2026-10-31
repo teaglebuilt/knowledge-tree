@@ -11,6 +11,7 @@ metadata:
 spec:
   harnessRef:
     name: kagent
-  templateRef:
-    name: knowledge-scout
+  template:
+    ref:
+      name: knowledge-scout
 {{- end }}

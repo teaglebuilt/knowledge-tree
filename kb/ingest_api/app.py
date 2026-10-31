@@ -15,7 +15,7 @@ from .service import IngestError, KnowledgeIngest
 
 #: Optional shared secret. Unset (the default) leaves the endpoint open to
 #: anything that can reach the Service, which is the in-cluster posture today.
-AUTH_TOKEN = os.environ.get("KB_INGEST_TOKEN", "your-doing-it-peter").strip()
+AUTH_TOKEN = os.environ.get("KB_INGEST_TOKEN", "").strip()
 
 _ingest: KnowledgeIngest | None = None
 
