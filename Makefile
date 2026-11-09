@@ -16,7 +16,7 @@ BUILDKIT_PROGRESS ?= plain
 .DEFAULT_GOAL := help
 .PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
         docker-build docker-login docker-push helm-deploy mcp-image translate-scan \
-        ingest-api helm-deploy-ingest \
+        ingest-api helm-deploy-ingest import-chatgpt test \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -46,8 +46,16 @@ sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
 	$(PY) -m kb.mcp_retrieval --transport stdio
 
-ingest-api: ## Run the HTTP write plane (POST /ingest -> Qdrant) on :3000
-	$(PY) -m kb.ingest_api
+ingest-api: ## Run the HTTP write plane (POST /ingest, /mcp kb_ingest -> Qdrant) on :3000
+	KB_INGEST_ALLOW_ANONYMOUS=$${KB_INGEST_ALLOW_ANONYMOUS:-true} $(PY) -m kb.ingest_api
+
+import-chatgpt: ## ChatGPT export -> chatgpt_history: make import-chatgpt FILE=~/Downloads/x.zip [DRY_RUN=1] [POLICY=p.yaml] [PRUNE=1]
+	@test -n "$(FILE)" || (echo "FILE=<export.zip> is required"; exit 1)
+	$(PY) -m kb import-chatgpt "$(FILE)" $(if $(DRY_RUN),--dry-run) \
+		$(if $(POLICY),--policy "$(POLICY)") $(if $(PRUNE),--prune) $(if $(LIMIT),--limit $(LIMIT))
+
+test: ## Unit tests (no Qdrant / no model downloads)
+	uv run --with pytest --with httpx pytest -q tests
 
 docker-build: ## Build kb-retrieval MCP image (bakes bge-small FastEmbed weights)
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) \

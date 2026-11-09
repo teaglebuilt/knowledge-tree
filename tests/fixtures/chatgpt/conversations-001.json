@@ -1,0 +1,38 @@
+[
+ {
+  "conversation_id": "conv-private",
+  "title": "Therapy notes",
+  "create_time": 1762600000.0,
+  "update_time": 1762600000.0,
+  "current_node": "u1",
+  "mapping": {
+   "root": {
+    "id": "root",
+    "parent": null,
+    "children": [
+     "u1"
+    ],
+    "message": null
+   },
+   "u1": {
+    "id": "u1",
+    "parent": "root",
+    "children": [],
+    "message": {
+     "id": "m-u1",
+     "author": {
+      "role": "user"
+     },
+     "create_time": 1762600001.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "private stuff"
+      ]
+     },
+     "metadata": {}
+    }
+   }
+  }
+ }
+]

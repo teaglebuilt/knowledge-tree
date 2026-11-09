@@ -65,6 +65,12 @@ spec:
               value: {{ .Values.ingest.port | quote }}
             - name: KB_INGEST_PATH_PREFIXES
               value: {{ .Values.ingest.pathPrefixes | quote }}
+            - name: KB_MCP_INGEST_PATH_PREFIXES
+              value: {{ .Values.ingest.mcp.pathPrefixes | quote }}
+            - name: KB_MCP_INGEST_SOURCE_TYPES
+              value: {{ .Values.ingest.mcp.sourceTypes | quote }}
+            - name: KB_MCP_INGEST_MAX_BYTES
+              value: {{ .Values.ingest.mcp.maxBytes | quote }}
             {{- if .Values.ingest.tokenSecret }}
             - name: KB_INGEST_TOKEN
               valueFrom:

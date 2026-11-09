@@ -1,7 +1,7 @@
 # Knowledge Tree: ChatGPT Conversation Import & Agent Memory Plan
 
 **Project:** [`teaglebuilt/knowledge-tree`](https://github.com/teaglebuilt/knowledge-tree)  
-**Status:** Implementation plan — proposed changes, not deployed  
+**Status:** PR 1 + PR 2 implemented (untested — see §15.7), plus `kb_ingest` MCP + documentation agent (§15). PRs 3–5 still proposed.  
 **Prepared:** November 7, 2026  
 **Primary goal:** Turn exported ChatGPT conversations into verifiable, useful, long-term context for KAgent and other assistants without building a competing knowledge platform.
 
@@ -42,7 +42,8 @@ The following components are present in the repository as inspected on the `mast
 | `kb/config.py` | Embeddings, Qdrant, source/index configuration | Add archive collection and privacy configuration |
 | `kb/ingest_api/app.py` | HTTP endpoints `/ingest`, `/exists`, `/delete` | Reuse for *approved* knowledge writes; harden auth |
 | `kb/ingest_api/service.py` | Incremental embed/upsert into Qdrant; `path` ownership | Reuse carefully; add metadata and access constraints |
-| `kb/mcp_retrieval/server.py` | MCP tools `kb_search`, `kb_get_document` | Extend retrieval with history/memory tools |
+| `kb/mcp_retrieval/server.py` | MCP tools `kb_search`, `kb_get_document` | Extend retrieval with history/memory tools. Stays read-only (§15.2) |
+| `kb/ingest_api/mcp_tools.py` | **NEW** MCP tools `kb_ingest`, `kb_ingest_status` served at `kb-ingest:/mcp` | Agent write plane (§15) |
 | `kb/mcp_retrieval/store.py` | Qdrant read-side search / full document retrieval | Add dedicated history store and filters |
 | `kb/sync.py` | LanceDB → Qdrant synchronization; prunes `source_type=tree` | Preserve existing pruning isolation |
 | `kb/adapters/qdrant.py` | Qdrant connection, collection, payload indexes, IDs | Extend for archive collection; honor separate auth policies |
@@ -236,11 +237,12 @@ knowledge-tree/
 - [ ] Create a feature branch and document the existing working `make ingest`, `make sync`, `make golden`, and Helm deployment behavior.
 - [ ] Record existing Qdrant collection configuration and take a verified backup/snapshot.
 - [ ] Confirm whether `kb-ingest` and `kb-retrieval` require auth in actual deployed manifests; require authenticated writes to ingest/delete endpoints.
+  - [x] Code: writes fail closed when `KB_INGEST_TOKEN` is unset (`KB_INGEST_ALLOW_ANONYMOUS=true` only for local `make ingest-api`); constant-time compare; body cap `KB_INGEST_MAX_BODY_BYTES`; reserved `source_type`s (`tree`, `chatgpt*`, `memory`) rejected on every writer.
 - [ ] Apply network policies and least-privilege service identities, including authorization for both history and accepted-memory retrieval.
 - [ ] Configure private object storage for exports and checkpoints; enable encryption and private bucket policy.
 - [ ] Define a data inclusion/exclusion policy: personal, confidential, work-related, third-party data, secrets, credentials, and copyrighted source material.
 - [ ] Specify deletion behavior for raw source, derived vector points, promoted memories, snapshots, and backups.
-- [ ] Add test fixtures with fabricated conversations; never put real exports in source control or CI logs.
+- [x] Add test fixtures with fabricated conversations; never put real exports in source control or CI logs. (`tests/fixtures/chatgpt/`)
 
 **Done when:** Security controls, backup, data policy, and an empty archive collection exist; existing services still pass baseline tests.
 
@@ -249,24 +251,31 @@ knowledge-tree/
 **Goal:** Deterministically import history with reliable threading and provenance.
 
 - [ ] Obtain export through ChatGPT **Settings → Data controls → Export data**.
-- [ ] Support ZIP archives containing `conversations.json` and numbered `conversations-*.json` files when present; inspect actual file names rather than assuming one layout.
-- [ ] Traverse the conversation mapping/tree using parent-child links and the conversation's current-node semantics when available; preserve alternate branches without inventing chronological relationships.
-- [ ] Normalize supported text content and roles; record non-text or unsupported elements rather than silently dropping them.
-- [ ] Preserve conversation IDs, message IDs, timestamps, titles, parent IDs, and source archive ID.
-- [ ] Redact credentials and other prohibited content *before* generating embeddings or sending content to any external LLM.
-- [ ] Tag private, project-specific and sensitive topics for scoped indexing; exclude unwanted categories.
-- [ ] Generate stable IDs (source + conversation + message/branch + content version); support reimport without duplicates.
-- [ ] Implement dry-run mode with counts, classification distribution, skipped elements, and estimates.
-- [ ] Store source objects and parsed JSONL in encrypted private storage.
-- [ ] Index only approved normalized content into Qdrant `chatgpt_history`, with appropriate indexed filter fields.
-- [ ] Add incremental checkpoints and restart/retry logic. Do not rely solely on historical timestamps to identify edits.
+- [x] Support ZIP archives containing `conversations.json` and numbered `conversations-*.json` files when present; inspect actual file names rather than assuming one layout.
+- [x] Traverse the conversation mapping/tree using parent-child links and the conversation's current-node semantics when available; preserve alternate branches without inventing chronological relationships.
+- [x] Normalize supported text content and roles; record non-text or unsupported elements rather than silently dropping them.
+- [x] Preserve conversation IDs, message IDs, timestamps, titles, parent IDs, and source archive ID.
+- [x] Redact credentials and other prohibited content *before* generating embeddings or sending content to any external LLM.
+- [x] Tag private, project-specific and sensitive topics for scoped indexing; exclude unwanted categories. (`--policy` YAML: `exclude_titles`, `exclude_ids`, `projects`, `default_privacy` — regex on titles only; content classification is PR 3.)
+- [x] Generate stable IDs (source + conversation + message/branch + content version); support reimport without duplicates.
+- [x] Implement dry-run mode with counts, classification distribution, skipped elements, and estimates.
+- [ ] Store source objects and parsed JSONL in encrypted private storage. (Partial: normalized JSONL + checkpoint go to `KB_ARCHIVE_DIR`, default `~/.local/share/kb/archive`, mode 0700/0600, refused if inside the repo. Encryption at rest is the storage's job — FileVault / SSE on the S3 bucket. The raw ZIP is not copied.)
+- [x] Index only approved normalized content into Qdrant `chatgpt_history`, with appropriate indexed filter fields.
+- [x] Add incremental checkpoints and restart/retry logic. Do not rely solely on historical timestamps to identify edits.
 
-**Suggested command contract:**
+**Command contract (implemented):**
 
 ```bash
 make import-chatgpt FILE="$HOME/Downloads/chatgpt-export.zip" DRY_RUN=1
-make import-chatgpt FILE="$HOME/Downloads/chatgpt-export.zip"
+make import-chatgpt FILE="$HOME/Downloads/chatgpt-export.zip" POLICY=~/kb-policy.yaml
+make import-chatgpt FILE=... PRUNE=1          # full export only: drop conversations no longer present
+# == uv run python -m kb import-chatgpt FILE [--dry-run] [--policy P] [--prune] [--limit N]
 ```
+
+Implementation map: `kb/sources/chatgpt.py` (parse/normalize/policy), `kb/sources/redact.py`
+(pattern redaction, versioned), `kb/archive/chatgpt_store.py` (Qdrant `chatgpt_history`,
+message-level fingerprint upsert), `kb/import_chatgpt.py` (pipeline + checkpoint). The story's
+`scripts/import_chatgpt.py` became a `kb` subcommand to match the repo's CLI convention.
 
 **Done when:** A sample export imports without duplicate entries on repeated runs; branches and metadata are preserved; excluded content is not embedded; interrupted imports resume safely.
 
@@ -312,6 +321,8 @@ Add proposed tools:
 | `kb_search_conversations(query, project?, date_range?, limit?)` | Search raw historical archive with provenance and warning that history is unverified | Restricted read |
 | `kb_get_conversation(conversation_id, message_range?)` | Fetch a bounded conversation segment, not an unbounded transcript | Restricted read |
 | `kb_propose_memory(memory)` | Stage memory for deduplication, checks and approval | Authorized write |
+| `kb_ingest(path, markdown, source_url, ...)` | **Implemented (§15).** Store public documentation under `tree/docs/`; returns a receipt | Write — `kb-ingest` server only |
+| `kb_ingest_status(path)` | **Implemented (§15).** `exists` + `doc_hash` for completion checks | Write server (read-only call) |
 | `kb_review_memory(id, action)` | Approve, reject, supersede or delete according to permissions | Privileged control |
 
 Implementation notes:
@@ -485,6 +496,8 @@ Never automatically feed an entire conversation into a prompt. Retrieve bounded 
 | Raw ZIP in Git | Never | Not applicable |
 | Private memory in public `tree/` | No | Only sanitized, expressly approved publication |
 | Automatic memory writes by runtime agents | Review first | Evals show reliable extraction and safe authorization |
+| `kb_ingest` as a memory backdoor | Blocked: reserved source types, `tree/docs/` prefix, `documentation` type only | Never — memories go through `kb_propose_memory` |
+| Agent-written docs only in Qdrant, not git | Accept for now (same as n8n YouTube) | Docs need Obsidian visibility → export job that opens a PR into `tree/docs/` |
 | Continuous ChatGPT sync | Not assumed | Official supported export/sync capability becomes available |
 | Fine-tuning on history | Not in initial scope | Retrieval-based approach plateaus and a justified, consented training dataset exists |
 
@@ -500,6 +513,184 @@ A successful implementation enables a KAgent or Claude Code agent to answer ques
 - "What is the current runbook, and how is it different from our old discussion?"
 
 It must do so with **relevant retrieval, exact provenance, safe access control, validated facts, and measured improvement**—not simply by storing more chat text.
+
+---
+
+## 15. Agent write plane (`kb_ingest`) and the documentation agent
+
+Added on 2026-11-09. Scope: give agents a write counterpart to `kb_search`, and a
+documentation agent other agents delegate "find docs" / "store docs" to. First
+consumer: homelab `platform/ai/agents/solutions-architect`.
+
+### 15.1 What the tool does
+
+| Tool | Contract |
+| --- | --- |
+| `kb_ingest(path, markdown, source_url, title?, tags?, source_type="documentation", force=false)` | Chunk, embed and upsert one document into `knowledge`. Returns JSON `{status: ingested\|unchanged\|empty\|rejected\|failed, path, doc_hash, chunks, collection, source_url}` (`retryable: true` on infra failures). Same path + same body = `unchanged`, so retries are free. |
+| `kb_ingest_status(path)` | `{path, exists, doc_hash}` — read it back to confirm a receipt. |
+
+Agent policy, narrower than the HTTP plane n8n uses: path must start with
+`KB_MCP_INGEST_PATH_PREFIXES` (`tree/docs/`), lowercase slug; `source_type` from
+`KB_MCP_INGEST_SOURCE_TYPES` (`documentation`); `source_url` required; size cap
+`KB_MCP_INGEST_MAX_BYTES` (512 KiB). Reserved types (`tree`, `chatgpt*`, `memory`)
+are refused on every writer. So `kb_ingest` cannot be used to slip private memory
+past the PR 3 approval pipeline.
+
+### 15.2 Decision: `kb_ingest` is served by kb-ingest, not kb-retrieval
+
+You asked for the tool "alongside `kb_search`". At the binding level that is what
+happens: the documentation agent's template lists both servers. But the tool is
+**not** on the kb-retrieval server:
+
+1. **kagent's Claude harness ignores per-tool allowlists.** A binding on that
+   harness exposes every tool the server serves ([About tools](https://kagent.dev/docs/kagent/latest/skills-and-mcp/about-tools/)).
+   kb-retrieval is bound by solutions-architect, knowledge-scout and others, so a
+   write tool there would turn every reader into a writer. What actually grants
+   write access is which *server* you bind, not which tool names you list.
+2. §Story acceptance "no write tools exposed on this server" and the scout's
+   "NEVER expose write tools against the `knowledge` collection" both still hold.
+3. kb-ingest already runs next to Qdrant (application cluster) and holds the write
+   token. kb-retrieval runs on mlops with read credentials only.
+
+Implementation: `kb/ingest_api/mcp_tools.py`, mounted at `/mcp` on the existing
+kb-ingest Starlette app (stateless streamable HTTP, JSON responses). It is behind the
+same token as `/ingest`, given as `Authorization: Bearer` or `X-KB-Ingest-Token`. The
+second header exists because a kagent `headersFrom` copies a Secret value verbatim and
+cannot add the `Bearer ` prefix. `tests/test_plane_separation.py` is the fitness
+function that keeps this boundary in place.
+
+### 15.3 Documentation agent
+
+`chart/templates/docs-agent-template.yaml` (AgentTemplate `documentation`) and
+`chart/templates/docs-agent.yaml` (Agent `documentation-agent`, EgressPolicy,
+RemoteMCPServer `kb-ingest`). Both are gated on `agent.enabled` **and**
+`docsAgent.enabled`. They use namespace `ai`, `harnessRef: kagent` and
+`app.kubernetes.io/part-of: knowledge-tree`.
+
+- **Tools:** `kb_search` and `kb_get_document` (tree first), `kb_ingest` and
+  `kb_ingest_status`, Context7 (whole server, read-only), and firecrawl
+  `search/extract/crawl/check_crawl_status`.
+- **Protocol:** tree first → fetch (Context7 for libraries, firecrawl for sites) →
+  store at most 10 docs at `tree/docs/<product>/<slug>.md` → verify each with
+  `kb_ingest_status` → answer.
+- **`outputSchema`:** the final answer is a schema-validated receipt
+  `{status, task, summary, answer, documents[{path,status,doc_hash,chunks,source_url,verified}], citations, errors}`.
+  kagent validates it before publishing. This needs the `kagent` harness with
+  `golang-adk`, which homelab's `kagent` Harness uses. Set
+  `docsAgent.structuredOutput=false` on other harnesses.
+
+### 15.4 How the delegating agent knows the work is complete
+
+This comes from the kagent 1.0 docs, read rather than assumed. kagent has three
+delegation mechanisms, and they signal completion very differently:
+
+| Mechanism | What the caller gets back | Completion signal | Fit here |
+| --- | --- | --- | --- |
+| **`subAgent` binding** ([agent-delegation](https://kagent.dev/docs/kagent/latest/examples/agent-delegation/)) | **Nothing.** "A subagent binding hands over the conversation rather than returning an answer… The parent does not receive the bound agent's output." The specialist keeps answering later turns in that Session. | None to the parent. The *user* sees the specialist's reply. | **Rejected** for agent-to-agent work. The bound template also compiles under the parent's Agent/Harness (same Actor, one nesting level, same namespace), so solutions-architect would need kb-ingest egress and the write token. That makes it a writer. |
+| **kagent controller MCP `invoke_agent`** ([agents-via-mcp](https://kagent.dev/docs/kagent/latest/examples/agents-via-mcp/)) | Blocking `tools/call` returns `{session_id, task_id, context_id, state, text}` after the callee finishes its turn. | The tool call **returns**. `state == "TASK_STATE_COMPLETED"` is success; any other state is failure. `text` is the receipt JSON. | **Chosen** for agent callers. |
+| **A2A + push callback** ([a2a-agents](https://kagent.dev/docs/kagent/latest/examples/a2a-agents/)) | A2A Task. Webhook fires on `INPUT_REQUIRED`, `AUTH_REQUIRED`, `COMPLETED`, `FAILED`, `CANCELED`, `REJECTED`. The receiver then calls `GetTask` for the artifacts. | Callback, then `GetTask`. | For **non-agent** callers (n8n, CI). An LLM agent cannot receive a webhook. Deliveries are unsigned until `controller.push.signing.secretName` is set. In-cluster receivers need `config.push.allowPrivateNetworks`. |
+
+The caller should trust completion only when **all three layers** agree:
+
+1. **Transport:** `invoke_agent` returned and `state` is `TASK_STATE_COMPLETED`.
+   A timeout or a non-completed state is a failure and carries no receipt.
+2. **Semantic:** the schema-validated receipt says `status: completed` (or
+   `partial`, with `errors`).
+3. **Data:** every `documents[].verified` is true. The documentation agent re-read
+   each `doc_hash` after writing. The caller can check independently with its own
+   read-only `kb_get_document(path)`. Qdrant upserts run with `wait=True`, so
+   reads after a write are consistent.
+
+```mermaid
+sequenceDiagram
+    participant SA as solutions-architect
+    participant KC as kagent-controller /mcp
+    participant DA as documentation-agent
+    participant KR as kb-retrieval
+    participant KI as kb-ingest /mcp
+    SA->>KC: invoke_agent(agent=ai/documentation-agent, message={task, topic, sources})
+    KC->>DA: new Session, turn 1
+    DA->>KR: kb_search (tree first)
+    DA->>DA: Context7 / firecrawl fetch
+    DA->>KI: kb_ingest(path, markdown, source_url)
+    KI-->>DA: {status: ingested, doc_hash}
+    DA->>KI: kb_ingest_status(path)  (verify)
+    DA-->>KC: final answer = receipt JSON (schema-validated)
+    KC-->>SA: {state: TASK_STATE_COMPLETED, text: receipt, session_id}
+    SA->>KR: kb_get_document(path)  (optional independent check)
+```
+
+**Long runs.** A blocking call is bounded by the caller's RemoteMCPServer
+`timeout`. Two guards apply: the agent stores at most 10 documents per run, and big
+crawls go asynchronous. For an async run, call `create_session(agent, message,
+request_id)`, which "returns once the agent accepts the turn". Then poll
+`get_session(session_id, last_turns=1)` until the turn has a reply. `request_id`
+makes a retried create idempotent. The MCP tasks extension (`tasks/get`) is more
+elegant, but only works when the *MCP client* declares it. Whether the kagent
+harness's own MCP client does that is unverified, so do not depend on it.
+
+### 15.5 Consumer contract for homelab solutions-architect
+
+These changes go in `teaglebuilt/homelab`. They are not made from this repo:
+
+```yaml
+# platform/ai/kubernetes/mcp/kagent-agents.yaml
+apiVersion: api.kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata: {name: kagent-agents, namespace: ai}
+spec:
+  description: kagent controller MCP — invoke other agents and read their sessions
+  protocol: STREAMABLE_HTTP
+  url: http://kagent-controller.ai.svc.cluster.local:8083/mcp
+  timeout: 600s
+```
+
+- solutions-architect `tools`: add `mcp: {server: {kind: RemoteMCPServer, name: kagent-agents}, tools: [invoke_agent, create_session, get_session]}`.
+- solutions-architect EgressPolicy: add `http://kagent-controller.ai.svc.cluster.local:8083`.
+  It does **not** need kb-ingest egress or the token, because it never writes.
+- Prompt snippet: *"To fetch or persist documentation, call `invoke_agent` with
+  agent `{namespace: ai, name: documentation-agent}` and a JSON message
+  `{task, topic, question?, sources?, target_path?}`. Treat the work as done only
+  if `state` is `TASK_STATE_COMPLETED` and the JSON in `text` has
+  `status: completed`. Cite `documents[].path`. If it times out, do not retry
+  blindly. Use `create_session` + `get_session`."*
+- Secret `kb-ingest-token` (key `KB_INGEST_TOKEN`) must exist in `ai` on **mlops**.
+  It holds the same value as the kb-ingest Deployment on application.
+
+**Risk to accept or mitigate before go-live.** The controller MCP runs in `insecure`
+auth mode by default. It trusts a caller-set `X-User-Id`, and `invoke_agent` can reach
+**any** Agent the caller can see, not only `documentation-agent`. kagent bindings narrow
+tools, not tool arguments. On the homelab trusted network this is the same exposure the
+kagent UI already has. If that is not acceptable, put the controller behind
+agentgateway with an authz rule on the `agent` argument, or enable real controller auth.
+
+### 15.6 Files
+
+| Path | Change |
+| --- | --- |
+| `kb/ingest_api/mcp_tools.py` | NEW `kb_ingest`, `kb_ingest_status` |
+| `kb/ingest_api/app.py` | `/mcp` mount, fail-closed auth, body cap, `X-KB-Ingest-Token` |
+| `kb/ingest_api/service.py` | reserved `source_type` refusal |
+| `kb/config.py` | MCP ingest policy, archive collection/dir, redaction version |
+| `kb/sources/chatgpt.py`, `kb/sources/redact.py` | NEW parser/normalizer, redaction |
+| `kb/archive/chatgpt_store.py` | NEW `chatgpt_history` store |
+| `kb/import_chatgpt.py`, `kb/__main__.py`, `Makefile` | NEW `import-chatgpt` command, `make test` |
+| `chart/values.yaml`, `chart/templates/ingest.yaml` | `docsAgent.*`, `ingest.mcp.*`; HTTP prefixes narrowed to `tree/youtube/,tree/docs/` (read-plane follow-up 2) |
+| `chart/templates/docs-agent-template.yaml`, `docs-agent.yaml` | NEW documentation agent |
+| `tests/` | NEW synthetic fixtures + import, MCP-ingest and plane-separation tests |
+
+### 15.7 Verification status
+
+Nothing here has been run yet. Per house policy, execution and tests go to a Haiku
+pass: `make test`, `helm template chart` (and again with
+`--set docsAgent.structuredOutput=false`), then on the cluster `kubectl get remotemcpserver kb-ingest -n ai -o jsonpath='{.status.discoveredTools[*].name}'`.
+Known soft spots to watch: the MCP SDK's stateless-mode handling of `initialize`
+in `test_mcp_lists_and_calls_kb_ingest`, and qdrant-client `:memory:` support for
+payload indexes.
+
+Ingest behaviour also changed: any kb-ingest deployed **without** a token Secret
+now refuses writes. The chart default `tokenSecret: kb-ingest-token` already sets
+one, but the n8n workflow must send it.
 
 ---
 

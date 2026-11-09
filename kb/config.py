@@ -111,3 +111,46 @@ KB_SEARCH_MAX_K = int(os.environ.get("KB_SEARCH_MAX_K", "20"))
 # kb_get_document paging, in chunks (~CHILD_TOKENS each) per call.
 KB_DOCUMENT_PAGE_CHUNKS = int(os.environ.get("KB_DOCUMENT_PAGE_CHUNKS", "24"))
 KB_DOCUMENT_MAX_PAGE_CHUNKS = int(os.environ.get("KB_DOCUMENT_MAX_PAGE_CHUNKS", "60"))
+
+
+def _csv(name: str, default: str) -> tuple[str, ...]:
+    return tuple(p.strip() for p in os.environ.get(name, default).split(",") if p.strip())
+
+
+def _flag(name: str, default: str = "false") -> bool:
+    return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+# --- Write plane: agent-facing MCP (`kb_ingest`) -----------------------------
+# Agents get a narrower slice of the write plane than the HTTP callers (n8n):
+# their own path prefix, a closed set of source types, a size cap, and a
+# mandatory source_url so every agent-written document carries provenance.
+KB_MCP_INGEST_PATH_PREFIXES = _csv("KB_MCP_INGEST_PATH_PREFIXES", "tree/docs/")
+KB_MCP_INGEST_SOURCE_TYPES = _csv("KB_MCP_INGEST_SOURCE_TYPES", "documentation")
+KB_MCP_INGEST_MAX_BYTES = int(os.environ.get("KB_MCP_INGEST_MAX_BYTES", str(512 * 1024)))
+#: source_type values no writer outside its owner may claim. `tree` is pruned
+#: by `kb sync`; the memory types belong to the import/approval pipeline.
+KB_RESERVED_SOURCE_TYPES = frozenset(
+    _csv("KB_RESERVED_SOURCE_TYPES", "tree,chatgpt,chatgpt_export,memory")
+)
+
+# HTTP body cap for POST /ingest and the MCP endpoint.
+KB_INGEST_MAX_BODY_BYTES = int(os.environ.get("KB_INGEST_MAX_BODY_BYTES", str(2 * 1024 * 1024)))
+#: Writes are refused when KB_INGEST_TOKEN is unset unless this is set
+#: explicitly. Local dev opts in; the cluster never should.
+KB_INGEST_ALLOW_ANONYMOUS = _flag("KB_INGEST_ALLOW_ANONYMOUS")
+
+# --- Private conversation archive (ChatGPT import) ---------------------------
+# Separate collection, same embedding space. Never the `knowledge` collection:
+# historical chat is unverified and private, and must not leak into kb_search.
+CHATGPT_HISTORY_COLLECTION = os.environ.get("KB_CHATGPT_COLLECTION", "chatgpt_history")
+if CHATGPT_HISTORY_COLLECTION == QDRANT_COLLECTION:
+    raise ValueError("KB_CHATGPT_COLLECTION must differ from the knowledge collection")
+# Normalized JSONL + checkpoints. Must live outside the public checkout.
+_archive = os.environ.get("KB_ARCHIVE_DIR", "").strip()
+ARCHIVE_DIR = (
+    Path(_archive).expanduser() if _archive else Path.home() / ".local/share/kb/archive"
+)
+#: Roles indexed from exports. `tool` / `system` messages are recorded, not embedded.
+CHATGPT_INDEX_ROLES = _csv("KB_CHATGPT_INDEX_ROLES", "user,assistant")
+CHATGPT_REDACTION_VERSION = "v1"

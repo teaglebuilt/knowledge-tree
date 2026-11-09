@@ -87,8 +87,12 @@ class KnowledgeIngest:
 
         fm = frontmatter(markdown)
         doc = parse_doc(rel, markdown)
-        resolved_type = source_type or fm.get("source_type") or "unknown"
+        resolved_type = str(source_type or fm.get("source_type") or "unknown").strip()
         resolved_url = source_url or fm.get("source_url")
+        if resolved_type in config.KB_RESERVED_SOURCE_TYPES:
+            # `tree` points are pruned by `kb sync`; memory/chat types are owned
+            # by the import pipeline. Claiming either from here corrupts both.
+            raise IngestError(f"source_type {resolved_type!r} is reserved")
 
         self._prepare()
         collection = config.QDRANT_COLLECTION

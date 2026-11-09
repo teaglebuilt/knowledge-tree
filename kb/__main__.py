@@ -50,6 +50,15 @@ def main(argv: list[str] | None = None) -> int:
     p_cfg.add_argument("--check", action="store_true",
                        help="exit 1 if .sops.yaml is stale instead of rewriting it")
 
+    p_imp = sub.add_parser("import-chatgpt",
+                           help="ChatGPT export -> private archive + chatgpt_history")
+    p_imp.add_argument("file", help="export ZIP or conversations*.json")
+    p_imp.add_argument("--dry-run", action="store_true")
+    p_imp.add_argument("--policy")
+    p_imp.add_argument("--archive-dir")
+    p_imp.add_argument("--prune", action="store_true")
+    p_imp.add_argument("--limit", type=int)
+
     args = p.parse_args(argv)
 
     if args.cmd == "extract":
@@ -72,6 +81,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "eval":
         from .eval import run as run_eval
         run_eval()
+    elif args.cmd == "import-chatgpt":
+        from .import_chatgpt import main as import_main
+        rest = [args.file] + (["--dry-run"] if args.dry_run else []) \
+            + (["--policy", args.policy] if args.policy else []) \
+            + (["--archive-dir", args.archive_dir] if args.archive_dir else []) \
+            + (["--prune"] if args.prune else []) \
+            + (["--limit", str(args.limit)] if args.limit is not None else [])
+        return import_main(rest)
     elif args.cmd == "secrets":
         from . import secrets
         if args.action == "check":
