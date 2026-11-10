@@ -1,17 +1,3 @@
-"""ChatGPT official export (Settings -> Data controls -> Export data) parser.
-
-Pure functions, no I/O beyond reading the archive: ZIP/JSON in, normalized
-MessageRecord objects out. Indexing lives in kb.archive.chatgpt_store.
-
-Format notes (observed, not contractual — every field is treated as optional):
-- conversations live in `conversations.json`, or in numbered
-  `conversations-000.json`, ... files in newer exports; all are read.
-- each conversation is a tree: `mapping[node_id] = {message, parent, children}`.
-  Edits and regenerations create sibling branches. `current_node` is the leaf
-  the user last saw; its ancestor path is the "current" branch.
-- Every node is emitted once with its parent id, flagged current/alternate.
-  No ordering is invented between branches.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -24,8 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from .. import config
-from .redact import redact
+from ... import config
+from ...redact import redact
 
 SOURCE = "chatgpt_export"
 _CONV_FILE = re.compile(r"(?:^|/)conversations(?:-\d+)?\.json$")

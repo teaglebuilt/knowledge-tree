@@ -1,11 +1,3 @@
-"""Secret redaction applied BEFORE anything is embedded or sent to a model.
-
-Deliberately pattern-based and conservative: a false positive costs a few
-words of context, a false negative puts a live credential into a vector
-index that any authorized reader can retrieve. Bump REDACTION_VERSION in
-kb.config whenever a pattern changes, so previously imported records can be
-found (payload `redaction_version`) and reprocessed.
-"""
 from __future__ import annotations
 
 import re

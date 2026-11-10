@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         from .eval import run as run_eval
         run_eval()
     elif args.cmd == "import-chatgpt":
-        from .import_chatgpt import main as import_main
+        from .providers.openai.import_chatgpt import main as import_main
         rest = [args.file] + (["--dry-run"] if args.dry_run else []) \
             + (["--policy", args.policy] if args.policy else []) \
             + (["--archive-dir", args.archive_dir] if args.archive_dir else []) \

@@ -1,13 +1,3 @@
-"""`python -m kb import-chatgpt FILE` — ChatGPT export -> private archive + chatgpt_history.
-
-Pipeline per conversation: parse -> policy filter -> redact -> write normalized
-JSONL to the private archive -> idempotent upsert into Qdrant -> checkpoint.
-
-Resumable: the checkpoint maps conversation_id -> content digest and is
-written after each conversation, so an interrupted run resumes where it
-stopped and a newer export only re-embeds conversations whose content changed
-(timestamps alone are not trusted to detect edits).
-"""
 from __future__ import annotations
 
 import json
@@ -16,8 +6,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config
-from .sources import chatgpt
+from ... import config
+from . import chatgpt
 
 
 def _inside_repo(path: Path) -> bool:
@@ -70,12 +60,12 @@ def run(
         archive.mkdir(parents=True, exist_ok=True)
         os.chmod(archive, 0o700)
         if store is None:
-            from .archive.chatgpt_store import ChatHistoryStore
+            from .chatgpt_store import ChatHistoryStore
 
             store = ChatHistoryStore()
         store.prepare()
 
-    from .archive.chatgpt_store import chunk_text
+    from .chatgpt_store import chunk_text
 
     convs = chatgpt.read_conversations(file, report)
     for n, (meta, records) in enumerate(

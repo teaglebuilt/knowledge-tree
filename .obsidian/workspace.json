@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "tree/application/architecture/ai-ml-inference-architecture.md",
+                "file": "tree/hardware/books/gpu-programming-using-rust-and-cuda-gitforgits.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "ai-ml-inference-architecture"
+              "title": "gpu-programming-using-rust-and-cuda-gitforgits"
             }
           }
         ]
@@ -187,17 +187,26 @@
   },
   "active": "75521912599ac75e",
   "lastOpenFiles": [
-    "tests/__pycache__/test_plane_separation.cpython-313-pytest-9.2.0.pyc",
-    "kb/ingest_api/__pycache__/mcp_tools.cpython-313.pyc",
-    "tests/__pycache__/test_mcp_ingest.cpython-313-pytest-9.2.0.pyc",
-    "kb/archive/__pycache__/chatgpt_store.cpython-313.pyc",
-    "kb/archive/__pycache__/__init__.cpython-313.pyc",
-    "kb/archive/__pycache__",
-    "kb/sources/__pycache__/redact.cpython-313.pyc",
-    "kb/sources/__pycache__/chatgpt.cpython-313.pyc",
-    "kb/sources/__pycache__/__init__.cpython-313.pyc",
-    "kb/sources/__pycache__",
-    "kb/__pycache__/import_chatgpt.cpython-313.pyc",
+    "kb/providers/openai/__pycache__/import_chatgpt.cpython-313.pyc",
+    "kb/providers/openai/__pycache__/chatgpt_store.cpython-313.pyc",
+    "kb/__pycache__/redact.cpython-313.pyc",
+    "kb/providers/openai/__pycache__/chatgpt.cpython-313.pyc",
+    "kb/providers/openai/__pycache__/__init__.cpython-313.pyc",
+    "kb/providers/__pycache__/__init__.cpython-313.pyc",
+    "kb/providers/openai/__pycache__/import_chatgpt.cpython-312.pyc",
+    "kb/adapters/__pycache__/qdrant.cpython-312.pyc",
+    "kb/adapters/__pycache__/__init__.cpython-312.pyc",
+    "kb/providers/openai/__pycache__/chatgpt_store.cpython-312.pyc",
+    "kb/__pycache__/redact.cpython-312.pyc",
+    "tree/data/web-scraping-and-data-collection.md",
+    "tree/data/nosql-data-modeling.md",
+    "tree/data/ml-pipeline-orchestration.md",
+    "tree/application/books/building-micro-frontends-scaling-teams-and-projects-empowering-develop.md",
+    "Untitled.canvas",
+    "tree/application/architecture/energy-power-architecture.md",
+    "tree/application/architecture/fusion-energy-monitoring.md",
+    "tree/application/architecture/cms-architecture.md",
+    "tree/application/architecture/ai-ml-inference-architecture.md",
     "docs/stories/import-memory.md",
     "docs/stories/memory.md",
     "docs/stories/knowledge-tree-chatgpt-memory-plan.md",
@@ -214,14 +223,6 @@
     "tree/application/architecture/quantitative-trading.md",
     "tree/application/architecture/insurtech.md",
     "tree/application/architecture/video-shortform-architecture.md",
-    "tree/application/architecture/supply-chain-finance.md",
-    "tree/platform-engineering/governance/09-cost-optimization-finops.md",
-    "tree/platform-engineering/12-automated-operations-toolchain.md",
-    "tree/platform-engineering/governance/14-large-scale-cluster-optimization.md",
-    "tree/infrastructure/devops/incident-management.md",
-    "tree/infrastructure/devops/gitops-workflow.md",
-    "tree/infrastructure/devops/kubernetes-configuration.md",
-    "tree/infrastructure/kubernetes/networking/14-multi-cluster-management.md",
-    "tree/application/architecture/ai-ml-inference-architecture.md"
+    "tree/application/architecture/supply-chain-finance.md"
   ]
 }

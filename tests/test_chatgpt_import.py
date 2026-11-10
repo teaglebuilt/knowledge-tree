@@ -5,10 +5,10 @@ import zipfile
 
 import pytest
 
-from kb import config, import_chatgpt
-from kb.archive.chatgpt_store import ChatHistoryStore, chunk_text
-from kb.sources import chatgpt
-from kb.sources.redact import redact
+from kb import config
+from kb.providers.openai import chatgpt, import_chatgpt
+from kb.providers.openai.chatgpt_store import ChatHistoryStore, chunk_text
+from kb.redact import redact
 
 
 def _policy(tmp_path):

@@ -12,9 +12,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .. import config, embed
-from ..adapters import qdrant as qd
-from ..sources.chatgpt import MessageRecord
+from ... import config, embed
+from ...adapters import qdrant as qd
+from .chatgpt import MessageRecord
 
 INDEXED_FIELDS = (
     "conversation_id", "message_id", "role", "project", "privacy_class",
