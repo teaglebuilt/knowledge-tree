@@ -44,10 +44,10 @@ sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 	$(PY) -m kb sync
 
 mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
-	$(PY) -m kb.mcp_retrieval --transport stdio
+	$(PY) -m kb.mcp --transport stdio
 
 ingest-api: ## Run the HTTP write plane (POST /ingest, /mcp kb_ingest -> Qdrant) on :3000
-	KB_INGEST_ALLOW_ANONYMOUS=$${KB_INGEST_ALLOW_ANONYMOUS:-true} $(PY) -m kb.ingest_api
+	KB_INGEST_ALLOW_ANONYMOUS=$${KB_INGEST_ALLOW_ANONYMOUS:-true} $(PY) -m kb.api
 
 import-chatgpt: ## ChatGPT export -> chatgpt_history: make import-chatgpt FILE=~/Downloads/x.zip [DRY_RUN=1] [POLICY=p.yaml] [PRUNE=1]
 	@test -n "$(FILE)" || (echo "FILE=<export.zip> is required"; exit 1)
