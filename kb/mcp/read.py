@@ -1,4 +1,4 @@
-"""MCP API layer: read-only kb_search + kb_get_document."""
+"""Read-plane MCP server (kb-retrieval): kb_search + kb_get_document only."""
 from __future__ import annotations
 
 import asyncio
@@ -6,7 +6,7 @@ import asyncio
 from mcp.server.mcpserver import MCPServer
 
 from .. import config
-from .service import KnowledgeSearch
+from ..services.search import KnowledgeSearch
 
 mcp = MCPServer(
     name="kb-retrieval",

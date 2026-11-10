@@ -19,13 +19,13 @@ def _names(server) -> set[str]:
 
 
 def test_read_plane_exposes_no_write_tools():
-    from kb.mcp_retrieval.server import mcp
+    from kb.mcp.read import mcp
 
     assert _names(mcp) == {"kb_search", "kb_get_document"}
 
 
 def test_write_plane_tools():
-    from kb.ingest_api.mcp_tools import mcp
+    from kb.mcp.write import mcp
 
     assert _names(mcp) == {"kb_ingest", "kb_ingest_status"}
 

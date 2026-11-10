@@ -5,9 +5,9 @@ import json
 import pytest
 
 from kb import config
-from kb.ingest_api import app as app_module
-from kb.ingest_api import mcp_tools
-from kb.ingest_api.service import KnowledgeIngest
+from kb.api import app as app_module
+from kb.mcp import write as mcp_write
+from kb.services.ingest import KnowledgeIngest
 
 DOC = "# Agent delegation\n\nA subAgent binding hands over the conversation.\n"
 URL = "https://kagent.dev/docs/kagent/latest/examples/agent-delegation/"
@@ -17,15 +17,15 @@ PATH = "tree/docs/kagent/agent-delegation.md"
 @pytest.fixture
 def service(qdrant, embedded):
     svc = KnowledgeIngest(client=qdrant)
-    mcp_tools.bind_service(svc)
+    mcp_write.bind_service(svc)
     return svc
 
 
 def test_ingest_then_unchanged_receipt(service):
-    first = mcp_tools.ingest_receipt(PATH, DOC, URL, title="Agent delegation")
+    first = mcp_write.ingest_receipt(PATH, DOC, URL, title="Agent delegation")
     assert first["status"] == "ingested" and first["chunks"] >= 1
     assert first["path"] == PATH and first["doc_hash"]
-    again = mcp_tools.ingest_receipt(PATH, DOC, URL, title="Agent delegation")
+    again = mcp_write.ingest_receipt(PATH, DOC, URL, title="Agent delegation")
     assert again == {**first, "status": "unchanged", "chunks": 0}
     assert service.exists(PATH)["doc_hash"] == first["doc_hash"]
 
@@ -41,27 +41,27 @@ def test_ingest_then_unchanged_receipt(service):
 def test_policy_rejections(service, kwargs, needle):
     args = {"path": PATH, "markdown": DOC, "source_url": URL} | kwargs
     path, markdown, url = args.pop("path"), args.pop("markdown"), args.pop("source_url")
-    receipt = mcp_tools.ingest_receipt(path, markdown, url, **args)
+    receipt = mcp_write.ingest_receipt(path, markdown, url, **args)
     assert receipt["status"] == "rejected"
     assert needle in receipt["error"]
 
 
 def test_size_cap(service, monkeypatch):
     monkeypatch.setattr(config, "KB_MCP_INGEST_MAX_BYTES", 10)
-    assert mcp_tools.ingest_receipt(PATH, DOC, URL)["status"] == "rejected"
+    assert mcp_write.ingest_receipt(PATH, DOC, URL)["status"] == "rejected"
 
 
 def test_frontmatter_added_and_preserved():
-    out = mcp_tools.with_frontmatter(DOC, title="T", source_url=URL,
+    out = mcp_write.with_frontmatter(DOC, title="T", source_url=URL,
                                      source_type="documentation", tags=["kagent"])
     assert out.startswith("---\n") and f"source_url: {URL}" in out
-    kept = mcp_tools.with_frontmatter("---\ntitle: Mine\n---\n\n" + DOC, title="T",
+    kept = mcp_write.with_frontmatter("---\ntitle: Mine\n---\n\n" + DOC, title="T",
                                       source_url=URL, source_type="documentation", tags=None)
     assert "title: Mine" in kept and "source_url" in kept and kept.count("---\n") == 2
 
 
 def test_reserved_source_type_rejected_on_http_writer_too(service):
-    from kb.ingest_api.service import IngestError
+    from kb.services.ingest import IngestError
 
     with pytest.raises(IngestError):
         service.ingest("tree/youtube/x.md", DOC, source_type="tree")

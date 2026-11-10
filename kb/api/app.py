@@ -13,8 +13,8 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 
 from .. import config
-from . import mcp_tools
-from .service import IngestError, KnowledgeIngest
+from ..mcp import write as mcp_write
+from ..services.ingest import IngestError, KnowledgeIngest
 
 #: Shared bearer secret for every write (POST /ingest, /delete, /mcp).
 #: Unset means writes are REFUSED unless KB_INGEST_ALLOW_ANONYMOUS=true —
@@ -155,12 +155,12 @@ def create_app(ingest_service: KnowledgeIngest | None = None) -> Starlette:
         _ingest = ingest_service
     # Lazy: the MCP tools resolve the shared service on first call, so a test
     # that injects a service after import still gets it.
-    mcp_tools.bind_service(_LazyService())
+    mcp_write.bind_service(_LazyService())
 
     # Stateless + JSON: each tools/call stands alone, so replicas need no
     # sticky sessions. host=0.0.0.0 keeps the SDK from enabling localhost-only
     # DNS-rebinding checks, which would 421 every in-cluster Host header.
-    mcp_app = mcp_tools.mcp.streamable_http_app(
+    mcp_app = mcp_write.mcp.streamable_http_app(
         stateless_http=True,
         json_response=True,
         host="0.0.0.0",
@@ -171,7 +171,7 @@ def create_app(ingest_service: KnowledgeIngest | None = None) -> Starlette:
     async def lifespan(app):
         # A mounted app's lifespan never runs; the MCP session manager must
         # be started by the outer app.
-        async with mcp_tools.mcp.session_manager.run():
+        async with mcp_write.mcp.session_manager.run():
             yield
 
     return Starlette(
@@ -189,7 +189,7 @@ def create_app(ingest_service: KnowledgeIngest | None = None) -> Starlette:
 
 
 class _LazyService:
-    """Proxy so mcp_tools and the REST routes share one KnowledgeIngest."""
+    """Proxy so the write MCP and the REST routes share one KnowledgeIngest."""
 
     def __getattr__(self, name):
         return getattr(service(), name)

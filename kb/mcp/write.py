@@ -1,9 +1,10 @@
-"""Agent-facing write MCP: `kb_ingest` + `kb_ingest_status`.
+"""Write-plane MCP server (kb-ingest): `kb_ingest` + `kb_ingest_status`.
 
-Served by the kb-ingest process at /mcp, NOT by kb-retrieval. kb-retrieval is
-bound by every agent that reads the tree, and kagent's Claude harness ignores
-per-tool allowlists, so a write tool there would be a write tool everywhere.
-Keeping writes on their own server means "can write" is decided by which
+A separate MCPServer from read.py, mounted at /mcp by kb.api behind its token
+gate, never served by the kb-retrieval process. kb-retrieval is bound by every
+agent that reads the tree, and kagent's Claude harness ignores per-tool
+allowlists, so a write tool there would be a write tool everywhere. Keeping
+writes on their own server means "can write" is decided by which
 RemoteMCPServer an AgentTemplate binds, not by a list the harness may ignore.
 
 Every call returns a JSON receipt. The receipt is the completion signal a
@@ -22,7 +23,7 @@ from mcp.server.mcpserver import MCPServer
 
 from .. import config
 from ..chunk import _FRONTMATTER
-from .service import IngestError, KnowledgeIngest, frontmatter, normalize_path
+from ..services.ingest import IngestError, KnowledgeIngest, frontmatter, normalize_path
 
 mcp = MCPServer(
     name="kb-ingest",

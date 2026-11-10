@@ -25,7 +25,7 @@ mcpServer:
   cmd: python
   args:
     - -m
-    - kb.mcp_retrieval
+    - kb.mcp
 
 # Qdrant connection. When url is empty, QDRANT_NETWORK selects internal vs external.
 # Prefer network=internal for in-cluster DNS (pod near Qdrant on application/data).

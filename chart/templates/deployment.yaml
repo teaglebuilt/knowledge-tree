@@ -33,7 +33,7 @@ spec:
         - name: ingest
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python", "-m", "kb.ingest_api"]
+          command: ["python", "-m", "kb.api"]
           ports:
             - name: http
               containerPort: {{ .Values.ingest.port }}
@@ -121,3 +121,4 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
+{{- end }}

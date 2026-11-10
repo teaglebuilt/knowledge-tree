@@ -4,7 +4,7 @@ from __future__ import annotations
 from html import escape
 
 from .. import config, embed
-from .store import QdrantChunkStore, SearchHit
+from .qdrant_store import QdrantChunkStore, SearchHit
 
 
 class KnowledgeSearch:
