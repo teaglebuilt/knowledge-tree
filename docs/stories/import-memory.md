@@ -40,11 +40,11 @@ The following components are present in the repository as inspected on the `mast
 | `tree/branches.yaml` | Knowledge routing/build and encryption policy | Add memory branches as appropriate |
 | `kb/chunk.py` | Markdown frontmatter and heading-aware overlapping chunks | Reuse for promoted Markdown, add transcript-aware splitting as needed |
 | `kb/config.py` | Embeddings, Qdrant, source/index configuration | Add archive collection and privacy configuration |
-| `kb/ingest_api/app.py` | HTTP endpoints `/ingest`, `/exists`, `/delete` | Reuse for *approved* knowledge writes; harden auth |
-| `kb/ingest_api/service.py` | Incremental embed/upsert into Qdrant; `path` ownership | Reuse carefully; add metadata and access constraints |
-| `kb/mcp_retrieval/server.py` | MCP tools `kb_search`, `kb_get_document` | Extend retrieval with history/memory tools. Stays read-only (§15.2) |
-| `kb/ingest_api/mcp_tools.py` | **NEW** MCP tools `kb_ingest`, `kb_ingest_status` served at `kb-ingest:/mcp` | Agent write plane (§15) |
-| `kb/mcp_retrieval/store.py` | Qdrant read-side search / full document retrieval | Add dedicated history store and filters |
+| `kb/api/app.py` | HTTP endpoints `/ingest`, `/exists`, `/delete` | Reuse for *approved* knowledge writes; harden auth |
+| `kb/services/ingest.py` | Incremental embed/upsert into Qdrant; `path` ownership | Reuse carefully; add metadata and access constraints |
+| `kb/mcp/read.py` | MCP tools `kb_search`, `kb_get_document` (kb-retrieval) | Extend retrieval with history/memory tools. Stays read-only (§15.2) |
+| `kb/mcp/write.py` | **NEW** MCP tools `kb_ingest`, `kb_ingest_status` served at `kb-ingest:/mcp` | Agent write plane (§15) |
+| `kb/services/qdrant_store.py` | Qdrant read-side search / full document retrieval | Add dedicated history store and filters |
 | `kb/sync.py` | LanceDB → Qdrant synchronization; prunes `source_type=tree` | Preserve existing pruning isolation |
 | `kb/adapters/qdrant.py` | Qdrant connection, collection, payload indexes, IDs | Extend for archive collection; honor separate auth policies |
 | `chart/values.yaml` | Helm configuration for `kb-retrieval`, optional `kb-ingest`, agent | Add controlled config and optional importer Job |
@@ -57,12 +57,12 @@ The following components are present in the repository as inspected on the `mast
 2. The current write plane accepts JSON with `path`, `markdown`, `source_type`, `source_url`, `force` and stores chunked Markdown in Qdrant.
 3. Existing `kb_search` supports `query`, `k`, `path`, `source_type`, and returns citeable chunks. `kb_get_document` pages through an indexed document.
 4. Current `kb/sync.py` prunes *only* `source_type=tree` records. New imported sources must not be given that type unintentionally.
-5. In `kb/ingest_api/app.py`, an unset `KB_INGEST_TOKEN` allows all callers that can reach the service to write. **Fix this before importing private history.**
+5. In `kb/api/app.py` (then `kb/ingest_api/app.py`), an unset `KB_INGEST_TOKEN` allows all callers that can reach the service to write. **Fix this before importing private history.**
 6. Repository `master` is **public**. Do not commit raw personal conversations, secrets, sensitive memories, or private extracted notes to `tree/` without intentional classification and protection.
 7. Helm chart values contain both `mcpServer` and `ingest` sections; validate their rendered manifests and the deployed KAgent CRD version before changing resource schemas.
 8. Retrieval currently uses vector similarity against Qdrant, not a proven hybrid BM25+vector search in the deployed MCP path. Hybrid retrieval is a future improvement to measure.
 
-Useful references: [Architecture](https://github.com/teaglebuilt/knowledge-tree/blob/master/docs/architecture.md), [Write-plane API](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/ingest_api/app.py), [Write service](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/ingest_api/service.py), [MCP server](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/mcp_retrieval/server.py), [Helm values](https://github.com/teaglebuilt/knowledge-tree/blob/master/chart/values.yaml).
+Useful references: [Architecture](https://github.com/teaglebuilt/knowledge-tree/blob/master/docs/architecture.md), [Write-plane API](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/api/app.py), [Write service](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/services/ingest.py), [MCP read server](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/mcp/read.py), [MCP write server](https://github.com/teaglebuilt/knowledge-tree/blob/master/kb/mcp/write.py), [Helm values](https://github.com/teaglebuilt/knowledge-tree/blob/master/chart/values.yaml).
 
 ---
 
@@ -196,13 +196,15 @@ knowledge-tree/
 │   ├── archive/
 │   │   ├── __init__.py
 │   │   └── chatgpt_store.py           # NEW: dedicated Qdrant archive operations
-│   ├── mcp_retrieval/
-│   │   ├── server.py                  # EXTEND: new read tools
-│   │   ├── service.py                 # EXTEND: routed search
-│   │   └── store.py                   # REUSE: knowledge collection
-│   ├── ingest_api/
-│   │   ├── app.py                     # HARDEN: auth, size limits, audit
-│   │   └── service.py                 # EXTEND: metadata policy if needed
+│   ├── mcp/                           # both MCP servers, kept as SEPARATE servers
+│   │   ├── read.py                    # EXTEND: new read tools (kb-retrieval)
+│   │   └── write.py                   # kb_ingest / kb_ingest_status (kb-ingest:/mcp)
+│   ├── api/
+│   │   └── app.py                     # HARDEN: auth, size limits, audit
+│   ├── services/                      # shared by api/ and mcp/
+│   │   ├── search.py                  # EXTEND: routed search
+│   │   ├── qdrant_store.py            # REUSE: knowledge collection
+│   │   └── ingest.py                  # EXTEND: metadata policy if needed
 │   └── config.py                      # EXTEND: collection/privacy settings
 ├── scripts/
 │   └── import_chatgpt.py              # NEW: CLI entry point
@@ -272,10 +274,13 @@ make import-chatgpt FILE=... PRUNE=1          # full export only: drop conversat
 # == uv run python -m kb import-chatgpt FILE [--dry-run] [--policy P] [--prune] [--limit N]
 ```
 
-Implementation map: `kb/sources/chatgpt.py` (parse/normalize/policy), `kb/sources/redact.py`
-(pattern redaction, versioned), `kb/archive/chatgpt_store.py` (Qdrant `chatgpt_history`,
-message-level fingerprint upsert), `kb/import_chatgpt.py` (pipeline + checkpoint). The story's
+Implementation map: `kb/providers/openai/chatgpt.py` (parse/normalize/policy), `kb/redact.py`
+(pattern redaction, versioned — shared across providers, not OpenAI-specific),
+`kb/providers/openai/chatgpt_store.py` (Qdrant `chatgpt_history`, message-level fingerprint
+upsert), `kb/providers/openai/import_chatgpt.py` (pipeline + checkpoint). The story's
 `scripts/import_chatgpt.py` became a `kb` subcommand to match the repo's CLI convention.
+Provider-specific export parsing/storage lives under `kb/providers/<provider>/`, so a future
+Claude export importer would land at `kb/providers/claude/` alongside this one.
 
 **Done when:** A sample export imports without duplicate entries on repeated runs; branches and metadata are preserved; excluded content is not embedded; interrupted imports resume safely.
 
@@ -552,7 +557,7 @@ happens: the documentation agent's template lists both servers. But the tool is
 3. kb-ingest already runs next to Qdrant (application cluster) and holds the write
    token. kb-retrieval runs on mlops with read credentials only.
 
-Implementation: `kb/ingest_api/mcp_tools.py`, mounted at `/mcp` on the existing
+Implementation: `kb/mcp/write.py`, mounted at `/mcp` on the existing
 kb-ingest Starlette app (stateless streamable HTTP, JSON responses). It is behind the
 same token as `/ingest`, given as `Authorization: Bearer` or `X-KB-Ingest-Token`. The
 second header exists because a kagent `headersFrom` copies a Secret value verbatim and
@@ -631,49 +636,64 @@ harness's own MCP client does that is unverified, so do not depend on it.
 
 ### 15.5 Consumer contract for homelab solutions-architect
 
-These changes go in `teaglebuilt/homelab`. They are not made from this repo:
+**Done.** These changes landed in `teaglebuilt/homelab`:
 
 ```yaml
-# platform/ai/kubernetes/mcp/kagent-agents.yaml
+# platform/ai/kubernetes/mcp/kagent-controller.yaml
 apiVersion: api.kagent.dev/v1alpha3
 kind: RemoteMCPServer
-metadata: {name: kagent-agents, namespace: ai}
+metadata: {name: kagent-controller, namespace: ai}
 spec:
   description: kagent controller MCP — invoke other agents and read their sessions
   protocol: STREAMABLE_HTTP
   url: http://kagent-controller.ai.svc.cluster.local:8083/mcp
-  timeout: 600s
+  timeout: 600s   # invoke_agent blocks for the whole delegated run
 ```
 
-- solutions-architect `tools`: add `mcp: {server: {kind: RemoteMCPServer, name: kagent-agents}, tools: [invoke_agent, create_session, get_session]}`.
-- solutions-architect EgressPolicy: add `http://kagent-controller.ai.svc.cluster.local:8083`.
-  It does **not** need kb-ingest egress or the token, because it never writes.
-- Prompt snippet: *"To fetch or persist documentation, call `invoke_agent` with
-  agent `{namespace: ai, name: documentation-agent}` and a JSON message
-  `{task, topic, question?, sources?, target_path?}`. Treat the work as done only
-  if `state` is `TASK_STATE_COMPLETED` and the JSON in `text` has
-  `status: completed`. Cite `documents[].path`. If it times out, do not retry
-  blindly. Use `create_session` + `get_session`."*
-- Secret `kb-ingest-token` (key `KB_INGEST_TOKEN`) must exist in `ai` on **mlops**.
-  It holds the same value as the kb-ingest Deployment on application.
+Named `kagent-controller` (not `kagent-agents` as first sketched) to match the
+existing `kagent-controller-h2c` Service and the `kagent-controller` static target
+already registered in the `mcp-backend` `AgentgatewayBackend` — the controller's MCP
+endpoint was already reachable cluster-side, just not yet bound to any Agent's tools.
+Added to `platform/ai/kubernetes/mcp/kustomization.yaml`'s `resources:`.
 
-**Risk to accept or mitigate before go-live.** The controller MCP runs in `insecure`
-auth mode by default. It trusts a caller-set `X-User-Id`, and `invoke_agent` can reach
-**any** Agent the caller can see, not only `documentation-agent`. kagent bindings narrow
-tools, not tool arguments. On the homelab trusted network this is the same exposure the
-kagent UI already has. If that is not acceptable, put the controller behind
-agentgateway with an authz rule on the `agent` argument, or enable real controller auth.
+- solutions-architect `tools`: added `mcp: {server: {kind: RemoteMCPServer, name:
+  kagent-controller}, tools: [invoke_agent, create_session, get_session]}` in
+  `chart/templates/agent-template.yaml`.
+- solutions-architect EgressPolicy: added both `http://kagent-controller.ai:8083` and
+  `http://kagent-controller.ai.svc.cluster.local:8083` (short + FQDN, matching the
+  existing `kagent-tools` entries — their comment notes the inferred policy alone
+  doesn't reach actors).
+- systemPrompt: added a "DELEGATING DOCUMENTATION WORK" paragraph — delegate
+  fetch-and-store documentation tasks to the documentation agent via `invoke_agent`
+  rather than doing it directly (solutions-architect holds no `kb_ingest` write
+  token), trust completion only on `state: TASK_STATE_COMPLETED` **and** a JSON
+  receipt with `status: completed` **and** every `stored_docs[].verified: true`, and
+  use `create_session`/`get_session(last_turns=1)` polling for long-running work.
+- Secret `kb-ingest-token` (key `KB_INGEST_TOKEN`): **already existed** in `ai` on
+  mlops (`platform/ai/kubernetes/apps/kb-ingest/secrets.enc.yaml`, SOPS/KMS-encrypted)
+  — `youtube-transcript`'s Deployment already consumes it. No new secret was needed;
+  the earlier note above assuming it still had to be created was wrong.
+
+**Risk accepted, not mitigated (user decision 2026-11-10).** The controller MCP runs
+in `insecure` auth mode by default: it trusts a caller-set `X-User-Id`, and
+`invoke_agent` can reach **any** Agent the caller can see, not only
+`documentation-agent` — kagent bindings narrow tools, not tool arguments. Decision:
+accept this on the homelab's trusted internal network (the same exposure the kagent
+UI already has) rather than build new authz-policy infrastructure with no existing
+precedent in this repo. Revisit if the controller ever becomes reachable from outside
+the trusted network, or once kagent supports scoping `invoke_agent` to a specific
+target agent.
 
 ### 15.6 Files
 
 | Path | Change |
 | --- | --- |
-| `kb/ingest_api/mcp_tools.py` | NEW `kb_ingest`, `kb_ingest_status` |
-| `kb/ingest_api/app.py` | `/mcp` mount, fail-closed auth, body cap, `X-KB-Ingest-Token` |
-| `kb/ingest_api/service.py` | reserved `source_type` refusal |
+| `kb/mcp/write.py` | NEW `kb_ingest`, `kb_ingest_status` |
+| `kb/api/app.py` | `/mcp` mount, fail-closed auth, body cap, `X-KB-Ingest-Token` |
+| `kb/services/ingest.py` | reserved `source_type` refusal |
 | `kb/config.py` | MCP ingest policy, archive collection/dir, redaction version |
-| `kb/sources/chatgpt.py`, `kb/sources/redact.py` | NEW parser/normalizer, redaction |
-| `kb/archive/chatgpt_store.py` | NEW `chatgpt_history` store |
+| `kb/providers/openai/chatgpt.py`, `kb/redact.py` | NEW parser/normalizer, redaction (shared) |
+| `kb/providers/openai/chatgpt_store.py` | NEW `chatgpt_history` store |
 | `kb/import_chatgpt.py`, `kb/__main__.py`, `Makefile` | NEW `import-chatgpt` command, `make test` |
 | `chart/values.yaml`, `chart/templates/ingest.yaml` | `docsAgent.*`, `ingest.mcp.*`; HTTP prefixes narrowed to `tree/youtube/,tree/docs/` (read-plane follow-up 2) |
 | `chart/templates/docs-agent-template.yaml`, `docs-agent.yaml` | NEW documentation agent |

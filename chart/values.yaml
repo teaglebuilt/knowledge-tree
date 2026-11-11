@@ -7,7 +7,7 @@ namespace: ai
 # Placeholder registry path — replace if your org uses a different GHCR/name.
 image:
   repository: ghcr.io/teaglebuilt/kb-retrieval
-  tag: "0.3.0"
+  tag: "0.4.0"
   pullPolicy: IfNotPresent
   pullSecrets:
     - name: ghcr-secret
