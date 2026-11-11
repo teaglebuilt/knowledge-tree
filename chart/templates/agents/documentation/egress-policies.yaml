@@ -1,4 +1,4 @@
-{{- if and .Values.agent.enabled .Values.docsAgent.enabled }}
+{{- if .Values.docsAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: EgressPolicy

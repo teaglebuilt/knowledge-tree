@@ -1,16 +1,16 @@
-{{- if and .Values.agent.enabled .Values.docsAgent.enabled }}
+{{- if .Values.knowledgeScoutAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: EgressPolicy
 metadata:
-  name: {{ .Values.docsAgent.name }}
+  name: {{ .Values.knowledgeScoutAgent.name }}
   namespace: {{ .Values.namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.docsAgent.name }}
+    app.kubernetes.io/name: {{ .Values.knowledgeScoutAgent.name }}
     app.kubernetes.io/part-of: knowledge-tree
 spec:
   destinations:
-    {{- range .Values.docsAgent.egressOrigins }}
+    {{- range .Values.knowledgeScoutAgent.egressOrigins }}
     - origin: {{ . }}
     {{- end }}
 {{- end }}

@@ -1,4 +1,4 @@
-{{- if and .Values.agent.enabled .Values.docsAgent.enabled }}
+{{- if .Values.docsAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: AgentTemplate
@@ -185,4 +185,8 @@ spec:
           - firecrawl_extract
           - firecrawl_crawl
           - firecrawl_check_crawl_status
+          - firecrawl_parse
+          - firecrawl_interact
+          - firecrawl_scrape
+          - firecrawl_map
 {{- end }}

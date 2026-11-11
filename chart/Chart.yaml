@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
 name: knowledge-tree
-description: Knowledge-tree read plane (kb-retrieval MCP + knowledge-scout agent)
+description: Knowledge-tree read plane (kb-retrieval MCP), write plane (kb-ingest), and its kagent agents
 type: application
-version: '1.0.0'
-appVersion: '0.1.0'
+version: '2.0.1'
+appVersion: '0.4.0'

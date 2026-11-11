@@ -1,12 +1,12 @@
-{{- if .Values.agent.enabled }}
+{{- if .Values.knowledgeScoutAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: Agent
 metadata:
-  name: knowledge-scout-agent
-  namespace: ai
+  name: {{ .Values.knowledgeScoutAgent.name }}
+  namespace: {{ .Values.namespace }}
   labels:
-    app.kubernetes.io/name: knowledge-scout-agent
+    app.kubernetes.io/name: {{ .Values.knowledgeScoutAgent.name }}
     app.kubernetes.io/part-of: knowledge-tree
 spec:
   harnessRef:
@@ -14,4 +14,6 @@ spec:
   template:
     ref:
       name: knowledge-scout
+  egressPolicyRefs:
+    - name: {{ .Values.knowledgeScoutAgent.name }}
 {{- end }}

@@ -143,12 +143,21 @@ writableVolumes:
   home: true
   tmp: true
 
-agent:
-  # knowledge-scout Agent template (chart/templates/agent.yaml) — enable when ready.
+knowledgeScoutAgent:
+  # knowledge-scout Agent (chart/templates/agents/kb-scout/) — enable when ready.
   enabled: true
+  # Agent and EgressPolicy name (the Agent references its policy by this name).
+  name: knowledge-scout-agent
+  egressOrigins:
+    - http://kb-retrieval.ai.svc.cluster.local:3000
+    - http://kb-ingest.ai.svc.cluster.local:3000
+    - http://firecrawl-mcp.automation.svc.cluster.local:3000
+    - https://mcp.context7.com
+    - http://vllm-selfhosted.ai.svc.cluster.local:8000
 
 # Documentation agent: other agents delegate "find docs" / "store docs" to it.
-# Gated by agent.enabled AND docsAgent.enabled. Deployed with kagent on mlops.
+# Gated by docsAgent.enabled alone. Deploy with kagent on mlops; set false on
+# any cluster without kagent CRDs (e.g. application).
 # Invoke it through the kagent controller MCP (`invoke_agent`), not a
 # subAgent binding — see docs/stories/import-memory.md section 15.
 docsAgent:

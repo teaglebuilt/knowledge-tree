@@ -1,18 +1,4 @@
-{{- if and .Values.agent.enabled .Values.docsAgent.enabled }}
----
-apiVersion: api.kagent.dev/v1alpha3
-kind: EgressPolicy
-metadata:
-  name: {{ .Values.docsAgent.name }}
-  namespace: {{ .Values.namespace }}
-  labels:
-    app.kubernetes.io/name: {{ .Values.docsAgent.name }}
-    app.kubernetes.io/part-of: knowledge-tree
-spec:
-  destinations:
-    {{- range .Values.docsAgent.egressOrigins }}
-    - origin: {{ . }}
-    {{- end }}
+{{- if .Values.docsAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: Agent
@@ -31,33 +17,4 @@ spec:
       name: {{ .Values.docsAgent.templateName }}
   egressPolicyRefs:
     - name: {{ .Values.docsAgent.name }}
-{{- end }}
-{{- if and .Values.agent.enabled .Values.docsAgent.enabled .Values.docsAgent.kbIngest.createRemoteMCPServer }}
----
-# Write plane as an MCP server. Deliberately a SEPARATE server from
-# kb-retrieval: binding this server is what grants write access, because the
-# Claude harness ignores per-tool allowlists on a binding.
-apiVersion: api.kagent.dev/v1alpha3
-kind: RemoteMCPServer
-metadata:
-  name: {{ .Values.docsAgent.kbIngest.name }}
-  namespace: {{ .Values.namespace }}
-  labels:
-    app.kubernetes.io/name: {{ .Values.docsAgent.kbIngest.name }}
-    app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: ingest
-spec:
-  description: >-
-    Knowledge-tree write plane (kb_ingest, kb_ingest_status -> Qdrant
-    collection {{ .Values.qdrant.collection }}). Server is owned by
-    teaglebuilt/knowledge.
-  protocol: STREAMABLE_HTTP
-  url: {{ .Values.docsAgent.kbIngest.url | quote }}
-  timeout: {{ .Values.docsAgent.kbIngest.timeout | quote }}
-  headersFrom:
-    - name: X-KB-Ingest-Token
-      valueFrom:
-        type: Secret
-        name: {{ .Values.docsAgent.kbIngest.tokenSecret }}
-        key: {{ .Values.docsAgent.kbIngest.tokenSecretKey }}
 {{- end }}
