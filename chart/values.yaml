@@ -155,16 +155,18 @@ knowledgeScoutAgent:
     - https://mcp.context7.com
     - http://vllm-selfhosted.ai.svc.cluster.local:8000
 
-# Documentation agent: other agents delegate "find docs" / "store docs" to it.
+# Documentation agent: harvests whole documentation sets into tree/docs/.
 # Gated by docsAgent.enabled alone. Deploy with kagent on mlops; set false on
 # any cluster without kagent CRDs (e.g. application).
-# Invoke it through the kagent controller MCP (`invoke_agent`), not a
-# subAgent binding — see docs/stories/import-memory.md section 15.
+# Bound as a subAgent by homelab solutions-architect (conversation hand-off).
 docsAgent:
   enabled: true
   templateName: documentation
   name: documentation-agent
   modelConfig: llmd-vllm-config
+  # Pages scraped+ingested per run. Every page passes through the model's
+  # context (scrape result + kb_ingest args), so keep this small on 32k models.
+  maxPagesPerRun: 8
   # Requires the kagent harness with the golang-adk image (homelab harness
   # `kagent` uses it). Set false on codex/claude/byo harnesses, which reject it.
   structuredOutput: true
