@@ -32,12 +32,14 @@ def test_write_plane_tools():
 
 def test_only_documentation_agent_binds_the_write_server():
     """No other AgentTemplate in this chart may bind kb-ingest."""
-    for path in (ROOT / "chart" / "templates").glob("*.yaml"):
-        text = path.read_text()
-        if "kind: AgentTemplate" not in text:
-            continue
-        binds_writer = "kb_ingest" in text
-        assert binds_writer == (path.name == "docs-agent-template.yaml"), path.name
+    templates = [
+        p for p in (ROOT / "chart" / "templates").rglob("*.yaml")
+        if "kind: AgentTemplate" in p.read_text()
+    ]
+    assert len(templates) >= 2, "expected kb-scout and documentation AgentTemplates"
+    for path in templates:
+        binds_writer = "kb_ingest" in path.read_text()
+        assert binds_writer == (path.parent.name == "documentation"), path
 
 
 def test_values_keep_writer_prefixes_disjoint_from_tree_sync():
