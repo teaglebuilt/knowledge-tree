@@ -1,5 +1,5 @@
-{{- if .Values.ingest.enabled }}
-{{- $name := .Values.ingest.name }}
+{{- if .Values.api.enabled }}
+{{- $name := .Values.api.name }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -8,9 +8,9 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ $name }}
     app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: ingest
+    app.kubernetes.io/component: api
 spec:
-  replicas: {{ .Values.ingest.replicas }}
+  replicas: {{ .Values.api.replicas }}
   strategy:
     type: Recreate
   selector:
@@ -21,7 +21,7 @@ spec:
       labels:
         app.kubernetes.io/name: {{ $name }}
         app.kubernetes.io/part-of: knowledge-tree
-        app.kubernetes.io/component: ingest
+        app.kubernetes.io/component: api
     spec:
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
@@ -30,13 +30,13 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: ingest
+        - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["python", "-m", "kb.api"]
           ports:
             - name: http
-              containerPort: {{ .Values.ingest.port }}
+              containerPort: {{ .Values.api.port }}
               protocol: TCP
           env:
             - name: QDRANT_NETWORK
@@ -61,22 +61,42 @@ spec:
               value: {{ .Values.qdrant.collection | quote }}
             - name: EMBEDDING_MODEL
               value: {{ .Values.embedding.model | quote }}
-            - name: KB_INGEST_PORT
-              value: {{ .Values.ingest.port | quote }}
-            - name: KB_INGEST_PATH_PREFIXES
-              value: {{ .Values.ingest.pathPrefixes | quote }}
-            - name: KB_MCP_INGEST_PATH_PREFIXES
-              value: {{ .Values.ingest.mcp.pathPrefixes | quote }}
-            - name: KB_MCP_INGEST_SOURCE_TYPES
-              value: {{ .Values.ingest.mcp.sourceTypes | quote }}
-            - name: KB_MCP_INGEST_MAX_BYTES
-              value: {{ .Values.ingest.mcp.maxBytes | quote }}
-            {{- if .Values.ingest.tokenSecret }}
-            - name: KB_INGEST_TOKEN
+            - name: OTEL_SERVICE_NAME
+              value: {{ $name | quote }}
+            - name: KB_API_PORT
+              value: {{ .Values.api.port | quote }}
+            - name: KB_API_WRITE_PATH_PREFIXES
+              value: {{ .Values.api.writePolicy.pathPrefixes | quote }}
+            - name: KB_MCP_WRITE_PATH_PREFIXES
+              value: {{ .Values.api.mcpWrite.pathPrefixes | quote }}
+            - name: KB_MCP_WRITE_SOURCE_TYPES
+              value: {{ .Values.api.mcpWrite.sourceTypes | quote }}
+            - name: KB_MCP_WRITE_MAX_BYTES
+              value: {{ .Values.api.mcpWrite.maxBytes | quote }}
+            - name: KB_MCP_WRITE_LEGACY_TOOLS
+              value: {{ .Values.api.mcpWrite.legacyTools | quote }}
+            {{- with .Values.api.auth }}
+            {{- if .writeTokenSecret }}
+            - name: KB_API_WRITE_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.ingest.tokenSecret | quote }}
-                  key: {{ .Values.ingest.tokenSecretKey | quote }}
+                  name: {{ .writeTokenSecret | quote }}
+                  key: {{ .writeTokenSecretKey | quote }}
+            {{- end }}
+            {{- if .readTokenSecret }}
+            - name: KB_API_READ_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .readTokenSecret | quote }}
+                  key: {{ .readTokenSecretKey | quote }}
+            {{- end }}
+            {{- if .adminTokenSecret }}
+            - name: KB_API_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .adminTokenSecret | quote }}
+                  key: {{ .adminTokenSecretKey | quote }}
+            {{- end }}
             {{- end }}
             - name: HOME
               value: /home/mcp
@@ -113,7 +133,7 @@ spec:
             - name: tmp
               mountPath: /tmp
           resources:
-            {{- toYaml .Values.ingest.resources | nindent 12 }}
+            {{- toYaml .Values.api.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
       volumes:

@@ -12,14 +12,6 @@ from ..chunk import _FRONTMATTER, chunk_doc, parse_doc
 
 UPSERT_BATCH = int(os.environ.get("KB_INGEST_BATCH", "128"))
 
-#: Paths the write plane may own. Keeps a misconfigured caller from
-#: overwriting documents the local tree pipeline is the writer for.
-ALLOWED_PREFIXES = tuple(
-    p.strip()
-    for p in os.environ.get("KB_INGEST_PATH_PREFIXES", "tree/").split(",")
-    if p.strip()
-)
-
 
 class IngestError(ValueError):
     """Caller-fixable problem with the submitted document."""
@@ -41,10 +33,11 @@ def normalize_path(path: str) -> str:
         raise IngestError(f"path must be normalized and relative: {path!r}")
     if not candidate.endswith(".md"):
         raise IngestError("path must end with .md")
-    if ALLOWED_PREFIXES and not candidate.startswith(ALLOWED_PREFIXES):
-        raise IngestError(
-            f"path must start with one of {', '.join(ALLOWED_PREFIXES)}"
-        )
+    # Paths the API may own. Keeps a misconfigured caller from overwriting
+    # documents the local tree pipeline is the writer for.
+    allowed = config.KB_API_WRITE_PATH_PREFIXES
+    if allowed and not candidate.startswith(allowed):
+        raise IngestError(f"path must start with one of {', '.join(allowed)}")
     return candidate
 
 
@@ -62,6 +55,10 @@ class KnowledgeIngest:
     def __init__(self, client=None) -> None:
         self._client = client or qd.client()
         self._prepared = False
+
+    @property
+    def client(self):
+        return self._client
 
     def _prepare(self) -> None:
         if self._prepared:

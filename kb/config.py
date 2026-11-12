@@ -1,6 +1,7 @@
 """Central config for the knowledge pipeline. Everything is env-overridable."""
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
@@ -121,24 +122,81 @@ def _flag(name: str, default: str = "false") -> bool:
     return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 
-# --- Write plane: agent-facing MCP (`kb_ingest`) -----------------------------
-# Agents get a narrower slice of the write plane than the HTTP callers (n8n):
-# their own path prefix, a closed set of source types, a size cap, and a
-# mandatory source_url so every agent-written document carries provenance.
-KB_MCP_INGEST_PATH_PREFIXES = _csv("KB_MCP_INGEST_PATH_PREFIXES", "tree/docs/")
-KB_MCP_INGEST_SOURCE_TYPES = _csv("KB_MCP_INGEST_SOURCE_TYPES", "documentation")
-KB_MCP_INGEST_MAX_BYTES = int(os.environ.get("KB_MCP_INGEST_MAX_BYTES", str(512 * 1024)))
+# --- kb-api / kb-mcp-write service configuration ----------------------------
+# Renamed from KB_INGEST_* / KB_MCP_INGEST_* (docs/api.md#configuration). The
+# old names still resolve during the migration window, with a warning; setting
+# both to different values is an error rather than a silent pick.
+_LEGACY_ENV = {
+    "KB_API_WRITE_TOKEN": "KB_INGEST_TOKEN",
+    "KB_API_ALLOW_ANONYMOUS_WRITES": "KB_INGEST_ALLOW_ANONYMOUS",
+    "KB_API_WRITE_PATH_PREFIXES": "KB_INGEST_PATH_PREFIXES",
+    "KB_API_MAX_BODY_BYTES": "KB_INGEST_MAX_BODY_BYTES",
+    "KB_API_HOST": "KB_INGEST_HOST",
+    "KB_API_PORT": "KB_INGEST_PORT",
+    "KB_MCP_WRITE_PATH_PREFIXES": "KB_MCP_INGEST_PATH_PREFIXES",
+    "KB_MCP_WRITE_SOURCE_TYPES": "KB_MCP_INGEST_SOURCE_TYPES",
+    "KB_MCP_WRITE_MAX_BYTES": "KB_MCP_INGEST_MAX_BYTES",
+}
+
+
+def env_compat(name: str, default: str) -> str:
+    """Resolve `name`, falling back to its deprecated alias in _LEGACY_ENV."""
+    legacy = _LEGACY_ENV.get(name)
+    value = os.environ.get(name)
+    old = os.environ.get(legacy) if legacy else None
+    if value is not None and old is not None and value.strip() != old.strip():
+        raise ValueError(f"{name} and deprecated {legacy} are both set and differ; unset {legacy}")
+    if value is not None:
+        return value
+    if old is not None:
+        logging.getLogger("kb.config").warning("%s is deprecated; set %s instead", legacy, name)
+        return old
+    return default
+
+
+def _csv_compat(name: str, default: str) -> tuple[str, ...]:
+    return tuple(p.strip() for p in env_compat(name, default).split(",") if p.strip())
+
+
+def _flag_compat(name: str, default: str = "false") -> bool:
+    return env_compat(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+#: Tokens, by scope. write implies read; admin implies write. With no admin
+#: token, the write token also authorizes admin (DELETE), matching the old
+#: single-token behaviour. With no read token, reads are open — the same
+#: exposure the in-cluster read MCP has. Writes with no write token are
+#: REFUSED unless KB_API_ALLOW_ANONYMOUS_WRITES=true: private history must
+#: never land through an open door by omission.
+KB_API_WRITE_TOKEN = env_compat("KB_API_WRITE_TOKEN", "").strip()
+KB_API_READ_TOKEN = os.environ.get("KB_API_READ_TOKEN", "").strip()
+KB_API_ADMIN_TOKEN = os.environ.get("KB_API_ADMIN_TOKEN", "").strip()
+#: Local dev opts in explicitly; the cluster never should.
+KB_API_ALLOW_ANONYMOUS_WRITES = _flag_compat("KB_API_ALLOW_ANONYMOUS_WRITES")
+
+#: Paths the HTTP writer (n8n) may own. Must stay DISJOINT from what `kb sync`
+#: owns, or a sync prune deletes API-authored documents.
+KB_API_WRITE_PATH_PREFIXES = _csv_compat("KB_API_WRITE_PATH_PREFIXES", "tree/")
+#: HTTP body cap for every route, including /mcp.
+KB_API_MAX_BODY_BYTES = int(env_compat("KB_API_MAX_BODY_BYTES", str(2 * 1024 * 1024)))
+KB_API_HOST = env_compat("KB_API_HOST", "0.0.0.0")
+KB_API_PORT = int(env_compat("KB_API_PORT", "3000"))
+
+# Agents (kb-mcp-write) get a narrower slice than the HTTP callers: their own
+# path prefix, a closed set of source types, a size cap, and a mandatory
+# source_url so every agent-written document carries provenance.
+KB_MCP_WRITE_PATH_PREFIXES = _csv_compat("KB_MCP_WRITE_PATH_PREFIXES", "tree/docs/")
+KB_MCP_WRITE_SOURCE_TYPES = _csv_compat("KB_MCP_WRITE_SOURCE_TYPES", "documentation")
+KB_MCP_WRITE_MAX_BYTES = int(env_compat("KB_MCP_WRITE_MAX_BYTES", str(512 * 1024)))
+#: Also serve the pre-rename tool names (kb_ingest, kb_ingest_status) on the
+#: write MCP while agents migrate. Never on the read MCP. Removed in a later release.
+KB_MCP_WRITE_LEGACY_TOOLS = _flag("KB_MCP_WRITE_LEGACY_TOOLS", "true")
+
 #: source_type values no writer outside its owner may claim. `tree` is pruned
 #: by `kb sync`; the memory types belong to the import/approval pipeline.
 KB_RESERVED_SOURCE_TYPES = frozenset(
     _csv("KB_RESERVED_SOURCE_TYPES", "tree,chatgpt,chatgpt_export,memory")
 )
-
-# HTTP body cap for POST /ingest and the MCP endpoint.
-KB_INGEST_MAX_BODY_BYTES = int(os.environ.get("KB_INGEST_MAX_BODY_BYTES", str(2 * 1024 * 1024)))
-#: Writes are refused when KB_INGEST_TOKEN is unset unless this is set
-#: explicitly. Local dev opts in; the cluster never should.
-KB_INGEST_ALLOW_ANONYMOUS = _flag("KB_INGEST_ALLOW_ANONYMOUS")
 
 # --- Private conversation archive (ChatGPT import) ---------------------------
 # Separate collection, same embedding space. Never the `knowledge` collection:

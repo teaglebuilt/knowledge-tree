@@ -29,8 +29,22 @@ Knowledge as an obsidian vault stored as markdown in git and ingested and indexe
 Source code used for knowledge management. Commands to interact with the knowledge bank exist in makefile.
 Run `make help` to see the available commands.
 
-## Write plane
+## Services
 
-Automated sources (n8n YouTube ingestion) POST markdown to the `kb-ingest`
-HTTP service instead of running the local pipeline. See
-[docs/write-plane.md](docs/write-plane.md).
+One image, `ghcr.io/teaglebuilt/kb`, runs every mode:
+
+| Mode | Command | Purpose |
+|---|---|---|
+| `kb-mcp-read` | `python -m kb.mcp` | Read MCP: `kb_search`, `kb_get_document` |
+| `kb-api` | `python -m kb.api` | FastAPI `/v1` + `/openapi.json`, and `kb-mcp-write` at `/mcp` |
+| sync | `python -m kb sync` | LanceDB → Qdrant |
+
+- [docs/api.md](docs/api.md) - canonical HTTP contract, auth, configuration and the migration from the old names.
+- [docs/mcp.md](docs/mcp.md) - the two MCP servers and their exact tool inventories.
+- [docs/write-plane.md](docs/write-plane.md) - why `kb-api` exists and how writes land in Qdrant.
+- [docs/read-plane.md](docs/read-plane.md) - how documents are read back, including OpenWebUI.
+
+Automated sources (n8n YouTube ingestion) `POST /v1/documents` to `kb-api`
+instead of running the local pipeline. Local commands: `make mcp` (read MCP,
+stdio), `make api` (kb-api on :3000; `ANON=1` for anonymous local writes),
+`make openapi` (print the OpenAPI document), `make helm-deploy-api`.

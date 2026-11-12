@@ -12,7 +12,7 @@ from .read import mcp
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="kb.mcp",
-        description="Knowledge-tree MCP read plane (kb_search → Qdrant)",
+        description="Knowledge-tree read MCP, kb-mcp-read (kb_search, kb_get_document -> Qdrant)",
     )
     parser.add_argument(
         "--transport",
@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     print(
-        f"kb-retrieval: network={config.QDRANT_NETWORK} "
+        f"kb-mcp-read: network={config.QDRANT_NETWORK} "
         f"url={config.QDRANT_URL} collection={config.QDRANT_COLLECTION} "
         f"transport={args.transport}",
         file=sys.stderr,

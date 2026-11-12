@@ -1,60 +1,73 @@
-# knowledge-tree chart — kb-retrieval MCPServer + knowledge-scout Agent
+# knowledge-tree chart — kb-mcp-read, kb-api (+ kb-mcp-write), kb sync, and the kagent agents.
+# Values layout changed in chart 3.0.0: mcpServer.* -> mcp.read.*, ingest.* ->
+# api.*, docsAgent.kbIngest.* -> docsAgent.kbWriter.* (docs/api.md#migration).
+# values.schema.json rejects the old keys so a stale overlay fails loudly.
 
 # Namespace for MCPServer / Agent CRs (kagent lives in `ai` on mlops).
 namespace: ai
 
-# TODO: publish the image (make docker-push) before cluster deploy.
-# Placeholder registry path — replace if your org uses a different GHCR/name.
+# One image for every mode (read MCP, API, sync). Publish with make docker-push.
 image:
-  repository: ghcr.io/teaglebuilt/kb-retrieval
-  tag: "0.4.0"
+  repository: ghcr.io/teaglebuilt/kb
+  tag: "0.5.0"
   pullPolicy: IfNotPresent
   pullSecrets:
     - name: ghcr-secret
 
-mcpServer:
-  enabled: true
-  name: kb-retrieval
-  # kagent MCPServer CR apiVersion (stdio stdioTransport).
-  apiVersion: kagent.dev/v1alpha1
-  transportType: stdio
-  timeout: 120s
-  replicas: 1
-  port: 3000
-  # Explicit cmd so the CR does not rely solely on image ENTRYPOINT.
-  cmd: python
-  args:
-    - -m
-    - kb.mcp
+mcp:
+  # kb-mcp-read: kb_search + kb_get_document only. Runs on mlops next to kagent.
+  read:
+    enabled: true
+    name: kb-mcp-read
+    # kagent MCPServer CR apiVersion (stdio stdioTransport).
+    apiVersion: kagent.dev/v1alpha1
+    transportType: stdio
+    timeout: 120s
+    replicas: 1
+    port: 3000
+    # Explicit cmd so the CR does not rely solely on image ENTRYPOINT.
+    cmd: python
+    args:
+      - -m
+      - kb.mcp
 
-# Qdrant connection. When url is empty, QDRANT_NETWORK selects internal vs external.
-# Prefer network=internal for in-cluster DNS (pod near Qdrant on application/data).
-# Write plane (POST /ingest -> chunk -> embed -> Qdrant). Install this in the
-# cluster that hosts Qdrant and the callers; see chart/README for the split.
-ingest:
+# kb-api: /v1 REST + /openapi.json, and kb-mcp-write at /mcp. Install it in the
+# cluster that hosts Qdrant and its HTTP callers (application).
+api:
   enabled: false
-  name: kb-ingest
+  name: kb-api
   replicas: 1
   port: 3000
-  # Comma-separated path prefixes the write plane is allowed to own. Must stay
-  # DISJOINT from paths `kb sync` owns (docs/read-plane.md follow-up 2):
-  # n8n YouTube writes tree/youtube/, agents write tree/docs/.
-  pathPrefixes: "tree/youtube/,tree/docs/"
-  # Agent-facing MCP (/mcp on the same Service): kb_ingest + kb_ingest_status.
-  # Narrower than the HTTP plane: own prefix, closed source types, size cap.
-  mcp:
+  writePolicy:
+    # Comma-separated path prefixes HTTP writers may own. Must stay DISJOINT
+    # from paths `kb sync` owns: n8n YouTube writes tree/youtube/, agents
+    # write tree/docs/.
+    pathPrefixes: "tree/youtube/,tree/docs/"
+  # Agent-facing write MCP (/mcp on the same Service): kb_store_document +
+  # kb_document_status. Narrower than HTTP: own prefix, closed source types,
+  # size cap, mandatory source_url.
+  mcpWrite:
     pathPrefixes: "tree/docs/"
     sourceTypes: "documentation"
     maxBytes: "524288"
-  # NAME of a Secret (in the chart namespace) holding the bearer token under
-  # tokenSecretKey. Not the token itself. REQUIRED: with no token the write
-  # plane refuses every write (fail closed; KB_INGEST_ALLOW_ANONYMOUS is for
-  # local dev only).
-  # Create: kubectl -n ai create secret generic kb-ingest-token \
-  #           --from-literal=KB_INGEST_TOKEN=<random>
-  tokenSecret: "kb-ingest-token"
-  tokenSecretKey: KB_INGEST_TOKEN
-  # Global so the mlops front door (homelab apps/kb-ingest/mesh) routes here.
+    # Also serve kb_ingest / kb_ingest_status while agents migrate.
+    legacyTools: true
+  auth:
+    # NAME of a Secret (chart namespace) holding the write token, not the
+    # token itself. REQUIRED: with no write token the API refuses every write.
+    # Create: kubectl -n ai create secret generic kb-api-write-token \
+    #           --from-literal=KB_API_WRITE_TOKEN=<random>
+    # Migrating in place? Point this at the old kb-ingest-token Secret and set
+    # writeTokenSecretKey: KB_INGEST_TOKEN.
+    writeTokenSecret: kb-api-write-token
+    writeTokenSecretKey: KB_API_WRITE_TOKEN
+    # Optional. Set to require a token for reads (/v1/search, /v1/documents*).
+    readTokenSecret: ""
+    readTokenSecretKey: KB_API_READ_TOKEN
+    # Optional. Set to split DELETE from the write token.
+    adminTokenSecret: ""
+    adminTokenSecretKey: KB_API_ADMIN_TOKEN
+  # Global so the mlops kagent agents can reach kb-api through Cilium.
   serviceAnnotations:
     service.cilium.io/global: "true"
     service.cilium.io/shared: "true"
@@ -148,9 +161,9 @@ knowledgeScoutAgent:
   enabled: true
   # Agent and EgressPolicy name (the Agent references its policy by this name).
   name: knowledge-scout-agent
+  # Read-only: no kb-api origin, so the scout cannot reach the writer even by URL.
   egressOrigins:
-    - http://kb-retrieval.ai.svc.cluster.local:3000
-    - http://kb-ingest.ai.svc.cluster.local:3000
+    - http://kb-mcp-read.ai.svc.cluster.local:3000
     - http://firecrawl-mcp.automation.svc.cluster.local:3000
     - https://mcp.context7.com
     - http://vllm-selfhosted.ai.svc.cluster.local:8000
@@ -165,27 +178,28 @@ docsAgent:
   name: documentation-agent
   modelConfig: llmd-vllm-config
   # Pages scraped+ingested per run. Every page passes through the model's
-  # context (scrape result + kb_ingest args), so keep this small on 32k models.
+  # context (scrape result + kb_store_document args), so keep this small on 32k models.
   maxPagesPerRun: 8
   # Requires the kagent harness with the golang-adk image (homelab harness
   # `kagent` uses it). Set false on codex/claude/byo harnesses, which reject it.
   structuredOutput: true
-  # RemoteMCPServer for the write plane. kb-ingest runs on the cluster that
-  # hosts Qdrant; the Cilium global Service makes this DNS name resolve on mlops.
-  kbIngest:
+  # RemoteMCPServer for the write MCP. kb-api runs on the cluster that hosts
+  # Qdrant; the Cilium global Service makes this DNS name resolve on mlops.
+  kbWriter:
     createRemoteMCPServer: true
-    name: kb-ingest
-    url: http://kb-ingest.ai.svc.cluster.local:3000/mcp
+    name: kb-mcp-write
+    url: http://kb-api.ai.svc.cluster.local:3000/mcp
     timeout: 120s
     # Secret IN THE AGENT NAMESPACE (mlops/ai) holding the same token as the
-    # kb-ingest Deployment's KB_INGEST_TOKEN. Sent as X-KB-Ingest-Token.
-    tokenSecret: kb-ingest-token
-    tokenSecretKey: KB_INGEST_TOKEN
+    # kb-api Deployment's KB_API_WRITE_TOKEN. Sent as tokenHeader.
+    tokenSecret: kb-api-write-token
+    tokenSecretKey: KB_API_WRITE_TOKEN
+    tokenHeader: X-KB-Write-Token
   # Explicit egress (inferred policy alone does not reach actors — homelab
   # solutions-architect learned this the hard way).
   egressOrigins:
-    - http://kb-retrieval.ai.svc.cluster.local:3000
-    - http://kb-ingest.ai.svc.cluster.local:3000
+    - http://kb-mcp-read.ai.svc.cluster.local:3000
+    - http://kb-api.ai.svc.cluster.local:3000
     - http://firecrawl-mcp.automation.svc.cluster.local:3000
     - https://mcp.context7.com
     - http://vllm-selfhosted.ai.svc.cluster.local:8000

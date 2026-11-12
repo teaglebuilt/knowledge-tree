@@ -1,16 +1,20 @@
 PY := uv run python
 
-# kb-retrieval MCP image (must match chart/values.yaml image.* unless overridden)
-IMAGE_REPO ?= ghcr.io/teaglebuilt/kb-retrieval
-IMAGE_TAG  ?= 0.4.0
+# The one kb image: kb-api, kb-mcp-read and the sync job (must match
+# chart/values.yaml image.* unless overridden)
+IMAGE_REPO ?= ghcr.io/teaglebuilt/kb
+IMAGE_TAG  ?= 0.5.0
 IMAGE      ?= $(IMAGE_REPO):$(IMAGE_TAG)
 GHCR_HOST  ?= ghcr.io
 GHCR_SCOPES ?= write:packages,read:packages
 
-# Write plane lands in the cluster that hosts Qdrant and its callers.
-INGEST_CONTEXT ?= application
-INGEST_SECRET  ?= qdrant-apikey
-RETRIEVAL_CONTEXT ?= mlops
+# kb-api lands in the cluster that hosts Qdrant and its callers; kagent and
+# kb-mcp-read live on mlops.
+API_CONTEXT ?= application
+API_RELEASE ?= knowledge-tree-api
+# Secret in the API namespace holding QDRANT_API_KEY (envFrom; never --set).
+API_QDRANT_SECRET ?= qdrant-apikey
+MCP_CONTEXT ?= mlops
 CHART_DIR ?= chart
 GHCR_USER ?= teaglebuilt
 OCI_REGISTRY ?= oci://ghcr.io/teaglebuilt/charts
@@ -18,9 +22,10 @@ DOCKER_BUILDKIT ?= 1
 BUILDKIT_PROGRESS ?= plain
 
 .DEFAULT_GOAL := help
-.PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
-        docker-build docker-login docker-push helm-deploy push-chart mcp-image translate-scan \
-        ingest-api helm-deploy-ingest import-chatgpt test \
+.PHONY: help install extract ingest reindex index query sync mcp golden clean \
+        docker-build docker-login docker-push helm-deploy push-chart translate-scan \
+        api helm-deploy-api import-chatgpt test openapi \
+        mcp-retrieval ingest-api helm-deploy-ingest \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -47,11 +52,22 @@ query: ## Query the local index: make query Q="ebpf network policy"
 sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 	$(PY) -m kb sync
 
-mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
+mcp: ## Run kb-mcp-read (kb_search, kb_get_document; stdio). QDRANT_NETWORK=internal|external
 	$(PY) -m kb.mcp --transport stdio
 
-ingest-api: ## Run the HTTP write plane (POST /ingest, /mcp kb_ingest -> Qdrant) on :3000
-	KB_INGEST_ALLOW_ANONYMOUS=$${KB_INGEST_ALLOW_ANONYMOUS:-true} $(PY) -m kb.api
+api: ## Run kb-api on :3000 (/v1, /openapi.json, /mcp). Needs KB_API_WRITE_TOKEN, or ANON=1 for local dev
+	$(if $(ANON),KB_API_ALLOW_ANONYMOUS_WRITES=true) $(PY) -m kb.api
+
+openapi: ## Print the kb-api OpenAPI document
+	@$(PY) -c "import json; from kb.api.app import app; print(json.dumps(app.openapi(), indent=2))"
+
+mcp-retrieval: ## (deprecated) use `make mcp`
+	@echo "make mcp-retrieval is deprecated; use make mcp" >&2
+	@$(MAKE) --no-print-directory mcp
+
+ingest-api: ## (deprecated) use `make api`
+	@echo "make ingest-api is deprecated; use make api (ANON=1 for anonymous local writes)" >&2
+	@$(MAKE) --no-print-directory api
 
 import-chatgpt: ## ChatGPT export -> chatgpt_history: make import-chatgpt FILE=~/Downloads/x.zip [DRY_RUN=1] [POLICY=p.yaml] [PRUNE=1]
 	@test -n "$(FILE)" || (echo "FILE=<export.zip> is required"; exit 1)
@@ -59,9 +75,9 @@ import-chatgpt: ## ChatGPT export -> chatgpt_history: make import-chatgpt FILE=~
 		$(if $(POLICY),--policy "$(POLICY)") $(if $(PRUNE),--prune) $(if $(LIMIT),--limit $(LIMIT))
 
 test: ## Unit tests (no Qdrant / no model downloads)
-	uv run --with pytest --with httpx pytest -q tests
+	uv run pytest -q tests
 
-docker-build: ## Build kb-retrieval MCP image (bakes bge-small FastEmbed weights)
+docker-build: ## Build the kb image (bakes bge-small FastEmbed weights)
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) \
 		docker build -t $(IMAGE) -f Dockerfile .
 
@@ -73,7 +89,7 @@ docker-login: ## Login to GHCR using gh auth token (write:packages)
 	@TOKEN=$$(gh auth token); \
 	echo "$$TOKEN" | docker login $(GHCR_HOST) -u "$$(gh api user --jq .login)" --password-stdin
 
-docker-push: docker-build docker-login ## Push kb-retrieval image to IMAGE_REPO
+docker-push: docker-build docker-login ## Push the kb image to IMAGE_REPO
 	docker push $(IMAGE)
 
 push-chart: ## Package chart/ and push it to $(OCI_REGISTRY)
@@ -95,33 +111,34 @@ push-chart: ## Package chart/ and push it to $(OCI_REGISTRY)
 	helm push "$$out/$${name}-$${ver}.tgz" '$(OCI_REGISTRY)'; \
 	echo "published $(OCI_REGISTRY)/$${name}:$${ver}"
 
-helm-deploy: ## Install/upgrade chart; key comes from the qdrant-apikey Secret in ai
+helm-deploy: ## Install/upgrade chart on mlops (kb-mcp-read + agents); key from the mcp-secrets Secret
 	@command -v kubectx >/dev/null || { echo "kubectx required (brew install kubectx)"; exit 1; }
 	@PREV=$$(kubectl config current-context 2>/dev/null); \
-	kubectx $(RETRIEVAL_CONTEXT) || exit 1; \
+	kubectx $(MCP_CONTEXT) || exit 1; \
 	helm upgrade --install knowledge-tree chart -n ai; \
 	rc=$$?; \
 	[ -n "$$PREV" ] && kubectx "$$PREV" >/dev/null; \
 	exit $$rc
 
-helm-deploy-ingest: ## Install/upgrade the write plane (kb-ingest) on the cluster holding Qdrant
+helm-deploy-api: ## Install/upgrade kb-api on the cluster holding Qdrant (release $(API_RELEASE))
 	@command -v kubectx >/dev/null || { echo "kubectx required (brew install kubectx)"; exit 1; }
-	@set -a; . ./.envrc; set +a; \
-	if [ -z "$$QDRANT_API_KEY" ]; then \
-		echo "QDRANT_API_KEY is empty — export it in .envrc"; \
-		exit 1; \
-	fi; \
-	PREV=$$(kubectl config current-context 2>/dev/null); \
-	kubectx $(INGEST_CONTEXT) || exit 1; \
-	helm upgrade --install knowledge-ingest chart -n ai \
-		--set ingest.enabled=true \
-		--set mcpServer.enabled=false \
-		--set agent.enabled=false \
-		--set qdrant.existingSecretEnabled=false \
-		--set-string qdrant.apikey="$$QDRANT_API_KEY"; \
+	@PREV=$$(kubectl config current-context 2>/dev/null); \
+	kubectx $(API_CONTEXT) || exit 1; \
+	helm upgrade --install $(API_RELEASE) chart -n ai \
+		--set api.enabled=true \
+		--set mcp.read.enabled=false \
+		--set knowledgeScoutAgent.enabled=false \
+		--set docsAgent.enabled=false \
+		--set qdrant.existingSecretEnabled=true \
+		--set qdrant.existingSecret=$(API_QDRANT_SECRET); \
 	rc=$$?; \
 	[ -n "$$PREV" ] && kubectx "$$PREV" >/dev/null; \
 	exit $$rc
+
+helm-deploy-ingest: ## (deprecated) use `make helm-deploy-api`; installs the NEW release beside the old one
+	@echo "make helm-deploy-ingest is deprecated; running make helm-deploy-api (release $(API_RELEASE))." >&2
+	@echo "The old knowledge-ingest release is left in place; uninstall it once callers moved (docs/api.md#migration)." >&2
+	@$(MAKE) --no-print-directory helm-deploy-api
 
 translate-scan: ## Scan tree for non-English; dry-run (add WRITE=1 to overwrite)
 	$(PY) scripts/translation_scan.py tree/ $(if $(WRITE),--write,)

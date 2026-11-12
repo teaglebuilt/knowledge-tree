@@ -1,12 +1,14 @@
 # Read plane (`kb_search` + OpenWebUI External Knowledge)
 
+> The HTTP contract is [`api.md`](api.md) and the MCP surfaces are [`mcp.md`](mcp.md); those are canonical. This page keeps the read-plane origin and invariants.
+
 The Qdrant `knowledge` collection now has **two readers**. Both query the same
 points, so neither can drift from the other — but they are not equally capable,
 and one of them pins an invariant this repo must hold.
 
 | Reader | Transport | Can filter | Used by |
 |---|---|---|---|
-| `kb_search` / `kb_get_document` | MCP (`kb-retrieval`, `:3000/mcp`) | yes — `path`, `source_type` | kagent agents, Claude Code |
+| `kb_search` / `kb_get_document` | MCP (`kb-mcp-read`), or HTTP `POST /v1/search` / `GET /v1/documents` on `kb-api` | yes — `path`, `source_type` | kagent agents, Claude Code |
 | OpenWebUI External Knowledge | native `qdrant-client` from OpenWebUI | **no** | OpenWebUI chat, `#`-attach |
 
 ## Why there are two
@@ -102,11 +104,11 @@ None of these are done yet.
    `metadata_field: payload`, a `source` key makes
    `metadata.get('source')` resolve and gives OpenWebUI a real citation label
    instead of the knowledge-base name. Cheapest available citation fix.
-2. **Narrow `KB_INGEST_PATH_PREFIXES` to `tree/youtube/`.** `kb sync` never
-   writes `doc_hash`, while `kb-ingest` dedups on it — so a path already owned by
+2. **Keep `KB_API_WRITE_PATH_PREFIXES` narrow (chart: `api.writePolicy.pathPrefixes`, `tree/youtube/,tree/docs/`).** `kb sync` never
+   writes `doc_hash`, while `kb-api` dedups on it — so a path already owned by
    the tree sync looks new to the write plane, which re-embeds it and then
-   `delete_path`s the tree's own points. The shipped default `tree/` does not
-   prevent this; the two writers are only safe while their prefixes are disjoint.
+   `delete_path`s the tree's own points. The code default `tree/` does not
+   prevent this (the chart overrides it); the two writers are only safe while their prefixes are disjoint.
 3. **Named sparse BM25 vector + RRF.** The collection is dense-only
    (`sparse_vectors: null`). Both readers are therefore dense-only, and the
    OpenWebUI path cannot be rescued later by its own hybrid search.
@@ -120,5 +122,6 @@ None of these are done yet.
 
 ## Related
 
+- [`api.md`](api.md), [`mcp.md`](mcp.md) — canonical HTTP and MCP contracts
 - [`write-plane.md`](write-plane.md) — how documents get in
 - [`architecture.md`](architecture.md) — pipeline overview

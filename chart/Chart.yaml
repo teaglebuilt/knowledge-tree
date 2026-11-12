@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
 name: knowledge-tree
-description: Knowledge-tree read plane (kb-retrieval MCP), write plane (kb-ingest), and its kagent agents
+description: Knowledge Tree — kb-mcp-read, kb-api (REST + kb-mcp-write), kb sync, and its kagent agents
 type: application
-version: '2.0.2'
-appVersion: '0.4.0'
+version: '3.0.0'
+appVersion: '0.5.0'

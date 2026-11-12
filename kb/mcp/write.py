@@ -1,195 +1,113 @@
-"""Write-plane MCP server (kb-ingest): `kb_ingest` + `kb_ingest_status`.
+"""Write MCP server (kb-mcp-write): `kb_store_document` + `kb_document_status`.
 
 A separate MCPServer from read.py, mounted at /mcp by kb.api behind its token
-gate, never served by the kb-retrieval process. kb-retrieval is bound by every
+gate, never served by the kb-mcp-read process. kb-mcp-read is bound by every
 agent that reads the tree, and kagent's Claude harness ignores per-tool
 allowlists, so a write tool there would be a write tool everywhere. Keeping
 writes on their own server means "can write" is decided by which
 RemoteMCPServer an AgentTemplate binds, not by a list the harness may ignore.
 
-Every call returns a JSON receipt. The receipt is the completion signal a
-delegating agent relays upward: `status` plus `doc_hash` is proof the
-document is indexed, and `kb_ingest_status` (or kb-retrieval's
+Tools run under the agent write policy (kb.services.write_policy.agent_policy):
+own path prefix, closed source types, mandatory provenance, size cap.
+
+Every store call returns a JSON receipt. The receipt is the completion signal
+a delegating agent relays upward: `status` plus `doc_hash` is proof the
+document is indexed, and `kb_document_status` (or kb-mcp-read's
 `kb_get_document`) can re-verify it independently.
 """
 from __future__ import annotations
 
-import asyncio
 import json
-import re
 
-import yaml
 from mcp.server.mcpserver import MCPServer
 
 from .. import config
-from ..chunk import _FRONTMATTER
-from ..services.ingest import IngestError, KnowledgeIngest, frontmatter, normalize_path
+from ..api import schemas
+from ..api.operations import Services
+from ..services.ingest import IngestError
+from ..services.write_policy import agent_policy
+from .factory import ToolBinding, build_server
 
-mcp = MCPServer(
-    name="kb-ingest",
-    instructions=(
-        "Write plane for the knowledge tree. kb_ingest stores ONE markdown "
-        "document at a stable path under "
-        f"{', '.join(config.KB_MCP_INGEST_PATH_PREFIXES)} and returns a JSON "
-        "receipt; status 'ingested' or 'unchanged' means it is searchable via "
-        "kb_search now. Re-sending identical content is a no-op, so retries "
-        "are safe. Use kb_ingest_status to check a path before or after."
-    ),
+SERVER_NAME = "kb-mcp-write"
+
+INSTRUCTIONS = (
+    "Write plane for the knowledge tree. kb_store_document stores ONE markdown "
+    "document at a stable path under "
+    f"{', '.join(config.KB_MCP_WRITE_PATH_PREFIXES)} and returns a JSON "
+    "receipt; status 'ingested' or 'unchanged' means it is searchable via "
+    "kb_search now. Re-sending identical content is a no-op, so retries "
+    "are safe. Use kb_document_status to check a path before or after."
 )
 
-_ingest: KnowledgeIngest | None = None
-_SLUG = re.compile(r"^[a-z0-9][a-z0-9._/-]*\.md$")
+
+def _dumps(value: dict) -> str:
+    return json.dumps(value, sort_keys=True)
 
 
-def _service() -> KnowledgeIngest:
-    global _ingest
-    if _ingest is None:
-        _ingest = KnowledgeIngest()
-    return _ingest
-
-
-def bind_service(service: KnowledgeIngest) -> None:
-    """Share the HTTP app's service (one Qdrant client per process)."""
-    global _ingest
-    _ingest = service
-
-
-def agent_path(path: str) -> str:
-    rel = normalize_path(path)
-    if not rel.startswith(config.KB_MCP_INGEST_PATH_PREFIXES):
-        raise IngestError(
-            "agents may only write under "
-            + ", ".join(config.KB_MCP_INGEST_PATH_PREFIXES)
-        )
-    if not _SLUG.match(rel):
-        raise IngestError("path must be lowercase [a-z0-9._/-] and end with .md")
-    return rel
-
-
-def with_frontmatter(
-    markdown: str, *, title: str | None, source_url: str, source_type: str,
-    tags: list[str] | None,
-) -> str:
-    """Ensure provenance frontmatter exists.
-
-    doc_hash covers the body only (kb.chunk.parse_doc), so frontmatter never
-    changes idempotency; fields are still kept deterministic so a stored
-    document is reproducible from the same inputs.
-    """
-    body = markdown.strip() + "\n"
-    existing = frontmatter(body)
-    if existing:
-        missing = {
-            k: v
-            for k, v in {
-                "source_url": source_url,
-                "source_type": source_type,
-                "title": title,
-                "tags": tags,
-            }.items()
-            if v and k not in existing
-        }
-        if not missing:
-            return body
-        merged = {**existing, **missing}
-        rest = body[_FRONTMATTER.match(body).end() :].lstrip("\n")
-        return "---\n" + yaml.safe_dump(merged, sort_keys=True).strip() + "\n---\n\n" + rest
-    meta = {"source_url": source_url, "source_type": source_type}
-    if title:
-        meta["title"] = title
-    if tags:
-        meta["tags"] = list(tags)
-    return "---\n" + yaml.safe_dump(meta, sort_keys=True).strip() + "\n---\n\n" + body
-
-
-def ingest_receipt(
-    path: str,
-    markdown: str,
-    source_url: str,
-    *,
-    title: str | None = None,
-    tags: list[str] | None = None,
-    source_type: str = "documentation",
-    force: bool = False,
-) -> dict:
-    """Validate agent policy, ingest, and return a receipt (never raises)."""
-    try:
-        rel = agent_path(path)
-        if source_type not in config.KB_MCP_INGEST_SOURCE_TYPES:
-            raise IngestError(
-                "source_type must be one of "
-                + ", ".join(config.KB_MCP_INGEST_SOURCE_TYPES)
-            )
-        url = (source_url or "").strip()
-        if not url.startswith(("https://", "http://")):
-            raise IngestError("source_url (http/https) is required for provenance")
-        if len((markdown or "").encode()) > config.KB_MCP_INGEST_MAX_BYTES:
-            raise IngestError(
-                f"markdown exceeds {config.KB_MCP_INGEST_MAX_BYTES} bytes; "
-                "split it into several documents"
-            )
-        doc = with_frontmatter(
-            markdown or "", title=title, source_url=url,
-            source_type=source_type, tags=tags,
-        )
-        result = _service().ingest(
-            rel, doc, source_type=source_type, source_url=url, force=force
-        )
-    except IngestError as exc:
-        return {"status": "rejected", "path": path, "error": str(exc)}
-    except Exception as exc:  # Qdrant/embedding outage: retryable, not caller's fault
-        return {"status": "failed", "path": path, "error": f"{type(exc).__name__}: {exc}",
-                "retryable": True}
-    return {
-        "status": result.status,
-        "path": result.path,
-        "doc_hash": result.doc_hash,
-        "chunks": result.chunks,
-        "collection": config.QDRANT_COLLECTION,
-        "source_url": url,
-    }
-
-
-@mcp.tool()
-async def kb_ingest(
-    path: str,
-    markdown: str,
-    source_url: str,
-    title: str | None = None,
-    tags: list[str] | None = None,
-    source_type: str = "documentation",
-    force: bool = False,
-) -> str:
-    """Store one markdown document in the knowledge tree and index it.
-
-    `path` is the document's stable identity, e.g.
-    "tree/docs/kagent/agent-delegation.md"; writing the same path again
-    replaces the previous revision. `source_url` is required. Frontmatter
-    (title, source_url, source_type, tags) is added if absent.
-
-    Returns JSON: {"status": "ingested"|"unchanged"|"empty"|"rejected"|"failed",
-    "path", "doc_hash", "chunks", ...}. "rejected" means fix the input;
-    "failed" with retryable=true means try again later.
-    """
-    receipt = await asyncio.to_thread(
-        ingest_receipt, path, markdown, source_url,
-        title=title, tags=tags, source_type=source_type, force=force,
+def _receipt(result_and_url, _req) -> str:
+    result, url = result_and_url
+    return _dumps(
+        schemas.StoreDocumentReceipt(
+            status=result.status,
+            path=result.path,
+            doc_hash=result.doc_hash,
+            chunks=result.chunks,
+            collection=config.QDRANT_COLLECTION,
+            source_url=url,
+        ).model_dump()
     )
-    return json.dumps(receipt, sort_keys=True)
 
 
-@mcp.tool()
-async def kb_ingest_status(path: str) -> str:
-    """Report whether a path is indexed and which revision (doc_hash) it holds.
+def _store_error(args: dict, exc: Exception) -> str:
+    path = args.get("path")
+    if isinstance(exc, IngestError):
+        return _dumps({"status": "rejected", "path": path, "error": str(exc)})
+    # Qdrant/embedding outage: retryable, not the caller's fault.
+    return _dumps(
+        {"status": "failed", "path": path, "error": f"{type(exc).__name__}: {exc}",
+         "retryable": True}
+    )
 
-    Returns JSON {"path", "exists", "doc_hash"}. Use before writing to avoid
-    duplicate work, and after writing to confirm completion.
-    """
 
-    def _status() -> dict:
-        try:
-            return _service().exists(agent_path(path))
-        except IngestError as exc:
-            return {"path": path, "exists": False, "error": str(exc)}
+def _status_error(args: dict, exc: Exception) -> str:
+    if isinstance(exc, IngestError):
+        return _dumps({"path": args.get("path"), "exists": False, "error": str(exc)})
+    raise exc
 
-    return json.dumps(await asyncio.to_thread(_status), sort_keys=True)
+
+_STORE = dict(
+    render=_receipt,
+    input_model=schemas.AgentStoreDocumentRequest,
+    policy=agent_policy,
+    on_error=_store_error,
+)
+_STATUS = dict(render=lambda status, _req: _dumps(status), policy=agent_policy,
+               on_error=_status_error)
+
+WRITE_TOOLS = (
+    ToolBinding("kb_store_document", **_STORE),
+    ToolBinding("kb_document_status", **_STATUS),
+)
+
+#: Pre-rename names, same operations and policy, while agents migrate.
+LEGACY_TOOLS = (
+    ToolBinding("kb_store_document", name="kb_ingest", **_STORE,
+                description="Deprecated alias of kb_store_document; use that instead."),
+    ToolBinding("kb_document_status", name="kb_ingest_status", **_STATUS,
+                description="Deprecated alias of kb_document_status; use that instead."),
+)
+
+
+def tools(legacy: bool | None = None) -> tuple[ToolBinding, ...]:
+    enabled = config.KB_MCP_WRITE_LEGACY_TOOLS if legacy is None else legacy
+    return WRITE_TOOLS + (LEGACY_TOOLS if enabled else ())
+
+
+def create_server(services: Services | None = None, *, legacy: bool | None = None) -> MCPServer:
+    """A fresh write server (each needs its own streamable-HTTP session manager)."""
+    svc = services or Services()
+    return build_server(SERVER_NAME, INSTRUCTIONS, tools(legacy), lambda: svc, tag="mcp-write")
+
+
+#: Module-level instance for inventory checks; kb.api builds its own.
+mcp = create_server()

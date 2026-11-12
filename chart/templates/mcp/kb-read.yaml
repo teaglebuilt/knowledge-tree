@@ -1,17 +1,17 @@
-{{- if .Values.mcpServer.enabled }}
-apiVersion: {{ .Values.mcpServer.apiVersion }}
+{{- if .Values.mcp.read.enabled }}
+apiVersion: {{ .Values.mcp.read.apiVersion }}
 kind: MCPServer
 metadata:
-  name: {{ .Values.mcpServer.name }}
+  name: {{ .Values.mcp.read.name }}
   namespace: {{ .Values.namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.mcpServer.name }}
+    app.kubernetes.io/name: {{ .Values.mcp.read.name }}
     app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: mcp-retrieval
+    app.kubernetes.io/component: mcp-read
 spec:
-  transportType: {{ .Values.mcpServer.transportType }}
+  transportType: {{ .Values.mcp.read.transportType }}
   stdioTransport: {}
-  timeout: {{ .Values.mcpServer.timeout | quote }}
+  timeout: {{ .Values.mcp.read.timeout | quote }}
   deployment:
     image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
     imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -19,11 +19,11 @@ spec:
     imagePullSecrets:
       {{- toYaml . | nindent 6 }}
     {{- end }}
-    port: {{ .Values.mcpServer.port }}
-    replicas: {{ .Values.mcpServer.replicas }}
-    cmd: {{ .Values.mcpServer.cmd | quote }}
+    port: {{ .Values.mcp.read.port }}
+    replicas: {{ .Values.mcp.read.replicas }}
+    cmd: {{ .Values.mcp.read.cmd | quote }}
     args:
-      {{- toYaml .Values.mcpServer.args | nindent 6 }}
+      {{- toYaml .Values.mcp.read.args | nindent 6 }}
     env:
       QDRANT_NETWORK: {{ .Values.qdrant.network | quote }}
       QDRANT_INTERNAL_URL: {{ .Values.qdrant.internalUrl | quote }}
@@ -41,6 +41,7 @@ spec:
       EMBEDDING_MODEL: {{ .Values.embedding.model | quote }}
       KB_SEARCH_DEFAULT_K: {{ .Values.search.defaultK | quote }}
       KB_SEARCH_MAX_K: {{ .Values.search.maxK | quote }}
+      OTEL_SERVICE_NAME: {{ .Values.mcp.read.name | quote }}
       HOME: /home/mcp
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
@@ -78,17 +79,18 @@ spec:
 apiVersion: api.kagent.dev/v1alpha3
 kind: RemoteMCPServer
 metadata:
-  name: {{ .Values.mcpServer.name }}
+  name: {{ .Values.mcp.read.name }}
   namespace: {{ .Values.namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.mcpServer.name }}
+    app.kubernetes.io/name: {{ .Values.mcp.read.name }}
     app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: mcp-retrieval
+    app.kubernetes.io/component: mcp-read
 spec:
   description: >-
-    Knowledge-tree read plane (kb_search, kb_get_document -> Qdrant collection
-    {{ .Values.qdrant.collection }}). Server is owned by teaglebuilt/knowledge.
+    Knowledge-tree read MCP (kb_search, kb_get_document -> Qdrant collection
+    {{ .Values.qdrant.collection }}). Read-only; writes live on kb-mcp-write.
+    Server is owned by teaglebuilt/knowledge.
   protocol: STREAMABLE_HTTP
-  url: "http://{{ .Values.mcpServer.name }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.mcpServer.port }}/mcp"
-  timeout: {{ .Values.mcpServer.timeout | quote }}
+  url: "http://{{ .Values.mcp.read.name }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.mcp.read.port }}/mcp"
+  timeout: {{ .Values.mcp.read.timeout | quote }}
 {{- end }}

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 from .. import config
@@ -11,18 +10,17 @@ from .. import config
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="kb.api",
-        description="Knowledge write plane (POST /ingest -> Qdrant)",
+        description="Knowledge Tree API (/v1 REST + write MCP at /mcp -> Qdrant)",
     )
-    parser.add_argument("--host", default=os.environ.get("KB_INGEST_HOST", "0.0.0.0"))
-    parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("KB_INGEST_PORT", "3000"))
-    )
+    parser.add_argument("--host", default=config.KB_API_HOST)
+    parser.add_argument("--port", type=int, default=config.KB_API_PORT)
     args = parser.parse_args(argv)
 
     print(
-        f"kb-ingest: network={config.QDRANT_NETWORK} url={config.QDRANT_URL} "
+        f"kb-api: network={config.QDRANT_NETWORK} url={config.QDRANT_URL} "
         f"collection={config.QDRANT_COLLECTION} dim={config.EMBED_DIM} "
-        f"model={config.EMBED_MODEL}",
+        f"model={config.EMBED_MODEL} write_token={'set' if config.KB_API_WRITE_TOKEN else 'unset'} "
+        f"anonymous_writes={config.KB_API_ALLOW_ANONYMOUS_WRITES}",
         file=sys.stderr,
     )
 
