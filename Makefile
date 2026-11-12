@@ -2,7 +2,7 @@ PY := uv run python
 
 # kb-retrieval MCP image (must match chart/values.yaml image.* unless overridden)
 IMAGE_REPO ?= ghcr.io/teaglebuilt/kb-retrieval
-IMAGE_TAG  ?= 0.3.0
+IMAGE_TAG  ?= 0.4.0
 IMAGE      ?= $(IMAGE_REPO):$(IMAGE_TAG)
 GHCR_HOST  ?= ghcr.io
 GHCR_SCOPES ?= write:packages,read:packages
@@ -10,13 +10,17 @@ GHCR_SCOPES ?= write:packages,read:packages
 # Write plane lands in the cluster that hosts Qdrant and its callers.
 INGEST_CONTEXT ?= application
 INGEST_SECRET  ?= qdrant-apikey
+RETRIEVAL_CONTEXT ?= mlops
+CHART_DIR ?= chart
+GHCR_USER ?= teaglebuilt
+OCI_REGISTRY ?= oci://ghcr.io/teaglebuilt/charts
 DOCKER_BUILDKIT ?= 1
 BUILDKIT_PROGRESS ?= plain
 
 .DEFAULT_GOAL := help
 .PHONY: help install extract ingest reindex index query sync mcp-retrieval golden clean \
-        docker-build docker-login docker-push helm-deploy mcp-image translate-scan \
-        ingest-api helm-deploy-ingest \
+        docker-build docker-login docker-push helm-deploy push-chart mcp-image translate-scan \
+        ingest-api helm-deploy-ingest import-chatgpt test \
         secrets-status secrets-encrypt secrets-decrypt secrets-check secrets-config secrets-hooks
 
 help:
@@ -44,10 +48,18 @@ sync: ## Push local LanceDB vectors -> Qdrant on the k8s cluster
 	$(PY) -m kb sync
 
 mcp-retrieval: ## Run kb_search MCP (stdio). QDRANT_NETWORK=internal|external
-	$(PY) -m kb.mcp_retrieval --transport stdio
+	$(PY) -m kb.mcp --transport stdio
 
-ingest-api: ## Run the HTTP write plane (POST /ingest -> Qdrant) on :3000
-	$(PY) -m kb.ingest_api
+ingest-api: ## Run the HTTP write plane (POST /ingest, /mcp kb_ingest -> Qdrant) on :3000
+	KB_INGEST_ALLOW_ANONYMOUS=$${KB_INGEST_ALLOW_ANONYMOUS:-true} $(PY) -m kb.api
+
+import-chatgpt: ## ChatGPT export -> chatgpt_history: make import-chatgpt FILE=~/Downloads/x.zip [DRY_RUN=1] [POLICY=p.yaml] [PRUNE=1]
+	@test -n "$(FILE)" || (echo "FILE=<export.zip> is required"; exit 1)
+	$(PY) -m kb import-chatgpt "$(FILE)" $(if $(DRY_RUN),--dry-run) \
+		$(if $(POLICY),--policy "$(POLICY)") $(if $(PRUNE),--prune) $(if $(LIMIT),--limit $(LIMIT))
+
+test: ## Unit tests (no Qdrant / no model downloads)
+	uv run --with pytest --with httpx pytest -q tests
 
 docker-build: ## Build kb-retrieval MCP image (bakes bge-small FastEmbed weights)
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) BUILDKIT_PROGRESS=$(BUILDKIT_PROGRESS) \
@@ -64,22 +76,52 @@ docker-login: ## Login to GHCR using gh auth token (write:packages)
 docker-push: docker-build docker-login ## Push kb-retrieval image to IMAGE_REPO
 	docker push $(IMAGE)
 
+push-chart: ## Package chart/ and push it to $(OCI_REGISTRY)
+	@command -v helm >/dev/null || { echo "helm not found on PATH"; exit 1; }
+	@test -f $(CHART_DIR)/Chart.yaml || { echo "no Chart.yaml at $(CHART_DIR)"; exit 1; }
+	@set -e; \
+	meta="$$(helm show chart $(CHART_DIR))"; \
+	name="$$(printf '%s\n' "$$meta" | awk '/^name:/{print $$2; exit}')"; \
+	ver="$$(printf '%s\n' "$$meta" | awk '/^version:/{print $$2; exit}')"; \
+	out="$$(mktemp -d)"; \
+	trap 'rm -rf "$$out"' EXIT; \
+	token="$${GITHUB_TOKEN:-$${GH_TOKEN:-$$(gh auth token 2>/dev/null || true)}}"; \
+	if [ -z "$$token" ]; then \
+		echo "gh auth token (or GITHUB_TOKEN) required to push to G+HCR"; \
+		exit 1; \
+	fi; \
+	echo "$$token" | helm registry login $(GHCR_HOST) -u $(GHCR_USER) --password-stdin; \
+	helm package $(CHART_DIR) -d "$$out"; \
+	helm push "$$out/$${name}-$${ver}.tgz" '$(OCI_REGISTRY)'; \
+	echo "published $(OCI_REGISTRY)/$${name}:$${ver}"
+
 helm-deploy: ## Install/upgrade chart; key comes from the qdrant-apikey Secret in ai
-	helm upgrade --install knowledge-tree chart -n ai
+	@command -v kubectx >/dev/null || { echo "kubectx required (brew install kubectx)"; exit 1; }
+	@PREV=$$(kubectl config current-context 2>/dev/null); \
+	kubectx $(RETRIEVAL_CONTEXT) || exit 1; \
+	helm upgrade --install knowledge-tree chart -n ai; \
+	rc=$$?; \
+	[ -n "$$PREV" ] && kubectx "$$PREV" >/dev/null; \
+	exit $$rc
 
 helm-deploy-ingest: ## Install/upgrade the write plane (kb-ingest) on the cluster holding Qdrant
+	@command -v kubectx >/dev/null || { echo "kubectx required (brew install kubectx)"; exit 1; }
 	@set -a; . ./.envrc; set +a; \
 	if [ -z "$$QDRANT_API_KEY" ]; then \
 		echo "QDRANT_API_KEY is empty — export it in .envrc"; \
 		exit 1; \
 	fi; \
+	PREV=$$(kubectl config current-context 2>/dev/null); \
+	kubectx $(INGEST_CONTEXT) || exit 1; \
 	helm upgrade --install knowledge-ingest chart -n ai \
-		--kube-context $(INGEST_CONTEXT) \
 		--set ingest.enabled=true \
 		--set mcpServer.enabled=false \
 		--set agent.enabled=false \
 		--set qdrant.existingSecretEnabled=false \
-		--set-string qdrant.apikey="$$QDRANT_API_KEY"
+		--set-string qdrant.apikey="$$QDRANT_API_KEY"; \
+	rc=$$?; \
+	[ -n "$$PREV" ] && kubectx "$$PREV" >/dev/null; \
+	exit $$rc
 
 translate-scan: ## Scan tree for non-English; dry-run (add WRITE=1 to overwrite)
 	$(PY) scripts/translation_scan.py tree/ $(if $(WRITE),--write,)

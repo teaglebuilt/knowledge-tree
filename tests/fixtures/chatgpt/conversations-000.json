@@ -1,0 +1,245 @@
+[
+ {
+  "conversation_id": "conv-gpu",
+  "title": "Homelab GPU worker recovery",
+  "create_time": 1762300000.0,
+  "update_time": 1762400000.0,
+  "current_node": "a2b",
+  "mapping": {
+   "root": {
+    "id": "root",
+    "parent": null,
+    "children": [
+     "sys"
+    ],
+    "message": null
+   },
+   "sys": {
+    "id": "sys",
+    "parent": "root",
+    "children": [
+     "u1"
+    ],
+    "message": {
+     "id": "m-sys",
+     "author": {
+      "role": "system"
+     },
+     "create_time": null,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "You are ChatGPT."
+      ]
+     },
+     "metadata": {
+      "is_visually_hidden_from_conversation": true
+     }
+    }
+   },
+   "u1": {
+    "id": "u1",
+    "parent": "sys",
+    "children": [
+     "a1"
+    ],
+    "message": {
+     "id": "m-u1",
+     "author": {
+      "role": "user"
+     },
+     "create_time": 1762300010.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "mlops-work-00 lost its GPU after a reboot. How do I recover?"
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "a1": {
+    "id": "a1",
+    "parent": "u1",
+    "children": [
+     "u2a",
+     "u2b"
+    ],
+    "message": {
+     "id": "m-a1",
+     "author": {
+      "role": "assistant"
+     },
+     "create_time": 1762300020.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Check the nvidia device plugin pod and the vfio binding."
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "u2a": {
+    "id": "u2a",
+    "parent": "a1",
+    "children": [
+     "a2a"
+    ],
+    "message": {
+     "id": "m-u2a",
+     "author": {
+      "role": "user"
+     },
+     "create_time": 1762300030.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "My token is ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab, can you use it?"
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "a2a": {
+    "id": "a2a",
+    "parent": "u2a",
+    "children": [],
+    "message": {
+     "id": "m-a2a",
+     "author": {
+      "role": "assistant"
+     },
+     "create_time": 1762300040.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Never share tokens. Rotate it now."
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "u2b": {
+    "id": "u2b",
+    "parent": "a1",
+    "children": [
+     "a2b"
+    ],
+    "message": {
+     "id": "m-u2b",
+     "author": {
+      "role": "user"
+     },
+     "create_time": 1762300050.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Edited: the device plugin is CrashLoopBackOff, password=hunter2hunter2"
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "a2b": {
+    "id": "a2b",
+    "parent": "u2b",
+    "children": [],
+    "message": {
+     "id": "m-a2b",
+     "author": {
+      "role": "assistant"
+     },
+     "create_time": 1762300060.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "Restart the plugin after re-binding the PCI device to nvidia."
+      ]
+     },
+     "metadata": {}
+    }
+   }
+  }
+ },
+ {
+  "conversation_id": "conv-media",
+  "title": "Diagram upload",
+  "create_time": 1762500000.0,
+  "update_time": 1762500100.0,
+  "current_node": "a1",
+  "mapping": {
+   "root": {
+    "id": "root",
+    "parent": null,
+    "children": [
+     "u1"
+    ],
+    "message": null
+   },
+   "u1": {
+    "id": "u1",
+    "parent": "root",
+    "children": [
+     "t1"
+    ],
+    "message": {
+     "id": "m-u1",
+     "author": {
+      "role": "user"
+     },
+     "create_time": null,
+     "content": {
+      "content_type": "multimodal_text",
+      "parts": [
+       {
+        "content_type": "image_asset_pointer",
+        "asset_pointer": "file-service://x"
+       },
+       "Here is the diagram"
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "t1": {
+    "id": "t1",
+    "parent": "u1",
+    "children": [
+     "a1"
+    ],
+    "message": {
+     "id": "m-t1",
+     "author": {
+      "role": "tool"
+     },
+     "create_time": 1762500050.0,
+     "content": {
+      "content_type": "text",
+      "parts": [
+       "search results ..."
+      ]
+     },
+     "metadata": {}
+    }
+   },
+   "a1": {
+    "id": "a1",
+    "parent": "t1",
+    "children": [],
+    "message": {
+     "id": "m-a1",
+     "author": {
+      "role": "assistant"
+     },
+     "create_time": 1762500060.0,
+     "content": {
+      "content_type": "execution_output",
+      "text": "exit 0"
+     },
+     "metadata": {}
+    }
+   }
+  }
+ }
+]

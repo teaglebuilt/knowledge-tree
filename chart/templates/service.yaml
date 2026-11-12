@@ -1,0 +1,25 @@
+{{- if .Values.ingest.enabled }}
+{{- $name := .Values.ingest.name }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    app.kubernetes.io/part-of: knowledge-tree
+    app.kubernetes.io/component: ingest
+  {{- with .Values.ingest.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ $name }}
+  ports:
+    - name: http
+      port: {{ .Values.ingest.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}

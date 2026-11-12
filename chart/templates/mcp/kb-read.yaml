@@ -73,4 +73,22 @@ spec:
       {{- toYaml .Values.podSecurityContext | nindent 6 }}
     securityContext:
       {{- toYaml .Values.securityContext | nindent 6 }}
+---
+# Registration agents bind in `tools:` (the MCPServer above only runs the pod).
+apiVersion: api.kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata:
+  name: {{ .Values.mcpServer.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.mcpServer.name }}
+    app.kubernetes.io/part-of: knowledge-tree
+    app.kubernetes.io/component: mcp-retrieval
+spec:
+  description: >-
+    Knowledge-tree read plane (kb_search, kb_get_document -> Qdrant collection
+    {{ .Values.qdrant.collection }}). Server is owned by teaglebuilt/knowledge.
+  protocol: STREAMABLE_HTTP
+  url: "http://{{ .Values.mcpServer.name }}.{{ .Values.namespace }}.svc.cluster.local:{{ .Values.mcpServer.port }}/mcp"
+  timeout: {{ .Values.mcpServer.timeout | quote }}
 {{- end }}

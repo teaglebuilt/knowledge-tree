@@ -25,8 +25,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY kb/__init__.py kb/__main__.py kb/config.py kb/embed.py kb/chunk.py \
      kb/store.py kb/sync.py /build/kb/
 COPY kb/adapters/ /build/kb/adapters/
-COPY kb/mcp_retrieval/ /build/kb/mcp_retrieval/
-COPY kb/ingest_api/ /build/kb/ingest_api/
+COPY kb/services/ /build/kb/services/
+COPY kb/mcp/ /build/kb/mcp/
+COPY kb/api/ /build/kb/api/
 
 ENV FASTEMBED_CACHE_PATH=/opt/fastembed \
     HOME=/tmp \
@@ -61,6 +62,6 @@ WORKDIR /app
 USER 1000:1000
 
 # Read plane by default. The write plane is the same image with a different
-# module: command ["python","-m","kb.ingest_api"].
+# module: command ["python","-m","kb.api"].
 ENTRYPOINT ["python"]
-CMD ["-m", "kb.mcp_retrieval"]
+CMD ["-m", "kb.mcp"]

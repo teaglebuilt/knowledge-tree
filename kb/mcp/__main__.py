@@ -1,4 +1,4 @@
-"""Entry: python -m kb.mcp_retrieval [--transport stdio|streamable-http]."""
+"""Entry: python -m kb.mcp [--transport stdio|streamable-http] (read plane only)."""
 from __future__ import annotations
 
 import argparse
@@ -6,12 +6,12 @@ import os
 import sys
 
 from .. import config
-from .server import mcp
+from .read import mcp
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="kb.mcp_retrieval",
+        prog="kb.mcp",
         description="Knowledge-tree MCP read plane (kb_search → Qdrant)",
     )
     parser.add_argument(

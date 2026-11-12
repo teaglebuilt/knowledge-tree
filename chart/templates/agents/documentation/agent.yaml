@@ -1,0 +1,20 @@
+{{- if .Values.docsAgent.enabled }}
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: Agent
+metadata:
+  name: {{ .Values.docsAgent.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.docsAgent.name }}
+    app.kubernetes.io/part-of: knowledge-tree
+    app.kubernetes.io/component: documentation-agent
+spec:
+  harnessRef:
+    name: kagent
+  template:
+    ref:
+      name: {{ .Values.docsAgent.templateName }}
+  egressPolicyRefs:
+    - name: {{ .Values.docsAgent.name }}
+{{- end }}

@@ -33,7 +33,7 @@ spec:
         - name: ingest
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["python", "-m", "kb.ingest_api"]
+          command: ["python", "-m", "kb.api"]
           ports:
             - name: http
               containerPort: {{ .Values.ingest.port }}
@@ -65,6 +65,12 @@ spec:
               value: {{ .Values.ingest.port | quote }}
             - name: KB_INGEST_PATH_PREFIXES
               value: {{ .Values.ingest.pathPrefixes | quote }}
+            - name: KB_MCP_INGEST_PATH_PREFIXES
+              value: {{ .Values.ingest.mcp.pathPrefixes | quote }}
+            - name: KB_MCP_INGEST_SOURCE_TYPES
+              value: {{ .Values.ingest.mcp.sourceTypes | quote }}
+            - name: KB_MCP_INGEST_MAX_BYTES
+              value: {{ .Values.ingest.mcp.maxBytes | quote }}
             {{- if .Values.ingest.tokenSecret }}
             - name: KB_INGEST_TOKEN
               valueFrom:
@@ -115,27 +121,4 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ $name }}
-  namespace: {{ .Values.namespace }}
-  labels:
-    app.kubernetes.io/name: {{ $name }}
-    app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: ingest
-  {{- with .Values.ingest.serviceAnnotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-spec:
-  type: ClusterIP
-  selector:
-    app.kubernetes.io/name: {{ $name }}
-  ports:
-    - name: http
-      port: {{ .Values.ingest.port }}
-      targetPort: http
-      protocol: TCP
 {{- end }}

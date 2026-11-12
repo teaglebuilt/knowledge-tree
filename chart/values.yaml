@@ -7,7 +7,7 @@ namespace: ai
 # Placeholder registry path — replace if your org uses a different GHCR/name.
 image:
   repository: ghcr.io/teaglebuilt/kb-retrieval
-  tag: "0.3.0"
+  tag: "0.4.0"
   pullPolicy: IfNotPresent
   pullSecrets:
     - name: ghcr-secret
@@ -25,7 +25,7 @@ mcpServer:
   cmd: python
   args:
     - -m
-    - kb.mcp_retrieval
+    - kb.mcp
 
 # Qdrant connection. When url is empty, QDRANT_NETWORK selects internal vs external.
 # Prefer network=internal for in-cluster DNS (pod near Qdrant on application/data).
@@ -36,10 +36,20 @@ ingest:
   name: kb-ingest
   replicas: 1
   port: 3000
-  # Comma-separated path prefixes the write plane is allowed to own.
-  pathPrefixes: "tree/"
+  # Comma-separated path prefixes the write plane is allowed to own. Must stay
+  # DISJOINT from paths `kb sync` owns (docs/read-plane.md follow-up 2):
+  # n8n YouTube writes tree/youtube/, agents write tree/docs/.
+  pathPrefixes: "tree/youtube/,tree/docs/"
+  # Agent-facing MCP (/mcp on the same Service): kb_ingest + kb_ingest_status.
+  # Narrower than the HTTP plane: own prefix, closed source types, size cap.
+  mcp:
+    pathPrefixes: "tree/docs/"
+    sourceTypes: "documentation"
+    maxBytes: "524288"
   # NAME of a Secret (in the chart namespace) holding the bearer token under
-  # tokenSecretKey. Not the token itself. Leave empty for in-cluster-only access.
+  # tokenSecretKey. Not the token itself. REQUIRED: with no token the write
+  # plane refuses every write (fail closed; KB_INGEST_ALLOW_ANONYMOUS is for
+  # local dev only).
   # Create: kubectl -n ai create secret generic kb-ingest-token \
   #           --from-literal=KB_INGEST_TOKEN=<random>
   tokenSecret: "kb-ingest-token"
@@ -133,6 +143,49 @@ writableVolumes:
   home: true
   tmp: true
 
-agent:
-  # knowledge-scout Agent template (chart/templates/agent.yaml) — enable when ready.
+knowledgeScoutAgent:
+  # knowledge-scout Agent (chart/templates/agents/kb-scout/) — enable when ready.
   enabled: true
+  # Agent and EgressPolicy name (the Agent references its policy by this name).
+  name: knowledge-scout-agent
+  egressOrigins:
+    - http://kb-retrieval.ai.svc.cluster.local:3000
+    - http://kb-ingest.ai.svc.cluster.local:3000
+    - http://firecrawl-mcp.automation.svc.cluster.local:3000
+    - https://mcp.context7.com
+    - http://vllm-selfhosted.ai.svc.cluster.local:8000
+
+# Documentation agent: harvests whole documentation sets into tree/docs/.
+# Gated by docsAgent.enabled alone. Deploy with kagent on mlops; set false on
+# any cluster without kagent CRDs (e.g. application).
+# Bound as a subAgent by homelab solutions-architect (conversation hand-off).
+docsAgent:
+  enabled: true
+  templateName: documentation
+  name: documentation-agent
+  modelConfig: llmd-vllm-config
+  # Pages scraped+ingested per run. Every page passes through the model's
+  # context (scrape result + kb_ingest args), so keep this small on 32k models.
+  maxPagesPerRun: 8
+  # Requires the kagent harness with the golang-adk image (homelab harness
+  # `kagent` uses it). Set false on codex/claude/byo harnesses, which reject it.
+  structuredOutput: true
+  # RemoteMCPServer for the write plane. kb-ingest runs on the cluster that
+  # hosts Qdrant; the Cilium global Service makes this DNS name resolve on mlops.
+  kbIngest:
+    createRemoteMCPServer: true
+    name: kb-ingest
+    url: http://kb-ingest.ai.svc.cluster.local:3000/mcp
+    timeout: 120s
+    # Secret IN THE AGENT NAMESPACE (mlops/ai) holding the same token as the
+    # kb-ingest Deployment's KB_INGEST_TOKEN. Sent as X-KB-Ingest-Token.
+    tokenSecret: kb-ingest-token
+    tokenSecretKey: KB_INGEST_TOKEN
+  # Explicit egress (inferred policy alone does not reach actors — homelab
+  # solutions-architect learned this the hard way).
+  egressOrigins:
+    - http://kb-retrieval.ai.svc.cluster.local:3000
+    - http://kb-ingest.ai.svc.cluster.local:3000
+    - http://firecrawl-mcp.automation.svc.cluster.local:3000
+    - https://mcp.context7.com
+    - http://vllm-selfhosted.ai.svc.cluster.local:8000

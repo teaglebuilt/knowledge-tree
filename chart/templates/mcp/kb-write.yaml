@@ -1,0 +1,26 @@
+{{- if and .Values.docsAgent.enabled .Values.docsAgent.kbIngest.createRemoteMCPServer }}
+---
+apiVersion: api.kagent.dev/v1alpha3
+kind: RemoteMCPServer
+metadata:
+  name: {{ .Values.docsAgent.kbIngest.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.docsAgent.kbIngest.name }}
+    app.kubernetes.io/part-of: knowledge-tree
+    app.kubernetes.io/component: ingest
+spec:
+  description: >-
+    Knowledge-tree write plane (kb_ingest, kb_ingest_status -> Qdrant
+    collection {{ .Values.qdrant.collection }}). Server is owned by
+    teaglebuilt/knowledge.
+  protocol: STREAMABLE_HTTP
+  url: {{ .Values.docsAgent.kbIngest.url | quote }}
+  timeout: {{ .Values.docsAgent.kbIngest.timeout | quote }}
+  headersFrom:
+    - name: X-KB-Ingest-Token
+      valueFrom:
+        type: Secret
+        name: {{ .Values.docsAgent.kbIngest.tokenSecret }}
+        key: {{ .Values.docsAgent.kbIngest.tokenSecretKey }}
+{{- end }}

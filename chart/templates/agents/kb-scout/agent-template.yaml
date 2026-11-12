@@ -1,4 +1,4 @@
-{{- if .Values.agent.enabled }}
+{{- if .Values.knowledgeScoutAgent.enabled }}
 ---
 apiVersion: api.kagent.dev/v1alpha3
 kind: AgentTemplate
@@ -122,9 +122,9 @@ spec:
           kind: RemoteMCPServer
           name: firecrawl
         tools:
-          - firecrawl_firecrawl_search
-          - firecrawl_firecrawl_agent
-          - firecrawl_firecrawl_agent_status
-          - firecrawl_firecrawl_research_search_github
-          - firecrawl_firecrawl_research_search_papers
+          - firecrawl_search
+          - firecrawl_agent
+          - firecrawl_agent_status
+          - firecrawl_research_search_github
+          - firecrawl_research_search_papers
 {{- end }}

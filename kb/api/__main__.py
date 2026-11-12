@@ -1,4 +1,4 @@
-"""Entry: python -m kb.ingest_api [--host H] [--port P]."""
+"""Entry: python -m kb.api [--host H] [--port P]."""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ from .. import config
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="kb.ingest_api",
+        prog="kb.api",
         description="Knowledge write plane (POST /ingest -> Qdrant)",
     )
     parser.add_argument("--host", default=os.environ.get("KB_INGEST_HOST", "0.0.0.0"))
@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
-    uvicorn.run("kb.ingest_api.app:app", host=args.host, port=args.port, log_level="info")
+    uvicorn.run("kb.api.app:app", host=args.host, port=args.port, log_level="info")
     return 0
 
 
