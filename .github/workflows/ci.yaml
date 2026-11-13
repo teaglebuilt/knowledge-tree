@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: azure/setup-helm@v4
+      - name: Lockfile is current
+        run: uv lock --check
+      - name: Unit, contract-snapshot and chart-render tests
+        run: uv sync --frozen && uv run pytest -q tests
+      - name: Helm lint (both cluster overlays)
+        run: |
+          helm lint chart
+          helm lint chart --set api.enabled=true --set mcp.read.enabled=false \
+            --set knowledgeScoutAgent.enabled=false --set docsAgent.enabled=false
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      # Build only; publishing stays a deliberate `make docker-push` after review.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ghcr.io/teaglebuilt/kb:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

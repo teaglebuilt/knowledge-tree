@@ -1,1 +1,1 @@
-"""HTTP write plane (kb-ingest): REST /ingest, /exists, /delete plus the write MCP at /mcp."""
+"""kb-api: versioned REST (/v1, /openapi.json) plus the write MCP (kb-mcp-write) at /mcp."""

@@ -1,0 +1,88 @@
+[
+  {
+    "description": "Read a whole stored document, in order, by its `path` from kb_search. Returns chunks `offset`..`offset+limit-1` stitched into continuous text. When the response carries `next_offset`, call again with that offset to read the rest.",
+    "input_schema": {
+      "properties": {
+        "limit": {
+          "default": 24,
+          "description": "Chunks per page (capped at 60).",
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "offset": {
+          "default": 0,
+          "description": "First chunk to return; use next_offset.",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "path": {
+          "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+          "maxLength": 512,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "kb_get_documentArguments",
+      "type": "object"
+    },
+    "name": "kb_get_document"
+  },
+  {
+    "description": "Semantic search over the knowledge collection. Returns the k most similar chunks (not whole documents) with path, heading, chunk_index, score, source_type, source_url, tags and text for citations. Set `path` to search inside one document, or `source_type` (e.g. \"youtube\", \"tree\") to restrict by origin.",
+    "input_schema": {
+      "properties": {
+        "k": {
+          "default": 8,
+          "description": "Number of chunks to return (capped at 20).",
+          "minimum": 1,
+          "title": "K",
+          "type": "integer"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Search inside one document only.",
+          "title": "Path"
+        },
+        "query": {
+          "description": "Natural-language query.",
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Restrict by origin, e.g. \"youtube\", \"tree\", \"documentation\".",
+          "title": "Source Type"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "kb_searchArguments",
+      "type": "object"
+    },
+    "name": "kb_search"
+  }
+]

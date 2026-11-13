@@ -1,0 +1,100 @@
+[
+  {
+    "description": "Report whether a path is indexed and which revision (doc_hash) it holds. Use before writing to avoid duplicate work, and after writing to confirm completion.",
+    "input_schema": {
+      "properties": {
+        "path": {
+          "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+          "maxLength": 512,
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "kb_document_statusArguments",
+      "type": "object"
+    },
+    "name": "kb_document_status"
+  },
+  {
+    "description": "Store one markdown document in the knowledge tree and index it. `path` is the document's stable identity, e.g. \"tree/docs/kagent/agent-delegation.md\"; writing the same path again replaces the previous revision. Frontmatter (title, source_url, source_type, tags) is added if absent for agent writes. Returns a receipt: status \"ingested\"|\"unchanged\"|\"empty\" plus path, doc_hash and chunks. Re-sending identical content is a no-op, so retries are safe.",
+    "input_schema": {
+      "properties": {
+        "force": {
+          "default": false,
+          "description": "Re-embed even if the body is unchanged.",
+          "title": "Force",
+          "type": "boolean"
+        },
+        "markdown": {
+          "description": "Full markdown body, frontmatter allowed.",
+          "title": "Markdown",
+          "type": "string"
+        },
+        "path": {
+          "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+          "maxLength": 512,
+          "title": "Path",
+          "type": "string"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "documentation",
+          "description": "Must be one of the agent-allowed source types.",
+          "title": "Source Type"
+        },
+        "source_url": {
+          "description": "http(s) page the content came from.",
+          "title": "Source Url",
+          "type": "string"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tags for added frontmatter.",
+          "title": "Tags"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Title for added frontmatter.",
+          "title": "Title"
+        }
+      },
+      "required": [
+        "path",
+        "markdown",
+        "source_url"
+      ],
+      "title": "kb_store_documentArguments",
+      "type": "object"
+    },
+    "name": "kb_store_document"
+  }
+]

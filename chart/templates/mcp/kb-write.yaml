@@ -1,26 +1,29 @@
-{{- if and .Values.docsAgent.enabled .Values.docsAgent.kbIngest.createRemoteMCPServer }}
+{{- if and .Values.docsAgent.enabled .Values.docsAgent.kbWriter.createRemoteMCPServer }}
+{{- $w := .Values.docsAgent.kbWriter }}
 ---
+# kb-mcp-write: the write MCP mounted at /mcp on kb-api (application cluster).
+# Bind it ONLY from agents that may write; binding is the permission boundary.
 apiVersion: api.kagent.dev/v1alpha3
 kind: RemoteMCPServer
 metadata:
-  name: {{ .Values.docsAgent.kbIngest.name }}
+  name: {{ $w.name }}
   namespace: {{ .Values.namespace }}
   labels:
-    app.kubernetes.io/name: {{ .Values.docsAgent.kbIngest.name }}
+    app.kubernetes.io/name: {{ $w.name }}
     app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: ingest
+    app.kubernetes.io/component: mcp-write
 spec:
   description: >-
-    Knowledge-tree write plane (kb_ingest, kb_ingest_status -> Qdrant
-    collection {{ .Values.qdrant.collection }}). Server is owned by
-    teaglebuilt/knowledge.
+    Knowledge-tree write MCP (kb_store_document, kb_document_status -> Qdrant
+    collection {{ .Values.qdrant.collection }}). Hosted by kb-api. Server is
+    owned by teaglebuilt/knowledge.
   protocol: STREAMABLE_HTTP
-  url: {{ .Values.docsAgent.kbIngest.url | quote }}
-  timeout: {{ .Values.docsAgent.kbIngest.timeout | quote }}
+  url: {{ $w.url | quote }}
+  timeout: {{ $w.timeout | quote }}
   headersFrom:
-    - name: X-KB-Ingest-Token
+    - name: {{ $w.tokenHeader }}
       valueFrom:
         type: Secret
-        name: {{ .Values.docsAgent.kbIngest.tokenSecret }}
-        key: {{ .Values.docsAgent.kbIngest.tokenSecretKey }}
+        name: {{ $w.tokenSecret }}
+        key: {{ $w.tokenSecretKey }}
 {{- end }}

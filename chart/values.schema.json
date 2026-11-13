@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "knowledge-tree chart values",
+  "description": "Unknown top-level keys are rejected so overlays written for chart 2.x (ingest.*, mcpServer.*, docsAgent.kbIngest.*) fail at render time instead of silently deploying defaults.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "type": "object"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string"
+        },
+        "pullSecrets": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "apiVersion": {
+              "type": "string"
+            },
+            "transportType": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": "string"
+            },
+            "replicas": {
+              "type": "integer"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "cmd": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "replicas": {
+          "type": "integer"
+        },
+        "port": {
+          "type": "integer"
+        },
+        "writePolicy": {
+          "type": "object",
+          "properties": {
+            "pathPrefixes": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "mcpWrite": {
+          "type": "object",
+          "properties": {
+            "pathPrefixes": {
+              "type": "string"
+            },
+            "sourceTypes": {
+              "type": "string"
+            },
+            "maxBytes": {
+              "type": [
+                "string",
+                "integer"
+              ]
+            },
+            "legacyTools": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "writeTokenSecret": {
+              "type": "string"
+            },
+            "writeTokenSecretKey": {
+              "type": "string"
+            },
+            "readTokenSecret": {
+              "type": "string"
+            },
+            "readTokenSecretKey": {
+              "type": "string"
+            },
+            "adminTokenSecret": {
+              "type": "string"
+            },
+            "adminTokenSecretKey": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "serviceAnnotations": {
+          "type": "object"
+        },
+        "resources": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sync": {
+      "type": "object"
+    },
+    "qdrant": {
+      "type": "object"
+    },
+    "embedding": {
+      "type": "object"
+    },
+    "search": {
+      "type": "object"
+    },
+    "fastembedCachePath": {
+      "type": "string"
+    },
+    "resources": {
+      "type": "object"
+    },
+    "podSecurityContext": {
+      "type": "object"
+    },
+    "securityContext": {
+      "type": "object"
+    },
+    "writableVolumes": {
+      "type": "object"
+    },
+    "knowledgeScoutAgent": {
+      "type": "object"
+    },
+    "docsAgent": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "templateName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "modelConfig": {
+          "type": "string"
+        },
+        "maxPagesPerRun": {
+          "type": "integer"
+        },
+        "structuredOutput": {
+          "type": "boolean"
+        },
+        "kbWriter": {
+          "type": "object",
+          "properties": {
+            "createRemoteMCPServer": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "timeout": {
+              "type": "string"
+            },
+            "tokenSecret": {
+              "type": "string"
+            },
+            "tokenSecretKey": {
+              "type": "string"
+            },
+            "tokenHeader": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "egressOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -107,7 +107,7 @@ spec:
     - mcp:
         server:
           kind: RemoteMCPServer
-          name: kb-retrieval
+          name: {{ .Values.mcp.read.name }}
         tools:
           - kb_search
     - mcp:

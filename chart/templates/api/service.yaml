@@ -1,5 +1,5 @@
-{{- if .Values.ingest.enabled }}
-{{- $name := .Values.ingest.name }}
+{{- if .Values.api.enabled }}
+{{- $name := .Values.api.name }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,8 +8,8 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ $name }}
     app.kubernetes.io/part-of: knowledge-tree
-    app.kubernetes.io/component: ingest
-  {{- with .Values.ingest.serviceAnnotations }}
+    app.kubernetes.io/component: api
+  {{- with .Values.api.serviceAnnotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -19,7 +19,7 @@ spec:
     app.kubernetes.io/name: {{ $name }}
   ports:
     - name: http
-      port: {{ .Values.ingest.port }}
+      port: {{ .Values.api.port }}
       targetPort: http
       protocol: TCP
 {{- end }}

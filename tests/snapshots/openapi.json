@@ -1,0 +1,966 @@
+{
+  "components": {
+    "schemas": {
+      "DeleteDocumentResponse": {
+        "properties": {
+          "deleted_revisions": {
+            "title": "Deleted Revisions",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "deleted_revisions"
+        ],
+        "title": "DeleteDocumentResponse",
+        "type": "object"
+      },
+      "DocumentPageResponse": {
+        "properties": {
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pass as offset to read on; null at the end.",
+            "title": "Next Offset"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "returned_chunks": {
+            "title": "Returned Chunks",
+            "type": "integer"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "total_chunks": {
+            "title": "Total Chunks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "title",
+          "source_type",
+          "source_url",
+          "total_chunks",
+          "offset",
+          "returned_chunks",
+          "next_offset",
+          "text"
+        ],
+        "title": "DocumentPageResponse",
+        "type": "object"
+      },
+      "DocumentStatus": {
+        "properties": {
+          "doc_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Indexed revision; null if absent or ambiguous.",
+            "title": "Doc Hash"
+          },
+          "exists": {
+            "title": "Exists",
+            "type": "boolean"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "exists",
+          "doc_hash"
+        ],
+        "title": "DocumentStatus",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "enum": [
+              "invalid_request",
+              "policy_violation",
+              "unauthorized",
+              "forbidden",
+              "not_found",
+              "payload_too_large",
+              "backend_unavailable"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "SearchHitModel": {
+        "properties": {
+          "chunk_index": {
+            "title": "Chunk Index",
+            "type": "integer"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "heading",
+          "chunk_index",
+          "score",
+          "source_type",
+          "source_url",
+          "tags",
+          "text"
+        ],
+        "title": "SearchHitModel",
+        "type": "object"
+      },
+      "SearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "k": {
+            "default": 8,
+            "description": "Number of chunks to return (capped at 20).",
+            "minimum": 1.0,
+            "title": "K",
+            "type": "integer"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Search inside one document only.",
+            "title": "Path"
+          },
+          "query": {
+            "description": "Natural-language query.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restrict by origin, e.g. \"youtube\", \"tree\", \"documentation\".",
+            "title": "Source Type"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "SearchRequest",
+        "type": "object"
+      },
+      "SearchResponse": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHitModel"
+            },
+            "title": "Hits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "hits"
+        ],
+        "title": "SearchResponse",
+        "type": "object"
+      },
+      "StoreDocumentReceipt": {
+        "properties": {
+          "chunks": {
+            "title": "Chunks",
+            "type": "integer"
+          },
+          "collection": {
+            "title": "Collection",
+            "type": "string"
+          },
+          "doc_hash": {
+            "title": "Doc Hash",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "status": {
+            "description": "ingested/unchanged mean the document is searchable now; retries are safe.",
+            "enum": [
+              "ingested",
+              "unchanged",
+              "empty"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "path",
+          "doc_hash",
+          "chunks",
+          "collection"
+        ],
+        "title": "StoreDocumentReceipt",
+        "type": "object"
+      },
+      "StoreDocumentRequest": {
+        "additionalProperties": false,
+        "description": "Upsert one markdown document keyed by `path` (HTTP writers, e.g. n8n).",
+        "properties": {
+          "force": {
+            "default": false,
+            "description": "Re-embed even if the body is unchanged.",
+            "title": "Force",
+            "type": "boolean"
+          },
+          "markdown": {
+            "description": "Full markdown body, frontmatter allowed.",
+            "title": "Markdown",
+            "type": "string"
+          },
+          "path": {
+            "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+            "maxLength": 512,
+            "title": "Path",
+            "type": "string"
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Origin label; reserved types (tree, memory, chatgpt*) refused.",
+            "title": "Source Type"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "http(s) provenance URL.",
+            "title": "Source Url"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tags for added frontmatter.",
+            "title": "Tags"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Title for added frontmatter.",
+            "title": "Title"
+          }
+        },
+        "required": [
+          "path",
+          "markdown"
+        ],
+        "title": "StoreDocumentRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "description": "Raw token",
+        "in": "header",
+        "name": "X-KB-Write-Token",
+        "type": "apiKey"
+      },
+      "HTTPBearer": {
+        "description": "Bearer <token>",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Search, read and store knowledge-tree documents in Qdrant. Operation IDs match the MCP tool names; only mcp-read / mcp-write tagged operations are ever exposed as agent tools, and admin operations never are.",
+    "title": "Knowledge Tree API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/documents": {
+      "delete": {
+        "description": "Admin only. Removes all points stored for `path`. Never exposed as an agent tool.",
+        "operationId": "kb_delete_document",
+        "parameters": [
+          {
+            "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteDocumentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or write-policy violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Token lacks the required scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Qdrant or the embedder is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Delete every revision of a path",
+        "tags": [
+          "admin"
+        ]
+      },
+      "get": {
+        "description": "Read a whole stored document, in order, by its `path` from kb_search. Returns chunks `offset`..`offset+limit-1` stitched into continuous text. When the response carries `next_offset`, call again with that offset to read the rest.",
+        "operationId": "kb_get_document",
+        "parameters": [
+          {
+            "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "description": "First chunk to return; use next_offset.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "First chunk to return; use next_offset.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Chunks per page (capped at 60).",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "description": "Chunks per page (capped at 60).",
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or write-policy violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Token lacks the required scope"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Qdrant or the embedder is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Read a stored document",
+        "tags": [
+          "mcp-read"
+        ]
+      },
+      "post": {
+        "description": "Store one markdown document in the knowledge tree and index it. `path` is the document's stable identity, e.g. \"tree/docs/kagent/agent-delegation.md\"; writing the same path again replaces the previous revision. Frontmatter (title, source_url, source_type, tags) is added if absent for agent writes. Returns a receipt: status \"ingested\"|\"unchanged\"|\"empty\" plus path, doc_hash and chunks. Re-sending identical content is a no-op, so retries are safe.",
+        "operationId": "kb_store_document",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoreDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreDocumentReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or write-policy violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Token lacks the required scope"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Qdrant or the embedder is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Store (upsert) one markdown document",
+        "tags": [
+          "mcp-write"
+        ]
+      }
+    },
+    "/v1/documents/status": {
+      "get": {
+        "description": "Report whether a path is indexed and which revision (doc_hash) it holds. Use before writing to avoid duplicate work, and after writing to confirm completion.",
+        "operationId": "kb_document_status",
+        "parameters": [
+          {
+            "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "description": "Stable document identity, e.g. tree/docs/kagent/agent-delegation.md",
+              "maxLength": 512,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or write-policy violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Token lacks the required scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Qdrant or the embedder is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Indexed revision of a path",
+        "tags": [
+          "mcp-write"
+        ]
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "description": "Semantic search over the knowledge collection. Returns the k most similar chunks (not whole documents) with path, heading, chunk_index, score, source_type, source_url, tags and text for citations. Set `path` to search inside one document, or `source_type` (e.g. \"youtube\", \"tree\") to restrict by origin.",
+        "operationId": "kb_search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request or write-policy violation"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Token lacks the required scope"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Qdrant or the embedder is unavailable"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Semantic search",
+        "tags": [
+          "mcp-read"
+        ]
+      }
+    }
+  }
+}

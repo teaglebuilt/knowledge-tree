@@ -1,6 +1,7 @@
 """Service: embed query → ANN search → citation-friendly text."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from html import escape
 
 from .. import config, embed
@@ -41,19 +42,61 @@ class KnowledgeSearch:
         hits = self.search(query, k, path=path, source_type=source_type)
         return format_hits(hits)
 
-    def document_formatted(
+    def document_page(
         self, path: str, offset: int = 0, limit: int | None = None
-    ) -> str:
+    ) -> DocumentPage | None:
+        """One page of a stored document, or None when nothing is at `path`."""
         rel = _clean(path)
         if not rel:
             raise ValueError("path must be a non-empty string")
         if offset < 0:
             raise ValueError("offset must be >= 0")
-        page = _clamp_page(limit)
         chunks = self._store.document(rel)
         if not chunks:
-            return f'No document stored at path "{rel}".'
-        return format_document(chunks, offset, page)
+            return None
+        return page_document(chunks, offset, _clamp_page(limit))
+
+    def document_formatted(
+        self, path: str, offset: int = 0, limit: int | None = None
+    ) -> str:
+        page = self.document_page(path, offset, limit)
+        return format_page(page) if page else missing_document(path)
+
+
+@dataclass(frozen=True)
+class DocumentPage:
+    path: str
+    title: str
+    source_type: str
+    source_url: str
+    total_chunks: int
+    offset: int
+    chunks: list[SearchHit]
+    next_offset: int | None
+
+    @property
+    def text(self) -> str:
+        return stitch(self.chunks)
+
+
+def page_document(chunks: list[SearchHit], offset: int, limit: int) -> DocumentPage:
+    window = chunks[offset : offset + limit]
+    end = offset + len(window)
+    head = chunks[0]
+    return DocumentPage(
+        path=head.path,
+        title=head.title,
+        source_type=head.source_type,
+        source_url=head.source_url,
+        total_chunks=len(chunks),
+        offset=offset,
+        chunks=window,
+        next_offset=end if end < len(chunks) else None,
+    )
+
+
+def missing_document(path: str) -> str:
+    return f'No document stored at path "{_clean(path)}".'
 
 
 def _clean(value: str | None) -> str | None:
@@ -96,23 +139,24 @@ def format_hits(hits: list[SearchHit]) -> str:
 
 
 def format_document(chunks: list[SearchHit], offset: int, limit: int) -> str:
-    total = len(chunks)
-    window = chunks[offset : offset + limit]
-    end = offset + len(window)
-    head = chunks[0]
+    return format_page(page_document(chunks, offset, limit))
+
+
+def format_page(page: DocumentPage) -> str:
+    end = page.offset + len(page.chunks)
     attrs = {
-        "path": head.path,
-        "title": head.title,
-        "source_type": head.source_type,
-        "source_url": head.source_url,
-        "chunks": f"{offset}-{max(offset, end - 1)} of {total}",
+        "path": page.path,
+        "title": page.title,
+        "source_type": page.source_type,
+        "source_url": page.source_url,
+        "chunks": f"{page.offset}-{max(page.offset, end - 1)} of {page.total_chunks}",
     }
-    if end < total:
-        attrs["next_offset"] = str(end)
-    if not window:
-        body = f"offset {offset} is past the last chunk ({total - 1})."
+    if page.next_offset is not None:
+        attrs["next_offset"] = str(page.next_offset)
+    if not page.chunks:
+        body = f"offset {page.offset} is past the last chunk ({page.total_chunks - 1})."
     else:
-        body = stitch(window)
+        body = page.text
     return f"<document {_attrs(attrs)}>\n{body}\n</document>"
 
 
